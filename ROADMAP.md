@@ -201,6 +201,24 @@ which is the right generator precisely because it spaces points evenly — and r
 points it read as woven fabric. A jitter of a fraction of the spacing kills the
 interference without clumping anything.
 
+**A dive into something has to be a dive into THAT thing.** The trench took three
+attempts. It began as a straight corridor and a separate sphere with the corridor fading up
+— a cross-fade dressed as a move. Then the camera flew down into the corridor instead of
+the corridor rising, which is a real move but still a move toward a different object. Only
+cutting the groove into the sphere fixed it, and two things fell straight out: travel became
+an angle rather than scrolling geometry with a modulo wrap, and from orbit the thing you are
+about to dive into is the thing you can already see.
+
+**"Up" is whatever the geometry says it is.** A trench cut round an equator opens RADIALLY
+OUTWARD, and its walls are the north and south faces — so from inside it, up points away
+from the station's axis, which is horizontal in world terms. Leaving the camera's up as
+world-up flew the entire run rolled ninety degrees, floor on the left and sky on the right.
+It looked like a framing problem and was an orientation one.
+
+**One fog range cannot serve a shot that starts a kilometre out and ends in a ditch.**
+Tuned for inside the groove, the fog made the whole station invisible from orbit, where the
+nearest hull is six hundred units away. The range travels with the dive.
+
 **Move the camera, not the world.** The trench arrived by rising forty units into place
 under a fixed camera, which is a cross-fade wearing a move — geometry appearing around a
 stationary observer never reads as travel. Flying the camera down into the same, entirely

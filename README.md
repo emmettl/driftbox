@@ -278,10 +278,15 @@ blobs rather than coastlines, because a recognisable world map invites you to lo
 own house and this wants to be read as a board. Green one side, red the other, white only
 at the moment of impact.
 
-*Trench* opens in orbit and **dives**: the camera hangs above the surface, then drops into
-the canyon and levels out, accelerating the whole way. It used to be the trench that moved
-— sunk below a stationary camera and raised into place as the music started — which is a
-fade dressed up as a move. Geometry arriving at a stationary observer is not an attack run.
+In *Trench* the corridor **is** the station's equatorial groove. The hull's latitude rings
+stop at the trench lip and the floor is a ring of its own at a smaller radius, so from orbit
+you can see the band missing from the sphere, and flying down it is flying around the
+equator. Travel is an angle going up; there is no scrolling geometry and nothing to wrap.
+
+It took three goes. First the corridor was a separate object that faded up as the music
+started — a cross-fade dressed as a move. Then the camera flew down into it, which is a real
+move but still a move toward a different thing: you were diving at a canyon that happened to
+be near a battle station. A dive into something has to be a dive into *that* thing.
 
 *Trench* is the only scene that is a **sequence** rather than a steady state. It opens
 holding station off a wireframe battle station — hull, equatorial trench, dish — and dives
