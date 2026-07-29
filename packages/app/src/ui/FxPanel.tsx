@@ -1,6 +1,7 @@
 import { DEFAULT_FX, delayDivision, type FxParams } from '@driftbox/engine'
 import { useBox } from '../store'
 import { Knob } from './Knob'
+import { Panel } from './Panel'
 
 // The two effects themselves. One panel for the whole song rather than one per voice,
 // because these are sends: the per-voice knobs decide how much of each voice arrives,
@@ -23,10 +24,7 @@ export function FxPanel() {
   const setFx = useBox((s) => s.setFx)
 
   return (
-    <section className="scope fx">
-      <header>
-        <h3>Delay · Reverb</h3>
-      </header>
+    <Panel id="fx" className="scope fx" title="Delay · Reverb">
       <div className="knobs fx-knobs">
         {KNOBS.map(({ key, label, format }) => (
           <Knob
@@ -39,6 +37,6 @@ export function FxPanel() {
           />
         ))}
       </div>
-    </section>
+    </Panel>
   )
 }

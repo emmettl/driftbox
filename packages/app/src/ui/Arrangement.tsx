@@ -1,5 +1,6 @@
 import { chainPositionAt, songBars } from '@driftbox/engine'
 import { useBox } from '../store'
+import { Panel } from './Panel'
 import { usePlayhead } from './usePlayhead'
 
 // The song, as a strip of sections.
@@ -27,14 +28,17 @@ export function Arrangement() {
   const bars = songBars(song)
 
   return (
-    <section className="arrangement">
-      <header>
-        <h3>Song</h3>
+    <Panel
+      id="song"
+      className="arrangement"
+      title="Song"
+      aside={
         <span className="arrangement-count">
           {bars} {bars === 1 ? 'bar' : 'bars'}
           {playing ? ` · playing ${playing.index + 1}/${song.chain.length}` : ''}
         </span>
-      </header>
+      }
+    >
 
       <div className="chain">
         {song.chain.map((step, index) => {
@@ -135,6 +139,6 @@ export function Arrangement() {
           No arrangement — the first pattern loops. Press + to start one.
         </p>
       )}
-    </section>
+    </Panel>
   )
 }

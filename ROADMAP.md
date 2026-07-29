@@ -14,7 +14,7 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
-| Song | Sections with repeat counts, editable while playing |
+| Song | Sections with repeat counts, editable while playing · ships as a 56-bar track |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
@@ -52,6 +52,25 @@ audio the moment you switch tabs.
 preference — it is what lets the engine be embedded elsewhere. It is now enforced by the
 package split rather than by discipline: `packages/engine` cannot reach into
 `packages/app`, because nothing declares that dependency and it would not resolve.
+
+**Touch devices open in the visuals, not on the grid.** A phone opening on a step grid
+opens on the part a small screen handles worst and buries the part it handles best. Chosen
+by `pointer: coarse` at startup — so it is a property of the device rather than of the
+window size — and the console is one tap away.
+
+That made vibes mode needing its own transport unavoidable: it had relied on the space
+bar, which does not exist on a phone, so the app would have opened silent with no way to
+start it.
+
+**The console is kept mounted while it folds away.** Unmounting on the state change would
+make it vanish rather than fold into the edit button; `FOLD_MS` in `App.tsx` and `--fold`
+in the stylesheet have to agree, or it either disappears early or lingers.
+
+**Folded panels are unmounted, not hidden.** The scope and the voice waveform each run an
+animation frame loop, and a hidden panel still drawing sixty times a second is exactly the
+cost somebody folded it away to avoid. Which panels are folded lives under its own
+localStorage key, not in the Song — it is a property of your screen, and it must not
+travel in a shared link.
 
 **The filter pad is the whole screen, and it filters the whole mix.** Not a widget in a
 corner, and not wired to the 303s' own cutoff — the obvious reading of "mess with a 303's
@@ -248,6 +267,10 @@ furthest from the original there — and then whether the 303s squelch like a re
 - **A pattern's length is shared by its drums and its basslines.** Polymetry works across
   the chain — a 12-step pattern next to a 16-step one — but not *within* a bar, so a
   15-step hat line under a 16-step kick still needs the two as separate patterns.
+- **A pattern with no kick in it is the one that clips.** Not the busiest — the busiest
+  have transients for the bus compressor to clamp against. `Lift` is hats and a 303 with
+  no kick at all, and measured at `1.04` from the drums alone until its two hat machines
+  were offset off each other's steps. Worth checking any pattern that is all sustain.
 - **The 909 open hat occasionally peaks just over full scale on its own** — `1.023` in one
   of five measured renders. Intermittent, because noise sources start at a random offset,
   so it depends on the render. Not audible as clipping through the bus, but it breaks the

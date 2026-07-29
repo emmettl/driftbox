@@ -364,7 +364,11 @@ Kept as a record of what these are worth.
    one sound with no compressor downstream to catch it. Correcting that naively then made
    the strong and weak clicks near-identical in level, so the downbeat stopped reading;
    both were set from rendered peaks rather than from gains.
-6. **A comment that had stopped being true.** The default delay was documented as the
+6. **A pattern clipping because it had no kick.** `Lift` peaked at `1.04` from its drums
+   alone, which is the opposite of the intuition — the busy patterns are fine, because a
+   transient gives the bus compressor something to clamp. A wall of hats with nothing to
+   duck it just accumulates. Two hat machines landing on the same steps was the cause.
+7. **A comment that had stopped being true.** The default delay was documented as the
    dotted eighth and was in fact a straight quarter — the knob value did not map where the
    prose said it did. Caught by printing what the UI actually renders, not by reading it.
 
