@@ -127,15 +127,23 @@ export function darkwaveSong(): Song {
     // Nearly straight. A darkwave shuffle would turn it into something else entirely.
     swing: 0.1,
     patterns: clonePatterns([veil, undertow, swell, black]),
+    // Starts on the figure, not on the intro.
+    //
+    // This opened with four bars of Veil, which is a kick and a drone — a fine thing to
+    // arrive at and a terrible thing to open with. Somebody pressing play on a track they
+    // have not heard gets thirteen seconds of almost nothing before it starts. Veil
+    // still earns its place, but later, where it reads as the room emptying rather than
+    // as the song failing to begin.
     chain: [
-      { pattern: 'veil', repeat: 4 },
       { pattern: 'undertow', repeat: 8 },
       { pattern: 'swell', repeat: 8 },
-      { pattern: 'black', repeat: 4 },
+      { pattern: 'black', repeat: 3 },
       { pattern: 'undertow', repeat: 8 },
       { pattern: 'swell', repeat: 8 },
+      { pattern: 'veil', repeat: 3 },
       { pattern: 'black', repeat: 2 },
-      { pattern: 'veil', repeat: 4 },
+      { pattern: 'undertow', repeat: 4 },
+      { pattern: 'veil', repeat: 2 },
     ],
     kit,
     fx: {
