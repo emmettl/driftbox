@@ -5,6 +5,7 @@ import { darkwaveSong } from './darkwave.js'
 import { ascendSong } from './ascend.js'
 import { runnerSong } from './runner.js'
 import { cyclesSong } from './cycles.js'
+import { defconSong } from './defcon.js'
 import { saturnSong } from './saturn.js'
 import { transmissionSong } from './transmission.js'
 
@@ -12,7 +13,7 @@ export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Eight of them, because one demonstrates the machines and eight demonstrate the range.
+// Nine of them, because one demonstrates the machines and nine demonstrate the range.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -80,6 +81,13 @@ export const SONGS: SongPreset[] = [
     build: transmissionSong,
   },
   {
+    id: 'defcon',
+    visual: 'defcon',
+    name: 'Defcon',
+    blurb: 'Downtempo — 68bpm, built on the tritone, the slowest thing here',
+    build: defconSong,
+  },
+  {
     id: 'ascend',
     visual: 'wireframe',
     name: 'Ascend',
@@ -114,6 +122,7 @@ export function defaultSong(): Song {
 export {
   acidSong,
   cyclesSong,
+  defconSong,
   ascendSong,
   chillwaveSong,
   darkwaveSong,

@@ -127,7 +127,7 @@ the machine's three of them are for. Select one in the grid and it appears as a 
 
 ## Three songs, one pair of 303s
 
-It ships with eight, and they share nothing — different tempos, different halves of the
+It ships with nine, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -137,19 +137,20 @@ scene used twice:
 |---|---|---|
 | **Sundown** | Chillwave. 102bpm, swung, lots of space. | *Sunset* |
 | **Acieed** | Acid house. 126bpm, dead straight, four to the floor. | *Web* |
-| **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
+| **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
+| **Defcon** | Downtempo. 68bpm, the slowest thing here, built on the tritone — the one interval that refuses to resolve. | *Defcon* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
 | **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
 | **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
 
 The order is a listening sequence rather than the order they were written: gentle, hard,
-dark, abstract, building, fast. Acieed and Ascend used to sit next to each other and open
+dark, machine, abstract, dread, building, breaking, fast. Acieed and Ascend used to sit next to each other and open
 with literally the same four bars at different tempos, so the set sounded like one track
 restarting.
 
-The part worth noticing is that the two 303s are the same synth in all eight and do not
+The part worth noticing is that the two 303s are the same synth in all nine and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -194,13 +195,14 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are eight — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are nine — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
-*Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; and *Light Cycles*.
+*Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*; and
+*Defcon*.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
@@ -233,6 +235,19 @@ on the axes and turn ninety degrees only, and **they turn on the beat** — so t
 with right angles drawn by the kick drum, and the picture is a record of what the music did
 rather than a reaction to how loud it was. A big hit derezzes the arena and they start
 again.
+
+*Defcon* is the only scene where the music makes something **happen** rather than something
+move. A kick launches a missile from one side of the board, it takes several seconds to
+fly, and it lands whenever it lands — so the picture runs a couple of bars behind the
+record and a launch and its arrival are separate events. The territories are generated
+blobs rather than coastlines, because a recognisable world map invites you to look for your
+own house and this wants to be read as a board. Green one side, red the other, white only
+at the moment of impact.
+
+*Trench* opens in orbit and **dives**: the camera hangs above the surface, then drops into
+the canyon and levels out, accelerating the whole way. It used to be the trench that moved
+— sunk below a stationary camera and raised into place as the music started — which is a
+fade dressed up as a move. Geometry arriving at a stationary observer is not an attack run.
 
 *Trench* is the only scene that is a **sequence** rather than a steady state. It opens
 holding station off a wireframe battle station — hull, equatorial trench, dish — and dives

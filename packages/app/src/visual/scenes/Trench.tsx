@@ -65,9 +65,6 @@ const SCENE_VERTEX = /* glsl */ `
     pos.x -= lean * 9.0;
     pos.y -= (uTouch.y - 0.5) * uWarp * 5.0;
 
-    // The trench does not exist until the dive. Sunk below the camera at the start and
-    // raised into place as the approach completes, so it arrives rather than fades.
-    pos.y -= (1.0 - uApproach) * 42.0;
 
     // Fog, per vertex. "far" is 0 at the vanishing point and 1 at the camera, so this is
     // bright along the near two-thirds, fading into the distance at one end and out over
@@ -75,7 +72,10 @@ const SCENE_VERTEX = /* glsl */ `
     // wrap makes the near end the HIGH value — leaves the only lit geometry a hundred
     // metres away and the trench you are actually inside completely transparent.
     float far = z / ${TRENCH_LENGTH.toFixed(1)};
-    vFade = smoothstep(0.02, 0.35, far) * (1.0 - smoothstep(0.72, 0.95, far)) * uApproach;
+    // Dimmer from altitude and full strength once you are down in it, which is the only
+    // thing left that the approach drives. The trench itself is simply THERE from the
+    // first frame — it is the camera that arrives, not the geometry.
+    vFade = smoothstep(0.02, 0.35, far) * (1.0 - smoothstep(0.72, 0.95, far)) * (0.3 + uApproach * 0.7);
     vKind = aKind;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -193,12 +193,10 @@ const BEAM_SEGMENTS = 7
 const BEAM_STRANDS = [-1, 0, 1]
 /** How far in front of the camera the cannons sit. Only the frame they define matters. */
 const MUZZLE_DIST = 3
+/** Where the run starts. High enough that the trench below reads as a canyon in a surface
+ *  rather than as a corridor you are already inside. */
+const ORBIT_HEIGHT = 54
 
-/** GLSL's smoothstep, for the parts of the sequence that are driven from JS. */
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
-  return t * t * (3 - 2 * t)
-}
 
 /** The battle station: a wireframe globe. */
 function useStation() {
@@ -328,6 +326,7 @@ export function Trench() {
     [],
   )
   const clock = useRef(0)
+  const roll = useRef(0)
 
   useFrame((_, dt) => {
     const { bass, high } = readLevels(engine)
@@ -342,14 +341,18 @@ export function Trench() {
     // The trench comes up over the middle of the approach and is fully there well before
     // the station has finished going past, so you are already in the canyon while the hull
     // is still sweeping overhead. That overlap is the shot.
-    const rise = smoothstep(0.4, 0.82, dive)
+    // How far down the dive is. Squared, so it hangs in orbit and then drops — a linear
+    // descent reads as a lift rather than as an attack run.
+    const drop = dive * dive
 
     clock.current += dt
-    travelled.current += dt * (30 + bass * 46) * rise
+    // And the speed comes up with it. From orbit the trench crawls past; by the bottom it
+    // is going faster than it ever did before.
+    travelled.current += dt * (14 + bass * 46) * (0.18 + drop * 1.5)
     u.uTime.value = travelled.current
     u.uBass.value = ease(u.uBass.value, bass, dt, 5)
     u.uHigh.value = ease(u.uHigh.value, high, dt, 6)
-    u.uApproach.value = rise
+    u.uApproach.value = drop
     u.uWarp.value = warp
     u.uTouch.value.set(touch.x, touch.y)
 
@@ -380,7 +383,7 @@ export function Trench() {
     // eases down over a couple of seconds after a finger lifts, so this is a gunner
     // standing down — before, the beams held full brightness the whole way and then
     // vanished on a threshold, which read as a dropped frame rather than as ceasing fire.
-    const firing = warp > 0.002 && rise > 0.4
+    const firing = warp > 0.002 && drop > 0.35
     if (lasers.current) lasers.current.visible = firing
     if (beamMat.current) beamMat.current.opacity = 0.95 * Math.min(1, warp * 1.35)
     if (firing) {
@@ -433,10 +436,19 @@ export function Trench() {
       col.needsUpdate = true
     }
 
+    // THE DIVE. The camera starts in orbit looking down at the surface and rushes into the
+    // canyon; the trench does not move at all.
+    //
+    // It was the other way round to begin with — the trench sunk forty units under the
+    // camera and raised into place as the music started — and that is a fade dressed up as
+    // a move. The geometry arriving at a stationary observer is not an attack run. This is
+    // the same sequence the cabinet opens with: you are above it, and then you are in it.
     camera.position.x = (touch.x - 0.5) * 2.4 * warp
-    camera.position.y = 3.2 - bass * 0.5 + (touch.y - 0.5) * 1.6 * warp
+    camera.position.y = ORBIT_HEIGHT + (4.2 - ORBIT_HEIGHT) * drop - bass * 0.5 + (touch.y - 0.5) * 1.6 * warp
     camera.position.z = 4
-    camera.rotation.z += ((touch.x - 0.5) * -0.35 * warp - camera.rotation.z) * Math.min(1, dt * 3)
+    // Pitched down at the surface from orbit and level by the time it is in the trench.
+    roll.current += ((touch.x - 0.5) * -0.35 * warp - roll.current) * Math.min(1, dt * 3)
+    camera.rotation.set(-0.62 * (1 - drop), 0, roll.current)
     if (material.current) material.current.uniformsNeedUpdate = true
   })
 

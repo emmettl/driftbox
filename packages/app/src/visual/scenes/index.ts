@@ -3,6 +3,7 @@ import { Lifeforms } from './Lifeforms'
 import { Sunset } from './Sunset'
 import { Wireframe } from './Wireframe'
 import { Cycles } from './Cycles'
+import { Defcon } from './Defcon'
 import { Saturn } from './Saturn'
 import { Stillwater } from './Stillwater'
 import { Trench } from './Trench'
@@ -26,6 +27,7 @@ export const SCENES: SceneInfo[] = [
   { id: 'water', name: 'Stillwater', Component: Stillwater },
   { id: 'saturn', name: 'Saturn', Component: Saturn },
   { id: 'cycles', name: 'Light Cycles', Component: Cycles },
+  { id: 'defcon', name: 'Defcon', Component: Defcon },
 ]
 
 export type SceneId = string
