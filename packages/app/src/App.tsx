@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAudioRecovery } from './audio-recovery'
 import { useBox } from './store'
 import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
@@ -31,6 +32,12 @@ export default function App() {
   const [scope, setScope] = useState<ScopeMode>('wave')
   const [scene, setScene] = useState<SceneId>(SCENES[0].id)
   const playButton = useRef<HTMLButtonElement>(null)
+  const audioStalled = useBox((s) => s.audioStalled)
+
+  // iOS suspends the audio context when Safari goes to the background, and never resumes
+  // it on its own. Without this the app comes back looking like it is playing and is
+  // silent for good.
+  useAudioRecovery()
 
   // The console flies out of the edit button, and folds back into it.
   //
@@ -100,6 +107,11 @@ export default function App() {
               start silent with no way to start it. */}
           {/* Only while stopped: a permanent effect is decoration, one that exists only
               while there is something to say is an instruction. */}
+          {/* Said out loud, because the alternative is an app that looks like it is
+              playing and makes no sound. A tap anywhere resumes it — the handler is
+              global — so this is telling you, not asking you to aim at it. */}
+          {audioStalled && <div className="audio-stalled">tap anywhere to resume</div>}
+
           <PlayBeacon active={!running} target={playButton} />
           <button
             ref={playButton}

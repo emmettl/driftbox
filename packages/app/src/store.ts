@@ -64,6 +64,9 @@ interface State {
   selectedBass: string
   /** Full-screen visuals with the sequencer hidden. */
   performance: boolean
+  /** The transport thinks it is playing but the audio context is not running — iOS took
+   *  it away and has not given it back. See `audio-recovery.ts`. */
+  audioStalled: boolean
   /** Panels the user has folded away, by id. Kept out of the Song: which panels you
    *  have open is about your screen, not about the music. */
   collapsed: Record<string, boolean>
@@ -190,6 +193,7 @@ export const useBox = create<State>()((set, get) => ({
   // handles worst, and burying the part it handles best. The pad wants a finger and
   // nothing else, so it is the right front door — and the console is one tap away.
   performance: prefersTouch(),
+  audioStalled: false,
   collapsed: loadCollapsed(),
 
   // The AudioContext is created lazily on the first interaction. Constructing one
