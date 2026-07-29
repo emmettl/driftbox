@@ -20,7 +20,7 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, chillwave scene, and a full-screen XY filter pad you play with a finger |
+| Visuals | Oscilloscope, two 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
 
@@ -102,6 +102,16 @@ animation frame loop, and a hidden panel still drawing sixty times a second is e
 cost somebody folded it away to avoid. Which panels are folded lives under its own
 localStorage key, not in the Song — it is a property of your screen, and it must not
 travel in a shared link.
+
+**Shared visual state owns its own clock.** `touch.ts` advances its eased `energy` on its
+own animation frame rather than from a scene's `useFrame`. The first version did the
+latter, which is right for a scene with one object and wrong for one with seven —
+Lifeforms called it eight times a frame and the warp decayed eight times too fast. Whose
+job it is to advance shared state should never depend on how many things happen to read it.
+
+**Nothing that asks to be pressed should animate its `transform`.** The play button pulsed
+with a `scale`, which makes it a moving target for a thumb — and a browser refuses to click
+it at all, because it never settles. Pulse the light, not the geometry.
 
 **The filter pad is the whole screen, and it filters the whole mix.** Not a widget in a
 corner, and not wired to the 303s' own cutoff — the obvious reading of "mess with a 303's

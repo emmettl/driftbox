@@ -167,6 +167,16 @@ compressor — so the compressor is not reacting to signal the filter is about t
 away, and a resonant peak cannot be pumped by it. The metronome is downstream of it, which
 means sweeping the filter shut never takes your count-in with it.
 
+Dragging warps the picture as well as the sound. The floor lifts and ripples toward your
+finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the vertex
+shader bending real geometry rather than an effect laid over the top, which is why the
+grid lines stretch around it.
+
+**C** changes the scene. There are two so far — *Sunset*, the slatted sun over a wireframe
+floor, and *Lifeforms*, which is aiming squarely at the ISDN-era Future Sound of London
+videos: translucent bodies breathing on the bass, none of them quite spheres, every vertex
+pushed around by layered noise so the silhouette never repeats.
+
 Works with a thumb. The pad is the reason the touch work exists.
 
 ## Swing is per voice
