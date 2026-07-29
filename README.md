@@ -265,7 +265,10 @@ the foot of the frame instead of across the middle of it), *x/y* for the vectors
 *Dancers* is the only scene with a **figure** in it, which turns out to be the one subject
 where the eye knows instantly whether you got it right — a tunnel can be any width and
 nobody argues, but a forearm that is too long reads as wrong before you have worked out
-why. Nothing is keyframed: every joint is a few sinusoids of the beat phase with a
+why. They are built as **artist's mannequins**: tapered blocks for the torso and limbs,
+oversized balls at every joint, mitt hands and wedge feet, and an ovoid head with no face.
+A lay figure is a stack of volumes rather than a skeleton, and it is the taper that reads
+as anatomy — a limb of constant width is a pipe. Nothing is keyframed: every joint is a few sinusoids of the beat phase with a
 per-dancer offset, driven by the transport's own tempo, so they are dancing to the record
 rather than to a loop running alongside it. They turn to face the cursor and reach toward
 it when it comes close.

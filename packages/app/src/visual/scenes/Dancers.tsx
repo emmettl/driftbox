@@ -90,6 +90,27 @@ const BODY = {
   foreArm: 0.31,
   thigh: 0.44,
   shin: 0.44,
+
+  // Thicknesses. A lay figure is a stack of tapered blocks joined by balls, and it is the
+  // TAPER that reads as anatomy — a limb of constant width is a pipe. Every one of these
+  // is a half-width, so a shoulder 0.15 across is 0.30 wide.
+  chestTop: 0.23,
+  waist: 0.155,
+  pelvisBottom: 0.2,
+  armTop: 0.075,
+  armMid: 0.055,
+  armEnd: 0.042,
+  legTop: 0.105,
+  legMid: 0.075,
+  legEnd: 0.05,
+  neckWide: 0.055,
+
+  // The balls. Oversized against the limbs they join, which is what makes a mannequin a
+  // mannequin rather than a mildly lumpy person.
+  shoulderBall: 0.085,
+  elbowBall: 0.062,
+  hipBall: 0.1,
+  kneeBall: 0.08,
 }
 
 const PALETTE = ['#ff2e93', '#5ff0ff', '#ffd23b', '#7dff6b', '#c86bff']
@@ -138,8 +159,15 @@ function useDancers(): Dancer[] {
   }, [])
 }
 
-/** Segments in one figure: spine, neck, shoulders, hips, four limb bones, and the head. */
-const SEGMENTS_PER_FIGURE = 4 + 8 + HEAD_POINTS
+/**
+ * Room for one figure's line segments.
+ *
+ * A ceiling rather than a count. The figure is built from prisms, rings and balls whose
+ * numbers are easy to get wrong by one and tedious to keep in step with the drawing code,
+ * so the buffer is generously sized and `setDrawRange` is set to whatever was actually
+ * emitted. Miscounting downward would silently truncate a leg.
+ */
+const SEGMENTS_PER_FIGURE = 360
 
 export function Dancers() {
   const engine = useBox((s) => s.engine)
@@ -182,7 +210,21 @@ export function Dancers() {
 
   const beat = useRef(0)
   const clock = useRef(0)
-  const scratch = useMemo(() => ({ a: new THREE.Vector3(), b: new THREE.Vector3() }), [])
+  const scratch = useMemo(
+    () => ({
+      a: new THREE.Vector3(),
+      b: new THREE.Vector3(),
+      // The prism basis, plus its eight corners. Held rather than allocated, because this
+      // runs a few hundred times a frame.
+      dir: new THREE.Vector3(),
+      ref: new THREE.Vector3(),
+      across: new THREE.Vector3(),
+      through: new THREE.Vector3(),
+      top: new Float32Array(12),
+      bottom: new Float32Array(12),
+    }),
+    [],
+  )
 
   useFrame((_, dt) => {
     const f = uniformsOf(figureMat)
@@ -217,10 +259,10 @@ export function Dancers() {
     const pos = figures.getAttribute('position') as THREE.BufferAttribute
     const col = figures.getAttribute('aColour') as THREE.BufferAttribute
     const glow = figures.getAttribute('aGlow') as THREE.BufferAttribute
-    const { a, b } = scratch
+    const { a, b, dir, ref, across, through, top, bottom } = scratch
     let v = 0
 
-    for (const d of dancers) {
+    for (const [index, d] of dancers.entries()) {
       // Turn to face the finger, easing round rather than snapping — a head that tracks
       // instantly reads as a turret.
       const want = Math.atan2(reach.x - d.x, reach.z - d.z)
@@ -253,6 +295,9 @@ export function Dancers() {
         bx: number, by: number, bz: number,
         heat: number,
       ) => {
+        // Past the end of this figure's slice. Writing on would corrupt the next dancer's
+        // limbs rather than failing, which is the worst way for a miscount to show up.
+        if (v >= (index + 1) * SEGMENTS_PER_FIGURE * 2) return
         put(ax, ay, az, a)
         put(bx, by, bz, b)
         pos.setXYZ(v, a.x, a.y, a.z)
@@ -266,11 +311,73 @@ export function Dancers() {
 
       const beatGlow = punch * 0.5 + near * 0.5
 
-      // Spine, neck, and the two bars that make a torso rather than a stick.
-      line(hipX, hipY, 0, hipX * 0.4, chestY, chestZ, beatGlow)
-      line(hipX * 0.4, chestY, chestZ, 0, chestY + BODY.neck, chestZ, beatGlow)
-      line(-BODY.shoulderWidth, chestY, chestZ, BODY.shoulderWidth, chestY, chestZ, beatGlow)
-      line(hipX - BODY.hipWidth, hipY, 0, hipX + BODY.hipWidth, hipY, 0, beatGlow)
+      /**
+       * A tapered four-sided prism between two points — one limb segment.
+       *
+       * The awkward part is the cross-section's orientation: a prism needs two axes
+       * perpendicular to the bone, and there is no natural choice, so one is taken from any
+       * reference that is not parallel to it. Using a fixed reference falls apart exactly
+       * when a limb points along it, which for a dancer is every time an arm goes straight
+       * up — hence the swap to a sideways reference for near-vertical bones.
+       */
+      const bone = (
+        ax: number, ay: number, az: number,
+        bx: number, by: number, bz: number,
+        r0: number, r1: number, heat: number,
+      ) => {
+        dir.set(bx - ax, by - ay, bz - az)
+        const len = dir.length()
+        if (len < 1e-4) return
+        dir.divideScalar(len)
+        ref.set(0, 1, 0)
+        if (Math.abs(dir.y) > 0.92) ref.set(1, 0, 0)
+        across.crossVectors(dir, ref).normalize()
+        through.crossVectors(dir, across).normalize()
+
+        for (let k = 0; k < 4; k++) {
+          // Turned an eighth, so the flats face the viewer and the silhouette is a
+          // rectangle rather than a diamond.
+          const ang = (k * Math.PI) / 2 + Math.PI / 4
+          const cu = Math.cos(ang)
+          const sw = Math.sin(ang)
+          top[k * 3] = ax + (across.x * cu + through.x * sw) * r0
+          top[k * 3 + 1] = ay + (across.y * cu + through.y * sw) * r0
+          top[k * 3 + 2] = az + (across.z * cu + through.z * sw) * r0
+          bottom[k * 3] = bx + (across.x * cu + through.x * sw) * r1
+          bottom[k * 3 + 1] = by + (across.y * cu + through.y * sw) * r1
+          bottom[k * 3 + 2] = bz + (across.z * cu + through.z * sw) * r1
+        }
+        for (let k = 0; k < 4; k++) {
+          const n = ((k + 1) % 4) * 3
+          const c = k * 3
+          line(top[c], top[c + 1], top[c + 2], top[n], top[n + 1], top[n + 2], heat)
+          line(bottom[c], bottom[c + 1], bottom[c + 2], bottom[n], bottom[n + 1], bottom[n + 2], heat)
+          line(top[c], top[c + 1], top[c + 2], bottom[c], bottom[c + 1], bottom[c + 2], heat)
+        }
+      }
+
+      /** A joint. Two perpendicular rings, which is the cheapest thing that reads as a
+       *  sphere and, on a lay figure, the detail that says the limb pivots there. */
+      const ball = (cx: number, cy: number, cz: number, r: number, heat: number) => {
+        const N = 6
+        for (let i = 0; i < N; i++) {
+          const a0 = (i / N) * Math.PI * 2
+          const a1 = ((i + 1) / N) * Math.PI * 2
+          line(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r, cz,
+               cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz, heat)
+          line(cx, cy + Math.sin(a0) * r, cz + Math.cos(a0) * r,
+               cx, cy + Math.sin(a1) * r, cz + Math.cos(a1) * r, heat)
+        }
+      }
+
+      const waistY = hipY + BODY.spine * 0.42
+
+      // Torso: two blocks and a waist ball, which is how the real thing is built and why it
+      // can bend at all. One prism from hips to shoulders would be a barrel.
+      bone(hipX, hipY, 0, hipX * 0.6, waistY, chestZ * 0.4, BODY.pelvisBottom, BODY.waist, beatGlow)
+      ball(hipX * 0.6, waistY, chestZ * 0.4, BODY.waist * 0.95, beatGlow)
+      bone(hipX * 0.6, waistY, chestZ * 0.4, 0, chestY, chestZ, BODY.waist, BODY.chestTop, beatGlow)
+      bone(0, chestY, chestZ, 0, chestY + BODY.neck, chestZ, BODY.neckWide, BODY.neckWide * 0.85, beatGlow)
 
       // Arms. Up on the beat, and reaching toward the finger when it is close — which is
       // the whole point of the scene, so it gets the biggest number in here.
@@ -283,8 +390,19 @@ export function Dancers() {
         const handX = elbowX + side * BODY.foreArm * Math.cos(raise * 1.4) * 0.7
         const handY = elbowY + BODY.foreArm * Math.sin(raise * 1.5 + 0.4)
         const handZ = elbowZ + near * 0.7
-        line(shoulderX, chestY, chestZ, elbowX, elbowY, elbowZ, beatGlow)
-        line(elbowX, elbowY, elbowZ, handX, handY, handZ, beatGlow + near * 0.6)
+        ball(shoulderX, chestY, chestZ, BODY.shoulderBall, beatGlow)
+        bone(shoulderX, chestY, chestZ, elbowX, elbowY, elbowZ, BODY.armTop, BODY.armMid, beatGlow)
+        ball(elbowX, elbowY, elbowZ, BODY.elbowBall, beatGlow)
+        bone(elbowX, elbowY, elbowZ, handX, handY, handZ, BODY.armMid, BODY.armEnd, beatGlow + near * 0.6)
+        // The mitt. A lay figure has no fingers, just a flat paddle, and leaving it off is
+        // the difference between a mannequin and an armature.
+        const reachX = handX - elbowX
+        const reachY = handY - elbowY
+        const reachZ = handZ - elbowZ
+        const span = Math.hypot(reachX, reachY, reachZ) || 1
+        bone(handX, handY, handZ,
+             handX + (reachX / span) * 0.09, handY + (reachY / span) * 0.09, handZ + (reachZ / span) * 0.09,
+             BODY.armEnd * 1.25, BODY.armEnd * 0.9, beatGlow + near * 0.6)
       }
 
       // Legs. Alternating step, and the knees bend on the bounce.
@@ -298,26 +416,41 @@ export function Dancers() {
         const kneeY = hipY - BODY.thigh * bend
         const kneeZ = step * 0.55
         const footX = kneeX + side * 0.03
-        const footY = Math.max(0.02, kneeY - BODY.shin * (0.92 - Math.abs(step) * 0.35))
+        const footY = Math.max(0.05, kneeY - BODY.shin * (0.92 - Math.abs(step) * 0.35))
         const footZ = step * 1.15
-        line(hipJointX, hipY, 0, kneeX, kneeY, kneeZ, beatGlow)
-        line(kneeX, kneeY, kneeZ, footX, footY, footZ, beatGlow)
+        ball(hipJointX, hipY, 0, BODY.hipBall, beatGlow)
+        bone(hipJointX, hipY, 0, kneeX, kneeY, kneeZ, BODY.legTop, BODY.legMid, beatGlow)
+        ball(kneeX, kneeY, kneeZ, BODY.kneeBall, beatGlow)
+        bone(kneeX, kneeY, kneeZ, footX, footY, footZ, BODY.legMid, BODY.legEnd, beatGlow)
+        // And a wedge of a foot, pointing the way the dancer faces.
+        bone(footX, footY, footZ, footX, footY * 0.35, footZ + 0.11,
+             BODY.legEnd, BODY.legEnd * 0.8, beatGlow)
       }
 
-      // The head, as a ring facing the way the dancer is.
+      // The head: an ovoid, taller than it is wide, drawn as three rings. No face — a lay
+      // figure has none, and adding one here would be the single fastest way to make five
+      // dancers look like five of the same doll.
+      const headTall = BODY.head * 1.22
       for (let i = 0; i < HEAD_POINTS; i++) {
         const a0 = (i / HEAD_POINTS) * Math.PI * 2
         const a1 = ((i + 1) / HEAD_POINTS) * Math.PI * 2
-        line(
-          Math.cos(a0) * BODY.head, headY + Math.sin(a0) * BODY.head, chestZ,
-          Math.cos(a1) * BODY.head, headY + Math.sin(a1) * BODY.head, chestZ,
-          beatGlow + 0.2,
-        )
+        const c0 = Math.cos(a0)
+        const s0 = Math.sin(a0)
+        const c1 = Math.cos(a1)
+        const s1 = Math.sin(a1)
+        // Across, front to back, and round the equator.
+        line(c0 * BODY.head, headY + s0 * headTall, chestZ,
+             c1 * BODY.head, headY + s1 * headTall, chestZ, beatGlow + 0.2)
+        line(0, headY + s0 * headTall, chestZ + c0 * BODY.head,
+             0, headY + s1 * headTall, chestZ + c1 * BODY.head, beatGlow + 0.2)
+        line(c0 * BODY.head, headY, chestZ + s0 * BODY.head,
+             c1 * BODY.head, headY, chestZ + s1 * BODY.head, beatGlow + 0.2)
       }
     }
     pos.needsUpdate = true
     col.needsUpdate = true
     glow.needsUpdate = true
+    figures.setDrawRange(0, v)
 
     // The lights: four beams from above, sweeping, splayed wider on the loud bits.
     const bpos = beams.getAttribute('position') as THREE.BufferAttribute
