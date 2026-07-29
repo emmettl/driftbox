@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@driftbox/engine': fileURLToPath(new URL('./packages/engine/src/index.ts', import.meta.url)),
+      '@driftbox/rack': fileURLToPath(new URL('./packages/rack/src/index.ts', import.meta.url)),
     },
   },
   test: {
