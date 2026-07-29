@@ -13,7 +13,8 @@ import { FxPanel } from './ui/FxPanel'
 import { Sequencer } from './ui/Sequencer'
 import { TransportBar } from './ui/TransportBar'
 import { VoicePanel } from './ui/VoicePanel'
-import { PlayBeacon } from './ui/PlayBeacon'
+import { PlayBeacon, type BeaconTarget } from './ui/PlayBeacon'
+import { useFirstRun, useMedia } from './ui/useFirstRun'
 import { Visualiser } from './visual/Visualiser'
 import { SCENES, nextScene } from './visual/scenes'
 import { Oscilloscope } from './visual/Oscilloscope'
@@ -23,6 +24,11 @@ import './styles.css'
 /** How long the console takes to fold into the edit button. Matches `--fold` in the
  *  stylesheet; they have to agree or the console either vanishes early or lingers. */
 const FOLD_MS = 260
+
+/** The stream colours, matched to the buttons: the transport's teal, and the amber that
+ *  vibes has worn since it stopped being a ghost button. */
+const TEAL = '95, 240, 208'
+const AMBER = '255, 176, 46'
 
 export default function App() {
   const performing = useBox((s) => s.performance)
@@ -38,6 +44,8 @@ export default function App() {
   const scene = useBox((s) => s.scene)
   const setScene = useBox((s) => s.setScene)
   const playButton = useRef<HTMLButtonElement>(null)
+  const consolePlay = useRef<HTMLButtonElement>(null)
+  const vibesButton = useRef<HTMLButtonElement>(null)
   const audioStalled = useBox((s) => s.audioStalled)
 
   // iOS suspends the audio context when Safari goes to the background, and never resumes
@@ -45,6 +53,34 @@ export default function App() {
   // silent for good.
   useAudioRecovery()
   useFollowPlayhead()
+
+  // Two things the console never said out loud: that it makes a sound, and that there is a
+  // whole other half of the app behind the vibes button. Both are obvious once you have
+  // done them once, so both are recorded the first time and never pointed at again.
+  const [learnt, learn] = useFirstRun()
+  const roomy = useMedia('(min-width: 900px)')
+  // A stream of particles across a working editor is exactly what this setting is for. The
+  // buttons keep their own glow either way.
+  const stillness = useMedia('(prefers-reduced-motion: reduce)')
+
+  useEffect(() => {
+    if (running) learn('played')
+  }, [running, learn])
+  useEffect(() => {
+    if (performing) learn('vibed')
+  }, [performing, learn])
+
+  // Fewer particles and a shorter throw than the phone's, because these land on a 40px
+  // button in a room already full of controls rather than on an empty picture.
+  const consoleBeacons: BeaconTarget[] = []
+  if (roomy && !stillness && !performing) {
+    if (!running && !learnt.has('played')) {
+      consoleBeacons.push({ key: 'play', target: consolePlay, tint: TEAL, count: 34, spawn: 5 })
+    }
+    if (!learnt.has('vibed')) {
+      consoleBeacons.push({ key: 'vibes', target: vibesButton, tint: AMBER, count: 34, spawn: 5 })
+    }
+  }
 
   // The console flies out of the edit button, and folds back into it.
   //
@@ -132,7 +168,9 @@ export default function App() {
               global — so this is telling you, not asking you to aim at it. */}
           {audioStalled && <div className="audio-stalled">tap anywhere to resume</div>}
 
-          <PlayBeacon active={!running} target={playButton} />
+          <PlayBeacon
+            targets={running ? [] : [{ key: 'stage', target: playButton, tint: TEAL }]}
+          />
           <button
             ref={playButton}
             className={`stage-play${running ? ' on' : ' calling'}`}
@@ -168,7 +206,7 @@ export default function App() {
 
       {consoleMounted && (
         <div className={`console${performing ? ' folding' : ''}`}>
-          <TransportBar />
+          <TransportBar playRef={consolePlay} vibesRef={vibesButton} />
           <Arrangement />
           <main>
             {view === 'bass' ? <BassGrid /> : <Sequencer />}
@@ -196,6 +234,12 @@ export default function App() {
           <Keys />
         </div>
       )}
+
+      {/* Outside the console rather than in it, because the console flies in and out on a
+          transform and a canvas inside it would be drawn in the transformed space while
+          reading its targets in viewport space — the particles would swim away from the
+          buttons for the length of the animation. */}
+      <PlayBeacon className="console-beacon" targets={consoleBeacons} />
     </div>
   )
 }

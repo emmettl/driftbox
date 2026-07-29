@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import { SONGS } from '@driftbox/engine'
 import { useBox } from '../store'
 import { PatternBar } from './PatternBar'
@@ -17,7 +17,14 @@ function useFlash(): [string | null, (message: string) => void] {
   ]
 }
 
-export function TransportBar() {
+/** The two buttons the beacons point at. Handed down rather than found with a selector so
+ *  the wiring type-checks, and optional so the bar still stands up on its own. */
+interface TransportBarProps {
+  playRef?: RefObject<HTMLButtonElement | null>
+  vibesRef?: RefObject<HTMLButtonElement | null>
+}
+
+export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const running = useBox((s) => s.running)
   const song = useBox((s) => s.song)
   const view = useBox((s) => s.view)
@@ -48,6 +55,7 @@ export function TransportBar() {
   return (
     <header className="transport">
       <button
+        ref={playRef}
         className={`play${running ? ' on' : ''}`}
         onClick={toggleTransport}
         title="Play / stop (space)"
@@ -106,6 +114,7 @@ export function TransportBar() {
           like "clear" and "load". Kept out of the collapsing group below: on a phone it
           is the most likely reason to have opened the app at all. */}
       <button
+        ref={vibesRef}
         className="vibes"
         onClick={togglePerformance}
         title="Full-screen visuals and filter pad (V)"

@@ -1094,6 +1094,15 @@ aside {
   z-index: 1;
 }
 
+/* The console pair sits ABOVE the console, not behind it. The transport bar and every
+   panel carry their own background and a backdrop blur, so a stream drawn underneath
+   would be swallowed by exactly the furniture it has to cross. Fixed, so it is measured
+   in the same viewport coordinates as the buttons it is aiming at. */
+.console-beacon {
+  position: fixed;
+  z-index: 4;
+}
+
 /* Stopped, and therefore the most important thing on screen: the particles converge here.
    Light only, no transform — a button that scales in and out never stops moving, which
    makes it a moving target for a thumb, and which a browser refuses to click at all
