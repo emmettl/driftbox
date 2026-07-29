@@ -54,6 +54,15 @@ const ORBIT_RADIUS = 7400
 const ORBIT_HEIGHT = 1750
 /** How high above the trench floor the ship ends up flying. */
 const FLY_HEIGHT = 14
+/** How far round the station the approach swings before the dive, in radians. The camera
+ *  arcs through this and arrives at the trench entry, which is what carries the dish past
+ *  the frame instead of welding it to face wherever the run happens to start. */
+const APPROACH_SWEEP = 1.15
+/** The lens. Wide in orbit, so the whole station fits; long in the trench, where a narrow
+ *  angle stops the near walls splaying out at the frame edges. */
+const ORBIT_FOV = 60
+const TRENCH_FOV = 46
+
 /** Far enough to see the whole station. The canvas default of 200 would clip it in half
  *  before it had finished appearing. Depth precision does not suffer for it: everything
  *  here is additive lines with depth writes off, so there is nothing to z-fight. */
@@ -218,11 +227,12 @@ function useStation() {
 
     // --- The dish, sunk into the northern hemisphere. Concentric rings and spokes, which
     // is how a vector machine would have drawn a crater.
-    // Aimed at where the camera begins. The run starts on the +X axis looking back at the
-    // station, so a dish whose normal points anywhere else is on the far side for the whole
-    // approach — which is exactly where it was, and why nobody ever saw it.
-    const lat = 0.55
-    const lon = 1.35
+    // Placed on the arc the approach sweeps over rather than aimed at a single starting
+    // angle. The camera swings through APPROACH_SWEEP radians before the dive, so a dish
+    // sitting near the middle of that arc is carried across the frame as the hull turns —
+    // which is a property of the flight path, not a coincidence of where the run begins.
+    const lat = 0.5
+    const lon = 2.12
     const normal = new THREE.Vector3(
       Math.cos(lat) * Math.sin(lon),
       Math.sin(lat),
@@ -361,8 +371,22 @@ export function Trench() {
     // high and far out, to down inside the groove.
     const radius = ORBIT_RADIUS + (FLOOR_RADIUS + FLY_HEIGHT - ORBIT_RADIUS) * drop
     const height = ORBIT_HEIGHT * (1 - drop) + (touch.y - 0.5) * 3 * warp
+    // The approach ARCS. The camera starts a radian or so round the station and swings to
+    // the trench entry as it drops, so the hull turns under you and the dish comes past —
+    // which is a better answer than bolting the dish to face the starting angle, because it
+    // does not care where on the station the dish happens to be.
     const ang = flown.current
-    camera.position.set(Math.cos(ang) * radius, height, Math.sin(ang) * radius)
+    const view = ang - APPROACH_SWEEP * (1 - drop)
+    camera.position.set(Math.cos(view) * radius, height, Math.sin(view) * radius)
+
+    // And the lens lengthens as it goes. A wide angle is right for holding the whole
+    // station in frame and wrong inside a corridor, where it splays the near walls out to
+    // the corners.
+    const wantFov = ORBIT_FOV + (TRENCH_FOV - ORBIT_FOV) * drop
+    if (Math.abs(cam.fov - wantFov) > 0.01) {
+      cam.fov = wantFov
+      cam.updateProjectionMatrix()
+    }
 
     // The aim swings from the station itself to a point along the trench ahead. At the
     // start you are looking AT the thing; by the end you are looking down it.
@@ -381,7 +405,7 @@ export function Trench() {
     // the station's axis, which is horizontal in world terms, and the walls are above and
     // below you in world Y. Leaving up as world-up flies the whole run rolled ninety
     // degrees: the floor ends up on the left and the sky on the right, which is what it did.
-    up.set(Math.cos(ang), 0, Math.sin(ang))
+    up.set(Math.cos(view), 0, Math.sin(view))
     camera.up.set(0, 1, 0).lerp(up, drop).normalize()
     camera.lookAt(look)
     roll.current += ((touch.x - 0.5) * -0.35 * warp - roll.current) * Math.min(1, dt * 3)
