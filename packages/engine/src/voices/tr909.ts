@@ -234,27 +234,27 @@ function rim(params: VoiceParams, accent: number): VoiceSpec {
 }
 
 export const TR909_VOICES: Voice[] = [
-  { id: '909.bd', trim: 0.53, name: 'Bass Drum', machine: 'tr909', build: bassDrum },
-  { id: '909.sd', trim: 0.5, name: 'Snare', machine: 'tr909', build: snare },
-  { id: '909.cp', trim: 0.85, name: 'Clap', machine: 'tr909', build: clap },
-  { id: '909.lt', trim: 0.49, name: 'Low Tom', machine: 'tr909', build: tom(65, 122), pitched: { low: 65, high: 122 } },
-  { id: '909.mt', trim: 0.49, name: 'Mid Tom', machine: 'tr909', build: tom(100, 192), pitched: { low: 100, high: 192 } },
-  { id: '909.ht', trim: 0.44, name: 'Hi Tom', machine: 'tr909', build: tom(150, 288), pitched: { low: 150, high: 288 } },
-  { id: '909.rim', trim: 1.23, name: 'Rim', machine: 'tr909', build: rim },
+  { id: '909.bd', trim: 0.61, name: 'Bass Drum', machine: 'tr909', build: bassDrum },
+  { id: '909.sd', trim: 0.52, name: 'Snare', machine: 'tr909', build: snare },
+  { id: '909.cp', trim: 1.06, name: 'Clap', machine: 'tr909', build: clap },
+  { id: '909.lt', trim: 0.81, name: 'Low Tom', machine: 'tr909', build: tom(65, 122), pitched: { low: 65, high: 122 } },
+  { id: '909.mt', trim: 0.8, name: 'Mid Tom', machine: 'tr909', build: tom(100, 192), pitched: { low: 100, high: 192 } },
+  { id: '909.ht', trim: 0.8, name: 'Hi Tom', machine: 'tr909', build: tom(150, 288), pitched: { low: 150, high: 288 } },
+  { id: '909.rim', trim: 1.71, name: 'Rim', machine: 'tr909', build: rim },
   {
-    id: '909.ch', trim: 1.75,
+    id: '909.ch', trim: 8.58,
     name: 'Closed Hat',
     machine: 'tr909',
     choke: '909.hats',
     build: metallic([0.018, 0.08], 11500, 1.1, 8000),
   },
   {
-    id: '909.oh', trim: 1.35,
+    id: '909.oh', trim: 5.1,
     name: 'Open Hat',
     machine: 'tr909',
     choke: '909.hats',
     build: metallic([0.14, 0.8], 10500, 0.9, 7000),
   },
-  { id: '909.rd', trim: 1.03, name: 'Ride', machine: 'tr909', build: metallic([0.4, 1.6], 6800, 0.8, 5000) },
-  { id: '909.cr', trim: 0.61, name: 'Crash', machine: 'tr909', build: metallic([0.7, 2.6], 5200, 0.5, 3500) },
+  { id: '909.rd', trim: 3.41, name: 'Ride', machine: 'tr909', build: metallic([0.4, 1.6], 6800, 0.8, 5000) },
+  { id: '909.cr', trim: 2.17, name: 'Crash', machine: 'tr909', build: metallic([0.7, 2.6], 5200, 0.5, 3500) },
 ]

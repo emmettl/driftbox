@@ -25,14 +25,21 @@ export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
   return buffer
 }
 
-/** Apply an envelope to a param, starting from `from`. Breakpoints are relative to
- *  `time`. An exponential segment that would touch zero is clamped rather than
- *  dropped, so a decay-to-silence still sounds like a decay. */
+/**
+ * Apply an envelope to a param, starting from `from`. Breakpoints are relative to
+ * `time`. An exponential segment that would touch zero is clamped rather than dropped,
+ * so a decay-to-silence still sounds like a decay.
+ *
+ * `scale` multiplies every destination. Amplitude envelopes are written as a 0..1 shape
+ * and scaled by the source's own gain; a pitch envelope has no such thing and leaves it
+ * at 1. Scaling here rather than with a second gain node keeps a source to one node.
+ */
 function applyEnvelope(
   param: AudioParam,
   from: number,
   points: Breakpoint[] | undefined,
   time: number,
+  scale = 1,
 ): void {
   let previous = from
   param.setValueAtTime(previous === 0 ? 0 : Math.max(previous, SILENCE), time)
@@ -40,10 +47,11 @@ function applyEnvelope(
 
   for (const point of points) {
     const at = time + point.at
-    const exponential = (point.curve ?? 'exp') === 'exp' && previous > 0 && point.to !== 0
-    if (exponential) param.exponentialRampToValueAtTime(Math.max(point.to, SILENCE), at)
-    else param.linearRampToValueAtTime(point.to, at)
-    previous = point.to
+    const to = point.to * scale
+    const exponential = (point.curve ?? 'exp') === 'exp' && previous > 0 && to !== 0
+    if (exponential) param.exponentialRampToValueAtTime(Math.max(to, SILENCE), at)
+    else param.linearRampToValueAtTime(to, at)
+    previous = to
   }
 }
 
@@ -104,7 +112,15 @@ function buildSource(
         })()
 
   const gain = ctx.createGain()
-  applyEnvelope(gain.gain, 0, source.amp, start)
+  // Scaled by the source's own gain.
+  //
+  // This was missing, from the first commit until it was heard rather than found: every
+  // source played at whatever its envelope peaked at, and `Source.gain` — declared 39
+  // times across the two kits — did nothing at all. The audible symptom was the 808
+  // kick's click, a noise burst meant to sit at 0.175 under the body and arriving at
+  // full scale on the transient instead. Its colour knob could not turn it down either,
+  // because turning the knob only changed a number nobody read.
+  applyEnvelope(gain.gain, 0, source.amp, start, source.gain)
   gain.gain.setValueAtTime(0, time + duration)
 
   let tail: AudioNode = gain
@@ -117,7 +133,10 @@ function buildSource(
   node.connect(gain)
   tail.connect(destination)
 
-  if (node instanceof AudioBufferSourceNode) node.start(start, Math.random() * 1.5)
+  // `source.kind` rather than `instanceof AudioBufferSourceNode`: the spec already says
+  // which this is, and the global only exists in a browser — so the instanceof made the
+  // renderer unusable anywhere else, including from a test.
+  if (source.kind === 'noise') (node as AudioBufferSourceNode).start(start, Math.random() * 1.5)
   else node.start(start)
   node.stop(time + duration)
 
