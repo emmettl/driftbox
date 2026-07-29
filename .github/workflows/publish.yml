@@ -1,0 +1,103 @@
+name: Publish
+
+# Nothing here fires on a push. Publishing happens when a GitHub Release is published —
+# a deliberate act — or when somebody runs this by hand, which defaults to a dry run.
+#
+# That is on purpose. A workflow that publishes on merge to main means every merge is a
+# release whether you meant it or not, and `npm unpublish` is heavily restricted after 72
+# hours: a bad version is effectively permanent. The remedy for a mistake is a new version
+# with the broken one sitting on the registry forever, so the trigger should be something
+# you had to go and do.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — build and check everything, publish nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  # Required for npm provenance: the attestation is signed with a short-lived OIDC token
+  # rather than anything stored in the repo.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          # Writes the .npmrc that makes npm read NODE_AUTH_TOKEN.
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # The full check, before anything leaves the machine. Publishing something that
+      # does not lint, type-check or pass its tests is the one failure this workflow
+      # exists to prevent — CI on main can go red after a merge, and the release would
+      # otherwise sail past it.
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # Guards against the commonest release mistake: cutting v0.2.0 having forgotten to
+      # bump either package, and silently republishing — or failing to publish — 0.1.0.
+      # Deliberately not a lockstep requirement: the packages version independently, so
+      # this only asks that the tag matches SOMETHING.
+      - name: Check the release tag matches a package version
+        if: github.event_name == 'release'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          ENGINE=$(node -p "require('./packages/engine/package.json').version")
+          APP=$(node -p "require('./packages/app/package.json').version")
+          echo "tag=$TAG engine=$ENGINE app=$APP"
+          if [ "$TAG" != "$ENGINE" ] && [ "$TAG" != "$APP" ]; then
+            echo "::error::Release tag $GITHUB_REF_NAME matches neither @driftbox/engine ($ENGINE) nor @driftbox/app ($APP). Bump a package, or retag."
+            exit 1
+          fi
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          published_any=0
+
+          for pkg in engine app; do
+            name=$(node -p "require('./packages/$pkg/package.json').name")
+            version=$(node -p "require('./packages/$pkg/package.json').version")
+
+            # Already on the registry? Skip rather than fail. Both packages are released
+            # together but version independently, so a release that only touches the
+            # engine will find the app unchanged — and that is not an error.
+            if npm view "$name@$version" version > /dev/null 2>&1; then
+              echo "::notice::$name@$version is already published — skipping"
+              echo "- \`$name@$version\` — already published, skipped" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+
+            if [ "${DRY_RUN:-false}" = "true" ]; then
+              echo "Dry run: $name@$version"
+              npm publish --workspace "$name" --provenance --dry-run
+              echo "- \`$name@$version\` — dry run, not published" >> "$GITHUB_STEP_SUMMARY"
+            else
+              # --provenance attaches a signed attestation linking this tarball to this
+              # commit and this workflow run, which is why the repo needs id-token: write.
+              # access is public via publishConfig in each package.json.
+              npm publish --workspace "$name" --provenance
+              echo "- \`$name@$version\` — published" >> "$GITHUB_STEP_SUMMARY"
+              published_any=1
+            fi
+          done
+
+          if [ "$published_any" = "0" ] && [ "${DRY_RUN:-false}" != "true" ]; then
+            echo "::warning::Nothing was published — every version was already on the registry."
+          fi
