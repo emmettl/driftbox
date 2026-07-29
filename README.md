@@ -108,6 +108,20 @@ here it is an assertion. It also means a patch can be serialised, and that the s
 can be rendered into a live context *or* an `OfflineAudioContext` — which is how the kit
 is actually verified, and how the channel strip draws each voice's real waveform.
 
+## Playing it
+
+There is a keyboard under the grid. The home row is the major scale from the root and the
+row above it the flattened third, sixth and seventh — `d` for a bright third, `e` for a
+dark one. `z` and `x` shift octave, shift is accent.
+
+It is **monophonic, because a 303 is**, and that is the feature rather than the limit:
+hold one key, press another without letting go, and the two glide together on one
+envelope. Which is the sequencer's slide, arrived at from the other end.
+
+The toms play from it too — they are pitched percussion, and each tunes across a little
+under an octave. Past that the keys dim: the way further up is the next tom, which is what
+the machine's three of them are for. Select one in the grid and it appears as a target.
+
 ## Three songs, one pair of 303s
 
 It ships with three, and they share nothing — different tempos, different halves of the

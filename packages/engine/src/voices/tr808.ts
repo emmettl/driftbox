@@ -252,9 +252,9 @@ export const TR808_VOICES: Voice[] = [
   { id: '808.bd', trim: 0.5, name: 'Bass Drum', machine: 'tr808', build: bassDrum },
   { id: '808.sd', trim: 0.33, name: 'Snare', machine: 'tr808', build: snare },
   { id: '808.cp', trim: 3.01, name: 'Clap', machine: 'tr808', build: clap },
-  { id: '808.lt', trim: 0.5, name: 'Low Tom', machine: 'tr808', build: tom(60, 100) },
-  { id: '808.mt', trim: 0.44, name: 'Mid Tom', machine: 'tr808', build: tom(95, 160) },
-  { id: '808.ht', trim: 0.46, name: 'Hi Tom', machine: 'tr808', build: tom(150, 250) },
+  { id: '808.lt', trim: 0.5, name: 'Low Tom', machine: 'tr808', build: tom(55, 105), pitched: { low: 55, high: 105 } },
+  { id: '808.mt', trim: 0.44, name: 'Mid Tom', machine: 'tr808', build: tom(90, 170), pitched: { low: 90, high: 170 } },
+  { id: '808.ht', trim: 0.46, name: 'Hi Tom', machine: 'tr808', build: tom(140, 265), pitched: { low: 140, high: 265 } },
   { id: '808.rs', trim: 1.79, name: 'Rimshot', machine: 'tr808', build: rimshot },
   { id: '808.cb', trim: 1.3, name: 'Cowbell', machine: 'tr808', build: cowbell },
   {
