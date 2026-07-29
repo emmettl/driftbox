@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Five songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance |
+| Ships with | Six songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance, and one upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, four 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Oscilloscope, five 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | Every song names the visual it was written for, and loading it switches |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -155,6 +155,23 @@ own animation frame rather than from a scene's `useFrame`. The first version did
 latter, which is right for a scene with one object and wrong for one with seven —
 Lifeforms called it eight times a frame and the warp decayed eight times too fast. Whose
 job it is to advance shared state should never depend on how many things happen to read it.
+
+**Write uniforms through the material, never through the object you handed it.** Building
+a uniforms object with `useMemo`, passing it to `<shaderMaterial uniforms={...} />` and
+then mutating it every frame reads correctly and does not work: under StrictMode the
+material ends up holding a different object, and the shader sees its initial values
+forever. Three of the four scenes shipped like this. Nothing errored, and they still
+*moved* — their cameras are animated from JS — so a corridor still flew and a web still
+spun. All that was missing was every reaction to the music, which is the only thing a
+visualiser is for. `uniforms.ts` exists to make the right version the short one. The
+general lesson is that "it animates" is not evidence the audio is reaching it: read the
+live uniform values off the material and check they are moving.
+
+**A compressed peak is not a mix measurement.** On a dense pattern the master compressor
+pins, and its output peak then barely responds to how loud the input is — rendering one
+pattern with every voice at `level: 0.05` and at `0.9` gave the same peak both times. Trim
+against the raw pre-compressor bus sum instead, and compare with the shipped songs rather
+than with 1.0. Half an hour went into lowering faders that could not have helped.
 
 **Nothing that asks to be pressed should animate its `transform`.** The play button pulsed
 with a `scale`, which makes it a moving target for a thumb — and a browser refuses to click

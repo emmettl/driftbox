@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useBox } from './store'
-import { defaultSong, songBars } from '@driftbox/engine'
+import { SONGS, defaultSong, songBars } from '@driftbox/engine'
+import { SCENES } from './visual/scenes'
 
 // The store is where a whole song gets rebuilt on every keystroke, and immutable updates
 // have one classic failure: a spread that reconstructs a nested object from one of its
@@ -140,5 +141,26 @@ describe('pattern length', () => {
     const before = song().patterns.find((p) => p.id === 'neon')!
     useBox.getState().setPatternLength(8)
     expect(song().patterns.find((p) => p.id === 'neon')).toEqual(before)
+  })
+})
+
+describe('the visual a song asks for', () => {
+  // `visual` is a plain string on the engine side, and the engine cannot check it: the
+  // scene registry lives here, in the app. So a typo — or a scene renamed without its
+  // songs being updated — is invisible to both packages on their own, and shows up only
+  // as a song silently opening on whatever scene happened to be showing. This is the one
+  // place both halves are in scope at once, so it is the only place it can be caught.
+  it('names a scene that exists, for every song that names one', () => {
+    const ids = new Set(SCENES.map((s) => s.id))
+    for (const preset of SONGS) {
+      if (preset.visual === undefined) continue
+      expect(ids, `${preset.id} asks for "${preset.visual}"`).toContain(preset.visual)
+    }
+  })
+
+  it('switches the scene when the song is switched', () => {
+    const withVisual = SONGS.find((s) => s.visual !== undefined)!
+    useBox.getState().loadPreset(withVisual.id)
+    expect(useBox.getState().scene).toBe(withVisual.visual)
   })
 })

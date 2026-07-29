@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useBox } from '../../store'
 import { ease, readBands, readLevels } from '../levels'
 import { touch } from '../touch'
+import { uniformsOf } from '../uniforms'
 
 // The web. Tempest 2000.
 //
@@ -168,7 +169,9 @@ export function Web() {
   useFrame((_, dt) => {
     const { bass, high } = readLevels(engine)
     readBands(engine, bands)
-    const u = uniforms
+    // The material's own uniforms, not the memoised object — see uniforms.ts.
+    const u = uniformsOf(material)
+    if (!u) return
 
     u.uTime.value += dt
     u.uBass.value = ease(u.uBass.value, bass, dt, 5)

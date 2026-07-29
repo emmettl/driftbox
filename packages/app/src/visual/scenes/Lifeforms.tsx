@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useBox } from '../../store'
 import { ease, readLevels } from '../levels'
 import { touch } from '../touch'
+import { uniformsOf } from '../uniforms'
 
 // Pulsing spheres, drifting in deep space.
 //
@@ -142,7 +143,9 @@ function Body({ body }: { body: (typeof BODIES)[number] }) {
   useFrame((_, dt) => {
     const { bass, high } = readLevels(engine)
     const warp = touch.energy
-    const u = uniforms
+    // The material's own uniforms, not the memoised object — see uniforms.ts.
+    const u = uniformsOf(material)
+    if (!u) return
 
     u.uTime.value += dt
     u.uBass.value = ease(u.uBass.value, bass, dt, 2.4)
