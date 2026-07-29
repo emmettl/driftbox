@@ -17,6 +17,9 @@ Space plays and stops · `V` drops into performance mode · `X` switches the sco
 a waveform and a vectorscope · click a step to cycle it off → on → accented · on the 303
 page, click a step to place a note and drag it up or down to tune it.
 
+The **Song** strip along the top is the arrangement — each card is a pattern and a number
+of bars, and it can be rearranged while the thing is playing.
+
 Your work is saved as you go. **share** puts the whole song in a link, **save** and
 **load** move it to and from a file, and **reset** goes back to the shipped patterns.
 
@@ -86,6 +89,17 @@ from a link someone else sent. `decodeSong` treats all of it as untrusted: it cl
 is out of range, fills in what is missing, drops what it cannot read, and gives up only on
 input that is not a song at all. The failure it exists to prevent is not subtle — it is
 the app white-screening on load with your work apparently gone.
+
+## Swing is per voice
+
+Swing that applies to everything at once is a tempo setting, not a groove. Here the
+transport emits *straight* times and each voice is shifted by its own swing as it is
+scheduled — so the hats can shuffle against a kick that stays flat on the grid, which is
+most of what makes a slow pattern feel like it is leaning rather than limping.
+
+Each voice's knob is an offset from the song's swing rather than an absolute value, so
+moving the master swing moves everything with it instead of stranding every voice you
+had already touched.
 
 ## Timing
 

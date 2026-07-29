@@ -6,15 +6,23 @@ import {
   DEFAULT_FX,
   DEFAULT_SENDS,
   DriftboxEngine,
+  REST,
+  chainAppend,
+  chainMove,
+  chainRemove,
+  chainSetPattern,
+  chainSetRepeat,
   cycleStep,
   setBassStep,
   type BassParams,
   type BassStep,
+  type ChainStep,
   type FxParams,
   type MachineId,
   type Pattern,
   type SendLevels,
   type Song,
+  type StepValue,
   type VoiceParams,
 } from './engine'
 import {
@@ -62,7 +70,16 @@ interface State {
   setParam: (voiceId: string, key: keyof VoiceParams, value: number) => void
   setBassParam: (voiceId: string, key: keyof BassParams, value: number) => void
   setSend: (voiceId: string, key: keyof SendLevels, value: number) => void
+  setVoiceSwing: (voiceId: string, value: number) => void
   setFx: (key: keyof FxParams, value: number) => void
+
+  /** The arrangement. Every one of these replaces `song.chain` wholesale. */
+  appendChain: (patternId: string) => void
+  removeChain: (index: number) => void
+  setChainRepeat: (index: number, repeat: number) => void
+  setChainPattern: (index: number, patternId: string) => void
+  moveChain: (index: number, delta: number) => void
+  setPatternLength: (length: number) => void
   audition: (voiceId: string) => void
   auditionBass: (voiceId: string, step: BassStep) => void
   togglePerformance: () => void
@@ -84,6 +101,13 @@ function replacePattern(song: Song, next: Pattern): Song {
 // the first render is already the right song — a default song that flickers into the
 // user's own a moment later looks like the app lost it and then found it.
 const initialSong = loadStoredSong() ?? defaultSong()
+
+/** Apply a pure chain edit and push the result at the engine. */
+function withChain(state: State, edit: (song: Song) => ChainStep[]): Partial<State> {
+  const song: Song = { ...state.song, chain: edit(state.song) }
+  if (state.engine) state.engine.song = song
+  return { song }
+}
 
 /** Everything that has to move when the song is replaced wholesale. A loaded song has
  *  its own pattern ids, so an `editing` left pointing at the old one edits nothing. */
@@ -183,9 +207,13 @@ export const useBox = create<State>()((set, get) => ({
   setParam: (voiceId, key, value) => {
     const { song, engine } = get()
     const params: VoiceParams = { ...song.kit.params[voiceId], [key]: value }
+    // `...song.kit`, not `{ params }`. The kit carries the 303 settings, the send levels
+    // and the per-voice swing as well, and rebuilding it from `params` alone silently
+    // dropped all three — turning one drum knob wiped every one of them. It read as
+    // correct because it WAS correct when the kit held nothing else.
     const next: Song = {
       ...song,
-      kit: { params: { ...song.kit.params, [voiceId]: params } },
+      kit: { ...song.kit, params: { ...song.kit.params, [voiceId]: params } },
     }
     if (engine) engine.song = next
     set({ song: next })
@@ -213,6 +241,16 @@ export const useBox = create<State>()((set, get) => ({
     set({ song: next })
   },
 
+  setVoiceSwing: (voiceId, value) => {
+    const { song, engine } = get()
+    const next: Song = {
+      ...song,
+      kit: { ...song.kit, swing: { ...song.kit.swing, [voiceId]: value } },
+    }
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
   setFx: (key, value) => {
     const { song, engine } = get()
     const next: Song = { ...song, fx: { ...(song.fx ?? DEFAULT_FX), [key]: value } }
@@ -234,6 +272,38 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   togglePerformance: () => set({ performance: !get().performance }),
+
+  // The arrangement. One helper because every edit is the same shape: run a pure
+  // function over the song's chain, push the result at the engine, keep it on screen.
+  appendChain: (patternId) => set(withChain(get(), (s) => chainAppend(s, patternId))),
+  removeChain: (index) => set(withChain(get(), (s) => chainRemove(s, index))),
+  setChainRepeat: (index, repeat) =>
+    set(withChain(get(), (s) => chainSetRepeat(s, index, repeat))),
+  setChainPattern: (index, patternId) =>
+    set(withChain(get(), (s) => chainSetPattern(s, index, patternId))),
+  moveChain: (index, delta) => set(withChain(get(), (s) => chainMove(s, index, delta))),
+
+  setPatternLength: (length) => {
+    const { song, editing, engine } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+
+    const clamped = Math.max(1, Math.min(64, Math.round(length)))
+    // Existing steps are kept and the rest padded with rests, so shortening a pattern
+    // and lengthening it again gets the tail back rather than having quietly dropped it.
+    const tracks: Record<string, StepValue[]> = {}
+    for (const [voiceId, track] of Object.entries(pattern.tracks)) {
+      tracks[voiceId] = Array.from({ length: clamped }, (_, i) => track[i] ?? 0)
+    }
+    const bass: Record<string, BassStep[]> = {}
+    for (const [voiceId, line] of Object.entries(pattern.bass ?? {})) {
+      bass[voiceId] = Array.from({ length: clamped }, (_, i) => line[i] ?? { ...REST })
+    }
+
+    const next = replacePattern(song, { ...pattern, length: clamped, tracks, bass })
+    if (engine) engine.song = next
+    set({ song: next })
+  },
 
   loadSong: (song) => set(adopt(song, get().engine)),
 

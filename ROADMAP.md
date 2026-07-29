@@ -5,21 +5,22 @@ anything in `src/engine/`.
 
 ## Where it is
 
-**Working end to end.** Two drum machines, two 303s, a 16-step sequencer with pattern
-chaining, a per-voice channel strip, an oscilloscope and a chillwave visualiser with a
-performance mode. CI is green; there are 157 unit tests.
+**Working end to end.** Two drum machines, two 303s, a step sequencer with an arrangement,
+a per-voice channel strip, two send effects, an oscilloscope and a chillwave visualiser
+with a performance mode. CI is green; there are 240 unit tests.
 
 | | |
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
-| Sequencer | 16 steps, off / on / accent, four patterns, chain, swing |
+| Sequencer | 1–64 steps, off / on / accent, four patterns, swing per voice |
+| Song | Sections with repeat counts, editable while playing |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
 | Visuals | Oscilloscope (waveform + vectorscope), chillwave scene, performance mode |
-| Not built | Song mode, per-voice swing, per-voice outputs, published packages |
+| Not built | Per-voice outputs, metronome, published packages |
 
 ## What is deliberate
 
@@ -83,6 +84,29 @@ itself when its tail runs out, and `disconnect()` drops every outgoing connectio
 send gain built alongside a hit would be orphaned, still attached to the send bus. At
 140bpm that is thousands of dead nodes an hour. The hit connects *into* something that
 outlives it instead.
+
+**Adding a field to `Kit` means finding every place that rebuilds one.** This has been got
+wrong twice, and both times the symptom was miles from the cause:
+
+- `setParam` rebuilt the kit as `{ params }`, so turning one drum knob wiped every 303
+  setting and every send level. It read as correct because it *was* correct when the kit
+  held nothing but `params`.
+- `decodeSong` did not carry `swing`, so per-voice swing worked perfectly until you
+  reloaded.
+
+Both are now guarded: `store.test.ts` asserts each editor leaves the other fields alone,
+and `song-io.test.ts` round-trips a fully populated kit and compares the whole object. Add
+a field to `Kit` and add it to both.
+
+**Swing is applied per voice, at the point a hit is scheduled — not by the transport.**
+The transport emits straight times and the step duration, and `playStep` shifts each
+voice by its own `swingDelay`. That is what lets hats shuffle against a kick sitting on
+the grid, and it is why `StepEvent.time` is unswung. Anything reading that field and
+expecting the audible time needs to add the offset itself.
+
+**Per-voice swing is an offset from the song's, not an absolute value.** 0.5 is "however
+the song swings". Absolute values would mean turning the master swing up silently left
+behind every voice you had ever touched.
 
 **`decodeSong` repairs rather than refuses.** A song arrives from outside the program —
 older storage, a hand-edited file, someone else's URL. It clamps what is out of range,
@@ -150,13 +174,15 @@ What the split still needs:
    just the machines, so probably yes — but it is app content living outside the app,
    and that is worth being deliberate about rather than discovering later.
 
-### 2. Song mode
+### 2. Per-voice outputs
 
-The chain is four bars of pattern ids and that is the whole arrangement. Patterns can now
-be saved, shared and given basslines, which makes the ceiling obvious: there is no way to
-build anything longer than a loop. A named sequence of chains, or simply a longer chain
-with a UI to edit it, is the difference between a sketchpad and something you finish a
-track in.
+Everything lands on one bus. Separate outputs per voice — or at least per machine — is
+what would let this feed a real mixer or a DAW, and it is the last structural thing
+between "a toy that sounds good" and "something you would actually track with".
+
+### 3. A metronome and a count-in
+
+Still missing, and still the thing you notice the moment you try to play along.
 
 ## Known limitations
 
@@ -179,16 +205,12 @@ track in.
 - **There is one delay and one reverb for the whole song, and no way to bypass them.**
   Deliberate — the point of a send is that everything lands in the same room — but it does
   mean you cannot have a short slap on the snare and a long throw on the 303 at once.
-- **Nothing is versioned.** `SONG_FORMAT` exists and `decodeSong` refuses anything newer
-  than it understands, but there is no migration path written yet, because there has not
-  been a breaking change. Write one the first time there is; do not widen the reader.
+- **A pattern's length is shared by its drums and its basslines.** Polymetry works across
+  the chain — a 12-step pattern next to a 16-step one — but not *within* a bar, so a
+  15-step hat line under a 16-step kick still needs the two as separate patterns.
 - **The chillwave backdrop is nearly invisible behind the console.** Deliberate (the step
   grid has to stay readable) but the sun in particular never shows. If it should read
   more strongly, move the scene's sun down rather than raising the opacity.
-- **Swing applies to the whole pattern.** Per-voice swing — hats shuffling against a
-  straight kick — is a small change to `Transport` and a real musical win.
-- **Pattern length is fixed at 16 in the UI.** The model already supports any length, and
-  polymetric loops (a 15-step hat line over a 16-step kick) come free from that.
 - **No metronome or count-in.**
 
 ## Verifying changes

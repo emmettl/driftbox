@@ -31,7 +31,10 @@ export function TransportBar() {
   const importSong = useBox((s) => s.importSong)
   const copyShareLink = useBox((s) => s.copyShareLink)
   const resetSong = useBox((s) => s.resetSong)
+  const setPatternLength = useBox((s) => s.setPatternLength)
   const [flash, showFlash] = useFlash()
+
+  const pattern = song.patterns.find((p) => p.id === editing)
 
   return (
     <header className="transport">
@@ -98,6 +101,22 @@ export function TransportBar() {
           </button>
         ))}
       </div>
+
+      {/* Pattern length. The model always supported any length; this is the control that
+          was missing, and polymetric loops — a 15-step hat line against a 16-step kick —
+          come free from it. */}
+      <label className="field">
+        <span>Steps</span>
+        <input
+          type="number"
+          min={1}
+          max={64}
+          step={1}
+          value={pattern?.length ?? 16}
+          onChange={(e) => setPatternLength(Number(e.target.value))}
+          title="Steps in this pattern"
+        />
+      </label>
 
       <button className="ghost" onClick={clearPattern} title="Clear this pattern">
         clear

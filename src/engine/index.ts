@@ -2,11 +2,11 @@ import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassStep
 import { Bassline } from './bassline'
 import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects'
 import { renderVoice, type VoiceHandle } from './render'
-import { secondsPerStep } from './timing'
+import { swingDelay } from './timing'
 import { Transport, type StepEvent } from './transport'
 import { TR808_VOICES } from './voices/tr808'
 import { TR909_VOICES } from './voices/tr909'
-import { patternForBar, stepAt, type Song } from './pattern'
+import { patternForBar, stepAt, swingFor, type Song } from './pattern'
 import { DEFAULT_PARAMS, type Voice, type VoiceParams, type VoiceSpec } from './types'
 
 export * from './types'
@@ -127,11 +127,10 @@ export class DriftboxEngine {
     this.analyser.connect(this.ctx.destination)
 
     this.transport = new Transport(this.ctx, {
-      barLength: () => patternForBar(this.song, 0)?.length ?? 16,
+      barLength: (bar) => patternForBar(this.song, bar)?.length ?? 16,
       onStep: (event) => this.playStep(event),
     })
     this.transport.bpm = song.bpm
-    this.transport.swing = song.swing
 
     this.syncFx()
 
@@ -214,12 +213,13 @@ export class DriftboxEngine {
   }
 
   set swing(value: number) {
+    // Nothing to tell the transport: it emits straight times and swing is applied per
+    // voice as each step is scheduled, so a change here lands on the very next step.
     this.song.swing = value
-    this.transport.swing = value
   }
 
   get swing(): number {
-    return this.transport.swing
+    return this.song.swing
   }
 
   set gain(value: number) {
@@ -291,16 +291,22 @@ export class DriftboxEngine {
     const pattern = patternForBar(this.song, event.bar)
     if (!pattern) return
 
+    // Swing is applied here, per voice, rather than by the transport — which is the
+    // whole point of the transport emitting straight times. Hats shuffling against a
+    // kick that stays on the grid is a groove you cannot get from one global setting.
+    const swung = (voiceId: string) =>
+      event.time + swingDelay(event.index, swingFor(this.song, voiceId), event.stepSeconds)
+
     for (const voiceId of Object.keys(pattern.tracks)) {
       const value = stepAt(pattern, voiceId, event.index)
       if (value === 0) continue
-      this.trigger(voiceId, event.time, value === 2 ? 1 : 0.55)
+      this.trigger(voiceId, swung(voiceId), value === 2 ? 1 : 0.55)
     }
 
     // Gate lengths are in seconds, so the line has to know how long a step currently
     // is. Read per step rather than cached, so a tempo change shortens the notes with
     // it instead of leaving them overlapping.
-    const stepSeconds = secondsPerStep(this.transport.bpm)
+    const stepSeconds = event.stepSeconds
 
     for (const [voiceId, line] of Object.entries(pattern.bass ?? {})) {
       const bassline = this.basslines.get(voiceId)
@@ -315,7 +321,7 @@ export class DriftboxEngine {
         previousStep(line, event.index, pattern.length),
         stepSeconds,
       )
-      if (note) bassline.play(note, event.time)
+      if (note) bassline.play(note, swung(voiceId))
       this.routeSends(voiceId, bassline.output)
     }
   }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useBox } from './store'
+import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
 import { BassPanel } from './ui/BassPanel'
 import { FxPanel } from './ui/FxPanel'
@@ -60,6 +61,7 @@ export default function App() {
       ) : (
         <div className="console">
           <TransportBar />
+          <Arrangement />
           <main>
             {view === 'bass' ? <BassGrid /> : <Sequencer />}
             <aside>

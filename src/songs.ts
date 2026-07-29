@@ -215,7 +215,16 @@ export function defaultSong(): Song {
     bpm: 102,
     swing: 0.28,
     patterns: PATTERNS,
-    chain: ['haze', 'drift', 'drift', 'neon'],
+    // An arrangement rather than a loop: an intro, a long middle, and a chorus that
+    // does not outstay itself. The repeat counts are the point — writing this as a flat
+    // list of bars would be nine entries to scroll past.
+    chain: [
+      { pattern: 'haze', repeat: 2 },
+      { pattern: 'drift', repeat: 4 },
+      { pattern: 'neon', repeat: 2 },
+      { pattern: 'drift', repeat: 4 },
+      { pattern: 'pulse', repeat: 4 },
+    ],
     kit,
     fx: defaultFx(),
   }
