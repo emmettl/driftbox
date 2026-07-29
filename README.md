@@ -194,6 +194,13 @@ a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, 
 lights one lane and a hat lights another and the shape of the mix is the picture;
 *Trench*, after the vector Star Wars cabinet; and *Stillwater*.
 
+On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
+get close — rotation rises sharply near the centre, so the rim is barely disturbed while
+the throat winds tight — and go white where the lines pile up. The hole is the whole line
+of sight through the fingertip rather than a point on one plane, because the web is
+thirty-four units deep and solving it on a single plane puts the singularity under your
+finger only for the rings that happen to sit at that depth.
+
 *Stillwater* is the one that reads **events** rather than a level. Everything else moves
 continuously with how loud the mix is, which suits music that is continuous and does
 nothing for a record that is a few sounds in a large room. Here a hit drops a ring on black

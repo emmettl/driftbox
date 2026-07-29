@@ -156,6 +156,12 @@ latter, which is right for a scene with one object and wrong for one with seven 
 Lifeforms called it eight times a frame and the warp decayed eight times too fast. Whose
 job it is to advance shared state should never depend on how many things happen to read it.
 
+**A warp aimed at a fingertip has to solve for depth, not just for a plane.** The Web's
+black hole and the Trench's cannons both land under the finger only because the point they
+aim at is derived per-vertex from the eye ray. Solved once on a single plane, a scene with
+any depth to it puts the effect visibly beside the finger — and it looks correct on the one
+viewport it was tuned on, which is how it survives to being noticed.
+
 **A scene aimed at one record should read that record's shape, not just its level.**
 Every scene but one maps loudness to motion, which is right for music that is continuous
 and wrong for Undertow — 82bpm, no snare, mostly the space around the hits. Stillwater
