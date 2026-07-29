@@ -136,8 +136,9 @@ drum rack, different rooms:
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. |
 | **Acieed** | Acid house. 126bpm, dead straight, four to the floor. |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. |
+| **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. |
 
-The part worth noticing is that the two 303s are the same synth in all four and do not
+The part worth noticing is that the two 303s are the same synth in all five and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -176,10 +177,15 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are two so far — *Sunset*, the slatted sun over a wireframe
-floor, and *Lifeforms*, which is aiming squarely at the ISDN-era Future Sound of London
-videos: translucent bodies breathing on the bass, none of them quite spheres, every vertex
-pushed around by layered noise so the silhouette never repeats.
+**C** changes the scene. There are three — *Sunset*, the slatted sun over a wireframe
+floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
+translucent bodies breathing on the bass and every vertex pushed around by layered noise so
+the silhouette never repeats; and *Wireframe*, a hexagonal corridor you fly down, which is
+the Rez one. Drag to steer it.
+
+The corridor is the only scene with **forward motion**, and that turns out to be most of
+what separates it from the others: a fixed horizon and a drifting cluster are both places,
+and this is a journey. Its speed follows the low end, so the tunnel surges on every kick.
 
 Works with a thumb. The pad is the reason the touch work exists.
 
