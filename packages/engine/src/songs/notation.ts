@@ -50,11 +50,30 @@ export function pattern(
   bassLines: Record<string, string> = {},
   length = 16,
 ): Pattern {
+  // Counted, and it throws.
+  //
+  // A line one character short is invisible by eye — the whole point of the notation is
+  // that it reads as a picture, and a picture does not tell you it is 13 wide when it
+  // should be 14. Left unchecked it silently becomes a track shorter than its pattern,
+  // which the loader then pads, so the song plays subtly differently from how it reads.
+  // Better to refuse to build at all.
   const out: Record<string, StepValue[]> = {}
-  for (const [voice, notation] of Object.entries(tracks)) out[voice] = steps(notation)
+  for (const [voice, notation] of Object.entries(tracks)) {
+    const parsed = steps(notation)
+    if (parsed.length !== length) {
+      throw new Error(`${id}/${voice}: ${parsed.length} steps written, ${length} expected`)
+    }
+    out[voice] = parsed
+  }
 
   const bass: Record<string, BassStep[]> = {}
-  for (const [voice, notation] of Object.entries(bassLines)) bass[voice] = bassSteps(notation)
+  for (const [voice, notation] of Object.entries(bassLines)) {
+    const parsed = bassSteps(notation)
+    if (parsed.length !== length) {
+      throw new Error(`${id}/${voice}: ${parsed.length} steps written, ${length} expected`)
+    }
+    bass[voice] = parsed
+  }
 
   return { id, name, length, tracks: out, bass }
 }

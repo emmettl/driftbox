@@ -15,7 +15,8 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Three songs — chillwave, darkwave, acid house — 46 to 56 bars each |
+| Ships with | Four songs — chillwave, darkwave, acid house, ISDN-era FSOL |
+| Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
@@ -102,6 +103,24 @@ animation frame loop, and a hidden panel still drawing sixty times a second is e
 cost somebody folded it away to avoid. Which panels are folded lives under its own
 localStorage key, not in the Song — it is a property of your screen, and it must not
 travel in a shared link.
+
+**The notation counts its own steps and throws.** A line one character short is invisible
+by eye — the point of writing patterns as a picture is that they read as one, and a picture
+does not announce that it is 13 wide when it should be 14. Unchecked it becomes a track
+shorter than its pattern, which the loader silently pads, so the song plays differently
+from how it reads. The check caught two errors in the first song written after it existed.
+
+**Skipping songs only asks when there is something to lose.** `pristine()` compares the
+current song to the preset it came from, so a listener who has edited nothing is never
+interrupted, and somebody who has is never silently overwritten — loading replaces the
+autosave too. Startup does the same comparison to work out which shipped song a restored
+session is.
+
+**Anything laid over the filter pad needs an explicit `z-index`.** The pad is
+`position: absolute; z-index: 1` across the whole stage, so a sibling without one paints
+underneath it and its buttons stop working. This has now caught the scene switcher and the
+whole now-playing strip. The strip stays pointer-transparent and only its buttons opt back
+in, so drags still reach the filter everywhere else.
 
 **Shared visual state owns its own clock.** `touch.ts` advances its eased `energy` on its
 own animation frame rather than from a scene's `useFrame`. The first version did the

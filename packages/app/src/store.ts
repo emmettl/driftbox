@@ -13,7 +13,9 @@ import {
   chainSetPattern,
   chainSetRepeat,
   cycleStep,
+  encodeSong,
   songPresetById,
+  SONGS,
   addPattern,
   duplicatePattern,
   removePattern,
@@ -109,6 +111,13 @@ interface State {
   /** Replace the whole song — from a file, a shared link, or back to the defaults. */
   loadSong: (song: Song) => void
   loadPreset: (id: string) => void
+  /** Which shipped song is loaded, or null once it stops being one of them. */
+  preset: string | null
+  /** Move through the shipped songs. Returns the one landed on, for the UI to announce. */
+  stepPreset: (delta: number) => string | null
+  /** Whether the song on screen is still byte-identical to the preset it came from —
+   *  i.e. whether moving off it would lose anything. */
+  pristine: () => boolean
   adoptSharedSong: () => Promise<boolean>
   importSong: () => Promise<boolean>
   exportSong: () => void
@@ -135,6 +144,16 @@ function prefersTouch(): boolean {
 // user's own a moment later looks like the app lost it and then found it.
 const initialSong = loadStoredSong() ?? defaultSong()
 
+/**
+ * Which shipped song the restored session is, if it is one of them.
+ *
+ * Worth the three comparisons at startup: a listener who opened this yesterday, never
+ * touched a step and comes back should be able to press next without being asked whether
+ * they mind losing work they never did.
+ */
+const initialPreset =
+  SONGS.find((preset) => encodeSong(preset.build()) === encodeSong(initialSong))?.id ?? null
+
 /** Apply a pure chain edit and push the result at the engine. */
 function withChain(state: State, edit: (song: Song) => ChainStep[]): Partial<State> {
   const song: Song = { ...state.song, chain: edit(state.song) }
@@ -156,6 +175,7 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
 
 export const useBox = create<State>()((set, get) => ({
   song: initialSong,
+  preset: initialPreset,
   engine: null,
   running: false,
   view: 'tr808',
@@ -411,7 +431,32 @@ export const useBox = create<State>()((set, get) => ({
     if (!preset) return
     // build(), not a stored object — each call is a fresh song, so loading one twice
     // cannot hand back something edited in between.
-    set(adopt(preset.build(), get().engine))
+    set({ ...adopt(preset.build(), get().engine), preset: preset.id })
+  },
+
+  stepPreset: (delta) => {
+    const { preset, running, engine } = get()
+    const at = SONGS.findIndex((s) => s.id === preset)
+    // Unknown song — somebody's own, or a loaded file. Start from the top rather than
+    // from nowhere, so next always goes somewhere.
+    const next = SONGS[(((at < 0 ? 0 : at + delta) % SONGS.length) + SONGS.length) % SONGS.length]
+
+    set({ ...adopt(next.build(), engine), preset: next.id })
+
+    // Restart, so a track change starts the new track at its beginning rather than
+    // dropping in wherever the bar counter happened to be. The gap is one lookahead.
+    if (running && engine) {
+      engine.stop()
+      void engine.start()
+    }
+    return next.name
+  },
+
+  pristine: () => {
+    const { song, preset } = get()
+    const found = preset ? songPresetById(preset) : undefined
+    if (!found) return false
+    return encodeSong(song) === encodeSong(found.build())
   },
 
   adoptSharedSong: async () => {

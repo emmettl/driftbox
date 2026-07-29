@@ -4,6 +4,7 @@ import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
 import { KaossPad } from './ui/KaossPad'
 import { Keys } from './ui/Keys'
+import { NowPlaying } from './ui/NowPlaying'
 import { Panel } from './ui/Panel'
 import { BassPanel } from './ui/BassPanel'
 import { FxPanel } from './ui/FxPanel'
@@ -90,6 +91,7 @@ export default function App() {
 
           <div className="stage-scope">
             <Oscilloscope mode={scope} height={260} persistence={0.42} transparent />
+            <NowPlaying />
             <p className="stage-hint">drag anywhere to filter</p>
           </div>
 
