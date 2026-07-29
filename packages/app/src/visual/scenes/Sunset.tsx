@@ -48,16 +48,33 @@ const GRID_VERTEX = /* glsl */ `
     // size is a few pixels.
     vec2 target = vec2((uTouch.x - 0.5) * uSpread, mix(9.0, 40.0, 1.0 - uTouch.y));
     float d = length(pos.xy - target);
-    // Tight enough to stay a bulge. Widening the falloff along with the lift folded the
-    // entire plane and took the horizon with it — the effect has to be big AND local, or
-    // there is nothing left for it to be big against.
-    float pull = exp(-d * d / 480.0);
-    pos.z += pull * uWarp * 30.0;
-    // And a ripple running out from it, so it reads as something disturbing the surface
-    // rather than a lump under a carpet.
-    pos.z += sin(d * 0.30 - uTime * 5.5) * pull * uWarp * 6.5;
+    // Two envelopes, not one, and this is the whole trick.
+    //
+    // A single gaussian forces a choice: tight enough to keep the horizon, or wide enough
+    // to be obvious, never both. Raising the lift alone gives a spike; widening the
+    // falloff folds the entire plane and there is nothing left for the effect to be big
+    // against. Both were tried, and both were wrong.
+    //
+    // So the LIFT stays tight and gets much taller, and a separate, far wider envelope
+    // carries a travelling ripple out across the rest of the floor. Near the finger the
+    // grid climbs; well beyond it the surface is still visibly moving. That reads as
+    // something happening TO the floor rather than as a bump under a carpet.
+    float pull = exp(-d * d / 520.0);
+    pos.z += pull * uWarp * 58.0;
 
-    vPull = pull * uWarp;
+    // The wake stays SMALL even though it is wide. The floor sits about half a unit below
+    // the camera, so a ripple of the same amplitude as the central lift throws half the
+    // plane above the viewer and the grid stops being a floor at all — which is what
+    // happened at 15, and it read as tangled wire rather than as a disturbed surface.
+    float wake = exp(-d * d / 5200.0);
+    pos.z += sin(d * 0.26 - uTime * 6.0) * wake * uWarp * 4.5;
+    // A second, slower wave travelling the other way, so the interference never repeats
+    // and the surface never looks like it is oscillating on a timer.
+    pos.z += sin(d * 0.11 + uTime * 2.3) * wake * uWarp * 2.2;
+
+    // Lit by the spike AND the wake, so the glow spreads with the disturbance instead of
+    // sitting in a puddle under the finger.
+    vPull = (pull + wake * 0.55) * uWarp;
     vDist = length(pos.xy);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
@@ -87,8 +104,8 @@ const GRID_FRAGMENT = /* glsl */ `
 
     if (glow < 0.004) discard;
     // Lit where the finger is, so the warp is visible even on a still floor.
-    vec3 lit = mix(colour * (0.7 + uHigh), vec3(1.0, 0.78, 0.36), clamp(vPull * 2.2, 0.0, 0.95));
-    gl_FragColor = vec4(lit, glow * (1.0 + vPull * 4.0));
+    vec3 lit = mix(colour * (0.7 + uHigh), vec3(1.0, 0.82, 0.42), clamp(vPull * 3.0, 0.0, 1.0));
+    gl_FragColor = vec4(lit, glow * (1.0 + vPull * 7.0));
   }
 `
 
@@ -172,8 +189,8 @@ export function Sunset() {
 
     // The camera leans toward the finger, which is most of why the warp reads as depth
     // rather than as a texture effect.
-    camera.position.y = 1.15 + bass * 0.22 + warp * 1.1
-    camera.position.x += ((touch.x - 0.5) * 5.5 * warp - camera.position.x) * Math.min(1, dt * 3)
+    camera.position.y = 1.15 + bass * 0.22 + warp * 2.2
+    camera.position.x += ((touch.x - 0.5) * 8.5 * warp - camera.position.x) * Math.min(1, dt * 3)
     camera.lookAt(0, 1.6, -30)
   })
 

@@ -180,8 +180,13 @@ grid lines stretch around it.
 **C** changes the scene. There are three — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
-the silhouette never repeats; and *Wireframe*, a hexagonal corridor you fly down, which is
-the Rez one. Drag to steer it.
+the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; and *Web*,
+a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
+lights one lane and a hat lights another and the shape of the mix is the picture.
+
+**The visual follows the tune.** Every shipped song names the scene it was written to be
+seen with, so skipping tracks changes the picture too. Changing it by hand still wins until
+the next track.
 
 The corridor is the only scene with **forward motion**, and that turns out to be most of
 what separates it from the others: a fixed horizon and a drifting cluster are both places,

@@ -46,3 +46,37 @@ export function readLevels(engine: DriftboxEngine | null | undefined): Levels {
 export function ease(current: number, target: number, dt: number, fall = 3.2): number {
   return target > current ? target : current + (target - current) * Math.min(1, dt * fall)
 }
+
+/**
+ * The spectrum split into `count` bands, for a scene that wants more than "bass" and
+ * "highs" — a radial analyser needs one number per lane.
+ *
+ * Logarithmic band edges, because the ear is: split 1024 linear FFT bins evenly and
+ * fifteen of sixteen lanes get the top two octaves, where a drum machine has almost
+ * nothing but hats. This puts a kick, a snare and a hat in different lanes, which is the
+ * entire point of showing them separately.
+ */
+export function readBands(
+  engine: DriftboxEngine | null | undefined,
+  out: Float32Array,
+): Float32Array {
+  const analyser = engine?.analyser
+  if (!analyser) {
+    out.fill(0)
+    return out
+  }
+
+  const bins = Math.min(spectrum.length, analyser.frequencyBinCount)
+  analyser.getByteFrequencyData(spectrum.subarray(0, bins) as Uint8Array<ArrayBuffer>)
+
+  const count = out.length
+  for (let band = 0; band < count; band++) {
+    // Each band covers a constant RATIO of the spectrum rather than a constant width.
+    const from = Math.floor(Math.pow(bins, band / count))
+    const to = Math.max(from + 1, Math.floor(Math.pow(bins, (band + 1) / count)))
+    let sum = 0
+    for (let i = from; i < to && i < bins; i++) sum += spectrum[i]
+    out[band] = sum / ((to - from) * 255)
+  }
+  return out
+}

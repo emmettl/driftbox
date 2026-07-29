@@ -24,36 +24,49 @@ export interface SongPreset {
   name: string
   /** One line, for the picker. */
   blurb: string
+  /**
+   * The visual this song was written to be seen with, as an opaque id the host resolves.
+   *
+   * A string rather than anything typed, deliberately: the engine has no idea what a
+   * scene is and must not learn. It is a hint travelling with the music — a host that
+   * has no visuals ignores it, and one with its own set can map it however it likes.
+   */
+  visual?: string
   build: () => Song
 }
 
 export const SONGS: SongPreset[] = [
   {
     id: 'chillwave',
+    visual: 'sunset',
     name: 'Sundown',
     blurb: 'Chillwave — slow, swung, lots of space',
     build: chillwaveSong,
   },
   {
     id: 'darkwave',
+    visual: 'lifeforms',
     name: 'Undertow',
     blurb: 'Darkwave — 82bpm, no snare, mostly room',
     build: darkwaveSong,
   },
   {
     id: 'acid',
+    visual: 'web',
     name: 'Acieed',
     blurb: 'Acid house — 126bpm, straight, 303 doing its thing',
     build: acidSong,
   },
   {
     id: 'ascend',
+    visual: 'wireframe',
     name: 'Ascend',
     blurb: 'Trance — 138bpm, straight, built to arrive rather than sit there',
     build: ascendSong,
   },
   {
     id: 'transmission',
+    visual: 'lifeforms',
     name: 'Transmission',
     blurb: 'ISDN-era FSOL — 104bpm, nothing lines up, no backbeat at all',
     build: transmissionSong,

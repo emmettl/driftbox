@@ -55,8 +55,11 @@ const LINE_VERTEX = /* glsl */ `
     // Steered by the finger, more strongly the further away it is — which is what makes
     // it read as leaning into a turn rather than sliding the whole tunnel sideways.
     float far = z / ${DEPTH.toFixed(1)};
-    pos.x += (uTouch.x - 0.5) * uWarp * 42.0 * far * far;
-    pos.y += (uTouch.y - 0.5) * uWarp * 30.0 * far * far;
+    pos.x += (uTouch.x - 0.5) * uWarp * 78.0 * far * far;
+    pos.y += (uTouch.y - 0.5) * uWarp * 56.0 * far * far;
+    // The corridor also flexes where you are holding it — a wave running down its length
+    // rather than a clean bend, so steering deforms the tunnel instead of just aiming it.
+    pos.xy *= 1.0 + sin(z * 0.16 - uTime * 3.0) * uWarp * 0.28;
 
     // Brightest just in front of the camera and gone at the far end. This is the fog —
     // done per vertex, because a corridor of thin lines is exactly the case where real
