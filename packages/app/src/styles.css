@@ -1255,3 +1255,180 @@ aside {
     grid-template-columns: repeat(5, 1fr);
   }
 }
+
+
+/* ---------- the 303 keyboard ----------
+   Docked under the grid. Monophonic, like the instrument, so at most one key is really
+   sounding — but every held key is lit, because that is what your hands are doing. */
+.keys {
+  flex: 0 0 auto;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  padding: 8px 12px 10px;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+/* The glow, while anything is down. On the panel rather than only on the key, so the
+   whole thing lights up when you play it. */
+.keys.sounding {
+  border-color: rgba(255, 176, 46, 0.5);
+  box-shadow: 0 0 34px rgba(255, 176, 46, 0.16), inset 0 0 30px rgba(255, 176, 46, 0.05);
+}
+
+.keys.collapsed {
+  padding-bottom: 8px;
+}
+
+.keys-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.keys-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keys-octave {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+  font-size: 10px;
+}
+
+.keys-octave button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dim);
+  line-height: 1;
+}
+
+.keys-octave button:hover {
+  color: var(--ink);
+}
+
+.keys-octave span {
+  min-width: 22px;
+  text-align: center;
+  color: var(--ink);
+}
+
+/* A real keyboard shape: black keys are narrower, sit above the white ones and overlap
+   them, so the layout reads as a piano rather than as thirteen equal buttons. */
+.keys-board {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+  margin-top: 8px;
+  height: 92px;
+  touch-action: none;
+}
+
+.key {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding-bottom: 7px;
+  border-radius: 0 0 7px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: none;
+  transition: background 0.06s ease, box-shadow 0.12s ease, transform 0.06s ease;
+}
+
+.key.white {
+  flex: 1;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  color: var(--dim);
+}
+
+.key.black {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 62%;
+  margin: 0 -18px;
+  z-index: 1;
+  background: linear-gradient(180deg, #1a1428, #0d0a16);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.key.on {
+  transform: translateY(1px);
+  color: #1a1005;
+}
+
+.key.white.on {
+  background: linear-gradient(180deg, #ffd88a, #e8952b);
+  box-shadow: 0 0 26px rgba(255, 176, 46, 0.6);
+}
+
+.key.black.on {
+  background: linear-gradient(180deg, #ffb347, #b8631a);
+  color: #1a1005;
+  box-shadow: 0 0 22px rgba(255, 176, 46, 0.6);
+}
+
+.key-note {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.key-cap {
+  font-size: 9px;
+  opacity: 0.55;
+  text-transform: uppercase;
+}
+
+.key-letter {
+  font-style: normal;
+}
+
+/* Past the top of a tom's tuning. Still a key, visibly not a note. */
+.key.unreachable {
+  opacity: 0.28;
+}
+
+.keys-drum {
+  width: auto !important;
+  padding: 6px 10px !important;
+  white-space: nowrap;
+}
+
+/* On a touch screen the letter is meaningless — there is no keyboard to press it on.
+   The scale degree stays: that is about the music, not about the input device. */
+@media (pointer: coarse) {
+  .key-letter {
+    display: none;
+  }
+
+  .keys-board {
+    height: 108px;
+  }
+
+  .key.black {
+    width: 34px;
+    margin: 0 -20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .keys,
+  .key {
+    transition: none;
+  }
+}

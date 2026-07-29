@@ -54,6 +54,20 @@ preference — it is what lets the engine be embedded elsewhere. It is now enfor
 package split rather than by discipline: `packages/engine` cannot reach into
 `packages/app`, because nothing declares that dependency and it would not resolve.
 
+**`Voice.pitched` declares what the tune knob actually does.** The mapping from knob to
+frequency lives inside each builder where nothing outside can see it, so a caller had no
+way to go the other direction and work out the knob position for a given note. Declaring
+the range is what lets a tom be played from a keyboard. Only the toms carry it: a snare has
+a tune knob too, and playing tunes on it is not a thing anybody wants.
+
+The ranges are a little under an octave — a real 808's tom tuning is limited, and reaching
+further means playing a different tom. It is a soft limit rather than a hard one, so do not
+narrow them to prove a point.
+
+**The 303 keyboard is monophonic on purpose.** Holding one key and pressing another glides
+between them on one envelope, which is the sequencer's slide reached from the other end. A
+polyphonic keyboard here would be a different instrument.
+
 **A song builder returns a fresh Song every call.** `clonePatterns` in `songs/notation.ts`
 exists for that: without it two calls hand back the same pattern objects, so anything that
 mutated a pattern in place would edit the shipped song permanently and `reset` would

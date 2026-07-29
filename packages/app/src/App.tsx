@@ -3,6 +3,7 @@ import { useBox } from './store'
 import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
 import { KaossPad } from './ui/KaossPad'
+import { Keys } from './ui/Keys'
 import { Panel } from './ui/Panel'
 import { BassPanel } from './ui/BassPanel'
 import { FxPanel } from './ui/FxPanel'
@@ -136,6 +137,11 @@ export default function App() {
               </Panel>
             </aside>
           </main>
+
+          {/* Docked under the grid, across the whole console. It plays whichever 303 is
+              selected, from any view — you reach for it while writing a drum pattern as
+              often as while writing a bassline. */}
+          <Keys />
         </div>
       )}
     </div>

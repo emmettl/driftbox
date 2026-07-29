@@ -127,7 +127,33 @@ export interface Voice {
    * offline at default knobs, take the peak, divide.
    */
   trim?: number
+  /**
+   * The fundamental this voice covers, in Hz, across its tune knob — for voices where
+   * that knob is a pitch rather than a character.
+   *
+   * Declared here because the mapping lives inside the builder, where nothing outside can
+   * see it. With it, a caller can go the other way: work out the tune value that lands a
+   * given note, and play a tom from a keyboard.
+   *
+   * These ranges are a little under an octave. That is deliberate rather than an
+   * oversight: a real 808's tom tuning is limited, and reaching further means playing a
+   * different tom — which is why the machine has three of them. It is a soft limit
+   * though, not a hard one, so do not narrow these to prove a point.
+   */
+  pitched?: { low: number; high: number }
   build: (params: VoiceParams, accent: number) => VoiceSpec
+}
+
+/**
+ * The tune knob position that puts a pitched voice at `hz`, clamped to what it can do.
+ *
+ * Returns null for a voice with no declared range, rather than guessing — a cowbell's
+ * tune knob moves its pitch too, but not in a way anybody plays tunes on.
+ */
+export function tuneForPitch(voice: Voice, hz: number): number | null {
+  if (!voice.pitched) return null
+  const { low, high } = voice.pitched
+  return Math.max(0, Math.min(1, (hz - low) / (high - low)))
 }
 
 export type MachineId = 'tr808' | 'tr909'

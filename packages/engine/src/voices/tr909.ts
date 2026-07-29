@@ -237,9 +237,9 @@ export const TR909_VOICES: Voice[] = [
   { id: '909.bd', trim: 0.53, name: 'Bass Drum', machine: 'tr909', build: bassDrum },
   { id: '909.sd', trim: 0.5, name: 'Snare', machine: 'tr909', build: snare },
   { id: '909.cp', trim: 0.85, name: 'Clap', machine: 'tr909', build: clap },
-  { id: '909.lt', trim: 0.49, name: 'Low Tom', machine: 'tr909', build: tom(70, 115) },
-  { id: '909.mt', trim: 0.49, name: 'Mid Tom', machine: 'tr909', build: tom(110, 180) },
-  { id: '909.ht', trim: 0.44, name: 'Hi Tom', machine: 'tr909', build: tom(165, 270) },
+  { id: '909.lt', trim: 0.49, name: 'Low Tom', machine: 'tr909', build: tom(65, 122), pitched: { low: 65, high: 122 } },
+  { id: '909.mt', trim: 0.49, name: 'Mid Tom', machine: 'tr909', build: tom(100, 192), pitched: { low: 100, high: 192 } },
+  { id: '909.ht', trim: 0.44, name: 'Hi Tom', machine: 'tr909', build: tom(150, 288), pitched: { low: 150, high: 288 } },
   { id: '909.rim', trim: 1.23, name: 'Rim', machine: 'tr909', build: rim },
   {
     id: '909.ch', trim: 1.75,

@@ -9,7 +9,7 @@ import { Transport, type StepEvent } from './transport.js'
 import { TR808_VOICES } from './voices/tr808.js'
 import { TR909_VOICES } from './voices/tr909.js'
 import { patternForBar, stepAt, swingFor, type Song } from './pattern.js'
-import { DEFAULT_PARAMS, type Voice, type VoiceParams, type VoiceSpec } from './types.js'
+import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams, type VoiceSpec } from './types.js'
 
 export * from './types.js'
 export * from './pattern.js'
@@ -35,6 +35,10 @@ export { TR909_VOICES } from './voices/tr909.js'
 // React, touches the DOM, or knows a sequencer UI exists. That is the whole point: the
 // game embeds this and gets a soundtrack, the sequencer app embeds the same thing and
 // puts knobs on it, and neither can drift from the other because there is one engine.
+
+/** How long a held note lasts if nothing ever releases it. Long enough to be "held" and
+ *  short enough that a lost key-up cannot leave a 303 droning for the rest of the day. */
+const HELD_SECONDS = 30
 
 export const ALL_VOICES: Voice[] = [...TR909_VOICES, ...TR808_VOICES]
 
@@ -335,6 +339,67 @@ export class DriftboxEngine {
     // this note, not the pair it happens to sit between.
     const note = bassNote(params, step, { note: null, accent: false, slide: false }, 0.3)
     if (note) bassline.play(note, this.ctx.currentTime + 0.01)
+  }
+
+  /**
+   * Start a 303 note and hold it until `bassNoteOff`.
+   *
+   * For playing one from a keyboard rather than auditioning a step. `legato` is what
+   * makes this worth having: pressing a second key without releasing the first glides
+   * between them on the same envelope, which is exactly the sequencer's slide and
+   * therefore comes free — a 303 is monophonic, so there was never another option.
+   */
+  bassNoteOn(voiceId: string, semitones: number, accent = false, legato = false): void {
+    void this.resume()
+    const bassline = this.basslines.get(voiceId)
+    if (!bassline) return
+
+    const params = this.song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
+    const note = bassNote(
+      params,
+      { note: semitones, accent, slide: false },
+      // A held previous note is a sliding one as far as `bassNote` is concerned.
+      legato ? { note: semitones, accent: false, slide: true } : { note: null, accent: false, slide: false },
+      0.3,
+    )
+    if (!note) return
+
+    // Held rather than gated: a long gate the release cancels, so the note sustains for
+    // as long as a finger is down instead of for whatever the pattern's step length is.
+    bassline.play({ ...note, gate: HELD_SECONDS }, this.ctx.currentTime + 0.01)
+  }
+
+  /**
+   * Play a pitched drum voice at a note — a tom, from the keyboard.
+   *
+   * `semitones` counts up from the bottom of that voice's own range, so key one is the
+   * tom at its lowest tuning. Notes past the top clamp there rather than failing: an 808
+   * tom covers about a fifth and the way to the notes above it is to play the next tom
+   * up, which is why the machine has three.
+   *
+   * Not held, unlike a 303 note — a tom is a hit. There is nothing to sustain.
+   */
+  auditionPitched(voiceId: string, semitones: number, accent = false): boolean {
+    const voice = voiceById(voiceId)
+    if (!voice?.pitched) return false
+    void this.resume()
+
+    const hz = voice.pitched.low * Math.pow(2, semitones / 12)
+    const tune = tuneForPitch(voice, hz)
+    if (tune === null) return false
+
+    const params = { ...(this.song.kit.params[voiceId] ?? DEFAULT_PARAMS), tune }
+    const spec = buildVoice(voice, params, accent ? 1 : 0.6)
+    const handle = renderVoice(this.ctx, spec, this.bus, this.ctx.currentTime + 0.01)
+    this.routeSends(voiceId, handle.output)
+    // Whether the note actually landed where it was asked, so the UI can grey out the
+    // keys this voice cannot reach rather than lighting them and lying.
+    return hz <= voice.pitched.high + 0.001
+  }
+
+  /** Let a held 303 note go. */
+  bassNoteOff(voiceId: string): void {
+    this.basslines.get(voiceId)?.silence(this.ctx.currentTime + 0.005)
   }
 
   private playStep(event: StepEvent): void {
