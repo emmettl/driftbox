@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { BASS_VOICES, bassStepAt, type BassStep } from '@driftbox/engine'
 import { useBox } from '../store'
-import { usePlayhead } from './usePlayhead'
+import { useLiveStep } from './useLiveStep'
 
 // The 303 grid.
 //
@@ -100,16 +100,9 @@ export function BassGrid() {
   const selectBass = useBox((s) => s.selectBass)
   const auditionBass = useBox((s) => s.auditionBass)
 
-  const playhead = usePlayhead()
+  const live = useLiveStep()
   const pattern = song.patterns.find((p) => p.id === editing)
   if (!pattern) return null
-
-  const playing = playhead
-    ? song.chain.length === 0
-      ? song.patterns[0]?.id
-      : song.chain[playhead.bar % song.chain.length]
-    : undefined
-  const live = playing === editing ? playhead?.index : undefined
 
   return (
     <div className="grid bass-grid">

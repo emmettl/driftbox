@@ -541,10 +541,53 @@ aside {
   box-shadow: 0 0 14px rgba(255, 190, 70, 0.55);
 }
 
+/* The playhead column.
+ *
+ * Every row gets this class on the same step, so the highlight reads as a column running
+ * down the whole grid rather than as sixteen unrelated lights. It has to be strong: on a
+ * pattern with two hits in it the cursor is mostly passing over empty pads, and an outline
+ * alone on a dark pad is invisible at arm's length.
+ *
+ * No transform. It used to lift 2px, which moves a button that is asking to be pressed —
+ * the same mistake the play button's pulse made, and here it happens sixteen times a bar. */
 .step.live {
   outline: 2px solid var(--nine);
   outline-offset: 1px;
-  transform: translateY(-2px);
+  background: rgba(95, 240, 208, 0.2);
+  box-shadow:
+    0 0 18px rgba(95, 240, 208, 0.45),
+    inset 0 0 10px rgba(95, 240, 208, 0.28);
+}
+
+.step.live.on,
+.step.live.accent {
+  box-shadow:
+    0 0 26px rgba(95, 240, 208, 0.75),
+    inset 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+.ruler {
+  padding-bottom: 0;
+}
+
+.ruler .row-steps {
+  align-items: end;
+}
+
+.tick {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.tick.downbeat {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tick.live {
+  height: 9px;
+  background: var(--nine);
+  box-shadow: 0 0 14px rgba(95, 240, 208, 0.85);
 }
 
 .step:hover {
