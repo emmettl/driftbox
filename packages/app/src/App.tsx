@@ -16,7 +16,8 @@ import { VoicePanel } from './ui/VoicePanel'
 import { PlayBeacon } from './ui/PlayBeacon'
 import { Visualiser } from './visual/Visualiser'
 import { SCENES, nextScene } from './visual/scenes'
-import { Oscilloscope, type ScopeMode } from './visual/Oscilloscope'
+import { Oscilloscope } from './visual/Oscilloscope'
+import { SCOPE_LABELS, nextScope } from './visual/scope'
 import './styles.css'
 
 /** How long the console takes to fold into the edit button. Matches `--fold` in the
@@ -30,7 +31,8 @@ export default function App() {
   const running = useBox((s) => s.running)
   const view = useBox((s) => s.view)
   const adoptSharedSong = useBox((s) => s.adoptSharedSong)
-  const [scope, setScope] = useState<ScopeMode>('wave')
+  const scope = useBox((s) => s.scope)
+  const setScope = useBox((s) => s.setScope)
   // Lives in the store now, because loading a song changes it — each shipped song names
   // the visual it was written to be seen with.
   const scene = useBox((s) => s.scene)
@@ -81,14 +83,14 @@ export default function App() {
       }
       if (event.key.toLowerCase() === 'v') togglePerformance()
       if (event.key === 'Escape' && performing) togglePerformance()
-      if (event.key.toLowerCase() === 'x') setScope((m) => (m === 'wave' ? 'xy' : 'wave'))
+      if (event.key.toLowerCase() === 'x') setScope(nextScope(useBox.getState().scope))
       if (event.key.toLowerCase() === 'c') {
         setScene(nextScene(useBox.getState().scene))
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [toggleTransport, togglePerformance, performing, setScene])
+  }, [toggleTransport, togglePerformance, performing, setScene, setScope])
 
   return (
     <div className={`app${performing ? ' performing' : ''}`}>
@@ -106,6 +108,19 @@ export default function App() {
             <NowPlaying />
             <p className="stage-hint">drag anywhere to filter</p>
           </div>
+
+          {/* Bottom right, opposite the play button. The oscilloscope suits most scenes
+              and actively fights a few — a trace drawn across a busy picture is a line
+              through it — so this is the way out, without it being a setting nobody
+              finds. */}
+          <button
+            className="stage-meter"
+            onClick={() => setScope(nextScope(scope))}
+            aria-label={`Meter: ${SCOPE_LABELS[scope]}`}
+            title="Change the meter"
+          >
+            {SCOPE_LABELS[scope]}
+          </button>
 
           {/* Vibes mode had no transport at all — it relied on the space bar, which does
               not exist on a phone. Since touch devices now open here, that made the app
@@ -165,11 +180,8 @@ export default function App() {
                 className="scope"
                 title="Scope"
                 aside={
-                  <button
-                    className="ghost"
-                    onClick={() => setScope((m) => (m === 'wave' ? 'xy' : 'wave'))}
-                  >
-                    {scope === 'wave' ? 'wave' : 'x/y'}
+                  <button className="ghost" onClick={() => setScope(nextScope(scope))}>
+                    {SCOPE_LABELS[scope]}
                   </button>
                 }
               >

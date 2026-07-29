@@ -26,19 +26,37 @@ export interface SceneInfo {
    * on a bright blue sky. A scene knows what it looks like; the pad does not.
    */
   accent: string
+  /**
+   * How the pad's trail is drawn, when the default does not suit.
+   *
+   * `scale` multiplies its radius: a scene made of fine lines wants a small trail, and one
+   * made of big soft shapes wants a big one or it disappears into them. `ring` draws it as
+   * an expanding outline rather than a filled blob, which is the only thing that reads on
+   * a bright scene — a dark blob on a bright sky looks like a smudge on the lens.
+   */
+  trail?: { scale?: number; ring?: boolean }
 }
 
 export const SCENES: SceneInfo[] = [
-  { id: 'sunset', name: 'Sunset', Component: Sunset, accent: '255, 176, 46' /* the sun it is drawn over */ },
-  { id: 'lifeforms', name: 'Lifeforms', Component: Lifeforms, accent: '255, 120, 220' /* picked out of the bodies */ },
-  { id: 'wireframe', name: 'Wireframe', Component: Wireframe, accent: '95, 240, 208' /* the near end of the corridor */ },
-  { id: 'web', name: 'Web', Component: Web, accent: '255, 255, 255' /* white, because the web is already every other colour */ },
-  { id: 'trench', name: 'Trench', Component: Trench, accent: '255, 90, 70' /* the cannons */ },
-  { id: 'water', name: 'Stillwater', Component: Stillwater, accent: '150, 205, 255' /* the crest of a ring */ },
-  { id: 'saturn', name: 'Saturn', Component: Saturn, accent: '255, 220, 150' /* the cloud tops */ },
-  { id: 'cycles', name: 'Light Cycles', Component: Cycles, accent: '95, 240, 255' /* the hero rides the blue one */ },
-  { id: 'defcon', name: 'Defcon', Component: Defcon, accent: '255, 240, 120' /* neither side, so it reads as yours */ },
-  { id: 'clouds', name: 'Clouds', Component: Clouds, accent: '60, 90, 150' /* dark, because everything else on this one is light */ },
+  // Accents are picked to CONTRAST with the scene, not to match it. Amber was chosen
+  // against the sunset's own amber sun, which is exactly why it disappeared into it — and
+  // it was then used on nine other scenes it had never been looked at over.
+  { id: 'sunset', name: 'Sunset', Component: Sunset, accent: '120, 255, 230' },
+  { id: 'lifeforms', name: 'Lifeforms', Component: Lifeforms, accent: '255, 255, 255', trail: { scale: 1.4 } },
+  { id: 'wireframe', name: 'Wireframe', Component: Wireframe, accent: '255, 255, 255' },
+  // White, because the web is already cycling through every other colour there is.
+  { id: 'web', name: 'Web', Component: Web, accent: '255, 255, 255' },
+  { id: 'trench', name: 'Trench', Component: Trench, accent: '120, 255, 210' },
+  { id: 'water', name: 'Stillwater', Component: Stillwater, accent: '150, 220, 255', trail: { scale: 1.5 } },
+  // Icy blue against a cream planet.
+  { id: 'saturn', name: 'Saturn', Component: Saturn, accent: '150, 220, 255', trail: { scale: 1.5 } },
+  // Small and white: this one is made of fine bright lines and a big soft blob buries them.
+  { id: 'cycles', name: 'Light Cycles', Component: Cycles, accent: '255, 255, 255', trail: { scale: 0.7 } },
+  // Near-white — neither green nor red, so the cursor reads as yours rather than a side's.
+  { id: 'defcon', name: 'Defcon', Component: Defcon, accent: '255, 250, 200', trail: { scale: 0.8 } },
+  // The only dark accent, and the only ring: a dark blob on a bright sky is a smudge on
+  // the lens, whereas an outline reads as something drawn on top of it.
+  { id: 'clouds', name: 'Clouds', Component: Clouds, accent: '40, 70, 130', trail: { scale: 1.8, ring: true } },
 ]
 
 export type SceneId = string

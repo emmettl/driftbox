@@ -21,7 +21,7 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, ten 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Four meters, ten 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -211,6 +211,16 @@ as it is deep, and a phone's horizontal field of view is about 0.6 of its vertic
 landscape it becomes a strip through the middle with dead space above and below. Rotating
 the board a quarter turn in portrait fills the same screen at two thirds the distance. Same
 lesson as Lifeforms' bodies, from the opposite direction.
+
+**A colour chosen against one background is a colour chosen against one background.** The
+pad's amber was picked over the sunset — where it matched the sun so well it vanished into
+it — and then used unchanged on nine other scenes nobody had looked at it over. Accents
+contrast now, and each scene declares its own.
+
+**Log band edges computed independently collapse at the bottom.** Thirty bands over a
+thousand FFT bins: the first ten edges all round down to bin one, so the bottom third of
+the meter is the same bar drawn ten times. Walk the edges and force each band to advance at
+least one bin.
 
 **Restraint stops being a style once it is the only one you have.** Nine scenes of glowing
 vectors in a dark room is a house style; the tenth being a bright blue sky is what proves

@@ -244,10 +244,20 @@ cartoon volume, so anything that flattens also widens — and a rainbow turns up
 loud enough to deserve one. Nothing is a texture: the clouds are point sprites shaded in
 the fragment shader, the sky is a gradient, the rainbow is seven arcs.
 
-**Each scene picks the filter pad's colour.** The pad draws over whatever is running, and it
-was amber for every scene — chosen against a dark blue horizon, wrong on a spectrum-cycling
-Tempest web, and actively bad on a bright sky. A scene knows what it looks like; the pad
-does not.
+**Each scene picks the filter pad's colour and the size of its trail.** The pad draws over
+whatever is running, and it was amber for every one of them — a colour chosen against the
+sunset's own amber sun, which is exactly why it disappeared into it. The accents now
+contrast rather than match, and a scene made of fine lines gets a smaller trail while one
+made of big soft shapes gets a bigger one. Clouds gets the only dark accent and the only
+ring: on a bright scene a filled blob reads as a smudge on the lens, whereas an outline
+reads as something drawn on top.
+
+**A meter selector, bottom right.** The oscilloscope is the right default — it is genuinely
+diagnostic, since a clip shows as a flattened top and a click as a vertical step — but a
+trace drawn across a busy picture is a line through it. So there are four: *wave*, *bars*
+(the only one that reads the spectrum rather than the waveform, and the one that sits along
+the foot of the frame instead of across the middle of it), *x/y* for the vectorscope, and
+*off*. `X` cycles them from the keyboard.
 
 *Defcon* is the only scene where the music makes something **happen** rather than something
 move. A kick launches a missile from one side of the board, it takes several seconds to

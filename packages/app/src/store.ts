@@ -35,6 +35,7 @@ import {
   type VoiceParams,
 } from '@driftbox/engine'
 import { SCENES, type SceneId } from './visual/scenes'
+import type { ScopeMode } from './visual/scope'
 import {
   autosave,
   clearStoredSong,
@@ -60,6 +61,15 @@ interface State {
   engine: DriftboxEngine | null
   running: boolean
   view: View
+  /**
+   * Which meter is drawn over the scene, and in the editor's scope panel.
+   *
+   * Shared rather than local to either, so the choice survives moving between vibes and
+   * the grid — picking bars on the stage and finding a waveform in the editor would read
+   * as two different controls that happen to look alike.
+   */
+  scope: ScopeMode
+  setScope: (mode: ScopeMode) => void
   /** Which pattern the grid is editing. Not necessarily the one playing. */
   editing: string
   /**
@@ -233,6 +243,8 @@ export const useBox = create<State>()((set, get) => ({
   engine: null,
   running: false,
   view: 'tr808',
+  scope: 'wave',
+  setScope: (scope) => set({ scope }),
   editing: initialSong.patterns[0]?.id ?? '',
   followPlayhead: true,
   metronome: false,
