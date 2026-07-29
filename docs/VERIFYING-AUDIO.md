@@ -14,6 +14,17 @@ or a whole pattern, faster than real time and read the samples.
 `OfflineAudioContext` is a browser API, so these run in the page, not in Node. Start the
 dev server and paste into the browser console — or use whatever tooling drives the page.
 
+A headless browser works and is worth the setup if you are changing anything more than
+once — the recipes below are all `page.evaluate` bodies:
+
+```js
+import { chromium } from 'playwright'
+const browser = await chromium.launch({ channel: 'chrome' })
+const page = await browser.newPage()
+await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' })
+console.log(await page.evaluate(async () => { /* recipe here */ }))
+```
+
 Vite serves the TypeScript directly, so the engine can be imported at runtime:
 
 ```js
@@ -144,6 +155,93 @@ physics, not a failure. Do not expect silence after a kick.
 For swing, compare `stepTime` for an odd step at two swing settings; the shift should be
 `swing * 0.5 * secondsPerStep`. At 102 BPM and swing 0.6 that is 44 ms of a 147 ms step.
 
+## Recipe 5 — the 303s
+
+Three things about a bassline are worth measuring, and none of them are levels.
+
+**Is it the real filter?** `Bassline.create` falls back to a biquad when an AudioWorklet
+cannot be loaded, and the fallback sweeps but does not squelch. Everything below is
+meaningless if this is `false`.
+
+```js
+const eng = await import('/src/engine/index.ts')
+const ctx = new OfflineAudioContext(1, 44100, 44100)
+const { bassline, usingLadder } = await eng.Bassline.create(ctx)
+console.log({ usingLadder })   // must be true
+```
+
+**Does slide actually join two notes?** This is the one that cannot be checked by
+looking at the code, because it depends on the VCA envelope *not* being retriggered.
+Render two notes a step apart and probe the moment just before the second lands — a
+sliding pair is still sounding there, an ordinary pair is silent.
+
+```js
+const eng = await import('/src/engine/index.ts')
+const { defaultSong } = await import('/src/songs.ts')
+const SR = 44100, params = defaultSong().kit.bass['303.a'], step = 0.14
+
+const gapBefore = async (slide) => {
+  const ctx = new OfflineAudioContext(1, SR, SR)
+  const { bassline } = await eng.Bassline.create(ctx)
+  bassline.output.connect(ctx.destination)
+  const a = { note: 0, accent: false, slide }
+  bassline.play(eng.bassNote(params, a, eng.REST, step), 0.05)
+  bassline.play(eng.bassNote(params, { note: 12, accent: false, slide: false }, a, step), 0.05 + step)
+  const d = (await ctx.startRendering()).getChannelData(0)
+  const from = Math.floor((0.05 + step - 0.004) * SR)
+  let peak = 0
+  for (let i = from; i < from + Math.floor(0.003 * SR); i++) peak = Math.max(peak, Math.abs(d[i]))
+  return peak
+}
+console.log({ sliding: await gapBefore(true), notSliding: await gapBefore(false) })
+```
+
+**What good looks like.** `sliding` clearly above zero, `notSliding` exactly `0`.
+Measured: `0.087` and `0`.
+
+**Does accent do all three of its jobs?** Render one note with and without it. The
+accented one must be louder *and* brighter — count zero crossings over the first 40ms as
+a crude brightness proxy. Measured at default knobs: peak `0.269 → 0.391` and crossings
+`5 → 14`. If the level moved and the crossings did not, accent has been wired to the VCA
+only, which is the usual way a 303 emulation ends up sounding flat.
+
+> **Adding basslines does not raise the output peak.** Worth knowing before you go
+> hunting for headroom: measured through the real bus, Drift went `0.984 → 0.982` and
+> Neon `0.977 → 0.964` when the 303s were added. Sustained bass sits under the
+> compressor's threshold long enough to pull the transients down with it, so the
+> headroom on the shipped patterns is set by the drums and turning the 303s down buys
+> nothing.
+
+## Recipe 6 — the sends, and the one that can run away
+
+Two things to check. First that the effects do anything: render a pattern with and without
+the sends routed, and compare the level a second *after* the last hit. Dry, that window is
+silence; wet, it is the tail. Measured on the shipped song: `0.0001` dry against `0.028` on
+Neon.
+
+Second, and more important — **the delay feedback is the one control here that can build
+rather than decay.** Everything else in the app gets quieter on its own. Set every send on
+every voice to 1, the feedback knob to maximum, and render four bars:
+
+```js
+const hot = defaultSong()
+hot.fx = { ...hot.fx, delayFeedback: 1, reverbSize: 1 }
+for (const id of Object.keys(hot.kit.params)) hot.kit.sends[id] = { delay: 1, reverb: 1 }
+for (const id of Object.keys(hot.kit.bass)) hot.kit.sends[id] = { delay: 1, reverb: 1 }
+// ...render through the bus as in recipe 3, routing each voice's output into
+// sends.delayInput / sends.reverbInput through a gain
+```
+
+**What good looks like.** `clipped === 0`, `peak` under `1.0`, and the level a second after
+the last hit clearly *below* the peak — decaying, not sustaining.
+
+This caught a real one. The feedback cap was `0.92`, which is fine on its own; combined
+with a dotted-eighth delay and everything sent at full it peaked at `1.109` with 33 clipped
+samples and was still over full scale a second later. The cap is `0.85` now, which passes
+the same test. Re-run this after touching `DELAY_DIVISIONS`, the feedback cap, or the
+default sends — a shorter delay overlaps its repeats more and builds faster, so the three
+interact.
+
 ## Things measurement has caught
 
 Kept as a record of what these are worth.
@@ -156,5 +254,12 @@ Kept as a record of what these are worth.
 3. **The output clipping.** The busiest pattern peaked at 2.14 raw and 1.08 through the
    compressor. Two samples over full scale is inaudible on its own and a sign the whole
    gain structure is wrong.
+4. **A delay that could be driven past full scale.** Feedback capped at 0.92, every send
+   at maximum: 1.109 peak, 33 clipped samples, still over full scale a second after the
+   last hit. Only reachable at extreme settings, but a control that can break the output
+   when it is turned all the way up is a control with the wrong range.
+5. **A comment that had stopped being true.** The default delay was documented as the
+   dotted eighth and was in fact a straight quarter — the knob value did not map where the
+   prose said it did. Caught by printing what the UI actually renders, not by reading it.
 
 None of these would have failed a test, and none are visible by reading the code.

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useBox } from './store'
+import { BassGrid } from './ui/BassGrid'
+import { BassPanel } from './ui/BassPanel'
+import { FxPanel } from './ui/FxPanel'
 import { Sequencer } from './ui/Sequencer'
 import { TransportBar } from './ui/TransportBar'
 import { VoicePanel } from './ui/VoicePanel'
@@ -12,7 +15,17 @@ export default function App() {
   const togglePerformance = useBox((s) => s.togglePerformance)
   const toggleTransport = useBox((s) => s.toggleTransport)
   const running = useBox((s) => s.running)
+  const view = useBox((s) => s.view)
+  const adoptSharedSong = useBox((s) => s.adoptSharedSong)
   const [scope, setScope] = useState<ScopeMode>('wave')
+
+  // A song in the URL wins over the autosaved session, because arriving on a link and
+  // getting somebody else's song is the whole point of the link. Decoding is async — it
+  // goes through DecompressionStream — so it cannot be part of the store's initial
+  // state and has to land here instead.
+  useEffect(() => {
+    void adoptSharedSong()
+  }, [adoptSharedSong])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -48,9 +61,10 @@ export default function App() {
         <div className="console">
           <TransportBar />
           <main>
-            <Sequencer />
+            {view === 'bass' ? <BassGrid /> : <Sequencer />}
             <aside>
-              <VoicePanel />
+              {view === 'bass' ? <BassPanel /> : <VoicePanel />}
+              <FxPanel />
               <section className="scope">
                 <header>
                   <h3>Scope</h3>

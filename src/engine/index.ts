@@ -1,4 +1,8 @@
+import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassStep } from './bass'
+import { Bassline } from './bassline'
+import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects'
 import { renderVoice, type VoiceHandle } from './render'
+import { secondsPerStep } from './timing'
 import { Transport, type StepEvent } from './transport'
 import { TR808_VOICES } from './voices/tr808'
 import { TR909_VOICES } from './voices/tr909'
@@ -8,8 +12,13 @@ import { DEFAULT_PARAMS, type Voice, type VoiceParams, type VoiceSpec } from './
 export * from './types'
 export * from './pattern'
 export * from './timing'
+export * from './bass'
+export * from './effects'
+export * from './song-io'
 export { Transport, type StepEvent } from './transport'
 export { renderVoice } from './render'
+export { Bassline } from './bassline'
+export { Ladder } from './dsp/ladder'
 export { TR808_VOICES } from './voices/tr808'
 export { TR909_VOICES } from './voices/tr909'
 
@@ -57,6 +66,27 @@ export class DriftboxEngine {
   private readonly transport: Transport
   /** One ringing voice per choke group, so a closed hat can cut off an open one. */
   private readonly choking = new Map<string, VoiceHandle>()
+  /** One persistent monosynth per 303, built once the ladder worklet has loaded. */
+  private readonly basslines = new Map<string, Bassline>()
+  private bassReady: Promise<void> | undefined
+  private readonly sends: Sends
+  /**
+   * One send gain per voice per effect, created once and kept.
+   *
+   * Not per hit. A drum hit's graph disconnects itself when its tail runs out, and
+   * `disconnect()` drops every outgoing connection — so a send gain created alongside
+   * the hit would be orphaned still attached to the send bus, and at 140bpm that is
+   * thousands of dead nodes an hour. Persistent gains invert it: the hit connects INTO
+   * something that outlives it, and cleans up after itself on the way out.
+   */
+  private readonly sendGains = new Map<string, GainNode>()
+
+  /**
+   * Whether the 303s got a real ladder filter or fell back to a biquad. Undefined until
+   * the worklet has finished loading. Worth surfacing: the fallback is a filter sweep
+   * rather than a squelch, and "the basslines sound tame" has exactly one likely cause.
+   */
+  usingLadder: boolean | undefined
 
   song: Song
 
@@ -86,6 +116,11 @@ export class DriftboxEngine {
     this.analyser.fftSize = 2048
     this.analyser.smoothingTimeConstant = 0.75
 
+    // The sends return to the bus, so the wet signal goes through the same compressor
+    // and master as everything else. Returning them after the compressor would let a
+    // long reverb tail push the output over full scale with nothing holding it.
+    this.sends = new Sends(this.ctx, this.bus)
+
     this.bus.connect(compressor)
     compressor.connect(this.master)
     this.master.connect(this.analyser)
@@ -97,6 +132,65 @@ export class DriftboxEngine {
     })
     this.transport.bpm = song.bpm
     this.transport.swing = song.swing
+
+    this.syncFx()
+
+    // Kicked off now rather than on the first note. Registering an AudioWorklet module
+    // is a real async round trip, and a 303 that arrives two bars into the song is
+    // worse than one that costs a moment of startup nobody is listening through.
+    void this.ensureBass()
+  }
+
+  /** Push the song's effect settings into the send buses. Call after changing `song.fx`
+   *  or the tempo — the delay is tempo-synced, so it has to be told. */
+  syncFx(): void {
+    this.sends.update(this.song.fx ?? DEFAULT_FX, this.transport.bpm)
+  }
+
+  /**
+   * The send gain for one voice, created on first use and kept for the session.
+   *
+   * Levels are read from the song here rather than pushed in when a knob moves, so a
+   * send that has never been touched costs nothing at all: no node is built until the
+   * voice is actually sent somewhere.
+   */
+  private routeSends(voiceId: string, output: AudioNode): void {
+    const levels = this.song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
+
+    for (const [kind, amount] of [
+      ['delay', levels.delay],
+      ['reverb', levels.reverb],
+    ] as const) {
+      const key = `${voiceId}:${kind}`
+      let gain = this.sendGains.get(key)
+      if (!gain) {
+        if (amount <= 0) continue
+        gain = this.ctx.createGain()
+        gain.connect(kind === 'delay' ? this.sends.delayInput : this.sends.reverbInput)
+        this.sendGains.set(key, gain)
+      }
+      gain.gain.value = amount
+      output.connect(gain)
+    }
+  }
+
+  /** Build the 303s once their filter is available. Idempotent; the promise is the
+   *  latch, so concurrent callers all wait on the same load. */
+  private ensureBass(): Promise<void> {
+    this.bassReady ??= (async () => {
+      for (const voice of BASS_VOICES) {
+        const { bassline, usingLadder } = await Bassline.create(this.ctx)
+        bassline.output.connect(this.bus)
+        this.basslines.set(voice.id, bassline)
+        this.usingLadder = usingLadder
+      }
+      // A 303's output node is permanent, unlike a drum hit's, so its sends only need
+      // connecting once. `routeSends` is idempotent — connecting the same pair of nodes
+      // twice is a no-op in Web Audio — so the per-step call below costs nothing but
+      // keeps the level current as the knob moves.
+      for (const [voiceId, bassline] of this.basslines) this.routeSends(voiceId, bassline.output)
+    })()
+    return this.bassReady
   }
 
   get running(): boolean {
@@ -110,6 +204,9 @@ export class DriftboxEngine {
   set bpm(value: number) {
     this.song.bpm = value
     this.transport.bpm = value
+    // The delay is measured in steps, not seconds, so it has to follow the tempo or the
+    // repeats stop landing where the pattern does.
+    this.syncFx()
   }
 
   get bpm(): number {
@@ -137,11 +234,16 @@ export class DriftboxEngine {
 
   async start(): Promise<void> {
     await this.resume()
+    await this.ensureBass()
     this.transport.start()
   }
 
   stop(): void {
     this.transport.stop()
+    // A 303 note is held by a VCA envelope that runs until its gate ends, so unlike a
+    // drum hit it will still be sounding when the transport stops. Left alone it hangs
+    // there until the bar it was never going to finish.
+    for (const bassline of this.basslines.values()) bassline.silence()
   }
 
   /** Fire one voice immediately — auditioning from the UI, or a one-shot from a game
@@ -169,7 +271,20 @@ export class DriftboxEngine {
     }
 
     const handle = renderVoice(this.ctx, spec, this.bus, time)
+    this.routeSends(voiceId, handle.output)
     if (voice.choke) this.choking.set(voice.choke, handle)
+  }
+
+  /** Play one 303 note now — previewing a note while writing a line. */
+  auditionBass(voiceId: string, step: BassStep): void {
+    void this.resume()
+    const bassline = this.basslines.get(voiceId)
+    if (!bassline) return
+    const params = this.song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
+    // No previous step, so it always strikes rather than sliding — you are auditioning
+    // this note, not the pair it happens to sit between.
+    const note = bassNote(params, step, { note: null, accent: false, slide: false }, 0.3)
+    if (note) bassline.play(note, this.ctx.currentTime + 0.01)
   }
 
   private playStep(event: StepEvent): void {
@@ -181,10 +296,37 @@ export class DriftboxEngine {
       if (value === 0) continue
       this.trigger(voiceId, event.time, value === 2 ? 1 : 0.55)
     }
+
+    // Gate lengths are in seconds, so the line has to know how long a step currently
+    // is. Read per step rather than cached, so a tempo change shortens the notes with
+    // it instead of leaving them overlapping.
+    const stepSeconds = secondsPerStep(this.transport.bpm)
+
+    for (const [voiceId, line] of Object.entries(pattern.bass ?? {})) {
+      const bassline = this.basslines.get(voiceId)
+      if (!bassline) continue
+
+      const step = line[event.index % pattern.length]
+      if (!step) continue
+
+      const note = bassNote(
+        this.song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS,
+        step,
+        previousStep(line, event.index, pattern.length),
+        stepSeconds,
+      )
+      if (note) bassline.play(note, event.time)
+      this.routeSends(voiceId, bassline.output)
+    }
   }
 
   dispose(): void {
     this.stop()
+    for (const bassline of this.basslines.values()) bassline.dispose()
+    this.basslines.clear()
+    for (const gain of this.sendGains.values()) gain.disconnect()
+    this.sendGains.clear()
+    this.sends.dispose()
     this.bus.disconnect()
     this.master.disconnect()
     this.analyser.disconnect()

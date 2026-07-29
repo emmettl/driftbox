@@ -4,6 +4,7 @@
   --dim: #9d95c8;
   --eight: #ff7ad9;
   --nine: #5ff0d0;
+  --three: #ffb02e;
   --panel: rgba(14, 10, 30, 0.72);
   --edge: rgba(255, 255, 255, 0.09);
   --mono: 'SFMono-Regular', ui-monospace, 'Menlo', monospace;
@@ -122,6 +123,21 @@ button {
   gap: 6px;
 }
 
+/* Pushed to the far end, away from the controls you touch while playing. */
+.song-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.flash {
+  color: var(--nine);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
 .machines button,
 .patterns button,
 .ghost {
@@ -142,6 +158,12 @@ button {
   color: var(--nine);
   border-color: var(--nine);
   box-shadow: 0 0 18px rgba(95, 240, 208, 0.3);
+}
+
+.machines .three.on {
+  color: var(--three);
+  border-color: var(--three);
+  box-shadow: 0 0 18px rgba(255, 176, 46, 0.3);
 }
 
 .patterns button.on {
@@ -169,6 +191,9 @@ aside {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  /* Three panels now rather than two, and the 303 strip is the tall one. Scrolling is
+     better than squashing the knobs below the size a finger can hit. */
+  overflow-y: auto;
 }
 
 /* ---------- step grid ---------- */
@@ -252,6 +277,118 @@ aside {
 
 .step:hover {
   border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* ---------- 303 grid ----------
+   One block per synth, three lanes inside it. The note lane is taller than the flag
+   lanes so the pitch is readable and the two rows of switches stay subordinate to it —
+   the same hierarchy the hardware has. */
+.bass-grid {
+  gap: 14px;
+}
+
+.bass-voice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 8px;
+}
+
+.bass-voice.selected {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bass-lane {
+  color: var(--dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.bass-voice.selected .bass-lane {
+  color: var(--ink);
+}
+
+.step.bass-note {
+  height: 34px;
+  font-size: 10px;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.step.bass-note.on,
+.step.bass-note.accent {
+  color: #1a1005;
+  font-weight: 600;
+}
+
+.step.bass-note.on {
+  background: linear-gradient(180deg, #ffd88a, #e8952b);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.step.bass-accent,
+.step.bass-slide {
+  height: 12px;
+}
+
+.step.bass-accent.on {
+  background: linear-gradient(180deg, #fff3a8, #ffb02e);
+  border-color: #fff;
+}
+
+.step.bass-slide.on {
+  background: linear-gradient(180deg, #9fe8ff, #3fa9d8);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* A flag on a step with no note does nothing yet. Kept rather than cleared, so removing
+   a note and putting it back does not silently lose the slide you set on it. */
+.step.bass-accent.idle,
+.step.bass-slide.idle {
+  opacity: 0.3;
+}
+
+.bass-pick {
+  display: flex;
+  gap: 4px;
+}
+
+.bass-pick button {
+  width: 26px;
+  padding: 6px 0;
+  border-radius: 8px;
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--dim);
+}
+
+.bass-pick button.on {
+  color: var(--three);
+  border-color: var(--three);
+}
+
+.bass-knobs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.bass-knobs .knob-dial {
+  width: 46px;
+  height: 46px;
+}
+
+.panel-note {
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 176, 46, 0.35);
+  background: rgba(255, 176, 46, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 /* ---------- voice panel ---------- */
@@ -358,6 +495,51 @@ aside {
 .knob-readout {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- sends and effects ----------
+   Divided off from the knobs above, because these change where a voice goes rather than
+   what it sounds like. */
+.sends {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--edge);
+}
+
+.sends-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--dim);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.sends .knobs {
+  grid-template-columns: repeat(2, 1fr);
+  flex: 1;
+}
+
+.sends .knob-dial {
+  width: 46px;
+  height: 46px;
+}
+
+.fx-knobs {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px 2px;
+}
+
+.fx-knobs .knob-dial {
+  width: 42px;
+  height: 42px;
+}
+
+.fx-knobs .knob-readout {
+  font-size: 9px;
 }
 
 /* ---------- scope ---------- */

@@ -1,6 +1,7 @@
 import { voiceById, type VoiceParams } from '../engine'
 import { useBox } from '../store'
 import { Knob } from './Knob'
+import { SendKnobs } from './SendKnobs'
 import { VoiceWaveform } from './VoiceWaveform'
 
 // The channel strip for whichever voice is selected. Six knobs, the same six on every
@@ -62,6 +63,8 @@ export function VoicePanel() {
           />
         ))}
       </div>
+
+      <SendKnobs voiceId={voice.id} colour={accent} />
     </section>
   )
 }

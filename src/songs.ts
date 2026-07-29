@@ -1,4 +1,11 @@
-import { defaultKit, type Pattern, type Song, type StepValue } from './engine'
+import {
+  defaultFx,
+  defaultKit,
+  type BassStep,
+  type Pattern,
+  type Song,
+  type StepValue,
+} from './engine'
 import { ALL_VOICES } from './engine'
 
 // The patterns the box opens on. Written in a step notation rather than as arrays of
@@ -13,41 +20,99 @@ export function steps(notation: string): StepValue[] {
     .map((c) => (c === 'X' ? 2 : c === 'x' ? 1 : 0))
 }
 
+/**
+ * A bassline, one whitespace-separated token per step.
+ *
+ *   .      rest
+ *   0      a note, in semitones above the synth's root
+ *   7a     accented
+ *   12s    slides into whatever comes next
+ *   0as    both
+ *   |      ignored, for grouping into beats
+ *
+ * Wordier than the drum notation because a bass step carries three things rather than
+ * one, but it keeps the same property: the line is legible as a line in the source.
+ */
+export function bassSteps(notation: string): BassStep[] {
+  return notation
+    .trim()
+    .split(/\s+/)
+    .filter((token) => token !== '|')
+    .map((token) => {
+      if (token === '.') return { note: null, accent: false, slide: false }
+      const [, digits, flags] = /^(-?\d+)([as]*)$/.exec(token) ?? []
+      if (digits === undefined) throw new Error(`Unreadable bass step: ${token}`)
+      return {
+        note: Number(digits),
+        accent: flags.includes('a'),
+        slide: flags.includes('s'),
+      }
+    })
+}
+
 function pattern(
   id: string,
   name: string,
   tracks: Record<string, string>,
+  bassLines: Record<string, string> = {},
   length = 16,
 ): Pattern {
   const out: Record<string, StepValue[]> = {}
   for (const [voice, notation] of Object.entries(tracks)) out[voice] = steps(notation)
-  return { id, name, length, tracks: out }
+
+  const bass: Record<string, BassStep[]> = {}
+  for (const [voice, notation] of Object.entries(bassLines)) bass[voice] = bassSteps(notation)
+
+  return { id, name, length, tracks: out, bass }
 }
 
 // Slow, swung, lots of space. The kick leaves the second half of the bar alone so the
 // hats can carry it, which is most of why this reads as hazy rather than as a groove.
-const drift = pattern('drift', 'Drift', {
-  '808.bd': 'X... .... ..x. .... ',
-  '808.sd': '.... X... .... x...',
-  '808.cp': '.... X... .... ....',
-  '808.ch': 'x.x. x.x. x.x. x.x.',
-  '808.oh': '..x. .... ..x. ..x.',
-  '808.ma': '.x.x .x.x .x.x .x.x',
-})
+//
+// The 303s stay out of each other's way: A plays the figure, B holds a long slide
+// underneath it. Two lines doing the same thing an octave apart is the obvious use of
+// having two, and the least interesting one.
+const drift = pattern(
+  'drift',
+  'Drift',
+  {
+    '808.bd': 'X... .... ..x. .... ',
+    '808.sd': '.... X... .... x...',
+    '808.cp': '.... X... .... ....',
+    '808.ch': 'x.x. x.x. x.x. x.x.',
+    '808.oh': '..x. .... ..x. ..x.',
+    '808.ma': '.x.x .x.x .x.x .x.x',
+  },
+  {
+    '303.a': '0a . . 0 | . . 12s 12 | . 0 . . | 10 . 7 .',
+    '303.b': '. . . . | 0a . . . | . . . 7s | 7 . . .',
+  },
+)
 
 // The same tempo with the bar filled in — a chorus to the one above.
-const neon = pattern('neon', 'Neon', {
-  '808.bd': 'X... ..x. ..X. .x..',
-  '808.sd': '.... X... .... X...',
-  '808.cp': '.... X... .... X..x',
-  '808.ch': 'x.xx x.xx x.xx x.xx',
-  '808.oh': '..x. .... ..x. ....',
-  '808.cb': '.... .... x... ..x.',
-  '808.mt': '.... .... .... x.x.',
-})
+const neon = pattern(
+  'neon',
+  'Neon',
+  {
+    '808.bd': 'X... ..x. ..X. .x..',
+    '808.sd': '.... X... .... X...',
+    '808.cp': '.... X... .... X..x',
+    '808.ch': 'x.xx x.xx x.xx x.xx',
+    '808.oh': '..x. .... ..x. ....',
+    '808.cb': '.... .... x... ..x.',
+    '808.mt': '.... .... .... x.x.',
+  },
+  {
+    // Slides on the way up, accents on the way down. Repeated notes at one pitch with
+    // the odd octave jump is the whole acid vocabulary, and it works because the filter
+    // envelope makes every repeat land differently.
+    '303.a': '0a . 0 12s | 12 . 0 . | 3a . 3 . | 0 . 10s 10',
+  },
+)
 
 // Almost nothing. Useful as an intro, and as the thing the game plays when the level
-// is calm — the arrangement has somewhere to go from here.
+// is calm — the arrangement has somewhere to go from here. No bass at all, so the
+// chain has one more place to go when it drops into Drift.
 const haze = pattern('haze', 'Haze', {
   '808.bd': 'X... .... .... ....',
   '808.sd': '.... .... .... x...',
@@ -56,14 +121,22 @@ const haze = pattern('haze', 'Haze', {
 })
 
 // The 909 side: four to the floor, offbeat open hat, clap on the backbeat. The oldest
-// trick in the machine and still the clearest demonstration of what a 909 is for.
-const pulse = pattern('pulse', 'Pulse', {
-  '909.bd': 'X... x... X... x...',
-  '909.cp': '.... X... .... X...',
-  '909.ch': 'x.x. x.x. x.x. x.x.',
-  '909.oh': '..x. ..x. ..x. ..x.',
-  '909.rim': '.... ..x. .... ..x.',
-})
+// trick in the machine and still the clearest demonstration of what a 909 is for — and
+// the one pattern here where a 303 is doing what a 303 was famous for.
+const pulse = pattern(
+  'pulse',
+  'Pulse',
+  {
+    '909.bd': 'X... x... X... x...',
+    '909.cp': '.... X... .... X...',
+    '909.ch': 'x.x. x.x. x.x. x.x.',
+    '909.oh': '..x. ..x. ..x. ..x.',
+    '909.rim': '.... ..x. .... ..x.',
+  },
+  {
+    '303.a': '0a . 0 . | 12s 12 . 0 | . 0 3a . | 0 . 12s 12',
+  },
+)
 
 const PATTERNS = [drift, neon, haze, pulse]
 
@@ -87,11 +160,63 @@ export function defaultSong(): Song {
   kit.params['909.oh'] = { ...kit.params['909.oh'], decay: 0.4, level: 0.42, pan: 0.58 }
   kit.params['909.rim'] = { ...kit.params['909.rim'], level: 0.5, pan: 0.38 }
 
+  // The two 303s are set up as a pair rather than as two of the same thing: A is the
+  // bright one that squelches, B sits an octave down with the filter mostly shut and
+  // barely any envelope, so it reads as a bass part rather than as a second lead.
+  if (kit.bass) {
+    kit.bass['303.a'] = {
+      ...kit.bass['303.a'],
+      cutoff: 0.3,
+      resonance: 0.78,
+      envMod: 0.62,
+      decay: 0.38,
+      accent: 0.7,
+      // Measured through the real bus, like the drum levels above. Worth recording what
+      // that showed, because it is the opposite of what you would expect: adding the
+      // basslines does not raise the output peak at all, it lowers it slightly (Drift
+      // 0.984 -> 0.982, Neon 0.977 -> 0.964). Sustained bass sits under the compressor's
+      // threshold long enough to pull the transients down with it. So the headroom on
+      // these is set by the drums, and turning the 303s down buys nothing.
+      level: 0.62,
+    }
+    kit.bass['303.b'] = {
+      ...kit.bass['303.b'],
+      tune: 0.22,
+      wave: 1,
+      cutoff: 0.2,
+      resonance: 0.4,
+      envMod: 0.28,
+      decay: 0.6,
+      accent: 0.4,
+      level: 0.5,
+    }
+  }
+
+  // Sends. Sparingly, and not on the low end: reverb on a kick is mud, and delay on a
+  // kick fills in exactly the space the pattern was leaving on purpose. What wants the
+  // room is the backbeat and the things above it — the clap most of all, since a clap
+  // with air around it is half of what makes a slow pattern sound like a record.
+  kit.sends = {
+    '808.sd': { delay: 0.12, reverb: 0.3 },
+    '808.cp': { delay: 0.22, reverb: 0.45 },
+    '808.oh': { delay: 0.1, reverb: 0.22 },
+    '808.ma': { delay: 0, reverb: 0.18 },
+    '808.cb': { delay: 0.3, reverb: 0.2 },
+    '808.rs': { delay: 0.26, reverb: 0.16 },
+    '909.cp': { delay: 0.14, reverb: 0.28 },
+    '909.rim': { delay: 0.3, reverb: 0.18 },
+    '909.oh': { delay: 0.08, reverb: 0.16 },
+    // A little on the lead 303 and none at all on the low one. The same rule as the
+    // kick: the part holding the bottom end down should stay dry, or it stops holding.
+    '303.a': { delay: 0.16, reverb: 0.14 },
+  }
+
   return {
     bpm: 102,
     swing: 0.28,
     patterns: PATTERNS,
     chain: ['haze', 'drift', 'drift', 'neon'],
     kit,
+    fx: defaultFx(),
   }
 }
