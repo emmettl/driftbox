@@ -16,6 +16,10 @@ npm run build   # type-check + production build
 Space plays and stops · `V` drops into performance mode · `X` switches the scope between
 a waveform and a vectorscope · click a step to cycle it off → on → accented.
 
+**Picking this up?** [ROADMAP.md](ROADMAP.md) has the current state, the decisions worth
+not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
+is how to check a change actually sounds right without trusting your ears or the tests.
+
 ## No samples
 
 Every sound is synthesised from the circuit topology of the machine it comes from. The
