@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+
+    // ES2023 matters more than it looks. `Ladder` is serialised into an AudioWorklet
+    // with toString(), so it has to compile to a class that references nothing outside
+    // itself — and a lower target makes TypeScript emit class fields as constructor
+    // assignments or, worse, reach for a downlevel helper defined at module scope. That
+    // helper would not exist in the worklet's global scope, and the failure would be a
+    // ReferenceError the first time somebody played a bassline. `ladder.test.ts` guards
+    // the source; this guards the build.
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+
+    // Relative imports in src carry an explicit .js extension, and TypeScript emits
+    // specifiers verbatim — so the published output resolves under plain Node ESM as
+    // well as under any bundler. Without the extensions the emitted `from './bass'`
+    // is unresolvable to Node, which was not theoretical: importing the packed tarball
+    // from a fresh project failed with ERR_MODULE_NOT_FOUND before this changed.
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -25,11 +25,13 @@ await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' })
 console.log(await page.evaluate(async () => { /* recipe here */ }))
 ```
 
-Vite serves the TypeScript directly, so the engine can be imported at runtime:
+Vite serves the TypeScript directly, so the engine can be imported at runtime. The
+`/@id/` prefix is how Vite exposes a bare specifier to a dynamic import — `@driftbox/engine`
+on its own is not a URL, and the engine now lives outside the app's own source tree:
 
 ```js
-const eng = await import('/src/engine/index.ts')
-const { defaultSong } = await import('/src/songs.ts')
+const eng = await import('/@id/@driftbox/engine')
+const { defaultSong } = eng   // the shipped patterns come from the engine too
 ```
 
 > **Gotcha.** After Vite hot-reloads a file it serves it under a cache-busted URL, so a
@@ -43,7 +45,7 @@ const { defaultSong } = await import('/src/songs.ts')
 Peak level, decay time, and where its energy sits.
 
 ```js
-const eng = await import('/src/engine/index.ts')
+const eng = await import('/@id/@driftbox/engine')
 const SR = 44100
 const d = await eng.renderVoiceOffline(eng.voiceById('808.bd'), undefined, 1, SR)
 
@@ -73,7 +75,7 @@ wildly different levels, and the symptom is musical, not technical: a clap you c
 hear under the kick.
 
 ```js
-const eng = await import('/src/engine/index.ts')
+const eng = await import('/@id/@driftbox/engine')
 let min = 9, max = 0
 for (const v of eng.ALL_VOICES) {
   const d = await eng.renderVoiceOffline(v, undefined, 1, 44100)
@@ -83,8 +85,18 @@ for (const v of eng.ALL_VOICES) {
 console.log({ min, max, spread: max / min })
 ```
 
-**What good looks like.** Spread under about `1.5`. It was `9.1` before the trims, and is
-`1.35` now.
+**What good looks like.** Spread under about `1.7`, and no voice over `1.0`.
+
+**Run it more than once.** Noise sources start at a random offset into the shared buffer,
+so voices with noise in them peak differently every render and this number moves. Measured
+over five consecutive runs: `1.43, 1.50, 1.53, 1.64, 1.67`. A single run saying `1.35` —
+which is what this document used to claim — was one sample of that spread, not a fixed
+property. It was `9.1` before the trims, so the trims are still doing their job.
+
+**Known and not yet fixed:** in one of those five runs the 909 open hat peaked at `1.023`,
+just over full scale on its own. It is intermittent by nature — it depends where in the
+noise buffer that render happened to start — and it is quiet enough not to clip the bus,
+but the stated bar is that no voice exceeds `1.0` and this one sometimes does.
 
 ## Recipe 3 — a pattern, through the real bus
 
@@ -93,8 +105,8 @@ and checks the output does not clip. Keep the bus values here in step with the e
 constructor.
 
 ```js
-const eng = await import('/src/engine/index.ts')
-const { defaultSong } = await import('/src/songs.ts')
+const eng = await import('/@id/@driftbox/engine')
+const { defaultSong } = eng
 const SR = 44100, song = defaultSong()
 const pattern = song.patterns.find(p => p.id === 'pulse')
 
@@ -164,7 +176,7 @@ cannot be loaded, and the fallback sweeps but does not squelch. Everything below
 meaningless if this is `false`.
 
 ```js
-const eng = await import('/src/engine/index.ts')
+const eng = await import('/@id/@driftbox/engine')
 const ctx = new OfflineAudioContext(1, 44100, 44100)
 const { bassline, usingLadder } = await eng.Bassline.create(ctx)
 console.log({ usingLadder })   // must be true
@@ -176,8 +188,8 @@ Render two notes a step apart and probe the moment just before the second lands 
 sliding pair is still sounding there, an ordinary pair is silent.
 
 ```js
-const eng = await import('/src/engine/index.ts')
-const { defaultSong } = await import('/src/songs.ts')
+const eng = await import('/@id/@driftbox/engine')
+const { defaultSong } = eng
 const SR = 44100, params = defaultSong().kit.bass['303.a'], step = 0.14
 
 const gapBefore = async (slide) => {

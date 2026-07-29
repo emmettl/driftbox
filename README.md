@@ -4,13 +4,31 @@ A drum machine and step sequencer in the browser — a TR-808, a TR-909 and a pa
 TB-303s, all synthesised from scratch, with a chillwave visualiser and an oscilloscope.
 Inspired by Propellerhead ReBirth.
 
-```bash
-npm install
-npm run dev
+Run it without installing anything at
+[emmettl.github.io/driftbox](https://emmettl.github.io/driftbox/), or locally:
 
+```bash
+npx @driftbox/app
+```
+
+## Two packages
+
+| | |
+|---|---|
+| [`@driftbox/engine`](packages/engine) | The synthesis and the sequencer. No React, no DOM — meant to be embedded. |
+| [`@driftbox/app`](packages/app) | This sequencer, as a runnable app. |
+
+The split is the point rather than tidiness: the engine is meant to score
+[Driftlings](https://github.com/emmettl/driftlings), and two copies of a synthesis engine
+would diverge. One package, one engine.
+
+```bash
+npm install     # workspaces; installs both
+npm run dev     # the app, with the engine built from source for HMR
 npm run lint    # oxlint
-npm test        # vitest
-npm run build   # type-check + production build
+npm run typecheck
+npm test        # vitest, across both packages
+npm run build   # engine to dist/, then the app
 ```
 
 Space plays and stops · `V` drops into performance mode · `X` switches the scope between
@@ -27,10 +45,10 @@ Your work is saved as you go. **share** puts the whole song in a link, **save** 
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
 is how to check a change actually sounds right without trusting your ears or the tests.
 
-`public/og.png` is the link preview, and it is a real screenshot — so it goes stale when
-the UI changes. Regenerate it by loading the app at a 1600×840 viewport, pressing play so
-the scope has something in it, and screenshotting the page. The tags that point at it live
-in `index.html`, with the reasoning next to them.
+`packages/app/public/og.png` is the link preview, and it is a real screenshot — so it goes
+stale when the UI changes. Regenerate it by loading the app at a 1600×840 viewport,
+pressing play so the scope has something in it, and screenshotting the page. The tags that
+point at it live in `packages/app/index.html`, with the reasoning next to them.
 
 ## No samples
 
@@ -71,7 +89,7 @@ is the usual way one of these ends up sounding flat.
 
 A voice is a **pure function from its knob positions to a `VoiceSpec`** — a description
 of oscillators, noise sources, envelopes and filters. A separate renderer turns that spec
-into Web Audio nodes. Nothing below `src/engine/` knows an `AudioContext` exists until
+into Web Audio nodes. Nothing below `packages/engine/` knows an `AudioContext` exists until
 that last step.
 
 That split is what makes the synthesis testable. "Does the kick sweep downward into the
@@ -116,12 +134,12 @@ would starve the scheduler and drop the audio the moment you switched tabs.
 
 ## The engine is reusable
 
-`src/engine/` imports no React, touches no DOM, and does not know a sequencer UI exists.
-It is meant to be embedded — the intent is for it to score
-[Driftlings](https://github.com/emmettl/driftlings):
+`packages/engine/` imports no React, touches no DOM, and does not know a sequencer UI
+exists. It is published as `@driftbox/engine` and meant to be embedded — the intent is for
+it to score [Driftlings](https://github.com/emmettl/driftlings):
 
 ```ts
-import { DriftboxEngine } from './engine'
+import { DriftboxEngine } from '@driftbox/engine'
 
 const engine = new DriftboxEngine(song)
 await engine.start()          // from a click; browsers start contexts suspended

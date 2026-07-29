@@ -1,0 +1,47 @@
+{
+  "name": "@driftbox/engine",
+  "version": "0.1.0",
+  "description": "A TR-808, a TR-909 and two TB-303s, synthesised from scratch with Web Audio. No samples.",
+  "keywords": [
+    "web-audio",
+    "drum-machine",
+    "synthesis",
+    "sequencer",
+    "tr-808",
+    "tr-909",
+    "tb-303",
+    "ladder-filter",
+    "audioworklet"
+  ],
+  "license": "MIT",
+  "author": "Louis Emmett",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmettl/driftbox.git",
+    "directory": "packages/engine"
+  },
+  "homepage": "https://emmettl.github.io/driftbox/",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.10"
+  }
+}
