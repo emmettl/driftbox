@@ -209,6 +209,13 @@ cutting the groove into the sphere fixed it, and two things fell straight out: t
 an angle rather than scrolling geometry with a modulo wrap, and from orbit the thing you are
 about to dive into is the thing you can already see.
 
+**A proportional pulse does not survive its subject being scaled.** The trench's station
+breathes on the low end by scaling radially, and the factor was 1.2% — four units when the
+station's radius was 420. Growing the station to 3200 to flatten the trench turned the same
+1.2% into thirty-eight units, while the ship still flew fourteen above the floor: any kick
+over a third of full scale lifted the floor straight through the camera. Anything that has
+to clear a fixed distance must be expressed as a fixed distance.
+
 **Flatness is a radius, not a shading choice.** How much a trench cut round a sphere
 appears to bend is just arc length over radius. At a station radius of 420 the hundred and
 fifty units you can see ahead bend through seventeen degrees and the floor rolls away like

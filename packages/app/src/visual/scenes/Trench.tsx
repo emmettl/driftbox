@@ -53,7 +53,9 @@ const RIBS = 2870
 const ORBIT_RADIUS = 7400
 const ORBIT_HEIGHT = 1750
 /** How high above the trench floor the ship ends up flying. */
-const FLY_HEIGHT = 14
+// Enough that the breathing floor never reaches it: the pulse is 2.5 units and the ship
+// needs to clear that with room to spare, or a loud bar puts the camera underground.
+const FLY_HEIGHT = 16
 /** How far round the station the approach swings before the dive, in radians. The camera
  *  arcs through this and arrives at the trench entry, which is what carries the dish past
  *  the frame instead of welding it to face wherever the run happens to start. */
@@ -81,9 +83,16 @@ const SCENE_VERTEX = /* glsl */ `
   void main() {
     vec3 pos = position;
 
-    // The station breathes on the low end. Radially — on a ring, "wider" means further
-    // from the axis, so x and z scale together and the groove stays a groove.
-    pos.xz *= 1.0 + uBass * 0.012;
+    // The station breathes on the low end, radially — on a ring, "wider" means further
+    // from the axis, so x and z move together and the groove stays a groove.
+    //
+    // In WORLD UNITS, not as a fraction of the radius, and that is the whole point. As a
+    // fraction it was 1.2%, which was four units when the station had a radius of 420 and
+    // is thirty-eight now that it has one of 3200 — while the ship still flies fourteen
+    // units above the floor. Any kick over a third of full scale lifted the floor straight
+    // through the camera. A proportional pulse does not survive its subject being scaled.
+    float here = max(1.0, length(pos.xz));
+    pos.xz *= 1.0 + (uBass * ${'2.5'}) / here;
 
     // Banking. The trench leans away from the finger, which is what a ship pulling
     // sideways would look like from inside it.
