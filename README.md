@@ -271,6 +271,15 @@ into a few hundred blocks that tumble and fall. He also jumps on the kick and ch
 the hat, so the run cycle is the drum pattern rather than a timer running alongside it —
 stop the transport and he stands still.
 
+The platforms are the interesting part, because jumping on the beat and placing ledges at
+random do not meet. Measured, they never did: he was over a platform 20% of the time and
+airborne 36% of it, and the two coincided 7% — exactly the product of two independent
+things. So the ledges are laid on his own landings instead. Every touchdown records where
+it happened, the gaps between them are smoothed into a stride, and a new platform is spawned
+where that stride says the next one falls. It needs to know nothing about the tempo or the
+scroll speed, both of which move with the bass, because it is measuring him rather than
+predicting him.
+
 The five in *Dancers* are not one cycle at five offsets — two do the **running man**, one
 runs on the spot, two groove, and the difference lives almost entirely in the legs, which
 is also true of real dancing. The running man is a run played backwards: the lifted knee

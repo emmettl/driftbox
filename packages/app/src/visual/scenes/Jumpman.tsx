@@ -43,6 +43,34 @@ const GROUND_Y = -9
 const RUNNER_AT = -0.28
 const MAX_POINTS = 4000
 
+/**
+ * The jump.
+ *
+ * Tuned as a pair against the two things it has to do: CLEAR the lower platform, and be
+ * over in time to happen again on the next kick. The old numbers gave an apex of 4.6 cells
+ * — 42% of his own height, a skip rather than a jump — over 0.70s, which at 162bpm is
+ * longer than the gap between kicks, so he also spent half of them stuck on the ground
+ * unable to go again.
+ *
+ * Higher AND faster means raising both: apex is v²/2g and air time is 2v/g, so cranking
+ * gravity alongside velocity buys the height without the float. These give 8.5 cells in
+ * 0.72s.
+ */
+const GRAVITY = 130
+const JUMP_VELOCITY = 47
+/**
+ * Heights a platform can sit at.
+ *
+ * The lower one is deliberately well under the 8.5-cell apex, because what matters is not
+ * whether he can reach it but how LONG he spends above it: he clears 7 cells for 0.30s and
+ * 5 cells for 0.46s, which at this pace is the difference between a six-cell landing window
+ * and a nine-cell one. Half a platform's width, bought by lowering it two cells.
+ *
+ * The upper one is out of reach from the ground and reachable from the lower, which is the
+ * entire reason to have two.
+ */
+const PLATFORM_HEIGHTS = [5, 11]
+
 const PIXEL_VERTEX = /* glsl */ `
   uniform float uPixelRatio;
   attribute vec3 aColour;
@@ -187,7 +215,16 @@ interface Monster {
 }
 interface Pickup {
   x: number
+  /** Cells above the ground. A pick-up on a platform is a reason to go up there. */
+  y: number
   taken: boolean
+}
+
+interface Platform {
+  x: number
+  width: number
+  /** Cells above the ground. */
+  top: number
 }
 interface Shard {
   x: number
@@ -256,12 +293,16 @@ export function Jumpman() {
     /** Height above the ground, in cells. */
     hop: 0,
     hopVel: 0,
+    /** World x of his last touchdown, and the smoothed distance between touchdowns. */
+    lastLand: 0,
+    stride: 0,
     frame: 0,
     /** Seconds left of being dead. Zero means alive. */
     dead: 0,
     powered: 0,
     monsters: [] as Monster[],
     pickups: [] as Pickup[],
+    platforms: [] as Platform[],
     shards: [] as Shard[],
     spawnedTo: 0,
   })
@@ -284,14 +325,50 @@ export function Jumpman() {
     const pace = running ? 15 + bass * 10 : 0
     w.scroll += step * pace
 
+    // Worked out before the physics, because how wide the view is decides where he stands,
+    // and where he stands decides what is under his feet.
+    const portrait = size.width / size.height < 0.85
+    const across = portrait ? VIEW_TALL : VIEW_WIDE
+    const runnerX = across * RUNNER_AT
+
     // He jumps on the kick and changes leg on the hat. The run cycle IS the drum pattern.
-    if (onKick(bass, step) && w.dead <= 0 && w.hop <= 0.01) w.hopVel = 26
+    /** What holds him up here: the highest platform top he is above, or the ground.
+     *  Tested against the height he is falling FROM, so a platform cannot catch him on the
+     *  way up through it — you land on things, you do not stick to their undersides. */
+    const supportAt = (worldX: number, from: number) => {
+      let best = 0
+      for (const pf of w.platforms) {
+        if (worldX < pf.x - 1 || worldX > pf.x + pf.width + 1) continue
+        if (pf.top > best && from >= pf.top - 0.6) best = pf.top
+      }
+      return best
+    }
+
+    const here = w.scroll + runnerX + across / 2
+    const grounded = w.hop <= supportAt(here, w.hop) + 0.02
+
+    // Every kick he is standing for. The first version made him skip kicks that would miss
+    // a platform, which is what a player does and is wrong here: the kick fires about twice
+    // a second, so there are only eight jump opportunities in sixteen seconds and filtering
+    // them left him jumping once. Scarce opportunities cannot be rationed, so he takes every
+    // one of them and the platforms are placed to meet HIM instead — see the spawner.
+    if (onKick(bass, step) && w.dead <= 0 && grounded) w.hopVel = JUMP_VELOCITY
     if (onHat(high, step)) w.frame = 1 - w.frame
 
-    // A hop, with gravity. Ends flat on the ground rather than drifting under it.
-    w.hopVel -= step * 74
-    w.hop = Math.max(0, w.hop + step * w.hopVel)
-    if (w.hop <= 0) w.hopVel = 0
+    const was = w.hop
+    w.hopVel -= step * GRAVITY
+    w.hop += step * w.hopVel
+    const floor = supportAt(here, was)
+    if (w.hop <= floor) {
+      // Touchdown. Where he lands is the one number the platforms need — see below.
+      if (was > floor + 0.05) {
+        const gap = here - w.lastLand
+        if (w.lastLand > 0 && gap > 4) w.stride = w.stride > 0 ? w.stride * 0.6 + gap * 0.4 : gap
+        w.lastLand = here
+      }
+      w.hop = floor
+      w.hopVel = 0
+    }
 
     if (w.dead > 0) {
       w.dead -= step
@@ -307,24 +384,59 @@ export function Jumpman() {
     // Populate the road ahead. Deterministic, so the same run happens every time — which
     // matters more than variety here, because a scene that is different every mount is one
     // you cannot compare screenshots of.
-    while (w.spawnedTo < w.scroll + VIEW_WIDE * 1.5) {
-      w.spawnedTo += 12 + random() * 22
-      if (random() < 0.62) w.monsters.push({ x: w.spawnedTo, alive: true })
-      else w.pickups.push({ x: w.spawnedTo, taken: false })
+    //
+    // Platforms are placed ON his landings rather than at random. He jumps on the kick, so
+    // his touchdowns fall on a grid — one measured above as `stride` — and scattering
+    // platforms independently of it means the phase between the two is luck. Measured: he
+    // spent 20% of the time over a platform, 36% of it airborne, and the two coincided 7%,
+    // which is exactly the product. Independent, so he never landed on one.
+    //
+    // Extrapolating his own stride costs nothing and needs no knowledge of the tempo or the
+    // scroll speed, both of which move with the bass. He lands a little before the ground
+    // touchdown because the platform top gets in the way, so the prediction goes 45% of the
+    // way in rather than at the leading edge.
+    const onHisStride = (from: number) => {
+      if (w.stride < 4 || w.lastLand <= 0) return from
+      let x = w.lastLand
+      while (x < from) x += w.stride
+      return x
+    }
+    while (w.spawnedTo < w.scroll + across + 24) {
+      // A real gap, measured from the previous object's far end. Centre-to-centre spacing
+      // lets wide platforms run into each other, and a row of abutting platforms stops
+      // reading as platforms and starts reading as a ceiling.
+      w.spawnedTo += 13 + random() * 16
+      const roll = random()
+      if (roll < 0.2) {
+        w.monsters.push({ x: w.spawnedTo, alive: true })
+      } else if (roll < 0.82) {
+        // A platform, and usually something on it worth climbing for. Wide, because the
+        // width is what he has to land in and a jump only carries him so far.
+        const top = PLATFORM_HEIGHTS[random() < 0.7 ? 0 : 1]
+        const width = 16 + Math.floor(random() * 11)
+        const x = onHisStride(w.spawnedTo) - width * 0.45
+        w.platforms.push({ x, width, top })
+        w.spawnedTo = x + width
+        if (random() < 0.7) w.pickups.push({ x: x + width / 2, y: top + 2, taken: false })
+      } else {
+        w.pickups.push({ x: w.spawnedTo, y: 9, taken: false })
+      }
     }
     w.monsters = w.monsters.filter((m) => m.x - w.scroll > -VIEW_WIDE)
     w.pickups = w.pickups.filter((p) => p.x - w.scroll > -VIEW_WIDE)
+    w.platforms = w.platforms.filter((pf) => pf.x + pf.width - w.scroll > -VIEW_WIDE)
 
-    const portrait = size.width / size.height < 0.85
-    const across = portrait ? VIEW_TALL : VIEW_WIDE
-    const runnerX = across * RUNNER_AT
     const runnerWorldX = w.scroll + runnerX + across / 2
 
     // Collisions. Being in the air clears a monster; being on the ground does not.
     for (const m of w.monsters) {
       if (!m.alive) continue
-      if (Math.abs(m.x - runnerWorldX) < 4 && w.dead <= 0) {
-        if (w.hop > 5 || w.powered > 0) {
+      // Standing on a platform is safety, not a weapon: a monster passing underneath is
+      // out of reach in both directions. Otherwise, above it kills it and level with it
+      // kills you.
+      if (grounded && w.hop > 0.5) continue
+      if (Math.abs(m.x - runnerWorldX) < 4 && w.hop < 6 && w.dead <= 0) {
+        if (w.hop > 2.5 || w.powered > 0) {
           m.alive = false
           // Stamped: the monster comes apart instead of vanishing.
           for (const c of art.monster) {
@@ -355,13 +467,13 @@ export function Jumpman() {
       }
     }
     for (const p of w.pickups) {
-      if (!p.taken && Math.abs(p.x - runnerWorldX) < 4 && w.dead <= 0) {
+      if (!p.taken && Math.abs(p.x - runnerWorldX) < 4 && Math.abs(p.y - w.hop) < 6 && w.dead <= 0) {
         p.taken = true
         w.powered = 6
         for (const c of art.pickup) {
           w.shards.push({
             x: p.x - w.scroll + c.x - 4,
-            y: GROUND_Y + 8 + c.y,
+            y: GROUND_Y + p.y + c.y,
             vx: (random() - 0.5) * 20,
             vy: 14 + random() * 22,
             life: 0.9,
@@ -423,6 +535,17 @@ export function Jumpman() {
       put(x, GROUND_Y - 2, 0, colour, CELL, 0)
     }
 
+    // Platforms. Two courses like the ground, so they read as the same material rather
+    // than as floating lines.
+    for (const pf of w.platforms) {
+      const left = pf.x - w.scroll - across / 2
+      for (let i = 0; i < pf.width; i++) {
+        colour.set(i % 4 === 0 ? PALETTE.k : PALETTE.K)
+        put(left + i, GROUND_Y + pf.top, 0, colour, CELL, 0)
+        put(left + i, GROUND_Y + pf.top - 1, 0, colour, CELL, 0)
+      }
+    }
+
     // Monsters and pick-ups.
     for (const m of w.monsters) {
       if (!m.alive) continue
@@ -431,7 +554,7 @@ export function Jumpman() {
     for (const p of w.pickups) {
       if (p.taken) continue
       const bob = Math.sin(w.scroll * 0.2 + p.x) * 1.2
-      stamp(art.pickup, p.x - w.scroll - across / 2 - 4, GROUND_Y + 9 + bob, 0, 0.5 + high)
+      stamp(art.pickup, p.x - w.scroll - across / 2 - 4, GROUND_Y + p.y + bob, 0, 0.5 + high)
     }
 
     // The runner, unless he is currently in pieces.
