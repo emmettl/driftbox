@@ -24,7 +24,7 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Visuals | Four meters, twelve 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
-| Not built | Per-voice outputs, published packages |
+| Not built | Published packages |
 
 ## What is deliberate
 
@@ -516,15 +516,26 @@ That is a better demonstration of a reusable engine than a loop playing undernea
 - **Whether the `@driftbox` scope is available**, and whether it should be public
   (`npm publish --access public`).
 
-### 2. Per-voice outputs
+### 2. ~~Per-voice outputs~~ — done, as stems
 
-Everything lands on one bus. Separate outputs per voice — or at least per machine — is
-what would let this feed a real mixer or a DAW, and it is the last structural thing
-between "a toy that sounds good" and "something you would actually track with".
+A browser cannot hand eight signals to a mixer: `destination` is the output device and on
+almost every machine that is two channels. So the useful form of separate outputs is
+**stems** — the song rendered once per voice, offline, one float WAV each. That is how a
+DAW gets fed anyway.
 
-### 3. More songs, and somewhere to put them
+Two decisions are load-bearing. They are **pre-master**, stopping before the bus
+compressor, because a compressor is non-linear and shared and stems rendered through one do
+not add back up. And they are **32-bit float**, because pre-master means a stem can exceed
+full scale — the 909 closed hat comes out of the shipped chillwave song at 1.11 — and
+16-bit would either clip it or force scaling everything down, which destroys the balance
+that is the only reason to export a set.
 
-Three shipped songs demonstrate the range; they do not make a library. The obvious next
+What is left of the original idea is live multi-channel output for the rare machine with an
+interface attached. Not built, and not verifiable here.
+
+### 3. Somewhere to put your own songs
+
+Twelve shipped songs demonstrate the range. What is missing is anywhere to keep your own. The obvious next
 step is user songs saved by name rather than one autosave slot and a file dialog — the
 storage layer already round-trips a whole Song, so this is a list and a picker rather than
 new machinery.
@@ -558,7 +569,6 @@ new machinery.
 - **The chillwave backdrop is nearly invisible behind the console.** Deliberate (the step
   grid has to stay readable) but the sun in particular never shows. If it should read
   more strongly, move the scene's sun down rather than raising the opacity.
-- **No metronome or count-in.**
 
 ## Verifying changes
 
