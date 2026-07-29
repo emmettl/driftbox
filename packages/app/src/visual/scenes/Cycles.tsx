@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useBox } from '../../store'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
+import { fitDistance } from '../fit'
 import { uniformsOf } from '../uniforms'
 
 // Light cycles.
@@ -220,7 +221,7 @@ export function Cycles() {
   const wallMat = useRef<THREE.ShaderMaterial>(null)
   const gridMat = useRef<THREE.ShaderMaterial>(null)
   const riders = useRef<THREE.Points>(null)
-  const { camera, size, viewport } = useThree()
+  const { camera, viewport } = useThree()
 
   const wallUniforms = useMemo(
     () => ({ uTime: { value: 0 }, uBass: { value: 0 }, uDerez: { value: 0 } }),
@@ -356,12 +357,20 @@ export function Cycles() {
 
     // High and slightly off, which is the board view. A finger walks the camera round the
     // arena and drops it toward the deck, so you can go from the map to the chase.
-    const portrait = size.width / size.height < 0.85
     const orbit = clock.current * 0.045 + (touch.x - 0.5) * 2.4 * touch.energy
-    const height = (portrait ? 84 : 52) - touch.energy * (touch.y - 0.5) * 80
-    const range = (portrait ? 82 : 62) + w.uBass.value * 3
+    // The floor is square, but seen from this angle its depth is foreshortened to roughly
+    // three quarters — so it is a wide, shallow subject however square it is on the ground.
+    const fit = fitDistance(camera as THREE.PerspectiveCamera, ARENA * 1.45, ARENA * 1.1)
+    const height = fit * 0.76 - touch.energy * (touch.y - 0.5) * 80
+    const range = fit * 0.7 + w.uBass.value * 3
     camera.position.set(Math.sin(orbit) * range, Math.max(9, height), Math.cos(orbit) * range)
-    camera.lookAt(0, 0, 0)
+    // Aimed a little NEARER than the middle. Looking down at a floor, the near half is much
+    // larger on screen than the far half, so centring on the origin leaves the visual mass
+    // in the bottom third with empty sky above it. Aiming closer pitches the camera further
+    // down, which lifts the whole board up the frame — aiming further away does the exact
+    // opposite, because a more distant target sits nearer the horizon.
+    const nearer = ARENA * 0.3
+    camera.lookAt(Math.sin(orbit) * nearer, 0, Math.cos(orbit) * nearer)
     if (wallMat.current) wallMat.current.uniformsNeedUpdate = true
     if (gridMat.current) gridMat.current.uniformsNeedUpdate = true
   })

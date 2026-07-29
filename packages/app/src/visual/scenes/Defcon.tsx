@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { useBox } from "../../store";
 import { readLevels } from "../levels";
 import { touch } from "../touch";
+import { fitDistance } from "../fit";
 import { uniformsOf } from "../uniforms";
 
 // DEFCON.
@@ -473,11 +474,12 @@ export function Defcon() {
     // middle with dead space above and below. Turned a quarter, the same map fills the same
     // phone at two thirds the distance. Reshape the subject, not the lens.
     if (board.current) board.current.rotation.y = portrait ? Math.PI / 2 : 0;
-    camera.position.set(
-      swing,
-      (portrait ? 86 : 76) - lean * 0.5 + high * 1.5,
-      (portrait ? 26 : 26) + lean,
-    );
+    // And the extents swap with it. Seen from near overhead the board's depth is
+    // foreshortened, so its on-screen height is the shorter side times about 0.85.
+    const across = portrait ? WORLD_Z : WORLD_X;
+    const deep = (portrait ? WORLD_X : WORLD_Z) * 0.85;
+    const range = fitDistance(camera as THREE.PerspectiveCamera, across, deep);
+    camera.position.set(swing, range * 0.94 - lean * 0.5 + high * 1.5, range * 0.3 + lean);
     camera.lookAt(0, 0, 0);
     if (landMat.current) landMat.current.uniformsNeedUpdate = true;
   });
