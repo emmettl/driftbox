@@ -14,7 +14,8 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
-| Song | Sections with repeat counts, editable while playing · ships as a 56-bar track |
+| Song | Sections with repeat counts, editable while playing |
+| Ships with | Three songs — chillwave, darkwave, acid house — 46 to 56 bars each |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
@@ -52,6 +53,14 @@ audio the moment you switch tabs.
 preference — it is what lets the engine be embedded elsewhere. It is now enforced by the
 package split rather than by discipline: `packages/engine` cannot reach into
 `packages/app`, because nothing declares that dependency and it would not resolve.
+
+**A song builder returns a fresh Song every call.** `clonePatterns` in `songs/notation.ts`
+exists for that: without it two calls hand back the same pattern objects, so anything that
+mutated a pattern in place would edit the shipped song permanently and `reset` would
+restore the corrupted version. Nothing mutates today — the store is immutable throughout —
+but "the defaults are safe as long as nobody writes `pattern.name = ...`" is not a property
+worth relying on, and the failure would be silent and permanent. Caught by a test, not by
+reading.
 
 **Touch devices open in the visuals, not on the grid.** A phone opening on a step grid
 opens on the part a small screen handles worst and buries the part it handles best. Chosen
@@ -236,22 +245,20 @@ Everything lands on one bus. Separate outputs per voice — or at least per mach
 what would let this feed a real mixer or a DAW, and it is the last structural thing
 between "a toy that sounds good" and "something you would actually track with".
 
-### 3. Confirm how it sounds
+### 3. More songs, and somewhere to put them
 
-The oldest limitation and the one nothing here can close: everything has been verified by
-measurement, and no ear has passed judgement. The 909 hats, ride and crash are where to
-listen first — 6-bit samples on the real machine, so the inharmonic-oscillator approach is
-furthest from the original there — and then whether the 303s squelch like a real one.
+Three shipped songs demonstrate the range; they do not make a library. The obvious next
+step is user songs saved by name rather than one autosave slot and a file dialog — the
+storage layer already round-trips a whole Song, so this is a list and a picker rather than
+new machinery.
 
 ## Known limitations
 
-- **Nobody has confirmed how it sounds.** Everything was verified by measurement — the
-  synthesis is structurally correct and well-behaved, but no ear has passed judgement.
-  The **909 hats, ride and crash** are where I would expect disagreement first: on the
-  real machine those were 6-bit samples, so the inharmonic-oscillator approach is
-  furthest from the original there. The **303s** are the other place to listen hard: the
-  filter is measurably a self-oscillating 4-pole that tracks its cutoff within 3%, but
-  whether it squelches the way a real one does is not something a measurement can say.
+- ~~**Nobody has confirmed how it sounds.**~~ Somebody has now, and the verdict was that
+  it is fine. The **909 hats, ride and crash** remain the place I would expect
+  disagreement first — 6-bit samples on the real machine, so the inharmonic-oscillator
+  approach is furthest from the original there — but this is no longer an open question
+  about the whole kit.
 - **A bassline cannot run at a different length from the drums under it.** Basslines live
   on the `Pattern` rather than in a sequence of their own, so one entry in the chain is
   one bar of the whole arrangement. That buys the chain, the pattern buttons and clear

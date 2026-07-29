@@ -423,6 +423,21 @@ button {
   color: var(--ink);
 }
 
+.song-pick {
+  max-width: 190px;
+  padding: 7px 8px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--dim);
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.song-pick:hover {
+  color: var(--ink);
+}
+
 .field input[type='number'] {
   width: 48px;
   padding: 4px 6px;

@@ -1,6 +1,6 @@
 import { defaultFx, defaultKit, type Song } from '../pattern.js'
 import { ALL_VOICES } from '../index.js'
-import { pattern } from './notation.js'
+import { clonePatterns, pattern } from './notation.js'
 
 // Darkwave. Slow, minor, and mostly room.
 //
@@ -126,7 +126,7 @@ export function darkwaveSong(): Song {
     bpm: 82,
     // Nearly straight. A darkwave shuffle would turn it into something else entirely.
     swing: 0.1,
-    patterns: [veil, undertow, swell, black],
+    patterns: clonePatterns([veil, undertow, swell, black]),
     chain: [
       { pattern: 'veil', repeat: 4 },
       { pattern: 'undertow', repeat: 8 },

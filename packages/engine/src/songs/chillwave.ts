@@ -1,6 +1,6 @@
 import { defaultFx, defaultKit, type Song } from '../pattern.js'
 import { ALL_VOICES } from '../index.js'
-import { pattern } from './notation.js'
+import { clonePatterns, pattern } from './notation.js'
 
 // Chillwave. Slow, swung, lots of space — the one the box opens on.
 
@@ -211,7 +211,7 @@ export function chillwaveSong(): Song {
   return {
     bpm: 102,
     swing: 0.28,
-    patterns: PATTERNS,
+    patterns: clonePatterns(PATTERNS),
     // A track rather than a loop: 56 bars, about two and a half minutes at 102bpm.
     //
     // Shaped rather than shuffled — in, out, back, further, away, and a tail. The Hush

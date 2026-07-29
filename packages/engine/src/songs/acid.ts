@@ -1,6 +1,6 @@
 import { defaultFx, defaultKit, type Song } from '../pattern.js'
 import { ALL_VOICES } from '../index.js'
-import { pattern } from './notation.js'
+import { clonePatterns, pattern } from './notation.js'
 
 // Acid house. 126bpm, dead straight, and a 303 doing the thing it is famous for.
 //
@@ -117,7 +117,7 @@ export function acidSong(): Song {
     bpm: 126,
     // Straight. Swing on an acid house record is somebody else's genre.
     swing: 0.04,
-    patterns: [four, acid, squelch, strip],
+    patterns: clonePatterns([four, acid, squelch, strip]),
     chain: [
       { pattern: 'four', repeat: 4 },
       { pattern: 'acid', repeat: 8 },
