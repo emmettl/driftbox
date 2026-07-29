@@ -1031,6 +1031,35 @@ aside {
   opacity: 0.75;
 }
 
+/* The meter selector. Mirrors the scene switcher — same chip, opposite corner — because
+   it does the same kind of job: pick which of several equivalent things is on screen.
+
+   z-index is not optional. The filter pad is a full-screen canvas underneath everything,
+   and anything laid over it without this gets its presses swallowed by the pad. That has
+   now caught the scene switcher, the scope strip and this. */
+.stage-meter {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  min-width: 62px;
+  min-height: 44px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: rgba(20, 10, 30, 0.5);
+  backdrop-filter: blur(12px);
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+.stage-meter:hover {
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
 /* The scene switcher, between the play and edit buttons. */
 .stage-scene {
   position: absolute;

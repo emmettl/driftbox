@@ -37,7 +37,10 @@ export function KaossPad() {
   // be whatever it was when the effect was set up and would never change again.
   const scene = useBox((s) => s.scene)
   const accent = useRef(ACCENT_FALLBACK)
-  accent.current = SCENES.find((s) => s.id === scene)?.accent ?? ACCENT_FALLBACK
+  const trail_ = useRef<{ scale?: number; ring?: boolean }>({})
+  const found = SCENES.find((s) => s.id === scene)
+  accent.current = found?.accent ?? ACCENT_FALLBACK
+  trail_.current = found?.trail ?? {}
 
   const positionOf = useCallback((event: React.PointerEvent): Point => {
     const box = surface.current!.getBoundingClientRect()
@@ -101,7 +104,7 @@ export function KaossPad() {
 
       for (const p of trail.current) {
         const age = (now - p.at) / 1000
-        const radius = 6 + age * 44
+        const radius = (6 + age * 44) * (trail_.current.scale ?? 1)
         const alpha = (1 - age) * 0.32
         const gradient = context.createRadialGradient(
           p.x * width,
@@ -111,12 +114,22 @@ export function KaossPad() {
           (1 - p.y) * height,
           radius,
         )
-        gradient.addColorStop(0, `rgba(${accent.current}, ${alpha})`)
-        gradient.addColorStop(1, `rgba(${accent.current}, 0)`)
-        context.fillStyle = gradient
-        context.beginPath()
-        context.arc(p.x * width, (1 - p.y) * height, radius, 0, Math.PI * 2)
-        context.fill()
+        if (trail_.current.ring) {
+          // An expanding outline. On a bright scene a filled blob — however dark — reads as
+          // a smudge on the lens rather than as something drawn on top of the picture.
+          context.strokeStyle = `rgba(${accent.current}, ${alpha * 1.6})`
+          context.lineWidth = 2.5
+          context.beginPath()
+          context.arc(p.x * width, (1 - p.y) * height, radius, 0, Math.PI * 2)
+          context.stroke()
+        } else {
+          gradient.addColorStop(0, `rgba(${accent.current}, ${alpha})`)
+          gradient.addColorStop(1, `rgba(${accent.current}, 0)`)
+          context.fillStyle = gradient
+          context.beginPath()
+          context.arc(p.x * width, (1 - p.y) * height, radius, 0, Math.PI * 2)
+          context.fill()
+        }
       }
     }
     frame = requestAnimationFrame(draw)
