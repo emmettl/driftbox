@@ -8,6 +8,9 @@ On a phone it opens straight into the visuals, because that is the part a small 
 handles best and a step grid is the part it handles worst. Play is top left, **edit** is
 top right, and the console appears to fly out of it.
 
+It works as a player if that is all you want: the song's name and the section it is in sit
+along the bottom, with skip buttons either side. You never have to open the grid.
+
 Run it without installing anything at
 [emmettl.github.io/driftbox](https://emmettl.github.io/driftbox/), or locally:
 
@@ -132,8 +135,9 @@ drum rack, different rooms:
 | **Sundown** | Chillwave. 102bpm, swung, lots of space. |
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. |
 | **Acieed** | Acid house. 126bpm, dead straight, four to the floor. |
+| **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. |
 
-The part worth noticing is that the two 303s are the same synth in all three and do not
+The part worth noticing is that the two 303s are the same synth in all four and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
