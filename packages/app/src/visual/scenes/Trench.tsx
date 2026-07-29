@@ -35,21 +35,29 @@ import { uniformsOf } from '../uniforms'
 // its own camera to 1400, which is safe because the canvas is keyed on the scene and hands
 // each one a fresh camera.
 
-const STATION_RADIUS = 420
-const TRENCH_HALF_WIDTH = 17
-const TRENCH_DEPTH = 26
+// The station is very large, and that is the whole reason the trench looks straight.
+//
+// Curvature over the visible stretch is just arc length over radius. At 420 the hundred and
+// fifty units you can see ahead bend through seventeen degrees, and the floor visibly rolls
+// away like the inside of a barrel. At 3200 the same stretch bends through three, which is
+// what the cabinet's trench does — it converges to a vanishing point and does not curl.
+// Flat is not a shading choice here; it is a radius.
+const STATION_RADIUS = 3200
+const TRENCH_HALF_WIDTH = 30
+const TRENCH_DEPTH = 46
 const FLOOR_RADIUS = STATION_RADIUS - TRENCH_DEPTH
-/** Cross-sections around the full ring. At this radius that is a rib every five units —
+/** Cross-sections around the full ring. At this radius that is a rib every seven units —
  *  closer together and the walls stop reading as ribs and become a solid sheet of lines. */
-const RIBS = 520
+const RIBS = 2870
 /** Where the run starts, as a distance from the station's centre. */
-const ORBIT_RADIUS = 980
-const ORBIT_HEIGHT = 230
+const ORBIT_RADIUS = 7400
+const ORBIT_HEIGHT = 1750
 /** How high above the trench floor the ship ends up flying. */
-const FLY_HEIGHT = 11
+const FLY_HEIGHT = 14
 /** Far enough to see the whole station. The canvas default of 200 would clip it in half
- *  before it had finished appearing. */
-const FAR_PLANE = 1400
+ *  before it had finished appearing. Depth precision does not suffer for it: everything
+ *  here is additive lines with depth writes off, so there is nothing to z-fight. */
+const FAR_PLANE = 10500
 
 const SCENE_VERTEX = /* glsl */ `
   uniform float uBass;
@@ -210,8 +218,11 @@ function useStation() {
 
     // --- The dish, sunk into the northern hemisphere. Concentric rings and spokes, which
     // is how a vector machine would have drawn a crater.
-    const lat = 0.72
-    const lon = -0.4
+    // Aimed at where the camera begins. The run starts on the +X axis looking back at the
+    // station, so a dish whose normal points anywhere else is on the far side for the whole
+    // approach — which is exactly where it was, and why nobody ever saw it.
+    const lat = 0.55
+    const lon = 1.35
     const normal = new THREE.Vector3(
       Math.cos(lat) * Math.sin(lon),
       Math.sin(lat),
@@ -228,10 +239,13 @@ function useStation() {
         .addScaledVector(normal, -sink)
       return [p.x, p.y, p.z]
     }
+    // Scaled with the station, and about a fifth of its radius across — the dish is the
+    // one silhouette detail that says which battle station this is, so it has to read from
+    // orbit rather than being a technically-present ring.
     for (const [radius, sink] of [
-      [98, 0],
-      [64, 20],
-      [26, 34],
+      [STATION_RADIUS * 0.2, 0],
+      [STATION_RADIUS * 0.13, STATION_RADIUS * 0.045],
+      [STATION_RADIUS * 0.055, STATION_RADIUS * 0.075],
     ] as const) {
       for (let i = 0; i < 32; i++) {
         line(dishAt(radius, (i / 32) * Math.PI * 2, sink), dishAt(radius, ((i + 1) / 32) * Math.PI * 2, sink), 0)
@@ -239,7 +253,7 @@ function useStation() {
     }
     for (let i = 0; i < 10; i++) {
       const a = (i / 10) * Math.PI * 2
-      line(dishAt(98, a, 0), dishAt(26, a, 34), 0)
+      line(dishAt(STATION_RADIUS * 0.2, a, 0), dishAt(STATION_RADIUS * 0.055, a, STATION_RADIUS * 0.075), 0)
     }
 
     const geometry = new THREE.BufferGeometry()
@@ -283,7 +297,7 @@ export function Trench() {
       uHigh: { value: 0 },
       uWarp: { value: 0 },
       uTouch: { value: new THREE.Vector2(0.5, 0.5) },
-      uFog: { value: new THREE.Vector2(260, 1500) },
+      uFog: { value: new THREE.Vector2(1900, 11000) },
     }),
     [],
   )
@@ -337,7 +351,7 @@ export function Trench() {
     u.uWarp.value = warp
     u.uTouch.value.set(touch.x, touch.y)
     // Wide open in orbit, close in once you are down in the groove.
-    u.uFog.value.set(260 - 170 * drop, 1500 - 1080 * drop)
+    u.uFog.value.set(1900 - 1830 * drop, 11000 - 10520 * drop)
 
     // Travel is an ANGLE. There is no scrolling geometry and nothing to wrap.
     const speed = (16 + bass * 52) * (0.25 + drop * 1.6)
@@ -358,7 +372,7 @@ export function Trench() {
     // the corridor — the trench only reads as somewhere you are flying if the look is
     // level and far enough ahead to be past where the floor curves away.
     const { look, up } = scratch
-    const aheadAng = ang + 0.3
+    const aheadAng = ang + 0.05
     const lookRadius = FLOOR_RADIUS + FLY_HEIGHT
     look.set(Math.cos(aheadAng) * lookRadius * drop, 0, Math.sin(aheadAng) * lookRadius * drop)
     // UP is radial once you are in the groove, and this is the whole orientation of the

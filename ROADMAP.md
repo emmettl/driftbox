@@ -209,6 +209,16 @@ cutting the groove into the sphere fixed it, and two things fell straight out: t
 an angle rather than scrolling geometry with a modulo wrap, and from orbit the thing you are
 about to dive into is the thing you can already see.
 
+**Flatness is a radius, not a shading choice.** How much a trench cut round a sphere
+appears to bend is just arc length over radius. At a station radius of 420 the hundred and
+fifty units you can see ahead bend through seventeen degrees and the floor rolls away like
+the inside of a barrel; at 3200 the same stretch bends through three and it converges to a
+vanishing point the way the cabinet's does. Nothing about the drawing changed.
+
+**A detail nobody is looking at is a detail that does not exist.** The station's dish was
+correct, present and on the far side of the sphere from where the run begins, so it had
+never once been seen. Aiming it at the starting camera cost two numbers.
+
 **"Up" is whatever the geometry says it is.** A trench cut round an equator opens RADIALLY
 OUTWARD, and its walls are the north and south faces — so from inside it, up points away
 from the station's axis, which is horizontal in world terms. Leaving the camera's up as
