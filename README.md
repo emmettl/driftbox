@@ -311,6 +311,10 @@ finger down four cannons at the corners of the screen converge on it with bent, 
 beams. Both ends of those beams are derived from the camera, so they leave the actual
 corners and land exactly under the fingertip at any viewport.
 
+**Stems.** The `stems` button renders the song once per voice and saves one float WAV each
+— pre-master, so they sum the way a mixer expects, and 32-bit because a pre-master stem can
+exceed full scale and clipping it would be the one thing a stem must not do.
+
 **A cursor steps through the grid as it plays** — a lit column down every row with a tick
 above it, so you can see where you are even on a pattern whose top rows are empty.
 

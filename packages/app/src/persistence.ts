@@ -112,6 +112,21 @@ export function downloadSong(song: Song, name = 'driftbox-song'): void {
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Save a blob under a name.
+ *
+ * One at a time and awaited between, because a browser that is handed a dozen downloads in
+ * the same tick shows one permission prompt and quietly drops the rest.
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function readSongFile(file: File): Promise<Song | null> {
   try {
     return decodeSong(await file.text())

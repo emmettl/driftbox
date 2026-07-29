@@ -1,15 +1,15 @@
-import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassStep } from './bass.js'
+import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, type BassStep } from './bass.js'
 import { Bassline } from './bassline.js'
 import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects.js'
 import { Kaoss } from './kaoss.js'
 import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
-import { STEPS_PER_BEAT, swingDelay } from './timing.js'
+import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
-import { TR808_VOICES } from './voices/tr808.js'
-import { TR909_VOICES } from './voices/tr909.js'
-import { patternForBar, stepAt, swingFor, type Song } from './pattern.js'
-import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams, type VoiceSpec } from './types.js'
+import { patternForBar, type Song } from './pattern.js'
+import { buildVoice, voiceById } from './kit.js'
+import { planStep } from './schedule.js'
+import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams } from './types.js'
 
 export * from './types.js'
 export * from './pattern.js'
@@ -23,6 +23,9 @@ export * from './kaoss.js'
 // haze/drift/neon before it can play anything is not much of a soundtrack — and the
 // argument against copying a synthesis engine applies just as well to copying its songs.
 export * from './songs/index.js'
+export * from './schedule.js'
+export * from './stems.js'
+export * from './kit.js'
 export { metronomeClick } from './metronome.js'
 export { Transport, type StepEvent } from './transport.js'
 export { renderVoice } from './render.js'
@@ -39,28 +42,6 @@ export { TR909_VOICES } from './voices/tr909.js'
 /** How long a held note lasts if nothing ever releases it. Long enough to be "held" and
  *  short enough that a lost key-up cannot leave a 303 droning for the rest of the day. */
 const HELD_SECONDS = 30
-
-export const ALL_VOICES: Voice[] = [...TR909_VOICES, ...TR808_VOICES]
-
-const VOICE_BY_ID = new Map(ALL_VOICES.map((v) => [v.id, v]))
-
-export function voiceById(id: string): Voice | undefined {
-  return VOICE_BY_ID.get(id)
-}
-
-/**
- * Build a voice's spec with its output normalisation applied.
- *
- * Everything that turns a voice into sound goes through here — the sequencer, the
- * audition button, the offline renderer behind the waveform display. If the trim were
- * applied at any one of those instead, the drawn waveform and the audible hit would be
- * different sizes, and the panel would quietly stop telling the truth.
- */
-export function buildVoice(voice: Voice, params: VoiceParams, accent: number): VoiceSpec {
-  const spec = voice.build(params, accent)
-  if (voice.trim === undefined) return spec
-  return { ...spec, trim: voice.trim }
-}
 
 export interface EngineOptions {
   /** Supply your own context to share one with other audio in the host app. */
@@ -425,41 +406,17 @@ export class DriftboxEngine {
     // Counting in: click only. The pattern starts when the count-in is over.
     if (event.bar < this.countInUntil) return
 
-    const pattern = patternForBar(this.song, event.bar)
-    if (!pattern) return
+    if (!patternForBar(this.song, event.bar)) return
 
-    // Swing is applied here, per voice, rather than by the transport — which is the
-    // whole point of the transport emitting straight times. Hats shuffling against a
-    // kick that stays on the grid is a groove you cannot get from one global setting.
-    const swung = (voiceId: string) =>
-      event.time + swingDelay(event.index, swingFor(this.song, voiceId), event.stepSeconds)
-
-    for (const voiceId of Object.keys(pattern.tracks)) {
-      const value = stepAt(pattern, voiceId, event.index)
-      if (value === 0) continue
-      this.trigger(voiceId, swung(voiceId), value === 2 ? 1 : 0.55)
-    }
-
-    // Gate lengths are in seconds, so the line has to know how long a step currently
-    // is. Read per step rather than cached, so a tempo change shortens the notes with
-    // it instead of leaving them overlapping.
-    const stepSeconds = event.stepSeconds
-
-    for (const [voiceId, line] of Object.entries(pattern.bass ?? {})) {
-      const bassline = this.basslines.get(voiceId)
+    // What this step plays is worked out by `planStep`, which the stem renderer uses
+    // too — the two must never disagree about which voice sounds when.
+    const plan = planStep(this.song, event)
+    for (const hit of plan.drums) this.trigger(hit.voiceId, hit.time, hit.accent)
+    for (const hit of plan.bass) {
+      const bassline = this.basslines.get(hit.voiceId)
       if (!bassline) continue
-
-      const step = line[event.index % pattern.length]
-      if (!step) continue
-
-      const note = bassNote(
-        this.song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS,
-        step,
-        previousStep(line, event.index, pattern.length),
-        stepSeconds,
-      )
-      if (note) bassline.play(note, swung(voiceId))
-      this.routeSends(voiceId, bassline.output)
+      bassline.play(hit.note, hit.time)
+      this.routeSends(hit.voiceId, bassline.output)
     }
   }
 

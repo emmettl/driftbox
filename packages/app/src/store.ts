@@ -33,12 +33,16 @@ import {
   type StepValue,
   defaultSong,
   type VoiceParams,
+  renderStems,
+  toWav,
+  voicesUsed,
 } from '@driftbox/engine'
 import { SCENES, type SceneId } from './visual/scenes'
 import type { ScopeMode } from './visual/scope'
 import {
   autosave,
   clearStoredSong,
+  downloadBlob,
   downloadSong,
   loadCollapsed,
   loadStoredSong,
@@ -154,6 +158,10 @@ interface State {
   adoptSharedSong: () => Promise<boolean>
   importSong: () => Promise<boolean>
   exportSong: () => void
+  /** Render one WAV per voice and save them. Returns how many were written. */
+  exportStems: () => Promise<number>
+  /** Which voice is being rendered, for the progress readout, or null. */
+  rendering: string | null
   copyShareLink: () => Promise<string | null>
   resetSong: () => void
 }
@@ -244,6 +252,7 @@ export const useBox = create<State>()((set, get) => ({
   running: false,
   view: 'tr808',
   scope: 'wave',
+  rendering: null,
   setScope: (scope) => set({ scope }),
   editing: initialSong.patterns[0]?.id ?? '',
   followPlayhead: true,
@@ -544,6 +553,28 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   exportSong: () => downloadSong(get().song),
+
+  exportStems: async () => {
+    const { song } = get()
+    const voices = voicesUsed(song)
+    if (voices.length === 0) return 0
+    // Rendered one at a time with the store updated between, so the button can say which
+    // voice it is on. A whole song per voice is seconds of work even offline, and a
+    // control that looks frozen for that long reads as broken.
+    let written = 0
+    for (const id of voices) {
+      set({ rendering: id })
+      const [stem] = await renderStems(song, { only: [id] })
+      if (!stem) continue
+      const safe = stem.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      downloadBlob(toWav(stem.buffer), `driftbox-${written + 1}-${safe}.wav`)
+      written++
+      // A beat between saves. Browsers batch downloads fired in one tick and drop most.
+      await new Promise((done) => setTimeout(done, 120))
+    }
+    set({ rendering: null })
+    return written
+  },
 
   copyShareLink: async () => {
     const url = await shareLink(get().song)

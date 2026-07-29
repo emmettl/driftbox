@@ -34,6 +34,8 @@ export function TransportBar() {
   const resetSong = useBox((s) => s.resetSong)
   const setPatternLength = useBox((s) => s.setPatternLength)
   const loadPreset = useBox((s) => s.loadPreset)
+  const exportStems = useBox((s) => s.exportStems)
+  const rendering = useBox((s) => s.rendering)
   const metronome = useBox((s) => s.metronome)
   const countIn = useBox((s) => s.countIn)
   const toggleMetronome = useBox((s) => s.toggleMetronome)
@@ -203,6 +205,17 @@ export function TransportBar() {
           title="Load a song from a file"
         >
           load
+        </button>
+        <button
+          className="ghost"
+          disabled={rendering !== null}
+          onClick={async () => {
+            const written = await exportStems()
+            showFlash(written ? `saved ${written} stems` : 'nothing to render')
+          }}
+          title="Render one WAV per voice — pre-master, for a DAW"
+        >
+          {rendering ? `rendering ${rendering}…` : 'stems'}
         </button>
         <button
           className="ghost"
