@@ -182,6 +182,28 @@ is out of range, fills in what is missing, drops what it cannot read, and gives 
 input that is not a song at all. The failure it exists to prevent is not subtle — it is
 the app white-screening on load with your work apparently gone.
 
+## Saying what to do next, once
+
+Two things this app never said out loud: that it makes a sound, and that there is another
+half of it behind the **vibes** button. On a phone it opens into full-screen visuals and is
+a beautiful, silent picture until you find the play button; on a desktop it opens onto a
+wall of grids and knobs, where the two controls you want first are a 40px square in one
+corner and a pill six controls along.
+
+So particles fall into them. Each stream is tinted like the button it lands on — the
+transport's teal, the amber vibes has worn since it stopped being a ghost button — so two
+of them running at once read as two destinations rather than as weather. They spiral in
+rather than travelling straight, because a straight line to a target looks like a diagram,
+and they fade out at the far edge so nothing pops into existence.
+
+The rule that makes it a hint rather than decoration is that **each one stops when you have
+learnt the thing**. The play stream is up only while the transport is stopped and only
+until the first time you start it; the vibes stream only until the first time you go there.
+Both are remembered in local storage, apart from the song autosave — resetting your song
+should not make the app start explaining itself again. The desktop pair is also skipped
+under `prefers-reduced-motion`, and on anything narrower than the layout breakpoint, where
+you reached the console by tapping the button right next to the ones being pointed at.
+
 ## The visualiser is the instrument
 
 **vibes** goes full screen — and on a touch device that is where you start — and the whole
