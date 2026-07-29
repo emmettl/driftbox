@@ -41,6 +41,9 @@ of bars, and it can be rearranged while the thing is playing.
 Your work is saved as you go. **share** puts the whole song in a link, **save** and
 **load** move it to and from a file, and **reset** goes back to the shipped patterns.
 
+Neither package is published yet. [docs/PUBLISHING.md](docs/PUBLISHING.md) is the setup
+and the release steps; nothing goes to npm without cutting a release on purpose.
+
 **Picking this up?** [ROADMAP.md](ROADMAP.md) has the current state, the decisions worth
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
 is how to check a change actually sounds right without trusting your ears or the tests.
