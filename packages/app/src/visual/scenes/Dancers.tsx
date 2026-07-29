@@ -123,7 +123,24 @@ function lcg(seed: number) {
   }
 }
 
+/**
+ * What a dancer is doing.
+ *
+ * Five bodies running one cycle at five offsets is a chorus line, not a floor. These are
+ * three genuinely different motions, and the difference is mostly in the LEGS — which is
+ * also true of real dancing, where the arms follow and the feet decide.
+ *
+ *   bounce  knees soft, weight rocking side to side. The default groove.
+ *   run     on the spot: knees high in front, arms pumping opposite.
+ *   man     the running man. The whole trick is that it is a run played backwards — the
+ *           lifted knee comes up in FRONT while the standing foot slides BEHIND, so the
+ *           dancer appears to sprint without going anywhere. Getting that sign wrong just
+ *           produces a jog.
+ */
+type Move = 'bounce' | 'run' | 'man'
+
 interface Dancer {
+  move: Move
   /** Where in the line this one stands, -1 to 1. Turned into a position each frame, since
    *  how far apart they should be depends on the shape of the window. */
   across: number
@@ -151,6 +168,9 @@ function useDancers(): Dancer[] {
         x: 0,
         z: -Math.abs(across) * 0.9 + random() * 0.3,
         phase: random(),
+        // Two of the five do the running man, one runs, the rest groove — enough that the
+        // eye finds the pattern and not so much that it looks like a routine.
+        move: (['man', 'bounce', 'run', 'man', 'bounce'] as const)[i % 5],
         gusto: 0.75 + random() * 0.5,
         facing: 0,
         colour: colour.clone(),
@@ -381,15 +401,20 @@ export function Dancers() {
 
       // Arms. Up on the beat, and reaching toward the finger when it is close — which is
       // the whole point of the scene, so it gets the biggest number in here.
+      const pumping = d.move !== 'bounce'
       for (const side of [-1, 1]) {
-        const raise = swing * side * 0.9 * lift + near * 1.5
+        // A runner's arms are bent and driving forward and back; a groover's swing out to
+        // the sides. Same two bones, and it is the axis that changes.
+        const raise = pumping
+          ? 0.9 + swing * side * 0.5 * lift + near * 1.5
+          : swing * side * 0.9 * lift + near * 1.5
         const shoulderX = side * BODY.shoulderWidth
         const elbowX = shoulderX + side * BODY.upperArm * Math.cos(raise * 0.8)
         const elbowY = chestY + BODY.upperArm * Math.sin(raise * 0.9) * 0.8
-        const elbowZ = chestZ + near * 0.4
+        const elbowZ = chestZ + near * 0.4 - (pumping ? swing * side * 0.22 * lift : 0)
         const handX = elbowX + side * BODY.foreArm * Math.cos(raise * 1.4) * 0.7
         const handY = elbowY + BODY.foreArm * Math.sin(raise * 1.5 + 0.4)
-        const handZ = elbowZ + near * 0.7
+        const handZ = elbowZ + near * 0.7 - (pumping ? swing * side * 0.34 * lift : 0)
         ball(shoulderX, chestY, chestZ, BODY.shoulderBall, beatGlow)
         bone(shoulderX, chestY, chestZ, elbowX, elbowY, elbowZ, BODY.armTop, BODY.armMid, beatGlow)
         ball(elbowX, elbowY, elbowZ, BODY.elbowBall, beatGlow)
@@ -405,19 +430,46 @@ export function Dancers() {
              BODY.armEnd * 1.25, BODY.armEnd * 0.9, beatGlow + near * 0.6)
       }
 
-      // Legs. Alternating step, and the knees bend on the bounce.
+      // Legs. The move lives here.
       for (const side of [-1, 1]) {
-        const step = Math.sin((t + (side < 0 ? 0 : 1)) * Math.PI) * 0.32 * lift
+        // One leg leads and the other trails, half a beat apart.
+        const phase = Math.sin((t + (side < 0 ? 0 : 1)) * Math.PI)
         const hipJointX = hipX + side * BODY.hipWidth
-        // The knee leads the foot and lifts on the step, which is the difference between a
-        // leg and a pair of sticks hinged at the hip.
-        const bend = 0.72 + Math.abs(step) * 0.5 - punch * 0.12
-        const kneeX = hipJointX + side * 0.04 + step * 0.12
+
+        let bend: number
+        let kneeZ: number
+        let footZ: number
+        let footDrop: number
+        if (d.move === 'bounce') {
+          const step = phase * 0.32 * lift
+          bend = 0.72 + Math.abs(step) * 0.5 - punch * 0.12
+          kneeZ = step * 0.55
+          footZ = step * 1.15
+          footDrop = 0.92 - Math.abs(step) * 0.35
+        } else if (d.move === 'run') {
+          // Knee up in front, foot tucked under it. The lift is the whole read.
+          const up = Math.max(0, phase) * lift
+          bend = 0.74 - up * 0.34
+          kneeZ = up * 0.5
+          footZ = up * 0.22
+          footDrop = 0.9 - up * 0.44
+        } else {
+          // The running man. The lifted knee comes up in FRONT and the standing foot
+          // slides BACK at the same moment — the two happen together and in opposite
+          // directions, which is what makes it look like sprinting on the spot. Do both
+          // forward and it is a jog; do neither and it is a march.
+          const up = Math.max(0, phase) * lift
+          const slide = Math.max(0, -phase) * lift
+          bend = 0.76 - up * 0.4 + slide * 0.14
+          kneeZ = up * 0.54 - slide * 0.16
+          footZ = up * 0.2 - slide * 0.72
+          footDrop = 0.9 - up * 0.5 + slide * 0.08
+        }
+
+        const kneeX = hipJointX + side * 0.04 + kneeZ * 0.2
         const kneeY = hipY - BODY.thigh * bend
-        const kneeZ = step * 0.55
         const footX = kneeX + side * 0.03
-        const footY = Math.max(0.05, kneeY - BODY.shin * (0.92 - Math.abs(step) * 0.35))
-        const footZ = step * 1.15
+        const footY = Math.max(0.05, kneeY - BODY.shin * footDrop)
         ball(hipJointX, hipY, 0, BODY.hipBall, beatGlow)
         bone(hipJointX, hipY, 0, kneeX, kneeY, kneeZ, BODY.legTop, BODY.legMid, beatGlow)
         ball(kneeX, kneeY, kneeZ, BODY.kneeBall, beatGlow)

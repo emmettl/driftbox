@@ -271,6 +271,12 @@ into a few hundred blocks that tumble and fall. He also jumps on the kick and ch
 the hat, so the run cycle is the drum pattern rather than a timer running alongside it —
 stop the transport and he stands still.
 
+The five in *Dancers* are not one cycle at five offsets — two do the **running man**, one
+runs on the spot, two groove, and the difference lives almost entirely in the legs, which
+is also true of real dancing. The running man is a run played backwards: the lifted knee
+comes up in front while the standing foot slides behind, at the same moment and in opposite
+directions. Do both forward and it is a jog.
+
 *Dancers* is the only scene with a **figure** in it, which turns out to be the one subject
 where the eye knows instantly whether you got it right — a tunnel can be any width and
 nobody argues, but a forearm that is too long reads as wrong before you have worked out
