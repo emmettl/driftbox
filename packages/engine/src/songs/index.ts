@@ -4,13 +4,14 @@ import { chillwaveSong } from './chillwave.js'
 import { darkwaveSong } from './darkwave.js'
 import { ascendSong } from './ascend.js'
 import { runnerSong } from './runner.js'
+import { saturnSong } from './saturn.js'
 import { transmissionSong } from './transmission.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Six of them, because one demonstrates the machines and six demonstrate the range.
+// Seven of them, because one demonstrates the machines and seven demonstrate the range.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -78,6 +79,13 @@ export const SONGS: SongPreset[] = [
     build: ascendSong,
   },
   {
+    id: 'saturn',
+    visual: 'saturn',
+    name: 'Rings of Saturn',
+    blurb: 'Breakbeat — 170bpm, two-bar patterns, ghosts on the rimshot',
+    build: saturnSong,
+  },
+  {
     id: 'runner',
     visual: 'trench',
     name: 'Runner',
@@ -95,4 +103,12 @@ export function defaultSong(): Song {
   return SONGS[0].build()
 }
 
-export { acidSong, ascendSong, chillwaveSong, darkwaveSong, runnerSong, transmissionSong }
+export {
+  acidSong,
+  ascendSong,
+  chillwaveSong,
+  darkwaveSong,
+  runnerSong,
+  saturnSong,
+  transmissionSong,
+}

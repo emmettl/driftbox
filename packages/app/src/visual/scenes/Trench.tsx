@@ -286,9 +286,8 @@ export function Trench() {
   const detail = useStationDetail()
   const material = useRef<THREE.ShaderMaterial>(null)
   const stationRef = useRef<THREE.Group>(null)
-  const hull = useRef<THREE.LineBasicMaterial>(null)
-  const trim = useRef<THREE.LineBasicMaterial>(null)
   const lasers = useRef<THREE.LineSegments>(null)
+  const beamMat = useRef<THREE.LineBasicMaterial>(null)
   const { camera } = useThree()
 
   const travelled = useRef(0)
@@ -340,13 +339,17 @@ export function Trench() {
     // The dive only happens once the music does. Before that you are holding station.
     if (running) approach.current = Math.min(1, approach.current + dt * 0.2)
     const dive = approach.current
+    // The trench comes up over the middle of the approach and is fully there well before
+    // the station has finished going past, so you are already in the canyon while the hull
+    // is still sweeping overhead. That overlap is the shot.
+    const rise = smoothstep(0.4, 0.82, dive)
 
     clock.current += dt
-    travelled.current += dt * (30 + bass * 46) * dive
+    travelled.current += dt * (30 + bass * 46) * rise
     u.uTime.value = travelled.current
     u.uBass.value = ease(u.uBass.value, bass, dt, 5)
     u.uHigh.value = ease(u.uHigh.value, high, dt, 6)
-    u.uApproach.value = dive
+    u.uApproach.value = rise
     u.uWarp.value = warp
     u.uTouch.value.set(touch.x, touch.y)
 
@@ -354,17 +357,16 @@ export function Trench() {
     // that travel have to stay inside the canvas's 200-unit far plane or the thing the
     // scene opens on is simply clipped away and you get a black screen until the music
     // starts — which is exactly what it did at -320.
+    // The station is never faded out. It is flown into, through and past: full brightness
+    // the whole way, the camera goes inside the hull near the end of the dive and comes out
+    // the other side of it, and it is hidden only once it is genuinely behind you.
+    // Dissolving it instead was the easy version and it read as one — the thing you are
+    // diving at should not politely disappear just before you arrive.
     if (stationRef.current) {
-      stationRef.current.position.set(0, 15 - dive * 30, -152 + dive * dive * 196)
+      const z = -152 + dive * dive * 215
+      stationRef.current.position.set(0, 15 - dive * 34, z)
       stationRef.current.rotation.y += dt * 0.05
-      stationRef.current.visible = dive < 0.95
-      // Cross-dissolved against the trench rising into place, rather than both running at
-      // full strength through the middle of the dive. Without this there is a stretch
-      // where a sphere thirty across is directly on top of the corridor and the frame is
-      // two scenes at once — the station has to be on its way out as the trench arrives.
-      const clear = 1 - smoothstep(0.5, 0.95, dive)
-      if (hull.current) hull.current.opacity = 0.55 * clear
-      if (trim.current) trim.current.opacity = 0.95 * clear
+      stationRef.current.visible = z - STATION_RADIUS < camera.position.z
     }
 
     // Four cannons at the corners of the screen, converging on the finger.
@@ -374,8 +376,13 @@ export function Trench() {
     // edge on every other one, and a target at a guessed depth lands near the finger
     // instead of on it — the beams have to actually meet under the fingertip or the whole
     // gesture reads as decoration.
-    const firing = warp > 0.01 && dive > 0.4
+    // The cannons dim as the touch energy decays rather than blinking out. `touch.energy`
+    // eases down over a couple of seconds after a finger lifts, so this is a gunner
+    // standing down — before, the beams held full brightness the whole way and then
+    // vanished on a threshold, which read as a dropped frame rather than as ceasing fire.
+    const firing = warp > 0.002 && rise > 0.4
     if (lasers.current) lasers.current.visible = firing
+    if (beamMat.current) beamMat.current.opacity = 0.95 * Math.min(1, warp * 1.35)
     if (firing) {
       const cam = camera as THREE.PerspectiveCamera
       const { muzzle, target, point, dir, perp, colour } = scratch
@@ -439,11 +446,11 @@ export function Trench() {
 
       <group ref={stationRef}>
         <lineSegments geometry={station}>
-          <lineBasicMaterial ref={hull} color="#8fa8c0" transparent opacity={0.55} blending={THREE.AdditiveBlending} />
+          <lineBasicMaterial color="#8fa8c0" transparent opacity={0.62} blending={THREE.AdditiveBlending} />
         </lineSegments>
         {/* Equator and dish, brighter than the hull so they read at distance. */}
         <lineSegments geometry={detail}>
-          <lineBasicMaterial ref={trim} color="#cfe6ff" transparent opacity={0.95} blending={THREE.AdditiveBlending} />
+          <lineBasicMaterial color="#cfe6ff" transparent opacity={0.95} blending={THREE.AdditiveBlending} />
         </lineSegments>
       </group>
 
@@ -464,7 +471,13 @@ export function Trench() {
       {/* Culling off: the vertices are rewritten every frame, so the bounding sphere
           three computed once is describing a shape that no longer exists. */}
       <lineSegments ref={lasers} geometry={laserGeometry} frustumCulled={false}>
-        <lineBasicMaterial vertexColors transparent opacity={0.95} blending={THREE.AdditiveBlending} />
+        <lineBasicMaterial
+          ref={beamMat}
+          vertexColors
+          transparent
+          opacity={0.95}
+          blending={THREE.AdditiveBlending}
+        />
       </lineSegments>
     </>
   )

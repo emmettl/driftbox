@@ -157,7 +157,7 @@ export function runnerSong(): Song {
     // Short sections throughout. Nothing holds for more than eight bars and most of it
     // moves after four, because the thing being scored does not slow down either.
     chain: [
-      { pattern: 'idle', repeat: 4 },
+      { pattern: 'idle', repeat: 2 },
       { pattern: 'run', repeat: 8 },
       { pattern: 'dive', repeat: 8 },
       { pattern: 'lock', repeat: 1 },

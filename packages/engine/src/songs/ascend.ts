@@ -168,8 +168,8 @@ export function ascendSong(): Song {
     // The arrangement IS the composition: one thing added at a time, taken away twice,
     // and every section long enough that you feel the next one coming.
     chain: [
-      { pattern: 'pulse', repeat: 4 },
-      { pattern: 'vector', repeat: 8 },
+      { pattern: 'pulse', repeat: 2 },
+      { pattern: 'vector', repeat: 6 },
       { pattern: 'circuit', repeat: 8 },
       { pattern: 'surge', repeat: 1 },
       { pattern: 'ascend', repeat: 8 },

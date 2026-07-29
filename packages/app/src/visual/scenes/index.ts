@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { Lifeforms } from './Lifeforms'
 import { Sunset } from './Sunset'
 import { Wireframe } from './Wireframe'
+import { Saturn } from './Saturn'
 import { Stillwater } from './Stillwater'
 import { Trench } from './Trench'
 import { Web } from './Web'
@@ -22,6 +23,7 @@ export const SCENES: SceneInfo[] = [
   { id: 'web', name: 'Web', Component: Web },
   { id: 'trench', name: 'Trench', Component: Trench },
   { id: 'water', name: 'Stillwater', Component: Stillwater },
+  { id: 'saturn', name: 'Saturn', Component: Saturn },
 ]
 
 export type SceneId = string

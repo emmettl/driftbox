@@ -156,7 +156,7 @@ export function transmissionSong(): Song {
     // The section lengths are prime-ish against the pattern lengths as well, so the whole
     // thing takes a long time to come back round to where it started.
     chain: [
-      { pattern: 'carrier', repeat: 6 },
+      { pattern: 'carrier', repeat: 2 },
       { pattern: 'static', repeat: 6 },
       { pattern: 'interference', repeat: 5 },
       { pattern: 'signal', repeat: 8 },

@@ -119,7 +119,7 @@ export function acidSong(): Song {
     swing: 0.04,
     patterns: clonePatterns([four, acid, squelch, strip]),
     chain: [
-      { pattern: 'four', repeat: 4 },
+      { pattern: 'four', repeat: 2 },
       { pattern: 'acid', repeat: 8 },
       { pattern: 'squelch', repeat: 8 },
       { pattern: 'strip', repeat: 4 },

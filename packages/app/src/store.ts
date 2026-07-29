@@ -190,8 +190,26 @@ function withChain(state: State, edit: (song: Song) => ChainStep[]): Partial<Sta
 
 /** Everything that has to move when the song is replaced wholesale. A loaded song has
  *  its own pattern ids, so an `editing` left pointing at the old one edits nothing. */
+/**
+ * Start the new track at its beginning rather than dropping in wherever the bar counter
+ * happened to be.
+ *
+ * Both ways of changing song need this, and only one of them had it: skipping with
+ * next/prev restarted, and picking one from the list did not — so choosing a song while
+ * something was playing began it four sections in, which reads as the song not having an
+ * intro at all. The gap is one lookahead.
+ */
+function restart(engine: DriftboxEngine | null, running: boolean): void {
+  if (!running || !engine) return
+  engine.stop()
+  void engine.start()
+}
+
 function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
   if (engine) {
+    // Whatever the last song left ringing goes now. With a three-second room on one of
+    // these, the previous track's reverb otherwise hangs over the first bar of the next.
+    engine.silenceTails()
     engine.song = song
     engine.bpm = song.bpm
     engine.swing = song.swing
@@ -461,9 +479,11 @@ export const useBox = create<State>()((set, get) => ({
   loadPreset: (id) => {
     const preset = songPresetById(id)
     if (!preset) return
+    const { engine, running } = get()
     // build(), not a stored object — each call is a fresh song, so loading one twice
     // cannot hand back something edited in between.
-    set({ ...adopt(preset.build(), get().engine), preset: preset.id, ...visualOf(preset) })
+    set({ ...adopt(preset.build(), engine), preset: preset.id, ...visualOf(preset) })
+    restart(engine, running)
   },
 
   stepPreset: (delta) => {
@@ -475,12 +495,7 @@ export const useBox = create<State>()((set, get) => ({
 
     set({ ...adopt(next.build(), engine), preset: next.id, ...visualOf(next) })
 
-    // Restart, so a track change starts the new track at its beginning rather than
-    // dropping in wherever the bar counter happened to be. The gap is one lookahead.
-    if (running && engine) {
-      engine.stop()
-      void engine.start()
-    }
+    restart(engine, running)
     return next.name
   },
 
