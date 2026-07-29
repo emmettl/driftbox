@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAudioRecovery } from './audio-recovery'
+import { useFollowPlayhead } from './ui/useFollowPlayhead'
 import { useBox } from './store'
 import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
@@ -41,6 +42,7 @@ export default function App() {
   // it on its own. Without this the app comes back looking like it is playing and is
   // silent for good.
   useAudioRecovery()
+  useFollowPlayhead()
 
   // The console flies out of the edit button, and folds back into it.
   //

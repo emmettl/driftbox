@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Seven songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance, breakbeat, upbeat |
+| Ships with | Eight songs — chillwave, electro, darkwave, ISDN-era FSOL, acid house, trance, breakbeat, upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, seven 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Oscilloscope, eight 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -176,6 +176,19 @@ black hole and the Trench's cannons both land under the finger only because the 
 aim at is derived per-vertex from the eye ray. Solved once on a single plane, a scene with
 any depth to it puts the effect visibly beside the finger — and it looks correct on the one
 viewport it was tuned on, which is how it survives to being noticed.
+
+**An agent on a grid needs turning back long before it reaches the wall.** The light
+cycles turn ninety degrees only, so the sole legal turn AT a wall runs along it — a bike
+follows the edge to a corner, turns along the next edge and never comes back. Five of them
+drew a neat square while the middle of the board stayed empty. A soft ring at two thirds of
+the arena, where a bike keeps turning until it is genuinely heading home, fixes it; turning
+at the boundary itself cannot, whatever the bias.
+
+**Fade attributes have to vary along the thing they fade.** The Tron grid handed each line
+a per-vertex "how far out am I" and every line across a square grid has BOTH ends on the
+boundary — so it interpolated from fully-faded to fully-faded and the entire grid rendered
+at zero alpha. Invisible, with nothing anywhere to say so. Computing it per fragment from
+the position is both simpler and correct.
 
 **Constant motion with nothing to measure it against is not motion.** The Rez corridor
 travels down Z at a constant radius past evenly spaced identical ribs, which strobes: at

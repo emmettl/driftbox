@@ -127,7 +127,7 @@ the machine's three of them are for. Select one in the grid and it appears as a 
 
 ## Three songs, one pair of 303s
 
-It ships with seven, and they share nothing — different tempos, different halves of the
+It ships with eight, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -137,6 +137,7 @@ scene used twice:
 |---|---|---|
 | **Sundown** | Chillwave. 102bpm, swung, lots of space. | *Sunset* |
 | **Acieed** | Acid house. 126bpm, dead straight, four to the floor. | *Web* |
+| **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
@@ -148,7 +149,7 @@ dark, abstract, building, fast. Acieed and Ascend used to sit next to each other
 with literally the same four bars at different tempos, so the set sounded like one track
 restarting.
 
-The part worth noticing is that the two 303s are the same synth in all seven and do not
+The part worth noticing is that the two 303s are the same synth in all eight and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -193,13 +194,13 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are seven — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are eight — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
-*Trench*, after the vector Star Wars cabinet; *Stillwater*; and *Saturn*.
+*Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; and *Light Cycles*.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
@@ -224,6 +225,15 @@ long way and fades slowly. That last part is the Shoemaker-Levy 9 reference — 
 were on Jupiter rather than Saturn, and the detail worth stealing is that the scars lasted
 months. A flash on its own is a strobe; a flash that leaves a mark is an event.
 
+*Light Cycles* is shot from **above** — the game board rather than the chase. Partly because
+Sunset already owns "glowing grid to a horizon" and doing it again from the same angle would
+just be a bluer version of a scene that exists, and partly because the point of a light
+cycle is the wall it leaves behind, which you cannot read from inside it. The bikes travel
+on the axes and turn ninety degrees only, and **they turn on the beat** — so the grid fills
+with right angles drawn by the kick drum, and the picture is a record of what the music did
+rather than a reaction to how loud it was. A big hit derezzes the arena and they start
+again.
+
 *Trench* is the only scene that is a **sequence** rather than a steady state. It opens
 holding station off a wireframe battle station — hull, equatorial trench, dish — and dives
 into the canyon when the transport starts, so pressing play is what begins the run. Down
@@ -231,6 +241,11 @@ there the walls pump on the kick, greebles go past bolted to them, and while you
 finger down four cannons at the corners of the screen converge on it with bent, hue-split
 beams. Both ends of those beams are derived from the camera, so they leave the actual
 corners and land exactly under the fingertip at any viewport.
+
+**The grid follows the playhead.** Open the editor at any point and it is showing the
+section you can hear, with the steps lighting up as they play, rather than whatever was
+edited last. Choosing a pattern by hand takes over — a grid that jumped away from the thing
+you just picked would be worse than not following at all — and loading a song hands it back.
 
 **The visual follows the tune.** Every shipped song names the scene it was written to be
 seen with, so skipping tracks changes the picture too. Changing it by hand still wins until

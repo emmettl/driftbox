@@ -62,6 +62,14 @@ interface State {
   view: View
   /** Which pattern the grid is editing. Not necessarily the one playing. */
   editing: string
+  /**
+   * Whether the grid follows the section being played.
+   *
+   * On by default, so opening the editor at any point shows what you can hear. Choosing a
+   * pattern by hand turns it off — a grid that jumped away from the thing you just picked
+   * would be unusable — and loading a song turns it back on.
+   */
+  followPlayhead: boolean
   selectedVoice: string
   selectedBass: string
   /** Full-screen visuals with the sequencer hidden. */
@@ -89,6 +97,7 @@ interface State {
   setSwing: (swing: number) => void
   setView: (view: View) => void
   setEditing: (id: string) => void
+  setFollowPlayhead: (follow: boolean) => void
   selectVoice: (id: string) => void
   selectBass: (id: string) => void
   toggleStep: (voiceId: string, step: number) => void
@@ -215,7 +224,7 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
     engine.swing = song.swing
     engine.syncFx()
   }
-  return { song, editing: song.patterns[0]?.id ?? '' }
+  return { song, editing: song.patterns[0]?.id ?? '', followPlayhead: true }
 }
 
 export const useBox = create<State>()((set, get) => ({
@@ -225,6 +234,7 @@ export const useBox = create<State>()((set, get) => ({
   running: false,
   view: 'tr808',
   editing: initialSong.patterns[0]?.id ?? '',
+  followPlayhead: true,
   metronome: false,
   countIn: false,
   selectedVoice: '808.bd',
@@ -285,7 +295,8 @@ export const useBox = create<State>()((set, get) => ({
     set({ view, selectedVoice: first?.id ?? get().selectedVoice })
   },
 
-  setEditing: (editing) => set({ editing }),
+  setEditing: (editing) => set({ editing, followPlayhead: false }),
+  setFollowPlayhead: (followPlayhead) => set({ followPlayhead }),
   selectVoice: (selectedVoice) => set({ selectedVoice }),
   selectBass: (selectedBass) => set({ selectedBass }),
 
@@ -434,14 +445,14 @@ export const useBox = create<State>()((set, get) => ({
     const length = song.patterns.find((p) => p.id === editing)?.length ?? 16
     const { song: next, id } = addPattern(song, length)
     if (engine) engine.song = next
-    set({ song: next, editing: id })
+    set({ song: next, editing: id, followPlayhead: false })
   },
 
   copyPattern: (id) => {
     const { song, engine } = get()
     const { song: next, id: copy } = duplicatePattern(song, id)
     if (engine) engine.song = next
-    set({ song: next, editing: copy })
+    set({ song: next, editing: copy, followPlayhead: false })
   },
 
   namePattern: (id, name) => {
