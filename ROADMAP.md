@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Eleven songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
+| Ships with | Twelve songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Four meters, eleven 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Four meters, twelve 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -244,6 +244,11 @@ nearest hull is six hundred units away. The range travels with the dive.
 under a fixed camera, which is a cross-fade wearing a move — geometry appearing around a
 stationary observer never reads as travel. Flying the camera down into the same, entirely
 static, trench is the same number of lines and an actual dive.
+
+**Position things as fractions of the frame, not in absolute units.** Jump Man's runner
+stood at a fixed eighteen cells left of centre, which is fine on a desktop and walks him off
+the edge of a phone the moment the visible width narrows. Anything placed relative to the
+viewport has to be expressed relative to the viewport.
 
 **A figure needs volume, not a skeleton.** The dancers began as single lines between
 joints, which reads as a stick figure however good the motion is. Rebuilt as an artist's

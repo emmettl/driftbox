@@ -6,6 +6,7 @@ import { ascendSong } from './ascend.js'
 import { runnerSong } from './runner.js'
 import { cloudsSong } from './clouds.js'
 import { pumpSong } from './pump.js'
+import { oneupSong } from './oneup.js'
 import { cyclesSong } from './cycles.js'
 import { defconSong } from './defcon.js'
 import { saturnSong } from './saturn.js'
@@ -15,7 +16,7 @@ export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Eleven of them, because one demonstrates the machines and eleven demonstrate the range.
+// Twelve of them, because one demonstrates the machines and twelve demonstrate the range.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -111,6 +112,13 @@ export const SONGS: SongPreset[] = [
     build: ascendSong,
   },
   {
+    id: 'oneup',
+    visual: 'jumpman',
+    name: '1UP',
+    blurb: 'Chiptune — 162bpm, a 303 arpeggiating because one voice cannot play a chord',
+    build: oneupSong,
+  },
+  {
     id: 'saturn',
     visual: 'saturn',
     name: 'Rings of Saturn',
@@ -137,6 +145,7 @@ export function defaultSong(): Song {
 
 export {
   acidSong,
+  oneupSong,
   pumpSong,
   cloudsSong,
   cyclesSong,

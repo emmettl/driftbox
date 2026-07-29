@@ -129,7 +129,7 @@ the machine's three of them are for. Select one in the grid and it appears as a 
 
 ## Three songs, one pair of 303s
 
-It ships with eleven, and they share nothing — different tempos, different halves of the
+It ships with twelve, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -146,6 +146,7 @@ scene used twice:
 | **Cumulus** | Ambient house, after the Orb. 116bpm, the heaviest swing here by a distance, and the only cheerful thing in the set. | *Clouds* |
 | **Pump** | Hip house, aimed at the Technotronic record. 124bpm, and the only 303 here playing stabs rather than a line. | *Dancers* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
+| **1UP** | Chiptune, for the platformer. 162bpm, and the 303 arpeggiates because a machine with one voice cannot play a chord. | *Jump Man* |
 | **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
 | **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
 
@@ -154,7 +155,7 @@ dark, machine, abstract, dread, bright, building, breaking, fast. Acieed and Asc
 to sit next to each other and open with literally the same four bars at different tempos,
 so the set sounded like one track restarting.
 
-The part worth noticing is that the two 303s are the same synth in all eleven and do not
+The part worth noticing is that the two 303s are the same synth in all twelve and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -199,14 +200,14 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are eleven — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are twelve — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
 *Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*;
-*Defcon*; *Clouds*; and *Dancers*.
+*Defcon*; *Clouds*; *Dancers*; and *Jump Man*.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
@@ -261,6 +262,14 @@ trace drawn across a busy picture is a line through it. So there are four: *wave
 (the only one that reads the spectrum rather than the waveform, and the one that sits along
 the foot of the frame instead of across the middle of it), *x/y* for the vectorscope, and
 *off*. `X` cycles them from the keyboard.
+
+*Jump Man* is an 80s platformer with the sprite work kept honest — one colour per cell, a
+two-frame run cycle, parallax layers — and one thing that could not have been done then: a
+pixel here is a **point in space** with its own depth and a bevel, so the sprite is a
+particle system standing in formation. When he dies he does not blink out, he comes apart
+into a few hundred blocks that tumble and fall. He also jumps on the kick and changes leg on
+the hat, so the run cycle is the drum pattern rather than a timer running alongside it —
+stop the transport and he stands still.
 
 *Dancers* is the only scene with a **figure** in it, which turns out to be the one subject
 where the eye knows instantly whether you got it right — a tunnel can be any width and
