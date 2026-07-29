@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Six songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance, and one upbeat |
+| Ships with | Seven songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance, breakbeat, upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, six 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Oscilloscope, seven 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -156,11 +156,37 @@ latter, which is right for a scene with one object and wrong for one with seven 
 Lifeforms called it eight times a frame and the warp decayed eight times too fast. Whose
 job it is to advance shared state should never depend on how many things happen to read it.
 
+**Recovery has to keep trying, because an interruption ends when iOS says it does.**
+The audio-recovery hook described a `statechange` listener and a retry in its own comment
+and had neither: no listener was registered, and the one-second poll called the function
+that *reports* the stall rather than the one that clears it. So recovery was a single
+attempt fired from `visibilitychange`, which on iOS lands while the context is still
+`interrupted`, fails, and was never tried again — audio gone until a tap, and gone for good
+if that tap's attempt failed too. Anything that depends on the OS granting something needs
+a retry, not a handler.
+
+**A convolver cannot be gated, only replaced.** Muting a reverb's output does not stop it
+emitting its tail; unmute a moment later and the old room is still there, exactly where it
+left off. A delay is worse, because the line still holds its contents and the feedback loop
+keeps handing them round. Changing song fades the wet path out and then throws both nodes
+away. Stopping does not — a record that stops should ring out.
+
 **A warp aimed at a fingertip has to solve for depth, not just for a plane.** The Web's
 black hole and the Trench's cannons both land under the finger only because the point they
 aim at is derived per-vertex from the eye ray. Solved once on a single plane, a scene with
 any depth to it puts the effect visibly beside the finger — and it looks correct on the one
 viewport it was tuned on, which is how it survives to being noticed.
+
+**Constant motion with nothing to measure it against is not motion.** The Rez corridor
+travels down Z at a constant radius past evenly spaced identical ribs, which strobes: at
+rest you cannot tell you are moving. One slow swell along its length — a waist that passes
+you — fixes it, and the wavenumber has to divide the corridor's length exactly or the swell
+fails to meet itself at the wrap and a seam travels down the tunnel forever.
+
+**Evenly spaced is exactly what makes a moire.** Saturn's planet is a golden-angle spiral,
+which is the right generator precisely because it spaces points evenly — and rendered as
+points it read as woven fabric. A jitter of a fraction of the spacing kills the
+interference without clumping anything.
 
 **A scene aimed at one record should read that record's shape, not just its level.**
 Every scene but one maps loudness to motion, which is right for music that is continuous

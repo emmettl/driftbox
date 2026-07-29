@@ -292,6 +292,18 @@ export class DriftboxEngine {
     return this.transport.running && this.transport.position.bar < this.countInUntil
   }
 
+  /**
+   * Drop everything still ringing — reverb tails, delay repeats, held 303 notes.
+   *
+   * For changing song. Deliberately not part of `stop`, because a record that is stopped
+   * should be allowed to ring out; a record that has been *replaced* should not still be
+   * audible over the one that replaced it.
+   */
+  silenceTails(): void {
+    this.sends.silence()
+    for (const bassline of this.basslines.values()) bassline.silence()
+  }
+
   stop(): void {
     this.transport.stop()
     // A 303 note is held by a VCA envelope that runs until its gate ends, so unlike a

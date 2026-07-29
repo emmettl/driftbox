@@ -127,7 +127,7 @@ the machine's three of them are for. Select one in the grid and it appears as a 
 
 ## Three songs, one pair of 303s
 
-It ships with six, and they share nothing — different tempos, different halves of the
+It ships with seven, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -140,6 +140,7 @@ scene used twice:
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
+| **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
 | **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
 
 The order is a listening sequence rather than the order they were written: gentle, hard,
@@ -147,11 +148,17 @@ dark, abstract, building, fast. Acieed and Ascend used to sit next to each other
 with literally the same four bars at different tempos, so the set sounded like one track
 restarting.
 
-The part worth noticing is that the two 303s are the same synth in all six and do not
+The part worth noticing is that the two 303s are the same synth in all seven and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
 difference is four knobs.
+
+**Ghost notes, out of a notation that has none.** The drum grid has two velocities — accent
+and normal — and a Photek break is mostly the quiet taps *between* the backbeat. Rings of
+Saturn gets them by ghosting on a different, quieter **voice** rather than at a lower
+velocity: an 808 rimshot doing all the in-between work a long way under a 909 snare. Which
+is also how it would have been programmed on the hardware.
 
 ## A song is a value
 
@@ -186,13 +193,13 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are six — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are seven — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
-*Trench*, after the vector Star Wars cabinet; and *Stillwater*.
+*Trench*, after the vector Star Wars cabinet; *Stillwater*; and *Saturn*.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
@@ -207,6 +214,15 @@ nothing for a record that is a few sounds in a large room. Here a hit drops a ri
 water and the ring travels out and dies; between hits nothing moves but the drift. It is
 also the only scene made of points rather than lines — 25,600 of them, scattered off the
 lattice, because a regular grid seen at that angle collapses into radial spokes.
+
+*Saturn* is the only one that is an **object** rather than a place — every other scene puts
+you inside something, and this one leaves you outside a body looking at it. The rings are
+Keplerian, so the inner ones overtake the outer ones and the whole disc visibly shears
+against itself after a few seconds; a disc that turns as one piece reads as a painted plate.
+Big hits punch holes in the planet: a white flash, then a dark scar that outlives it by a
+long way and fades slowly. That last part is the Shoemaker-Levy 9 reference — those impacts
+were on Jupiter rather than Saturn, and the detail worth stealing is that the scars lasted
+months. A flash on its own is a strobe; a flash that leaves a mark is an event.
 
 *Trench* is the only scene that is a **sequence** rather than a steady state. It opens
 holding station off a wireframe battle station — hull, equatorial trench, dish — and dives

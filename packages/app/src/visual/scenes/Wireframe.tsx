@@ -53,6 +53,16 @@ const LINE_VERTEX = /* glsl */ `
     float breathe = 1.0 + uBass * 0.42 * (0.6 + 0.4 * sin(phase));
     pos.xy *= breathe;
 
+    // A waist that travels past you. A tube of constant radius, seen from inside, past
+    // evenly spaced identical ribs, gives the eye nothing to measure travel against — it
+    // strobes, and at rest you cannot tell you are moving at all. A slow swell along the
+    // corridor's length is an unambiguous depth cue and costs one sine.
+    //
+    // The wavenumber is exactly two full waves per DEPTH. Anything else and the swell does
+    // not match itself across the point where the corridor wraps, which shows up as a seam
+    // travelling down the tunnel forever.
+    pos.xy *= 1.0 + sin(z * ${((2 * Math.PI * 2) / DEPTH).toFixed(6)}) * 0.17;
+
     // Steered by the finger, more strongly the further away it is — which is what makes
     // it read as leaning into a turn rather than sliding the whole tunnel sideways.
     float far = z / ${DEPTH.toFixed(1)};

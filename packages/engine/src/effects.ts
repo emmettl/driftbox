@@ -98,16 +98,25 @@ export function impulseResponse(
  * Owns audio nodes, so it lives on the same side of the line as `render.ts` — no
  * musical decisions in here beyond the ranges the knobs map onto.
  */
+/** How long the wet path takes to fade out before its nodes are replaced, and to come
+ *  back afterwards. Long enough not to click, short enough to be gone before the first
+ *  hit of the new song — the transport starts with more headroom than this. */
+const FLUSH_SECONDS = 0.05
+
 export class Sends {
   /** Where a voice's send gain connects. */
   readonly delayInput: GainNode
   readonly reverbInput: GainNode
 
   private readonly ctx: BaseAudioContext
-  private readonly delay: DelayNode
-  private readonly feedback: GainNode
-  private readonly damp: BiquadFilterNode
-  private readonly convolver: ConvolverNode
+  /** Everything wet passes through here, so the tails can be faded as a pair. */
+  private readonly tail: GainNode
+  private delay: DelayNode
+  private feedback: GainNode
+  private damp: BiquadFilterNode
+  private convolver: ConvolverNode
+  private fx: FxParams = DEFAULT_FX
+  private bpm = 120
 
   /** What the impulse response was last built for. Regenerating it means allocating and
    *  filling seconds of stereo audio, which is not something to do on every frame of a
@@ -119,6 +128,9 @@ export class Sends {
 
     this.delayInput = ctx.createGain()
     this.reverbInput = ctx.createGain()
+
+    this.tail = ctx.createGain()
+    this.tail.connect(output)
 
     // Maximum delay is generous — 2 seconds covers eight steps at any tempo the
     // transport allows. It costs a buffer, not CPU.
@@ -134,17 +146,84 @@ export class Sends {
     this.delay.connect(this.damp)
     this.damp.connect(this.feedback)
     this.feedback.connect(this.delay)
-    this.delay.connect(output)
+    this.delay.connect(this.tail)
 
     this.convolver = ctx.createConvolver()
     this.reverbInput.connect(this.convolver)
-    this.convolver.connect(output)
+    this.convolver.connect(this.tail)
 
     this.update(DEFAULT_FX, 120)
   }
 
+  /**
+   * Throw away everything still ringing.
+   *
+   * For changing song, where the previous track's reverb hanging over the first bar of the
+   * next one is just wrong — and increasingly wrong the bigger the room, which is why it
+   * only became obvious once a song with a three-second tail was added.
+   *
+   * Gating the wet path is not enough and this is the part worth knowing: a convolver goes
+   * on emitting its impulse for the full length of the room however quiet you make its
+   * output, so unmuting a moment later brings the old tail straight back where it left
+   * off. A delay is worse — the line still holds whatever went into it and the feedback
+   * loop keeps handing it round. The only way to genuinely have nothing left is to fade
+   * the pair out and then replace the nodes.
+   *
+   * Not called on stop. A record that stops should be allowed to ring out.
+   */
+  silence(): void {
+    const now = this.ctx.currentTime
+    // Fade rather than cut. A reverb tail chopped mid-flight clicks, and the click is
+    // louder than the tail it was removing.
+    this.tail.gain.cancelScheduledValues(now)
+    this.tail.gain.setValueAtTime(this.tail.gain.value, now)
+    this.tail.gain.linearRampToValueAtTime(0, now + FLUSH_SECONDS)
+
+    const swap = () => {
+      this.delayInput.disconnect()
+      this.reverbInput.disconnect()
+      this.delay.disconnect()
+      this.damp.disconnect()
+      this.feedback.disconnect()
+      this.convolver.disconnect()
+
+      this.delay = this.ctx.createDelay(2)
+      this.feedback = this.ctx.createGain()
+      this.damp = this.ctx.createBiquadFilter()
+      this.damp.type = 'lowpass'
+      this.delayInput.connect(this.delay)
+      this.delay.connect(this.damp)
+      this.damp.connect(this.feedback)
+      this.feedback.connect(this.delay)
+      this.delay.connect(this.tail)
+
+      this.convolver = this.ctx.createConvolver()
+      this.reverbInput.connect(this.convolver)
+      this.convolver.connect(this.tail)
+
+      // The new nodes come up with no settings at all, so the song's own reverb size and
+      // delay time have to be put back — and `builtFor` reset, or the impulse response is
+      // skipped as already-current and the room is silent.
+      this.builtFor = -1
+      this.update(this.fx, this.bpm)
+
+      const at = this.ctx.currentTime
+      this.tail.gain.cancelScheduledValues(at)
+      this.tail.gain.setValueAtTime(0, at)
+      this.tail.gain.linearRampToValueAtTime(1, at + FLUSH_SECONDS)
+    }
+
+    // After the fade, not during it. An offline render has no timers worth waiting on and
+    // never needs this anyway, so it swaps straight away.
+    if (typeof setTimeout === 'function') setTimeout(swap, FLUSH_SECONDS * 1000 + 10)
+    else swap()
+  }
+
   /** Apply the global settings. Safe to call as often as a knob moves. */
   update(fx: FxParams, bpm: number): void {
+    // Kept, so the replacement nodes built by `silence` can be given the same settings.
+    this.fx = fx
+    this.bpm = bpm
     const now = this.ctx.currentTime
 
     const seconds = secondsPerStep(bpm) * delayDivision(fx.delayTime)
@@ -179,6 +258,7 @@ export class Sends {
   }
 
   dispose(): void {
+    this.tail.disconnect()
     this.delayInput.disconnect()
     this.reverbInput.disconnect()
     this.delay.disconnect()
