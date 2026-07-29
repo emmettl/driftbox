@@ -1,70 +1,8 @@
-import {
-  defaultFx,
-  defaultKit,
-  type BassStep,
-  type Pattern,
-  type Song,
-  type StepValue,
-} from './index.js'
-import { ALL_VOICES } from './index.js'
+import { defaultFx, defaultKit, type Song } from '../pattern.js'
+import { ALL_VOICES } from '../index.js'
+import { pattern } from './notation.js'
 
-// The patterns the box opens on. Written in a step notation rather than as arrays of
-// numbers, because a drum pattern is a picture and should look like one in source:
-//
-//   X = accent   x = normal   . = rest   space = ignored, for grouping into beats
-
-export function steps(notation: string): StepValue[] {
-  return notation
-    .replace(/\s/g, '')
-    .split('')
-    .map((c) => (c === 'X' ? 2 : c === 'x' ? 1 : 0))
-}
-
-/**
- * A bassline, one whitespace-separated token per step.
- *
- *   .      rest
- *   0      a note, in semitones above the synth's root
- *   7a     accented
- *   12s    slides into whatever comes next
- *   0as    both
- *   |      ignored, for grouping into beats
- *
- * Wordier than the drum notation because a bass step carries three things rather than
- * one, but it keeps the same property: the line is legible as a line in the source.
- */
-export function bassSteps(notation: string): BassStep[] {
-  return notation
-    .trim()
-    .split(/\s+/)
-    .filter((token) => token !== '|')
-    .map((token) => {
-      if (token === '.') return { note: null, accent: false, slide: false }
-      const [, digits, flags] = /^(-?\d+)([as]*)$/.exec(token) ?? []
-      if (digits === undefined) throw new Error(`Unreadable bass step: ${token}`)
-      return {
-        note: Number(digits),
-        accent: flags.includes('a'),
-        slide: flags.includes('s'),
-      }
-    })
-}
-
-function pattern(
-  id: string,
-  name: string,
-  tracks: Record<string, string>,
-  bassLines: Record<string, string> = {},
-  length = 16,
-): Pattern {
-  const out: Record<string, StepValue[]> = {}
-  for (const [voice, notation] of Object.entries(tracks)) out[voice] = steps(notation)
-
-  const bass: Record<string, BassStep[]> = {}
-  for (const [voice, notation] of Object.entries(bassLines)) bass[voice] = bassSteps(notation)
-
-  return { id, name, length, tracks: out, bass }
-}
+// Chillwave. Slow, swung, lots of space — the one the box opens on.
 
 // Slow, swung, lots of space. The kick leaves the second half of the bar alone so the
 // hats can carry it, which is most of why this reads as hazy rather than as a groove.
@@ -199,7 +137,7 @@ const lift = pattern(
 
 const PATTERNS = [haze, drift, neon, lift, surge, hush, pulse]
 
-export function defaultSong(): Song {
+export function chillwaveSong(): Song {
   const kit = defaultKit(ALL_VOICES.map((v) => v.id))
 
   // A few knobs moved off centre so the box does not open sounding like a test tone.
