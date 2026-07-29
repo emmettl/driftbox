@@ -121,6 +121,12 @@ session is.
 underneath it and its buttons stop working. This has now caught the scene switcher and the
 whole now-playing strip. The strip stays pointer-transparent and only its buttons opt back
 in, so drags still reach the filter everywhere else.
+**A touch has to be mapped to what the camera can actually see.** The floor warp took the
+touch position straight to a fixed world width, which on a portrait phone put the
+deformation a long way off-camera for most of the screen — it read as "too subtle" when it
+was mostly happening where nobody could see it. The spread now comes from the viewport
+aspect. Any new scene that reacts to touch needs the same: a constant that looks right on a
+desktop window is wrong by a factor of three on a phone.
 
 **Shared visual state owns its own clock.** `touch.ts` advances its eased `energy` on its
 own animation frame rather than from a scene's `useFrame`. The first version did the
