@@ -5,6 +5,7 @@ import { Wireframe } from './Wireframe'
 import { Clouds } from './Clouds'
 import { Cycles } from './Cycles'
 import { Dancers } from './Dancers'
+import { Jumpman } from './Jumpman'
 import { Defcon } from './Defcon'
 import { Saturn } from './Saturn'
 import { Stillwater } from './Stillwater'
@@ -61,6 +62,9 @@ export const SCENES: SceneInfo[] = [
   // Magenta, against a stage lit in every other colour, and a small trail: the figures are
   // fine bright lines and a big soft blob buries them.
   { id: 'dancers', name: 'Dancers', Component: Dancers, accent: '255, 90, 190', trail: { scale: 0.75 } },
+  // White, against a scene that is already every arcade colour there is, and a small trail:
+  // this one is drawn on a one-cell grid and a big soft blob swallows whole sprites.
+  { id: 'jumpman', name: 'Jump Man', Component: Jumpman, accent: '255, 255, 255', trail: { scale: 0.7 } },
 ]
 
 export type SceneId = string
