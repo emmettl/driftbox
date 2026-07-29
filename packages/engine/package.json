@@ -22,6 +22,10 @@
   },
   "homepage": "https://emmettl.github.io/driftbox/",
   "type": "module",
+  "//publishConfig": "Scoped packages are RESTRICTED by default, and restricted publishing needs a paid npm plan — so without this the first release fails with a 402 that no dry run catches, because --dry-run never makes the access check. Set here rather than passed as --access public on the command line so that publishing by hand from a laptop cannot differ from publishing from CI.",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

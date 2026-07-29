@@ -520,8 +520,16 @@ That is a better demonstration of a reusable engine than a loop playing undernea
   `@driftbox/app` does not depend on `@driftbox/engine` at runtime — it bundles it — so
   they can drift, but the app's devDependency pins an exact version and will need bumping
   in step.
-- **Whether the `@driftbox` scope is available**, and whether it should be public
-  (`npm publish --access public`).
+- **Whether the `@driftbox` scope exists and the release token owns it.** Both packages
+  now carry `publishConfig.access: public`, which they have to: a scoped package is
+  RESTRICTED by default and restricted publishing needs a paid plan, so the first release
+  would have failed with a 402 that no dry run catches — `--dry-run` never makes the
+  access check. What is left is outside the repo: `@driftbox` has to be a scope the
+  publishing account owns, and `NPM_TOKEN` has to be an **Automation** token (or a
+  granular one with *Packages and scopes: read and write* granted over the `@driftbox`
+  **scope** — not over a package list, since neither package exists to be listed yet). No
+  organisation permission is needed; that one governs managing the org, not publishing
+  into it.
 
 ### 2. ~~Per-voice outputs~~ — done, as stems
 
