@@ -14,6 +14,14 @@
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
 
+    // The BUILD resolves @driftbox/engine the ordinary way — through the workspace symlink
+    // to its `exports`, which is dist/. So the engine has to be built first, which is a
+    // genuine build dependency and is what `npm run build --workspaces` orders for us.
+    //
+    // It deliberately does NOT map the engine to its source the way tsconfig.json and the
+    // app do. This config emits declarations under `rootDir: ./src`, and pulling another
+    // package's source into that program is a rootDir violation on every file it touches —
+    // 40-odd errors, none of them about the rack.
     "moduleResolution": "bundler",
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

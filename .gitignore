@@ -13,6 +13,17 @@ dist-ssr
 *.tsbuildinfo
 *.local
 
+# Compiled output that landed in a source tree rather than in dist/. Both library packages
+# are TypeScript only, and both ship `src` in their `files`, so a stray .js or .d.ts here
+# would be committed AND published. A misconfigured rootDir put 136 of them in
+# packages/engine/src once; `dist` above does not catch that.
+packages/engine/src/**/*.js
+packages/engine/src/**/*.d.ts
+packages/engine/src/**/*.map
+packages/rack/src/**/*.js
+packages/rack/src/**/*.d.ts
+packages/rack/src/**/*.map
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
