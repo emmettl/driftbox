@@ -73,7 +73,11 @@ const BODY_VERTEX = /* glsl */ `
     // Dragged toward the finger, and squashed along the way — a body leaning, not a
     // whole object sliding.
     vec3 toPull = uPull - pos;
-    pos += toPull * uWarp * 0.42 * (0.5 + slow * 0.5);
+    pos += toPull * uWarp * 0.85 * (0.4 + slow * 0.6);
+    // And squashed along the axis it is being pulled down, so a body leaning is also a
+    // body deforming — otherwise seven objects all sliding the same way reads as the
+    // camera moving rather than as the bodies reacting.
+    pos -= n * dot(n, normalize(toPull + vec3(0.0001))) * uWarp * 0.3;
 
     vBulge = bulge;
     vNormal = normalize(normalMatrix * n);

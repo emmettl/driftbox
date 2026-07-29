@@ -21,7 +21,8 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, three 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Oscilloscope, four 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Son et lumière | Every song names the visual it was written for, and loading it switches |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
 
@@ -126,6 +127,21 @@ the three does one thing the others cannot: Sunset is a fixed horizon, Lifeforms
 place, Wireframe travels. Forward motion turned out to be the biggest difference of the
 three, and the cheapest — the corridor is one buffer built once and moved entirely in the
 vertex shader, so an endless tunnel is a single draw call and never allocates a rib.
+
+**A song names its own visual, as an opaque string the engine never resolves.**
+`SongPreset.visual` is a hint travelling with the music; the app maps it to a scene and
+ignores names it does not have, rather than falling back to a default. A host embedding
+the engine with its own visuals — or none — is unaffected. Manual scene changes still win
+until the next track, which is the behaviour to keep if a "stick to one visual" option
+ever lands.
+
+**Warping a plane needs two envelopes, not one.** A single gaussian forces a choice
+between tight enough to keep the horizon and wide enough to notice, and the effect was
+tuned three times before that was obvious. It is now a tall, tight lift with a separate,
+much wider and much SHALLOWER travelling wake. The wake amplitude is the part to be careful
+with: the floor sits about half a unit below the camera, so a wide ripple at the lift's
+amplitude throws half the plane above the viewer and the grid stops reading as a floor at
+all.
 
 **A touch has to be mapped to what the camera can actually see.** The floor warp took the
 touch position straight to a fixed world width, which on a portrait phone put the

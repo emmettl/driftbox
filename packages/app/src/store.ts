@@ -16,6 +16,7 @@ import {
   encodeSong,
   songPresetById,
   SONGS,
+  type SongPreset,
   addPattern,
   duplicatePattern,
   removePattern,
@@ -33,6 +34,7 @@ import {
   defaultSong,
   type VoiceParams,
 } from '@driftbox/engine'
+import { SCENES, type SceneId } from './visual/scenes'
 import {
   autosave,
   clearStoredSong,
@@ -67,6 +69,15 @@ interface State {
   /** The transport thinks it is playing but the audio context is not running — iOS took
    *  it away and has not given it back. See `audio-recovery.ts`. */
   audioStalled: boolean
+  /**
+   * Which visual is on screen.
+   *
+   * In the store rather than in App, because loading a song has to be able to change it —
+   * every shipped song names the visual it was written to be seen with, and a track
+   * change that left the wrong picture up would undo most of the point of pairing them.
+   */
+  scene: SceneId
+  setScene: (scene: SceneId) => void
   /** Panels the user has folded away, by id. Kept out of the Song: which panels you
    *  have open is about your screen, not about the music. */
   collapsed: Record<string, boolean>
@@ -157,6 +168,19 @@ const initialSong = loadStoredSong() ?? defaultSong()
 const initialPreset =
   SONGS.find((preset) => encodeSong(preset.build()) === encodeSong(initialSong))?.id ?? null
 
+/**
+ * The scene a preset asks for, if this build has one by that name.
+ *
+ * Unknown names are ignored rather than falling back to a default — the engine's `visual`
+ * is an opaque hint, and a host is free not to have that picture. A song naming a scene
+ * this build does not ship should leave whatever is on screen alone rather than resetting
+ * it to something arbitrary.
+ */
+function visualOf(preset: SongPreset): { scene?: SceneId } {
+  const wanted = preset.visual
+  return wanted && SCENES.some((s) => s.id === wanted) ? { scene: wanted } : {}
+}
+
 /** Apply a pure chain edit and push the result at the engine. */
 function withChain(state: State, edit: (song: Song) => ChainStep[]): Partial<State> {
   const song: Song = { ...state.song, chain: edit(state.song) }
@@ -194,6 +218,8 @@ export const useBox = create<State>()((set, get) => ({
   // nothing else, so it is the right front door — and the console is one tap away.
   performance: prefersTouch(),
   audioStalled: false,
+  // Whatever the restored song suggests, so a returning listener gets the pairing too.
+  scene: (initialPreset ? songPresetById(initialPreset)?.visual : undefined) ?? SCENES[0].id,
   collapsed: loadCollapsed(),
 
   // The AudioContext is created lazily on the first interaction. Constructing one
@@ -341,6 +367,8 @@ export const useBox = create<State>()((set, get) => ({
     get().engine?.auditionBass(voiceId, step)
   },
 
+  setScene: (scene) => set({ scene }),
+
   togglePerformance: () => set({ performance: !get().performance }),
 
   toggleCollapsed: (id) => {
@@ -435,7 +463,7 @@ export const useBox = create<State>()((set, get) => ({
     if (!preset) return
     // build(), not a stored object — each call is a fresh song, so loading one twice
     // cannot hand back something edited in between.
-    set({ ...adopt(preset.build(), get().engine), preset: preset.id })
+    set({ ...adopt(preset.build(), get().engine), preset: preset.id, ...visualOf(preset) })
   },
 
   stepPreset: (delta) => {
@@ -445,7 +473,7 @@ export const useBox = create<State>()((set, get) => ({
     // from nowhere, so next always goes somewhere.
     const next = SONGS[(((at < 0 ? 0 : at + delta) % SONGS.length) + SONGS.length) % SONGS.length]
 
-    set({ ...adopt(next.build(), engine), preset: next.id })
+    set({ ...adopt(next.build(), engine), preset: next.id, ...visualOf(next) })
 
     // Restart, so a track change starts the new track at its beginning rather than
     // dropping in wherever the bar counter happened to be. The gap is one lookahead.

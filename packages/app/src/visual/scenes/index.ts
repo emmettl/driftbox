@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { Lifeforms } from './Lifeforms'
 import { Sunset } from './Sunset'
 import { Wireframe } from './Wireframe'
+import { Web } from './Web'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -16,6 +17,7 @@ export const SCENES: SceneInfo[] = [
   { id: 'sunset', name: 'Sunset', Component: Sunset },
   { id: 'lifeforms', name: 'Lifeforms', Component: Lifeforms },
   { id: 'wireframe', name: 'Wireframe', Component: Wireframe },
+  { id: 'web', name: 'Web', Component: Web },
 ]
 
 export type SceneId = string

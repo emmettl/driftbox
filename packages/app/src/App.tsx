@@ -14,7 +14,7 @@ import { TransportBar } from './ui/TransportBar'
 import { VoicePanel } from './ui/VoicePanel'
 import { PlayBeacon } from './ui/PlayBeacon'
 import { Visualiser } from './visual/Visualiser'
-import { SCENES, nextScene, type SceneId } from './visual/scenes'
+import { SCENES, nextScene } from './visual/scenes'
 import { Oscilloscope, type ScopeMode } from './visual/Oscilloscope'
 import './styles.css'
 
@@ -30,7 +30,10 @@ export default function App() {
   const view = useBox((s) => s.view)
   const adoptSharedSong = useBox((s) => s.adoptSharedSong)
   const [scope, setScope] = useState<ScopeMode>('wave')
-  const [scene, setScene] = useState<SceneId>(SCENES[0].id)
+  // Lives in the store now, because loading a song changes it — each shipped song names
+  // the visual it was written to be seen with.
+  const scene = useBox((s) => s.scene)
+  const setScene = useBox((s) => s.setScene)
   const playButton = useRef<HTMLButtonElement>(null)
   const audioStalled = useBox((s) => s.audioStalled)
 
@@ -78,12 +81,12 @@ export default function App() {
       if (event.key === 'Escape' && performing) togglePerformance()
       if (event.key.toLowerCase() === 'x') setScope((m) => (m === 'wave' ? 'xy' : 'wave'))
       if (event.key.toLowerCase() === 'c') {
-        setScene(nextScene)
+        setScene(nextScene(useBox.getState().scene))
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [toggleTransport, togglePerformance, performing])
+  }, [toggleTransport, togglePerformance, performing, setScene])
 
   return (
     <div className={`app${performing ? ' performing' : ''}`}>
@@ -125,7 +128,7 @@ export default function App() {
           <button
             className="stage-scene"
             onClick={() =>
-              setScene(nextScene)
+              setScene(nextScene(scene))
             }
             title="Change the scene (C)"
           >
