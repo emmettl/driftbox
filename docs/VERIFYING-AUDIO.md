@@ -295,6 +295,55 @@ await engine.start()
 **What good looks like.** Exactly `0`. Anything above it means the click is going through
 the bus and ducking the mix on every beat.
 
+## Recipe 8 — the performance filter
+
+The pad's claim is that its centre is a true bypass and its ends actually remove
+something. Push noise through it and measure three bands:
+
+```js
+const eng = await import('/@id/@driftbox/engine')
+const SR = 44100
+const bandsAt = async (x, y) => {
+  const ctx = new OfflineAudioContext(1, SR, SR)
+  const k = new eng.Kaoss(ctx)
+  const buf = ctx.createBuffer(1, SR, SR)
+  const d = buf.getChannelData(0)
+  for (let i = 0; i < SR; i++) d[i] = Math.random() * 2 - 1
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true
+  src.connect(k.input); k.output.connect(ctx.destination); src.start(0)
+  k.set(x, y, 0.0001)          // tiny glide, or the ramp is most of the render
+  const out = (await ctx.startRendering()).getChannelData(0)
+  const energyAt = (f) => {
+    let re = 0, im = 0
+    const from = Math.floor(SR * 0.3)
+    for (let i = from; i < out.length; i++) {
+      const p = (2 * Math.PI * f * i) / SR
+      re += out[i] * Math.cos(p); im += out[i] * Math.sin(p)
+    }
+    return Math.hypot(re, im) / (out.length - from)
+  }
+  return { low: energyAt(120), mid: energyAt(1000), high: energyAt(7000) }
+}
+console.log({ open: await bandsAt(0.5, 0), left: await bandsAt(0.06, 0.2), right: await bandsAt(0.94, 0.2) })
+```
+
+**What good looks like.** Measured:
+
+| | 120Hz | 1kHz | 7kHz |
+|---|---|---|---|
+| centre | `0.0029` | `0.0021` | `0.0030` |
+| hard left | `0.0032` | `0.00009` | `0` |
+| hard right | `0.00001` | `0.00084` | `0.0036` |
+
+The centre row matters most: all three roughly equal means the pad really is out of the
+way when nobody is touching it. If the centre ever stops being flat, releasing the pad
+will leave the mix subtly wrong and nothing on screen will say why.
+
+**And check it lets go.** The pad is momentary, and the failure is silent: leave the
+visuals mid-drag and the filter can stay shut forever with no finger anywhere near the
+screen. Drag hard left, press escape without releasing, come back, and look at the scope
+— the trace should roughly double in height. Measured: `14px` shut, `27px` after.
+
 ## Things measurement has caught
 
 Kept as a record of what these are worth.

@@ -37,6 +37,7 @@ export function TransportBar() {
   const toggleMetronome = useBox((s) => s.toggleMetronome)
   const toggleCountIn = useBox((s) => s.toggleCountIn)
   const [flash, showFlash] = useFlash()
+  const [more, setMore] = useState(false)
 
   const pattern = song.patterns.find((p) => p.id === editing)
 
@@ -96,6 +97,32 @@ export function TransportBar() {
 
       <PatternBar />
 
+      {/* Not a ghost button. This is the way into the best thing the app does — the
+          full-screen visuals with the filter pad on them — and it spent its life looking
+          like "clear" and "load". Kept out of the collapsing group below: on a phone it
+          is the most likely reason to have opened the app at all. */}
+      <button
+        className="vibes"
+        onClick={togglePerformance}
+        title="Full-screen visuals and filter pad (V)"
+      >
+        <span className="vibes-dot" />
+        vibes
+      </button>
+
+      {/* On a phone the transport was taking half the screen. Everything you do not need
+          while it is playing collapses behind one button; on anything wider it is always
+          open and the toggle is hidden. */}
+      <button
+        className={`ghost transport-toggle${more ? ' on' : ''}`}
+        onClick={() => setMore((v) => !v)}
+        aria-expanded={more}
+        title="More controls"
+      >
+        ···
+      </button>
+
+      <div className={`transport-more${more ? ' open' : ''}`}>
       {/* Pattern length. The model always supported any length; this is the control that
           was missing, and polymetric loops — a 15-step hat line against a 16-step kick —
           come free from it. */}
@@ -130,10 +157,6 @@ export function TransportBar() {
       <button className="ghost" onClick={clearPattern} title="Clear this pattern">
         clear
       </button>
-      <button className="ghost" onClick={togglePerformance} title="Performance mode (V)">
-        visuals
-      </button>
-
       <div className="song-tools">
         <button
           className="ghost"
@@ -167,6 +190,7 @@ export function TransportBar() {
           reset
         </button>
         {flash && <span className="flash">{flash}</span>}
+      </div>
       </div>
     </header>
   )

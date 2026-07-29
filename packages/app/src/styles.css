@@ -30,6 +30,23 @@ body {
   letter-spacing: 0.04em;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  /* Safari paints a grey box over anything you tap, which on a step grid looks like the
+     app is malfunctioning. */
+  -webkit-tap-highlight-color: transparent;
+  /* No rubber-banding. On iOS a drag that starts on the pad and continues past the edge
+     would otherwise bounce the whole page. */
+  overscroll-behavior: none;
+}
+
+/* Nothing in this app is a document, and a long press that selects a row label mid-
+   performance is only ever an accident. Inputs keep their selection, obviously. */
+button,
+.knob-dial,
+.kaoss,
+.row-name,
+.chain-step {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 button {
@@ -64,6 +81,11 @@ button {
   flex-direction: column;
   padding: 14px;
   gap: 12px;
+  /* The notch, the home indicator, and a landscape phone's rounded corners. */
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
 }
 
 /* ---------- transport ---------- */
@@ -158,6 +180,43 @@ button {
   color: var(--nine);
   border-color: var(--nine);
   box-shadow: 0 0 18px rgba(95, 240, 208, 0.3);
+}
+
+.vibes {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 176, 46, 0.55);
+  background: linear-gradient(180deg, rgba(255, 176, 46, 0.22), rgba(255, 122, 217, 0.16));
+  color: #ffd9a0;
+  letter-spacing: 0.12em;
+  box-shadow: 0 0 20px rgba(255, 176, 46, 0.22);
+}
+
+.vibes:hover {
+  color: #fff;
+  border-color: var(--three);
+  box-shadow: 0 0 28px rgba(255, 176, 46, 0.45);
+}
+
+.vibes-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--three);
+  box-shadow: 0 0 10px var(--three);
+  animation: vibes-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes vibes-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibes-dot { animation: none; }
 }
 
 .machines .three.on {
@@ -784,10 +843,97 @@ aside {
 .stage {
   position: relative;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 0 0 6vh;
+}
+
+/* The scope and the hint float over the pad and must not swallow a drag meant for it. */
+.stage-scope {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 0 0 max(6vh, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.stage-exit {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  background: rgba(10, 6, 22, 0.5);
+  backdrop-filter: blur(10px);
+  color: var(--dim);
+  font-size: 15px;
+  z-index: 2;
+}
+
+.stage-exit:hover {
+  color: var(--ink);
+}
+
+/* ---------- the filter pad ----------
+   The whole screen. Putting a hand on the picture and hearing the record duck is the
+   point; a small square in a corner would be a filter with a diagram next to it. */
+.kaoss {
+  position: absolute;
+  inset: 0;
+  /* Without this iOS claims the gesture for a scroll or a pinch and the pad never sees
+     a move event at all. */
+  touch-action: none;
+  cursor: crosshair;
+  z-index: 1;
+}
+
+.kaoss-trail {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.kaoss-axis {
+  position: absolute;
+  background: rgba(255, 176, 46, 0.35);
+  pointer-events: none;
+}
+
+.kaoss-axis-x {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.kaoss-axis-y {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.kaoss-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 220, 150, 0.9);
+  background: rgba(255, 176, 46, 0.25);
+  box-shadow: 0 0 30px rgba(255, 176, 46, 0.6);
+  pointer-events: none;
+}
+
+.kaoss-readout {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(10, 6, 22, 0.55);
+  backdrop-filter: blur(10px);
+  color: var(--three);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
   pointer-events: none;
 }
 
@@ -809,5 +955,143 @@ aside {
   main {
     grid-template-columns: minmax(0, 1fr);
     overflow-y: auto;
+  }
+}
+
+
+/* ---------- touch ----------
+   Keyed off pointer:coarse rather than a width breakpoint, so it follows the input device
+   rather than guessing from the viewport — a tablet in landscape is wide AND touched. */
+@media (pointer: coarse) {
+  /* 30px is a comfortable mouse target and a frustrating thumb. Apple's floor is 44pt;
+     a step grid cannot afford that in both directions, so the height goes up and the
+     grid gains a scroll instead of shrinking the columns to nothing. */
+  .step {
+    height: 42px;
+    border-radius: 6px;
+  }
+
+  .step.bass-note {
+    height: 46px;
+  }
+
+  .step.bass-accent,
+  .step.bass-slide {
+    height: 18px;
+  }
+
+  /* Sixteen columns on a phone is about 18px each — under a thumb that is a lottery.
+     The row scrolls instead, with the name pinned so you can still tell which is which. */
+  .grid {
+    overflow-x: auto;
+  }
+
+  .row-steps {
+    min-width: 560px;
+  }
+
+  .row {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .row-name {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: linear-gradient(90deg, var(--panel) 78%, transparent);
+    padding-right: 6px;
+  }
+
+  /* Every tappable control up to something a thumb can actually hit. */
+  .machines button,
+  .patterns button,
+  .ghost,
+  .pattern-tool,
+  .audition,
+  .bass-pick button,
+  .chain-nudge {
+    min-height: 40px;
+  }
+
+  .chain-nudge {
+    min-width: 34px;
+  }
+
+  .field input[type='range'] {
+    height: 34px;
+  }
+
+  /* Hover is a lie on a touch screen: styles applied on :hover stick after a tap and
+     leave controls looking permanently focused. */
+  .ghost:hover,
+  .patterns button:hover,
+  .machines button:hover,
+  .pattern-tool:hover:not(:disabled) {
+    color: inherit;
+  }
+}
+
+/* The collapsing group. Always open and inline on a desktop; the toggle only exists on
+   a phone, where the transport was otherwise taking half the screen. */
+.transport-more {
+  display: contents;
+}
+
+.transport-toggle {
+  display: none;
+}
+
+/* A phone in portrait. The channel strip goes below the grid rather than beside it. */
+@media (max-width: 720px) {
+  .transport-toggle {
+    display: block;
+    margin-left: auto;
+  }
+
+  .transport-more {
+    display: none;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .transport-more.open {
+    display: flex;
+  }
+
+  .song-tools {
+    margin-left: 0;
+  }
+
+  .console {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .transport {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  /* The song strip and the grid are what you came for; the rest can wrap. */
+  .arrangement {
+    padding: 6px 8px 8px;
+  }
+
+  main {
+    grid-template-columns: minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  aside {
+    overflow: visible;
+  }
+
+  .knobs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .fx-knobs {
+    grid-template-columns: repeat(5, 1fr);
   }
 }

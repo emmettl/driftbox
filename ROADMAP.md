@@ -19,7 +19,8 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope (waveform + vectorscope), chillwave scene, performance mode |
+| Visuals | Oscilloscope, chillwave scene, and a full-screen XY filter pad you play with a finger |
+| Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
 
 ## What is deliberate
@@ -51,6 +52,23 @@ audio the moment you switch tabs.
 preference — it is what lets the engine be embedded elsewhere. It is now enforced by the
 package split rather than by discipline: `packages/engine` cannot reach into
 `packages/app`, because nothing declares that dependency and it would not resolve.
+
+**The filter pad is the whole screen, and it filters the whole mix.** Not a widget in a
+corner, and not wired to the 303s' own cutoff — the obvious reading of "mess with a 303's
+filter" and the wrong one. What makes a Kaoss pad fun is the entire record ducking away
+and coming back. It is an insert after the bus compressor, so the compressor is not
+reacting to signal about to be discarded, and it is momentary, because a filter left
+half-shut after you lift your finger sounds like something is broken.
+
+**Two ways the pad can get stuck, both silent.** It is released on pointer *cancel* as
+well as up — a system gesture or an incoming call otherwise leaves it shut — and on
+unmount, because escape leaves the visuals mid-drag and no pointer event ever arrives. The
+symptom either way is a mix that is inexplicably muffled with nothing on screen to explain
+it.
+
+**Touch styles key off `pointer: coarse`, not a width breakpoint.** A tablet in landscape
+is wide *and* touched. Hover styles are neutralised there too: on a touch screen `:hover`
+sticks after a tap and leaves controls looking permanently focused.
 
 **The metronome is not a voice and does not go through the bus.** It is a `VoiceSpec` so
 it can reuse the renderer, but it connects straight to the destination: through the bus it
