@@ -71,6 +71,35 @@ export function autosave(song: Song): void {
 
 let pending: ReturnType<typeof setTimeout> | undefined
 
+// ---- panel state ---------------------------------------------------------------
+//
+// Separate from the song, and deliberately so: which panels you have folded away is a
+// property of your screen, not of the music. It must not travel in a shared link, and a
+// song imported from a file should not rearrange somebody's layout.
+
+const PANELS_KEY = 'driftbox.panels.v1'
+
+export function loadCollapsed(): Record<string, boolean> {
+  try {
+    const text = localStorage.getItem(PANELS_KEY)
+    const parsed: unknown = text === null ? null : JSON.parse(text)
+    if (typeof parsed !== 'object' || parsed === null) return {}
+    const out: Record<string, boolean> = {}
+    for (const [key, value] of Object.entries(parsed)) if (value === true) out[key] = true
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export function saveCollapsed(collapsed: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(PANELS_KEY, JSON.stringify(collapsed))
+  } catch {
+    // Unavailable or full. A layout that does not persist is a small loss.
+  }
+}
+
 // ---- files --------------------------------------------------------------------
 
 export function downloadSong(song: Song, name = 'driftbox-song'): void {

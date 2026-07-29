@@ -34,8 +34,10 @@ import {
   autosave,
   clearStoredSong,
   downloadSong,
+  loadCollapsed,
   loadStoredSong,
   pickSongFile,
+  saveCollapsed,
   shareLink,
   takeSongFromUrl,
 } from './persistence'
@@ -59,6 +61,10 @@ interface State {
   selectedBass: string
   /** Full-screen visuals with the sequencer hidden. */
   performance: boolean
+  /** Panels the user has folded away, by id. Kept out of the Song: which panels you
+   *  have open is about your screen, not about the music. */
+  collapsed: Record<string, boolean>
+  toggleCollapsed: (id: string) => void
 
   init: () => void
   toggleTransport: () => void
@@ -112,6 +118,16 @@ function replacePattern(song: Song, next: Pattern): Song {
   return { ...song, patterns: song.patterns.map((p) => (p.id === next.id ? next : p)) }
 }
 
+/** Whether this is a touch device, asked once at startup. `pointer: coarse` rather than a
+ *  screen width, so a tablet in landscape counts and a small window on a laptop does not. */
+function prefersTouch(): boolean {
+  try {
+    return window.matchMedia('(pointer: coarse)').matches
+  } catch {
+    return false
+  }
+}
+
 // Last session's work if there is any, the shipped song otherwise. Read synchronously so
 // the first render is already the right song — a default song that flickers into the
 // user's own a moment later looks like the app lost it and then found it.
@@ -146,7 +162,13 @@ export const useBox = create<State>()((set, get) => ({
   countIn: false,
   selectedVoice: '808.bd',
   selectedBass: BASS_VOICES[0].id,
-  performance: false,
+  // Touch devices land in the visuals.
+  //
+  // A phone opening on a step grid is opening on the one part of this that a small screen
+  // handles worst, and burying the part it handles best. The pad wants a finger and
+  // nothing else, so it is the right front door — and the console is one tap away.
+  performance: prefersTouch(),
+  collapsed: loadCollapsed(),
 
   // The AudioContext is created lazily on the first interaction. Constructing one
   // before the user has touched the page leaves it suspended in most browsers, and a
@@ -294,6 +316,12 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   togglePerformance: () => set({ performance: !get().performance }),
+
+  toggleCollapsed: (id) => {
+    const collapsed = { ...get().collapsed, [id]: !get().collapsed[id] }
+    saveCollapsed(collapsed)
+    set({ collapsed })
+  },
 
   // The arrangement. One helper because every edit is the same shape: run a pure
   // function over the song's chain, push the result at the engine, keep it on screen.

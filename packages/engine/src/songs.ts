@@ -138,7 +138,66 @@ const pulse = pattern(
   },
 )
 
-const PATTERNS = [drift, neon, haze, pulse]
+// The peak. Everything at once, 909 under 808, both 303s running — the bar the
+// arrangement builds towards and then takes away again.
+const surge = pattern(
+  'surge',
+  'Surge',
+  {
+    '808.bd': 'X..x ..X. ..X. .x..',
+    '909.bd': 'x... x... x... x...',
+    '808.cp': '.... X... .... X...',
+    '909.cp': '.... X... .... X..x',
+    '808.ch': 'x.xx x.xx x.xx x.xx',
+    '909.oh': '..x. ..x. ..x. ..x.',
+    '808.cb': '.... x... .... x...',
+    '808.ma': '.x.x .x.x .x.x .x.x',
+  },
+  {
+    '303.a': '0a . 0 12s | 12 . 3a . | 0 . 0 10s | 10 . 12a .',
+    '303.b': '0a . . . | . . . . | 3a . . . | . . . .',
+  },
+)
+
+// The drop out. Nothing but a rimshot, a maraca and the low 303 — a bar of almost
+// nothing is what makes the bar after it land, and an arrangement with no gap in it is
+// just a long loop.
+const hush = pattern(
+  'hush',
+  'Hush',
+  {
+    '808.rs': '.... x... .... ..x.',
+    '808.ma': '..x. ..x. ..x. ..x.',
+  },
+  {
+    '303.b': '0a . . . | . . . 7s | 7 . . . | . . . .',
+  },
+)
+
+// Sixteen bars of hats and a rising 303 with nowhere to sit. Built to be put before the
+// Surge, which is the only place it makes sense.
+const lift = pattern(
+  'lift',
+  'Lift',
+  {
+    // One hat machine, not two.
+    //
+    // This started as 808 sixteenths with the 909 hat doubling every other one, and
+    // measured at 1.04 from the DRUMS ALONE — the two collided on the same steps, and
+    // with no kick in this pattern there is no transient for the bus compressor to clamp
+    // against, so a wall of hats just accumulates. Worth remembering: the busiest
+    // patterns here are not the ones that peak, the ones with nothing to duck them are.
+    '808.ch': 'x.xx x.xx x.xx x.xx',
+    // The 909 hat offset so it lands between the 808's, not on top of them.
+    '909.ch': '.x.. .x.. .x.. .x..',
+    '808.cp': '.... .... .... x..X',
+  },
+  {
+    '303.a': '0 . 3 . | 5 . 7 . | 10 . 12 . | 15s 15 12a .',
+  },
+)
+
+const PATTERNS = [haze, drift, neon, lift, surge, hush, pulse]
 
 export function defaultSong(): Song {
   const kit = defaultKit(ALL_VOICES.map((v) => v.id))
@@ -215,15 +274,24 @@ export function defaultSong(): Song {
     bpm: 102,
     swing: 0.28,
     patterns: PATTERNS,
-    // An arrangement rather than a loop: an intro, a long middle, and a chorus that
-    // does not outstay itself. The repeat counts are the point — writing this as a flat
-    // list of bars would be nine entries to scroll past.
+    // A track rather than a loop: 56 bars, about two and a half minutes at 102bpm.
+    //
+    // Shaped rather than shuffled — in, out, back, further, away, and a tail. The Hush
+    // bars are doing the most work: an arrangement with no gap in it is just a long
+    // loop, and the Surge only lands because something was taken away first.
     chain: [
-      { pattern: 'haze', repeat: 2 },
+      { pattern: 'haze', repeat: 4 },
+      { pattern: 'drift', repeat: 8 },
+      { pattern: 'neon', repeat: 4 },
       { pattern: 'drift', repeat: 4 },
-      { pattern: 'neon', repeat: 2 },
+      { pattern: 'hush', repeat: 2 },
+      { pattern: 'lift', repeat: 4 },
+      { pattern: 'surge', repeat: 8 },
+      { pattern: 'neon', repeat: 4 },
+      { pattern: 'hush', repeat: 2 },
+      { pattern: 'pulse', repeat: 8 },
       { pattern: 'drift', repeat: 4 },
-      { pattern: 'pulse', repeat: 4 },
+      { pattern: 'haze', repeat: 4 },
     ],
     kit,
     fx: defaultFx(),

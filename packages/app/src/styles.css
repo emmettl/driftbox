@@ -8,6 +8,8 @@
   --panel: rgba(14, 10, 30, 0.72);
   --edge: rgba(255, 255, 255, 0.09);
   --mono: 'SFMono-Regular', ui-monospace, 'Menlo', monospace;
+  /* Must match FOLD_MS in App.tsx, or the console vanishes early or lingers. */
+  --fold: 260ms;
   color-scheme: dark;
 }
 
@@ -75,7 +77,8 @@ button {
 }
 
 .console {
-  position: relative;
+  position: absolute;
+  inset: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -289,22 +292,6 @@ button {
   backdrop-filter: blur(14px);
   padding: 8px 12px 10px;
   flex: 0 0 auto;
-}
-
-.arrangement header {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 7px;
-}
-
-.arrangement h3 {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--dim);
 }
 
 .arrangement-count {
@@ -819,13 +806,31 @@ aside {
   gap: 8px;
 }
 
-.scope header {
+.scope canvas {
+  border-radius: 8px;
+  background: #060810;
+}
+
+/* ---------- folding panels ---------- */
+.fold-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
-.scope h3 {
+.fold-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+
+.fold-toggle h3 {
   margin: 0;
   font-size: 11px;
   font-weight: 500;
@@ -834,9 +839,88 @@ aside {
   color: var(--dim);
 }
 
-.scope canvas {
-  border-radius: 8px;
-  background: #060810;
+.fold-toggle:hover h3 {
+  color: var(--ink);
+}
+
+.fold-chevron {
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1;
+  transition: transform 0.16s ease;
+}
+
+.fold.collapsed .fold-chevron {
+  transform: rotate(-90deg);
+}
+
+.fold-body {
+  margin-top: 8px;
+}
+
+/* A folded panel is a header and nothing else, so it must not keep the padding of one
+   that has contents. */
+.fold.collapsed {
+  padding-bottom: 8px;
+}
+
+.fold.collapsed .fold-body {
+  display: none;
+}
+
+.fold-aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- the console flying out of the edit button ----------
+   The origin is the top-right corner, where the button is, so it reads as the panel
+   coming out of the thing you pressed rather than as a generic zoom. The rotation is
+   small — enough to catch the light on the way past, not enough to be a card trick. */
+.console {
+  transform-origin: 100% 0;
+  animation: console-out var(--fold) cubic-bezier(0.16, 0.84, 0.44, 1);
+  z-index: 3;
+}
+
+.console.folding {
+  animation: console-in var(--fold) cubic-bezier(0.5, 0, 0.85, 0.3) forwards;
+  pointer-events: none;
+}
+
+@keyframes console-out {
+  from {
+    opacity: 0;
+    transform: perspective(1400px) translate3d(30%, -32%, -420px) rotate3d(1, -1.4, 0, 26deg)
+      scale(0.42);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1400px) translate3d(0, 0, 0) rotate3d(1, -1.4, 0, 0deg) scale(1);
+  }
+}
+
+/* Folding back is the same path in reverse, but faster and eased the other way — a
+   thing being put away should not take as long as a thing arriving. */
+@keyframes console-in {
+  from {
+    opacity: 1;
+    transform: perspective(1400px) translate3d(0, 0, 0) rotate3d(1, -1.4, 0, 0deg) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: perspective(1400px) translate3d(30%, -32%, -420px) rotate3d(1, -1.4, 0, 26deg)
+      scale(0.42);
+  }
+}
+
+/* Somebody who has asked for less motion gets the state change without the flight. */
+@media (prefers-reduced-motion: reduce) {
+  .console,
+  .console.folding {
+    animation-duration: 1ms;
+  }
 }
 
 /* ---------- performance mode ---------- */
@@ -853,23 +937,84 @@ aside {
   pointer-events: none;
 }
 
-.stage-exit {
+/* The edit button. Top right, which is where the console appears to come from. */
+.stage-edit {
   position: absolute;
   top: max(14px, env(safe-area-inset-top));
   right: max(14px, env(safe-area-inset-right));
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid var(--edge);
-  background: rgba(10, 6, 22, 0.5);
-  backdrop-filter: blur(10px);
-  color: var(--dim);
-  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 62px;
+  padding: 9px 0 7px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 176, 46, 0.5);
+  background: rgba(20, 10, 30, 0.55);
+  backdrop-filter: blur(12px);
+  color: #ffd9a0;
   z-index: 2;
 }
 
-.stage-exit:hover {
+.stage-edit-glyph {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.stage-edit-label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* Pulses while stopped. On a phone that opens straight into the visuals this is the only
+   clue that there is anything here besides a picture — once it is playing, the point has
+   been made and the pulse stops. */
+.stage-edit.calling {
+  animation: edit-call 2.6s ease-in-out infinite;
+}
+
+@keyframes edit-call {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 176, 46, 0.5);
+    border-color: rgba(255, 176, 46, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 26px 6px rgba(255, 176, 46, 0.28);
+    border-color: rgba(255, 176, 46, 0.95);
+  }
+}
+
+/* Vibes mode had no transport at all — it relied on the space bar, which does not exist
+   on a phone. Since touch devices now open here, that made the app start silent with no
+   way to start it. */
+.stage-play {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  top: max(14px, env(safe-area-inset-top));
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  background: rgba(20, 10, 30, 0.55);
+  backdrop-filter: blur(12px);
   color: var(--ink);
+  font-size: 20px;
+  z-index: 2;
+}
+
+.stage-play.on {
+  border-color: var(--nine);
+  color: var(--nine);
+  box-shadow: 0 0 24px rgba(95, 240, 208, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-edit.calling {
+    animation: none;
+    border-color: var(--three);
+  }
 }
 
 /* ---------- the filter pad ----------

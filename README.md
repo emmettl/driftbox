@@ -4,6 +4,10 @@ A drum machine and step sequencer in the browser — a TR-808, a TR-909 and a pa
 TB-303s, all synthesised from scratch, with a chillwave visualiser and an oscilloscope.
 Inspired by Propellerhead ReBirth.
 
+On a phone it opens straight into the visuals, because that is the part a small screen
+handles best and a step grid is the part it handles worst. Play is top left, **edit** is
+top right, and the console appears to fly out of it.
+
 Run it without installing anything at
 [emmettl.github.io/driftbox](https://emmettl.github.io/driftbox/), or locally:
 
@@ -121,7 +125,8 @@ the app white-screening on load with your work apparently gone.
 
 ## The visualiser is the instrument
 
-**vibes** goes full screen, and the whole screen is a filter pad — drag across for cutoff,
+**vibes** goes full screen — and on a touch device that is where you start — and the whole
+screen is a filter pad — drag across for cutoff,
 up for resonance, exactly where a Kaoss pad puts them. It filters *everything*, not just
 the 303s: the fun of one of these is the whole record ducking away and coming back, drums
 included. A 303 already has a cutoff knob on its channel strip for the other job.
