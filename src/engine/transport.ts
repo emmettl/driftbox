@@ -1,4 +1,4 @@
-import { LOOKAHEAD_SECONDS, TICK_MS, secondsPerStep, swingDelay } from './timing'
+import { LOOKAHEAD_SECONDS, TICK_MS, secondsPerStep } from './timing'
 
 // The scheduler. See timing.ts for why this shape rather than the obvious one.
 
@@ -9,14 +9,30 @@ export interface StepEvent {
   index: number
   /** Bars since the transport started. */
   bar: number
-  /** When this step sounds, on the audio clock. Always in the future. */
+  /**
+   * When this step sounds, on the audio clock, with NO swing applied. Always in the
+   * future.
+   *
+   * Straight, because swing is per voice and the transport has no business knowing
+   * which voice is which. A caller shifts this by `swingDelay(index, swing, stepSeconds)`
+   * for whatever it is about to play — which is what lets the hats shuffle against a
+   * kick that stays on the grid.
+   */
   time: number
+  /** How long one step lasts at the current tempo. Supplied so a caller can work out
+   *  its own swing offset without having to know the tempo. */
+  stepSeconds: number
 }
 
 export interface TransportOptions {
-  /** Bar length in steps. Read fresh every bar, so a pattern of a different length
-   *  takes effect at the next bar boundary rather than mid-loop. */
-  barLength: () => number
+  /**
+   * Bar length in steps, for the bar about to start.
+   *
+   * Read fresh at each bar boundary — and read for THAT bar, not for bar zero, or a
+   * chain whose patterns are different lengths would play every one of them at the
+   * length of whichever happened to be first.
+   */
+  barLength: (bar: number) => number
   onStep: (event: StepEvent) => void
 }
 
@@ -61,7 +77,6 @@ function createTicker(onTick: () => void): { start: (ms: number) => void; stop: 
 
 export class Transport {
   bpm = 120
-  swing = 0
 
   private ticker: { start: (ms: number) => void; stop: () => void } | undefined
   private active = false
@@ -94,7 +109,7 @@ export class Transport {
 
   start(): void {
     if (this.active) return
-    this.length = this.options.barLength()
+    this.length = this.options.barLength(0)
     this.absolute = 0
     this.index = 0
     this.bar = 0
@@ -127,7 +142,8 @@ export class Transport {
         absolute: this.absolute,
         index: this.index,
         bar: this.bar,
-        time: this.nextTime + swingDelay(this.index, this.swing, stepSeconds),
+        time: this.nextTime,
+        stepSeconds,
       })
 
       this.nextTime += stepSeconds
@@ -136,7 +152,7 @@ export class Transport {
       if (this.index >= this.length) {
         this.index = 0
         this.bar += 1
-        this.length = this.options.barLength()
+        this.length = this.options.barLength(this.bar)
       }
     }
 

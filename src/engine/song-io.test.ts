@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SONG_FORMAT, decodeSong, encodeSong } from './song-io'
-import { defaultKit, type Song } from './pattern'
+import { defaultKit, patternForBar, type Song } from './pattern'
 import { DEFAULT_BASS_PARAMS } from './bass'
 import { DEFAULT_FX } from './effects'
 import { DEFAULT_PARAMS } from './types'
@@ -27,7 +27,7 @@ const song = (over: Partial<Song> = {}): Song => ({
       },
     },
   ],
-  chain: ['a'],
+  chain: [{ pattern: 'a', repeat: 1 }],
   kit: defaultKit(['808.bd']),
   fx: { ...DEFAULT_FX },
   ...over,
@@ -57,9 +57,92 @@ describe('a round trip', () => {
     expect(decodeSong(text)!.fx).toEqual(DEFAULT_FX)
   })
 
+  it('keeps every field of a fully populated kit', () => {
+    // The catch-all. Twice now a field has been added to `Kit` and one of the places
+    // that rebuilds one was missed — the symptom is a control that works until you
+    // reload, which is a long way from where the bug is. Populate everything, round
+    // trip, and compare the whole object rather than picking fields off it.
+    const full = song({
+      kit: {
+        params: { '808.bd': { ...DEFAULT_PARAMS, level: 0.31 } },
+        bass: { '303.a': { ...DEFAULT_BASS_PARAMS, cutoff: 0.77 } },
+        sends: { '808.bd': { delay: 0.21, reverb: 0.43 } },
+        swing: { '808.ch': 0.83 },
+      },
+    })
+    expect(decodeSong(encodeSong(full))!.kit).toEqual(full.kit)
+  })
+
+  it('keeps per-voice swing', () => {
+    const text = JSON.stringify(song({ kit: { params: {}, swing: { '808.ch': 0.83 } } }))
+    expect(decodeSong(text)!.kit.swing!['808.ch']).toBe(0.83)
+  })
+
   it('reads a bare song as well as an enveloped one', () => {
     // So a file assembled by hand out of `JSON.stringify(song)` still loads.
     expect(decodeSong(JSON.stringify(song()))?.bpm).toBe(102)
+  })
+})
+
+describe('a song saved by an older build', () => {
+  // Format 1 wrote the chain as a bare list of pattern ids. Anybody who used the app
+  // before song mode has one of these in localStorage right now, and it has to keep
+  // playing exactly as it did — a migration that changes the arrangement is worse than
+  // one that refuses.
+  const v1 = JSON.stringify({
+    v: 1,
+    song: {
+      bpm: 102,
+      swing: 0.28,
+      patterns: [
+        { id: 'a', name: 'A', length: 16, tracks: {} },
+        { id: 'b', name: 'B', length: 16, tracks: {} },
+      ],
+      chain: ['a', 'b', 'b'],
+      kit: { params: {} },
+    },
+  })
+
+  it('turns each bare pattern id into one bar', () => {
+    expect(decodeSong(v1)!.chain).toEqual([
+      { pattern: 'a', repeat: 1 },
+      { pattern: 'b', repeat: 1 },
+      { pattern: 'b', repeat: 1 },
+    ])
+  })
+
+  it('plays bar for bar exactly as it used to', () => {
+    const loaded = decodeSong(v1)!
+    expect(['a', 'b', 'b'].map((_, bar) => patternForBar(loaded, bar)!.id)).toEqual([
+      'a',
+      'b',
+      'b',
+    ])
+  })
+
+  it('migrates a file with no version on it at all', () => {
+    // Hand-written, or from before the envelope existed. The migration keys off the
+    // shape of the value, not off the version number, precisely so this works.
+    const bare = '{"patterns":[{"id":"a","tracks":{}}],"chain":["a","a"]}'
+    expect(decodeSong(bare)!.chain).toEqual([
+      { pattern: 'a', repeat: 1 },
+      { pattern: 'a', repeat: 1 },
+    ])
+  })
+
+  it('accepts a chain with both shapes in it', () => {
+    const mixed = '{"patterns":[{"id":"a","tracks":{}}],"chain":["a",{"pattern":"a","repeat":4}]}'
+    expect(decodeSong(mixed)!.chain).toEqual([
+      { pattern: 'a', repeat: 1 },
+      { pattern: 'a', repeat: 4 },
+    ])
+  })
+
+  it('is written back out in the current format', () => {
+    // Migrate on the way in, never on the way out.
+    const round = decodeSong(encodeSong(decodeSong(v1)!))!
+    expect(round.chain).toEqual(decodeSong(v1)!.chain)
+    expect(JSON.parse(encodeSong(round)).v).toBe(SONG_FORMAT)
   })
 })
 
@@ -138,8 +221,19 @@ describe('input that is a song but damaged', () => {
   it('drops chain entries naming a pattern that is not in the file', () => {
     // `patternForBar` falls back to the first pattern for an unknown id, so leaving
     // these in would play the wrong bar rather than nothing — a subtler wrong.
-    const loaded = decodeSong(JSON.stringify(song({ chain: ['a', 'ghost', 'a'] })))!
-    expect(loaded.chain).toEqual(['a', 'a'])
+    const text = JSON.stringify(
+      song({
+        chain: [
+          { pattern: 'a', repeat: 2 },
+          { pattern: 'ghost', repeat: 1 },
+          { pattern: 'a', repeat: 1 },
+        ],
+      }),
+    )
+    expect(decodeSong(text)!.chain).toEqual([
+      { pattern: 'a', repeat: 2 },
+      { pattern: 'a', repeat: 1 },
+    ])
   })
 
   it('keeps voice ids it does not recognise', () => {

@@ -1,6 +1,6 @@
 import { DEFAULT_BASS_PARAMS, type BassParams, type BassStep } from './bass'
 import { DEFAULT_FX, DEFAULT_SENDS, type SendLevels } from './effects'
-import type { Kit, Pattern, Song, StepValue } from './pattern'
+import type { ChainStep, Kit, Pattern, Song, StepValue } from './pattern'
 import { DEFAULT_PARAMS, type VoiceParams } from './types'
 
 // Turning a Song into text and back.
@@ -21,8 +21,19 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types'
 // This lives in the engine because the engine owns the Song schema. Nothing here touches
 // storage, the DOM or the network — see `src/persistence.ts` for that.
 
-/** Bumped when the shape changes in a way `decodeSong` cannot infer. It has not yet. */
-export const SONG_FORMAT = 1
+/**
+ * Bumped when the shape changes in a way a reader cannot infer from the value alone.
+ *
+ * 2 — the chain became a list of `{ pattern, repeat }` rather than a list of pattern ids,
+ *     so an arrangement can say "eight bars of this" without eight entries.
+ * 1 — the original.
+ *
+ * Old songs are migrated on the way in, never on the way out: everything is written in
+ * the current format. The migration below is deliberately written against the *shape*
+ * rather than against the version number, because a v1 file and a hand-written one with
+ * no version at all are the same problem, and only one of them announces itself.
+ */
+export const SONG_FORMAT = 2
 
 interface Envelope {
   v: number
@@ -136,7 +147,20 @@ function kit(value: unknown): Kit {
     }
   }
 
-  return { params, bass, sends }
+  const swing: Record<string, number> = {}
+  if (isRecord(source.swing)) {
+    for (const [voiceId, value] of Object.entries(source.swing)) {
+      // 0.5 is the centre — no offset from the song's swing — so it is the right value
+      // to fall back to for anything unreadable.
+      swing[voiceId] = clamp(value, 0, 1, 0.5)
+    }
+  }
+
+  // Every field of `Kit`, listed. This has been got wrong twice: adding a field here and
+  // forgetting one of the places that rebuilds a Kit loses it silently, and the symptom
+  // is a knob that works until you reload. `song-io.test.ts` round-trips a fully
+  // populated kit for exactly that reason.
+  return { params, bass, sends, swing }
 }
 
 /**
@@ -168,9 +192,16 @@ export function decodeSong(text: string): Song | null {
 
   const ids = new Set(patterns.map((p) => p.id))
   const chain = (Array.isArray(body.chain) ? body.chain : [])
+    .map((entry): ChainStep | null => {
+      // A v1 chain is a bare list of pattern ids. Each one is a single bar, so it
+      // migrates to a repeat of 1 and the song sounds exactly as it did before.
+      if (typeof entry === 'string') return { pattern: entry, repeat: 1 }
+      if (!isRecord(entry) || typeof entry.pattern !== 'string') return null
+      return { pattern: entry.pattern, repeat: Math.round(clamp(entry.repeat, 1, 64, 1)) }
+    })
     // A chain entry naming a pattern that is not here would play the wrong bar rather
     // than nothing, because `patternForBar` falls back to the first pattern.
-    .filter((entry): entry is string => typeof entry === 'string' && ids.has(entry))
+    .filter((entry): entry is ChainStep => entry !== null && ids.has(entry.pattern))
 
   return {
     bpm: Math.round(clamp(body.bpm, 20, 300, 120)),

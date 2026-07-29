@@ -130,7 +130,12 @@ export function BassGrid() {
                 <span className="row-name bass-lane">
                   {lane === 'note' ? voice.name : lane}
                 </span>
-                <div className="row-steps">
+                <div
+                  className="row-steps"
+                  style={{
+                    gridTemplateColumns: `repeat(${pattern.length}, minmax(0, 1fr))`,
+                  }}
+                >
                   {steps.map((step, index) =>
                     lane === 'note' ? (
                       <NoteCell

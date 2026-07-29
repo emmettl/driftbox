@@ -45,7 +45,12 @@ export function Sequencer() {
           >
             {voice.name}
           </button>
-          <div className="row-steps">
+          <div
+            className="row-steps"
+            // Driven by the pattern rather than fixed at 16 in CSS, so a 15-step loop
+            // still fills the row instead of leaving a gap where step 16 used to be.
+            style={{ gridTemplateColumns: `repeat(${pattern.length}, minmax(0, 1fr))` }}
+          >
             {Array.from({ length: pattern.length }, (_, step) => {
               const value = stepAt(pattern, voice.id, step)
               const classes = [
