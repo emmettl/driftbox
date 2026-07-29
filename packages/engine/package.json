@@ -30,8 +30,11 @@
       "default": "./dist/index.js"
     }
   },
+  "//files": "src ships alongside dist. The declaration maps and source maps in dist point at ../src/*.ts, so without it they dangle and 'go to definition' lands nowhere. It is also the more useful half of this package to have on hand: the reasoning in this engine lives in its comments, and a consumer who wants to know why the trim is applied after the waveshaper should be able to read that rather than infer it from minified output.",
   "files": [
     "dist",
+    "src",
+    "!src/**/*.test.ts",
     "README.md"
   ],
   "sideEffects": false,
