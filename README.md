@@ -113,9 +113,11 @@ is actually verified, and how the channel strip draws each voice's real waveform
 
 ## Playing it
 
-There is a keyboard under the grid. The home row is the major scale from the root and the
-row above it the flattened third, sixth and seventh — `d` for a bright third, `e` for a
-dark one. `z` and `x` shift octave, shift is accent.
+There is a keyboard under the grid, laid out as an actual piano: the black keys are placed
+by **pitch**, so the naturals are white, the sharps are black, and the two gaps fall where
+B meets C and E meets F. Since the 303's note 0 is an A, the home row spells A natural
+minor — for a major scale under the fingers start on `d`, which is a C. `z` and `x` shift
+octave, shift is accent.
 
 It is **monophonic, because a 303 is**, and that is the feature rather than the limit:
 hold one key, press another without letting go, and the two glide together on one

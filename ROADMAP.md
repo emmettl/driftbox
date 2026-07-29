@@ -214,6 +214,15 @@ the screen was black, with no error anywhere. `fitDistance` clamps to the far pl
 because cropping shows you part of something and overshooting shows you nothing. Check
 portrait at the real proportions, not the preset's.
 
+**Colour the keys by pitch, not by scale.** The on-screen piano put its white keys at
+0,2,4,5,7,9,11 semitones above the root — the shape of a piano starting at C — while the
+303's note 0 is an A. So C, F and G landed on black keys and C#, F# and G# on white ones,
+which is backwards from every keyboard ever built. It had even been noticed and papered
+over with scale-degree labels instead of fixed. The two gaps, where B meets C and E meets
+F, are how anyone reads a keyboard at a glance, and they only appear if the black keys are
+placed by pitch. The cost is that the home row now spells A natural minor rather than A
+major, which is simply what the white keys from an A are; C major starts on `d`.
+
 **Solve for the frame; do not guess twice.** Scenes picked their camera distance with
 `portrait ? a : b`, which is two hand-tuned numbers standing in for one piece of
 arithmetic. A perspective camera's field of view is VERTICAL, so the width it can see is
