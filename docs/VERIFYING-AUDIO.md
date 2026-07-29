@@ -85,18 +85,17 @@ for (const v of eng.ALL_VOICES) {
 console.log({ min, max, spread: max / min })
 ```
 
-**What good looks like.** Spread under about `1.7`, and no voice over `1.0`.
+**What good looks like.** Spread under about `1.2`, and no voice over `1.0`. Measured now:
+**1.08**, min `0.718`, max `0.775`.
 
-**Run it more than once.** Noise sources start at a random offset into the shared buffer,
-so voices with noise in them peak differently every render and this number moves. Measured
-over five consecutive runs: `1.43, 1.50, 1.53, 1.64, 1.67`. A single run saying `1.35` —
-which is what this document used to claim — was one sample of that spread, not a fixed
-property. It was `9.1` before the trims, so the trims are still doing their job.
+**Average several renders per voice.** Noise sources start at a random offset into the
+shared buffer, so a voice with noise in it peaks differently every render, and a trim set
+from one render wobbles. The recipe above takes the mean of seven.
 
-**Known and not yet fixed:** in one of those five runs the 909 open hat peaked at `1.023`,
-just over full scale on its own. It is intermittent by nature — it depends where in the
-noise buffer that render happened to start — and it is quiet enough not to clip the bus,
-but the stated bar is that no voice exceeds `1.0` and this one sometimes does.
+> **This number was `1.43`–`1.67` and is now `1.08`,** because the renderer was ignoring
+> `Source.gain` — see below. Every trim in the kit was measured against that, so all
+> twenty-two were recalibrated when it was fixed. If you change anything about how a
+> source is scaled, they all need doing again.
 
 ## Recipe 3 — a pattern, through the real bus
 
@@ -344,6 +343,34 @@ visuals mid-drag and the filter can stay shut forever with no finger anywhere ne
 screen. Drag hard left, press escape without releasing, come back, and look at the scope
 — the trace should roughly double in height. Measured: `14px` shut, `27px` after.
 
+## Recipe 9 — is a knob doing anything?
+
+The cheapest check in this document, and it found the worst bug in the project. Render a
+voice at both ends of a knob and compare — if the samples do not move, the knob is not
+connected to anything.
+
+```js
+const eng = await import('/@id/@driftbox/engine')
+const at = async (over) => {
+  const d = await eng.renderVoiceOffline(eng.voiceById('808.bd'), { ...eng.DEFAULT_PARAMS, ...over }, 1, 44100)
+  let peak = 0, jump = 0
+  for (let i = 1; i < d.length; i++) {
+    peak = Math.max(peak, Math.abs(d[i]))
+    jump = Math.max(jump, Math.abs(d[i] - d[i - 1]))   // a click is a discontinuity
+  }
+  return { peak: +peak.toFixed(3), jump: +jump.toFixed(3) }
+}
+console.log({ off: await at({ colour: 0 }), on: await at({ colour: 1 }) })
+```
+
+**What good looks like.** The two differ, in the direction the knob claims. For the 808
+kick's colour, which is the click: `jump` goes `0.015 → 0.582`, and at `colour: 0` the
+first samples are a clean rising sine rather than noise.
+
+**Biggest sample-to-sample jump is the measurement to reach for when something clicks.**
+Peak level will not show it — a click is a discontinuity, not a loud passage, and can sit
+well under full scale while being the most audible thing in the mix.
+
 ## Things measurement has caught
 
 Kept as a record of what these are worth.
@@ -368,7 +395,14 @@ Kept as a record of what these are worth.
    alone, which is the opposite of the intuition — the busy patterns are fine, because a
    transient gives the bus compressor something to clamp. A wall of hats with nothing to
    duck it just accumulates. Two hat machines landing on the same steps was the cause.
-7. **A comment that had stopped being true.** The default delay was documented as the
+7. **The renderer ignoring `Source.gain` entirely** — from the first commit until it was
+   heard. Every source played at whatever its amplitude envelope peaked at, so the 39
+   declared source gains across the two kits did nothing. The audible symptom was the 808
+   kick's click arriving at full scale on the transient instead of at `0.175` under the
+   body, and a colour knob that could not turn it down because turning it only changed a
+   number nobody read. Fixing it changed the balance inside every voice and invalidated
+   all twenty-two trims; the kit spread went from `1.43`–`1.67` to `1.08`.
+8. **A comment that had stopped being true.** The default delay was documented as the
    dotted eighth and was in fact a straight quarter — the knob value did not map where the
    prose said it did. Caught by printing what the UI actually renders, not by reading it.
 

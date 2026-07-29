@@ -33,6 +33,14 @@ These are decisions, not accidents. Each has a reason that is easy to lose.
 synthesis decisions in the renderer or audio-node handling in a voice. The split is what
 makes the kit testable and what allows offline measurement — see below.
 
+**A source has three gain stages and they are not interchangeable.** `Source.gain` sets
+how loud that source is *within* its voice, `VoiceSpec.gain` sets the voice's level, and
+`Voice.trim` normalises it against the rest of the kit. The first of those was never read
+by the renderer, from the first commit until somebody heard the 808 kick's click, and the
+trims quietly absorbed the damage — they were measured against the output, so the kit
+balanced while every voice was internally wrong. `render.test.ts` now asserts all three
+stay separate.
+
 **All output goes through `buildVoice()`.** Not `voice.build()` directly. `buildVoice`
 applies the per-voice trim; bypassing it makes the drawn waveform and the audible hit
 different sizes.
@@ -292,11 +300,6 @@ new machinery.
   have transients for the bus compressor to clamp against. `Lift` is hats and a 303 with
   no kick at all, and measured at `1.04` from the drums alone until its two hat machines
   were offset off each other's steps. Worth checking any pattern that is all sustain.
-- **The 909 open hat occasionally peaks just over full scale on its own** — `1.023` in one
-  of five measured renders. Intermittent, because noise sources start at a random offset,
-  so it depends on the render. Not audible as clipping through the bus, but it breaks the
-  rule that no voice exceeds `1.0`, and the fix is a smaller `trim` on that voice measured
-  across several runs rather than one.
 - **The chillwave backdrop is nearly invisible behind the console.** Deliberate (the step
   grid has to stay readable) but the sun in particular never shows. If it should read
   more strongly, move the scene's sun down rather than raising the opacity.
