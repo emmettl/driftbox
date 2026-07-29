@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useBox } from './store'
 import { SONGS, defaultSong, songBars } from '@driftbox/engine'
 import { SCENES } from './visual/scenes'
+import { soundingPatternAt } from './ui/useLiveStep'
 
 // The store is where a whole song gets rebuilt on every keystroke, and immutable updates
 // have one classic failure: a spread that reconstructs a nested object from one of its
@@ -162,5 +163,34 @@ describe('the visual a song asks for', () => {
     const withVisual = SONGS.find((s) => s.visual !== undefined)!
     useBox.getState().loadPreset(withVisual.id)
     expect(useBox.getState().scene).toBe(withVisual.visual)
+  })
+})
+
+describe('which pattern is sounding', () => {
+  // The step cursor is driven by this, and it was broken from the day it was written: the
+  // grid compared a ChainStep object against a pattern id, which type-checks and is never
+  // equal, so no cursor ever rendered on any of the 176 pads. The second bug was hidden
+  // behind the first — indexing the chain by bar ignores `repeat`, so it would have pointed
+  // at the wrong section from the second bar of any song.
+  it('follows the chain rather than counting entries as bars', () => {
+    const song = defaultSong()
+    expect(song.chain[0].repeat).toBeGreaterThan(1)
+    // Every bar of the first entry's repeat is still the first entry's pattern.
+    for (let bar = 0; bar < song.chain[0].repeat; bar++) {
+      expect(soundingPatternAt(song, bar)).toBe(song.chain[0].pattern)
+    }
+    // And the bar after it is the second entry, not the entry at index `repeat`.
+    expect(soundingPatternAt(song, song.chain[0].repeat)).toBe(song.chain[1].pattern)
+  })
+
+  it('returns a pattern id, not a chain step', () => {
+    const id = soundingPatternAt(defaultSong(), 0)
+    expect(typeof id).toBe('string')
+    expect(defaultSong().patterns.map((p) => p.id)).toContain(id)
+  })
+
+  it('falls back to the first pattern when there is no chain', () => {
+    const song = { ...defaultSong(), chain: [] }
+    expect(soundingPatternAt(song, 7)).toBe(song.patterns[0].id)
   })
 })

@@ -1,6 +1,6 @@
 import { ALL_VOICES, stepAt } from '@driftbox/engine'
 import { useBox } from '../store'
-import { usePlayhead } from './usePlayhead'
+import { useLiveStep } from './useLiveStep'
 
 // The step grid. Sixteen buttons a row, grouped in fours, because that grouping is
 // what makes a pattern readable at a glance — and readability is the entire ergonomic
@@ -15,23 +15,32 @@ export function Sequencer() {
   const audition = useBox((s) => s.audition)
   const selectVoice = useBox((s) => s.selectVoice)
 
-  const playhead = usePlayhead()
+  const live = useLiveStep()
   const pattern = song.patterns.find((p) => p.id === editing)
   const voices = ALL_VOICES.filter((v) => v.machine === view)
 
   if (!pattern) return null
 
-  // The light only follows the playhead when the pattern being edited is the one
-  // actually sounding. Otherwise it would march across a pattern nobody is hearing.
-  const playing = playhead
-    ? song.chain.length === 0
-      ? song.patterns[0]?.id
-      : song.chain[playhead.bar % song.chain.length]
-    : undefined
-  const live = playing === editing ? playhead?.index : undefined
 
   return (
     <div className="grid">
+      {/* The ruler. A row of ticks above the pads with the current one lit, so the cursor
+          is legible on a pattern whose top rows happen to be empty — the pads alone only
+          show a position where there is already something to light up. */}
+      <div className="row ruler" aria-hidden="true">
+        <span className="row-name" />
+        <div
+          className="row-steps"
+          style={{ gridTemplateColumns: `repeat(${pattern.length}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: pattern.length }, (_, step) => (
+            <span
+              key={step}
+              className={`tick${step % 4 === 0 ? ' downbeat' : ''}${live === step ? ' live' : ''}`}
+            />
+          ))}
+        </div>
+      </div>
       {voices.map((voice) => (
         <div
           key={voice.id}

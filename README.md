@@ -257,6 +257,9 @@ finger down four cannons at the corners of the screen converge on it with bent, 
 beams. Both ends of those beams are derived from the camera, so they leave the actual
 corners and land exactly under the fingertip at any viewport.
 
+**A cursor steps through the grid as it plays** — a lit column down every row with a tick
+above it, so you can see where you are even on a pattern whose top rows are empty.
+
 **The grid follows the playhead.** Open the editor at any point and it is showing the
 section you can hear, with the steps lighting up as they play, rather than whatever was
 edited last. Choosing a pattern by hand takes over — a grid that jumped away from the thing

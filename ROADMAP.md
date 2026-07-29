@@ -241,6 +241,15 @@ pattern with every voice at `level: 0.05` and at `0.9` gave the same peak both t
 against the raw pre-compressor bus sum instead, and compare with the shipped songs rather
 than with 1.0. Half an hour went into lowering faders that could not have helped.
 
+**`===` between a union containing `string` and a `string` is legal, and always false.**
+The step cursor compared `song.chain[bar]` — a `ChainStep` object — against a pattern id,
+in both grids, identically. TypeScript had no objection: the left side's type includes
+`string`, so the comparison type-checks and is simply never true. No cursor rendered on any
+of the 176 pads from the day it was written, and the second bug underneath it — indexing
+the chain by bar, which ignores `repeat` — stayed hidden behind the first. The lookup is now
+a plain exported function with a test, because the half that was wrong is the half a test
+can reach.
+
 **Nothing that asks to be pressed should animate its `transform`.** The play button pulsed
 with a `scale`, which makes it a moving target for a thumb — and a browser refuses to click
 it at all, because it never settles. Pulse the light, not the geometry.
