@@ -1,27 +1,50 @@
 import { create } from 'zustand'
 import {
   ALL_VOICES,
+  BASS_VOICES,
+  DEFAULT_BASS_PARAMS,
+  DEFAULT_FX,
+  DEFAULT_SENDS,
   DriftboxEngine,
   cycleStep,
+  setBassStep,
+  type BassParams,
+  type BassStep,
+  type FxParams,
   type MachineId,
   type Pattern,
+  type SendLevels,
   type Song,
   type VoiceParams,
 } from './engine'
+import {
+  autosave,
+  clearStoredSong,
+  downloadSong,
+  loadStoredSong,
+  pickSongFile,
+  shareLink,
+  takeSongFromUrl,
+} from './persistence'
 import { defaultSong } from './songs'
 
 // The engine owns the sound; this owns what is on screen. The song is held here as
 // immutable data so React can diff it, and pushed into the engine whenever it changes
 // — the engine reads it on the audio thread's schedule and never writes to it.
 
+/** Which instrument the grid and the channel strip are showing. The two drum machines
+ *  and the 303 rack are three views of one song, not three songs. */
+export type View = MachineId | 'bass'
+
 interface State {
   song: Song
   engine: DriftboxEngine | null
   running: boolean
-  machine: MachineId
+  view: View
   /** Which pattern the grid is editing. Not necessarily the one playing. */
   editing: string
   selectedVoice: string
+  selectedBass: string
   /** Full-screen visuals with the sequencer hidden. */
   performance: boolean
 
@@ -29,27 +52,59 @@ interface State {
   toggleTransport: () => void
   setBpm: (bpm: number) => void
   setSwing: (swing: number) => void
-  setMachine: (machine: MachineId) => void
+  setView: (view: View) => void
   setEditing: (id: string) => void
   selectVoice: (id: string) => void
+  selectBass: (id: string) => void
   toggleStep: (voiceId: string, step: number) => void
+  editBassStep: (voiceId: string, step: number, value: BassStep) => void
   clearPattern: () => void
   setParam: (voiceId: string, key: keyof VoiceParams, value: number) => void
+  setBassParam: (voiceId: string, key: keyof BassParams, value: number) => void
+  setSend: (voiceId: string, key: keyof SendLevels, value: number) => void
+  setFx: (key: keyof FxParams, value: number) => void
   audition: (voiceId: string) => void
+  auditionBass: (voiceId: string, step: BassStep) => void
   togglePerformance: () => void
+
+  /** Replace the whole song — from a file, a shared link, or back to the defaults. */
+  loadSong: (song: Song) => void
+  adoptSharedSong: () => Promise<boolean>
+  importSong: () => Promise<boolean>
+  exportSong: () => void
+  copyShareLink: () => Promise<string | null>
+  resetSong: () => void
 }
 
 function replacePattern(song: Song, next: Pattern): Song {
   return { ...song, patterns: song.patterns.map((p) => (p.id === next.id ? next : p)) }
 }
 
+// Last session's work if there is any, the shipped song otherwise. Read synchronously so
+// the first render is already the right song — a default song that flickers into the
+// user's own a moment later looks like the app lost it and then found it.
+const initialSong = loadStoredSong() ?? defaultSong()
+
+/** Everything that has to move when the song is replaced wholesale. A loaded song has
+ *  its own pattern ids, so an `editing` left pointing at the old one edits nothing. */
+function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
+  if (engine) {
+    engine.song = song
+    engine.bpm = song.bpm
+    engine.swing = song.swing
+    engine.syncFx()
+  }
+  return { song, editing: song.patterns[0]?.id ?? '' }
+}
+
 export const useBox = create<State>()((set, get) => ({
-  song: defaultSong(),
+  song: initialSong,
   engine: null,
   running: false,
-  machine: 'tr808',
-  editing: 'drift',
+  view: 'tr808',
+  editing: initialSong.patterns[0]?.id ?? '',
   selectedVoice: '808.bd',
+  selectedBass: BASS_VOICES[0].id,
   performance: false,
 
   // The AudioContext is created lazily on the first interaction. Constructing one
@@ -86,13 +141,15 @@ export const useBox = create<State>()((set, get) => ({
     set({ song })
   },
 
-  setMachine: (machine) => {
-    const first = ALL_VOICES.find((v) => v.machine === machine)
-    set({ machine, selectedVoice: first?.id ?? get().selectedVoice })
+  setView: (view) => {
+    if (view === 'bass') return set({ view })
+    const first = ALL_VOICES.find((v) => v.machine === view)
+    set({ view, selectedVoice: first?.id ?? get().selectedVoice })
   },
 
   setEditing: (editing) => set({ editing }),
   selectVoice: (selectedVoice) => set({ selectedVoice }),
+  selectBass: (selectedBass) => set({ selectedBass }),
 
   toggleStep: (voiceId, step) => {
     const { song, editing, engine } = get()
@@ -103,11 +160,22 @@ export const useBox = create<State>()((set, get) => ({
     set({ song: next, selectedVoice: voiceId })
   },
 
+  editBassStep: (voiceId, step, value) => {
+    const { song, editing, engine } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+    const next = replacePattern(song, setBassStep(pattern, voiceId, step, value))
+    if (engine) engine.song = next
+    set({ song: next, selectedBass: voiceId })
+  },
+
   clearPattern: () => {
     const { song, editing, engine } = get()
     const pattern = song.patterns.find((p) => p.id === editing)
     if (!pattern) return
-    const next = replacePattern(song, { ...pattern, tracks: {} })
+    // Everything in the pattern, drums and basslines both. "Clear this pattern" leaving
+    // an acid line running underneath would be a surprise, and an unhelpful one.
+    const next = replacePattern(song, { ...pattern, tracks: {}, bass: {} })
     if (engine) engine.song = next
     set({ song: next })
   },
@@ -123,10 +191,89 @@ export const useBox = create<State>()((set, get) => ({
     set({ song: next })
   },
 
+  setBassParam: (voiceId, key, value) => {
+    const { song, engine } = get()
+    const current = song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
+    const next: Song = {
+      ...song,
+      kit: { ...song.kit, bass: { ...song.kit.bass, [voiceId]: { ...current, [key]: value } } },
+    }
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
+  setSend: (voiceId, key, value) => {
+    const { song, engine } = get()
+    const current = song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
+    const next: Song = {
+      ...song,
+      kit: { ...song.kit, sends: { ...song.kit.sends, [voiceId]: { ...current, [key]: value } } },
+    }
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
+  setFx: (key, value) => {
+    const { song, engine } = get()
+    const next: Song = { ...song, fx: { ...(song.fx ?? DEFAULT_FX), [key]: value } }
+    if (engine) {
+      engine.song = next
+      engine.syncFx()
+    }
+    set({ song: next })
+  },
+
   audition: (voiceId) => {
     get().init()
     get().engine?.audition(voiceId)
   },
 
+  auditionBass: (voiceId, step) => {
+    get().init()
+    get().engine?.auditionBass(voiceId, step)
+  },
+
   togglePerformance: () => set({ performance: !get().performance }),
+
+  loadSong: (song) => set(adopt(song, get().engine)),
+
+  adoptSharedSong: async () => {
+    const song = await takeSongFromUrl()
+    if (!song) return false
+    set(adopt(song, get().engine))
+    return true
+  },
+
+  importSong: async () => {
+    const song = await pickSongFile()
+    if (!song) return false
+    set(adopt(song, get().engine))
+    return true
+  },
+
+  exportSong: () => downloadSong(get().song),
+
+  copyShareLink: async () => {
+    const url = await shareLink(get().song)
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // No clipboard permission, or an insecure origin. The URL is still returned, so
+      // the caller can show it and let the user copy it themselves.
+    }
+    return url
+  },
+
+  resetSong: () => {
+    // The autosave has to go too, or the next reload restores what was just discarded.
+    clearStoredSong()
+    set(adopt(defaultSong(), get().engine))
+  },
 }))
+
+// Autosave. Subscribing here rather than writing inside every action means there is one
+// place that knows about persistence, and no way to add an edit that quietly is not
+// saved — which is the failure this whole feature exists to prevent.
+useBox.subscribe((state, previous) => {
+  if (state.song !== previous.song) autosave(state.song)
+})

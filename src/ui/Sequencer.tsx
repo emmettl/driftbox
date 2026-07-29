@@ -8,7 +8,7 @@ import { usePlayhead } from './usePlayhead'
 
 export function Sequencer() {
   const song = useBox((s) => s.song)
-  const machine = useBox((s) => s.machine)
+  const view = useBox((s) => s.view)
   const editing = useBox((s) => s.editing)
   const selectedVoice = useBox((s) => s.selectedVoice)
   const toggleStep = useBox((s) => s.toggleStep)
@@ -17,7 +17,7 @@ export function Sequencer() {
 
   const playhead = usePlayhead()
   const pattern = song.patterns.find((p) => p.id === editing)
-  const voices = ALL_VOICES.filter((v) => v.machine === machine)
+  const voices = ALL_VOICES.filter((v) => v.machine === view)
 
   if (!pattern) return null
 

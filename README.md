@@ -1,8 +1,8 @@
 # Driftbox
 
-A drum machine and step sequencer in the browser — a TR-808 and a TR-909, both
-synthesised from scratch, with a chillwave visualiser and an oscilloscope. Inspired by
-Propellerhead ReBirth.
+A drum machine and step sequencer in the browser — a TR-808, a TR-909 and a pair of
+TB-303s, all synthesised from scratch, with a chillwave visualiser and an oscilloscope.
+Inspired by Propellerhead ReBirth.
 
 ```bash
 npm install
@@ -14,7 +14,11 @@ npm run build   # type-check + production build
 ```
 
 Space plays and stops · `V` drops into performance mode · `X` switches the scope between
-a waveform and a vectorscope · click a step to cycle it off → on → accented.
+a waveform and a vectorscope · click a step to cycle it off → on → accented · on the 303
+page, click a step to place a note and drag it up or down to tune it.
+
+Your work is saved as you go. **share** puts the whole song in a link, **save** and
+**load** move it to and from a file, and **reset** goes back to the shipped patterns.
 
 **Picking this up?** [ROADMAP.md](ROADMAP.md) has the current state, the decisions worth
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
@@ -33,6 +37,28 @@ Reproducing the topology gets far closer than EQ-ing a noise burst into submissi
 it means every knob does something real rather than filtering a fixed recording. It also
 keeps the whole kit to a few kilobytes of code.
 
+## The 303s have a real ladder filter
+
+A `BiquadFilterNode` cannot be a 303. It is two poles with a linear, tame resonance —
+enough for a filter sweep, nowhere near the squelch. Three things make the difference,
+and only the first is about slope: **four** poles rather than two, feedback strong enough
+that the filter self-oscillates into a sine at its own cutoff, and a `tanh` **inside**
+that feedback loop, which is what stops a self-oscillating filter from exploding and what
+makes the resonance sound thick rather than like a whistle sitting on top of the sound.
+
+So the filter is Huovilainen's nonlinear ladder model, running in an `AudioWorklet`. It
+is written once, as ordinary TypeScript, and serialised into the worklet with
+`toString()` — so the audio thread runs that exact code rather than a second copy that
+can drift, and the filter stays testable as plain arithmetic. Measured: it self-oscillates
+at full resonance, tracks the requested cutoff within 3% from 300Hz to 2.4kHz, decays to
+nothing at half resonance, and stays bounded however hard it is driven.
+
+Slide and accent are the rest of it. A slide is a glide between two notes that share one
+envelope — which is why a 303 here is one continuous oscillator rather than a node per
+note, as the drums are. An accent drives level, filter envelope depth *and* resonance
+together, the way the accent voltage does on the hardware; wiring it to the level alone
+is the usual way one of these ends up sounding flat.
+
 ## Voices are data
 
 A voice is a **pure function from its knob positions to a `VoiceSpec`** — a description
@@ -45,6 +71,21 @@ bass" is otherwise only answerable by ear, which in practice means never answere
 here it is an assertion. It also means a patch can be serialised, and that the same spec
 can be rendered into a live context *or* an `OfflineAudioContext` — which is how the kit
 is actually verified, and how the channel strip draws each voice's real waveform.
+
+## A song is a value
+
+A `Song` is plain JSON — patterns, a chain, kit settings and the effect sends. That was a
+deliberate constraint from the start rather than a convenience, and it is what makes three
+separate features nearly free: the session autosaves, a song exports to a file, and a
+whole song compresses into a URL you can paste to somebody. Measured on the shipped song,
+6020 bytes of JSON become 987 characters of hash.
+
+The reading side is the part with actual work in it, because a song arrives from outside
+the program — from storage written by an older build, from a file somebody edited by hand,
+from a link someone else sent. `decodeSong` treats all of it as untrusted: it clamps what
+is out of range, fills in what is missing, drops what it cannot read, and gives up only on
+input that is not a song at all. The failure it exists to prevent is not subtle — it is
+the app white-screening on load with your work apparently gone.
 
 ## Timing
 

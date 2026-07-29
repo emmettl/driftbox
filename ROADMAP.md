@@ -5,18 +5,21 @@ anything in `src/engine/`.
 
 ## Where it is
 
-**Working end to end.** Two drum machines, a 16-step sequencer with pattern chaining, a
-per-voice channel strip, an oscilloscope and a chillwave visualiser with a performance
-mode. CI is green; there are 130 unit tests.
+**Working end to end.** Two drum machines, two 303s, a 16-step sequencer with pattern
+chaining, a per-voice channel strip, an oscilloscope and a chillwave visualiser with a
+performance mode. CI is green; there are 157 unit tests.
 
 | | |
 |---|---|
-| Machines | TR-808 (11 voices), TR-909 (11 voices) |
-| Synthesis | Pure Web Audio nodes. **No samples anywhere.** |
+| Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
+| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 16 steps, off / on / accent, four patterns, chain, swing |
-| Per voice | Level, tune, decay, tone, colour, pan · live waveform |
+| Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
+| Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
+| Effects | Tempo-synced delay and a generated-IR reverb, as sends |
+| Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
 | Visuals | Oscilloscope (waveform + vectorscope), chillwave scene, performance mode |
-| Not built | 303 basslines, pattern save/load, song mode, per-voice outputs |
+| Not built | Song mode, per-voice swing, per-voice outputs, published packages |
 
 ## What is deliberate
 
@@ -47,6 +50,46 @@ audio the moment you switch tabs.
 preference — it is what lets the engine be embedded elsewhere. Nothing under
 `src/engine/` may import from `src/ui/`, `src/visual/` or `src/store.ts`.
 
+**The ladder filter is written once and shipped to the audio thread as a string.**
+`worklet.ts` builds the processor's source from `Ladder.toString()` and loads it as a
+blob URL, the same way `transport.ts` builds its ticker Worker. The alternative was a
+second build entry point, which would have meant the engine could no longer be imported
+as one module — and that is the whole reason the boundary exists.
+
+The cost is one rule: **`Ladder` must not reference anything outside itself.** An
+AudioWorkletGlobalScope shares no scope with the module, so a captured constant is a
+ReferenceError at the moment the first note plays. `ladder.test.ts` guards this by
+re-evaluating the class through `new Function` and comparing sample for sample, which
+fails loudly in CI rather than quietly in a browser.
+
+**A 303 is one continuous oscillator, not a node per note.** `render.ts` builds a fresh
+graph for each drum hit and throws it away; `bassline.ts` cannot, because slide is a
+glide between two notes on a single oscillator whose envelope never restarted. Build a
+node per note and slide is impossible — the best available is a crossfade, and a
+crossfade sounds like two notes rather than one note moving.
+
+**Accent drives three things, not one.** Level, filter envelope depth and resonance
+together, as the accent voltage does on the hardware. Wiring it to the level alone is
+the single most common way to make a 303 emulation sound flat, and it is an easy edit to
+make by accident — `bass.test.ts` asserts all three move.
+
+**Send levels live on the `Kit`, not in `VoiceParams`.** They are routing, and a voice is
+a pure function from its knobs to a spec — where its output goes afterwards is not
+something the synthesis should be able to reach. Putting a send level in beside the tune
+and the decay would be the first crack in that, and it would be a reasonable-looking one.
+
+**Send gains are per voice and permanent, not per hit.** A drum hit's graph disconnects
+itself when its tail runs out, and `disconnect()` drops every outgoing connection — so a
+send gain built alongside a hit would be orphaned, still attached to the send bus. At
+140bpm that is thousands of dead nodes an hour. The hit connects *into* something that
+outlives it instead.
+
+**`decodeSong` repairs rather than refuses.** A song arrives from outside the program —
+older storage, a hand-edited file, someone else's URL. It clamps what is out of range,
+fills what is missing, drops what it cannot read, and returns null only for input that is
+not a song at all. The failure mode being avoided is not subtle: it is the app
+white-screening on load with the user's work apparently gone.
+
 ## Next
 
 Roughly in the order I would do them.
@@ -63,39 +106,57 @@ follow it — `haze` while the crowd is walking, `drift` once skills are being s
 `neon` when it is going well, and something sparse when it is going badly. That is a
 better demonstration of a reusable engine than a loop playing underneath.
 
-Mechanically: decide how the code is shared first. Options are a published package, a git
-dependency, or a monorepo. **Copying the files is the wrong answer** — two copies of a
-synthesis engine diverge, and the whole point is that they cannot.
+**Decided: two published packages.** `@driftbox/engine` is the synthesis engine, and
+`@driftbox/app` is this sequencer, runnable with `npx @driftbox/app`. Copying the files
+was never the answer — two copies of a synthesis engine diverge, and the whole point is
+that they cannot — and a git dependency gives Driftlings no version to pin to. GitHub
+Pages stays as the third way in, so the app ships from three places at once.
 
-### 2. The 303s
+**One build can serve all of them.** Pages is a project site at `/<repo>/` and an `npx`
+copy is served from the root, which normally means two builds. It does not have to:
+built with `base: './'`, a single `dist/` was verified running identically at
+`http://host/driftbox/` and at `http://host/` — plays, loads the ladder, shares links,
+no console errors at either. Making that switch would retire the `BASE_PATH` plumbing in
+the deploy workflow. It is a live deployment, so it is a deliberate change rather than a
+tidy-up.
 
-The other half of ReBirth, and the part with real DSP in it. A TB-303 is a
-sawtooth/square through a resonant 4-pole ladder filter with an envelope, plus accent and
-slide.
+**The blob-URL worklet is what makes that possible.** Because the ladder's source is
+built in memory rather than emitted as an asset, it has no URL to resolve and is immune
+to the base path entirely. Had it been a second build entry point — the obvious approach,
+and the one rejected in "What is deliberate" above — every distribution channel would
+have needed its own asset resolution, and the `npx` copy would have been the one that
+quietly fell back to a biquad.
 
-`BiquadFilter` will not do it. A 303's character is a 4-pole ladder that self-oscillates,
-and a biquad is 2-pole with a tame resonance — you can get close to a filter sweep but
-never to the squelch. This wants an **`AudioWorklet`** running a real ladder
-implementation (Stilson/Smith, or the Huovilainen model), which is the most interesting
-Web Audio work left in the project.
+The engine is already in a state to be extracted. Checked, and worth re-checking before
+publishing, because all three are easy to break by accident:
 
-Slide (portamento between overlapping notes) and accent (which drives both level and
-filter envelope) are what make a 303 line sound like a 303 line rather than a synth
-playing sixteenths. Do not skip them.
+- **No runtime dependencies at all.** Nothing under `src/engine/` imports a package.
+- **No React, no DOM, no storage.** The only host APIs it touches are Web Audio plus
+  `Blob`, `URL` and `Worker`, all of which exist in a worker as well as a page.
+- **Nothing reaches back up.** No import from `src/ui/`, `src/visual/`, `src/store.ts`
+  or `src/songs.ts`.
 
-### 3. Pattern persistence
+What the split still needs:
 
-Right now a reload loses your work, which makes the app hard to actually use. A `Song` is
-already plain JSON, so this is mostly plumbing: `localStorage` for the working session,
-plus export/import to a file. A shareable URL — song compressed into the hash — is a nice
-extra and costs little.
+1. A `package.json` per package, an `exports` map, and `.d.ts` output — the engine is
+   consumed as TypeScript today and would need declarations built.
+2. **A check that `Ladder.toString()` survives a consumer's bundler.** It holds under
+   this build (verified against the minified output: the class comes out self-contained,
+   with no helper references). A consumer minifying differently is the one real risk in
+   publishing this, and `ladder.test.ts` only guards our own build.
+3. A `bin` for `@driftbox/app` that serves the built static files — the app is a Vite
+   SPA with no server, so this is a static handler and an open, not a port of anything.
+4. Deciding whether `songs.ts` ships with the engine. Driftlings wants the patterns, not
+   just the machines, so probably yes — but it is app content living outside the app,
+   and that is worth being deliberate about rather than discovering later.
 
-### 4. Per-voice send effects
+### 2. Song mode
 
-A drum machine with no reverb or delay is missing most of the genre. The cheap version is
-one delay and one reverb (a generated impulse response via `ConvolverNode`) as sends,
-with a knob per voice. This is where a sparse chillwave pattern starts to sound like a
-record rather than a demo.
+The chain is four bars of pattern ids and that is the whole arrangement. Patterns can now
+be saved, shared and given basslines, which makes the ceiling obvious: there is no way to
+build anything longer than a loop. A named sequence of chains, or simply a longer chain
+with a UI to edit it, is the difference between a sketchpad and something you finish a
+track in.
 
 ## Known limitations
 
@@ -103,7 +164,24 @@ record rather than a demo.
   synthesis is structurally correct and well-behaved, but no ear has passed judgement.
   The **909 hats, ride and crash** are where I would expect disagreement first: on the
   real machine those were 6-bit samples, so the inharmonic-oscillator approach is
-  furthest from the original there.
+  furthest from the original there. The **303s** are the other place to listen hard: the
+  filter is measurably a self-oscillating 4-pole that tracks its cutoff within 3%, but
+  whether it squelches the way a real one does is not something a measurement can say.
+- **A bassline cannot run at a different length from the drums under it.** Basslines live
+  on the `Pattern` rather than in a sequence of their own, so one entry in the chain is
+  one bar of the whole arrangement. That buys the chain, the pattern buttons and clear
+  working on everything at once, and costs the polymetric trick below on the bass side.
+- **The 303s have no per-note tie separate from slide, and no rests inside a held note.**
+  Both are on the real machine. Neither is hard; they need somewhere in the grid to live.
+- **No AudioWorklet means no squelch.** The fallback is a single biquad — two poles,
+  linear, no self-oscillation. The 303 panel says so when it is in use, but it is worth
+  knowing that "the basslines sound tame" has one likely cause.
+- **There is one delay and one reverb for the whole song, and no way to bypass them.**
+  Deliberate — the point of a send is that everything lands in the same room — but it does
+  mean you cannot have a short slap on the snare and a long throw on the 303 at once.
+- **Nothing is versioned.** `SONG_FORMAT` exists and `decodeSong` refuses anything newer
+  than it understands, but there is no migration path written yet, because there has not
+  been a breaking change. Write one the first time there is; do not widen the reader.
 - **The chillwave backdrop is nearly invisible behind the console.** Deliberate (the step
   grid has to stay readable) but the sun in particular never shows. If it should read
   more strongly, move the scene's sun down rather than raising the opacity.
