@@ -119,6 +119,20 @@ is out of range, fills in what is missing, drops what it cannot read, and gives 
 input that is not a song at all. The failure it exists to prevent is not subtle — it is
 the app white-screening on load with your work apparently gone.
 
+## The visualiser is the instrument
+
+**vibes** goes full screen, and the whole screen is a filter pad — drag across for cutoff,
+up for resonance, exactly where a Kaoss pad puts them. It filters *everything*, not just
+the 303s: the fun of one of these is the whole record ducking away and coming back, drums
+included. A 303 already has a cutoff knob on its channel strip for the other job.
+
+It is momentary, so it glides back open when you let go, and it sits after the bus
+compressor — so the compressor is not reacting to signal the filter is about to throw
+away, and a resonant peak cannot be pumped by it. The metronome is downstream of it, which
+means sweeping the filter shut never takes your count-in with it.
+
+Works with a thumb. The pad is the reason the touch work exists.
+
 ## Swing is per voice
 
 Swing that applies to everything at once is a tempo setting, not a groove. Here the

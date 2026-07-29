@@ -1031,8 +1031,38 @@ aside {
   }
 }
 
+/* The collapsing group. Always open and inline on a desktop; the toggle only exists on
+   a phone, where the transport was otherwise taking half the screen. */
+.transport-more {
+  display: contents;
+}
+
+.transport-toggle {
+  display: none;
+}
+
 /* A phone in portrait. The channel strip goes below the grid rather than beside it. */
 @media (max-width: 720px) {
+  .transport-toggle {
+    display: block;
+    margin-left: auto;
+  }
+
+  .transport-more {
+    display: none;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .transport-more.open {
+    display: flex;
+  }
+
+  .song-tools {
+    margin-left: 0;
+  }
+
   .console {
     padding: 8px;
     gap: 8px;

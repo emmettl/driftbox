@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { kaossReadout } from '@driftbox/engine'
 import { useBox } from '../store'
 
+
 // The visualiser, as a control surface.
 //
 // The whole screen is the pad. Not a small square in a corner with the visuals behind it
@@ -17,7 +18,6 @@ interface Point {
 }
 
 export function KaossPad() {
-  const engine = useBox((s) => s.engine)
   const init = useBox((s) => s.init)
   const [point, setPoint] = useState<Point | null>(null)
   const surface = useRef<HTMLDivElement>(null)
@@ -37,15 +37,33 @@ export function KaossPad() {
     }
   }, [])
 
+  // Read the engine from the store at call time rather than capturing it.
+  //
+  // It is built lazily on the first interaction — which for somebody who opens the
+  // visuals and puts a finger down IS this gesture — so a captured value would still be
+  // null for the whole of the first drag, and the pad would silently do nothing exactly
+  // once. React has not re-rendered by the time the first move arrives.
   const move = useCallback(
     (event: React.PointerEvent) => {
       const next = positionOf(event)
       setPoint(next)
       trail.current.push({ ...next, at: performance.now() })
-      engine?.kaoss.set(next.x, next.y)
+      useBox.getState().engine?.kaoss.set(next.x, next.y)
     },
-    [engine, positionOf],
+    [positionOf],
   )
+
+  const release = useCallback(() => {
+    setPoint(null)
+    useBox.getState().engine?.kaoss.release()
+  }, [])
+
+  // Let go on the way out.
+  //
+  // Escape leaves the visuals, and pressing it mid-drag unmounts this before any pointer
+  // event arrives — so without this the filter stays wherever your finger was, forever,
+  // with nothing on screen to explain why everything sounds muffled.
+  useEffect(() => release, [release])
 
   // Drawing the trail. Separate from React entirely.
   useEffect(() => {
@@ -125,16 +143,12 @@ export function KaossPad() {
       }}
       onPointerUp={(event) => {
         event.currentTarget.releasePointerCapture(event.pointerId)
-        setPoint(null)
-        engine?.kaoss.release()
+        release()
       }}
-      onPointerCancel={() => {
-        // A cancelled pointer — a system gesture, a call arriving — must release the
-        // filter. Leaving it shut is how you end up with a mix that is inexplicably
-        // muffled and no finger anywhere near the screen.
-        setPoint(null)
-        engine?.kaoss.release()
-      }}
+      // A cancelled pointer — a system gesture, a call arriving — must release the filter
+      // too. Leaving it shut is how you end up with a mix that is inexplicably muffled
+      // and no finger anywhere near the screen.
+      onPointerCancel={release}
     >
       <canvas ref={canvas} className="kaoss-trail" />
 

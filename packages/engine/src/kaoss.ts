@@ -40,6 +40,27 @@ const MAX_Q = 12
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 
+/** A tiny floor rather than zero, so the idle filter is damped rather than undefined. */
+const MIN_Q = 0.0001
+
+/** Vertical position to filter Q. Shared by the filter and the readout deliberately: if
+ *  they were computed separately the panel could drift from the sound it is labelling. */
+function resonanceQ(y: number): number {
+  return MIN_Q + clamp01(y) * (MAX_Q - MIN_Q)
+}
+
+/** Where a horizontal position puts each filter. Also shared, for the same reason. */
+function cutoffs(x: number): { low: number; high: number } {
+  const px = clamp01(x)
+  return {
+    low: px < NEUTRAL_X ? ratioRange(px / NEUTRAL_X, LOW_FLOOR, LOW_CEILING) : LOW_CEILING,
+    high:
+      px > NEUTRAL_X
+        ? ratioRange((px - NEUTRAL_X) / (1 - NEUTRAL_X), HIGH_FLOOR, HIGH_CEILING)
+        : HIGH_FLOOR,
+  }
+}
+
 export class Kaoss {
   readonly input: GainNode
   readonly output: GainNode
@@ -74,8 +95,8 @@ export class Kaoss {
     const now = this.ctx.currentTime
     this.lowpass.frequency.setValueAtTime(LOW_CEILING, now)
     this.highpass.frequency.setValueAtTime(HIGH_FLOOR, now)
-    this.lowpass.Q.setValueAtTime(0.0001, now)
-    this.highpass.Q.setValueAtTime(0.0001, now)
+    this.lowpass.Q.setValueAtTime(MIN_Q, now)
+    this.highpass.Q.setValueAtTime(MIN_Q, now)
   }
 
   /**
@@ -88,27 +109,18 @@ export class Kaoss {
   set(x: number, y: number, glide = 0.02): void {
     const now = this.ctx.currentTime
     const px = clamp01(x)
-    const resonance = clamp01(y)
 
-    // Exponential either side of centre: pitch and cutoff are both heard as ratios, so a
-    // linear sweep spends most of its travel doing nothing audible.
-    const low =
-      px < NEUTRAL_X
-        ? ratioRange(px / NEUTRAL_X, LOW_FLOOR, LOW_CEILING)
-        : LOW_CEILING
-    const high =
-      px > NEUTRAL_X
-        ? ratioRange((px - NEUTRAL_X) / (1 - NEUTRAL_X), HIGH_FLOOR, HIGH_CEILING)
-        : HIGH_FLOOR
-
+    // Exponential either side of centre: cutoff is heard as a ratio, so a linear sweep
+    // spends most of its travel doing nothing audible.
+    const { low, high } = cutoffs(px)
     this.lowpass.frequency.setTargetAtTime(low, now, glide)
     this.highpass.frequency.setTargetAtTime(high, now, glide)
 
     // Resonance only on whichever filter is actually doing something. Applied to both,
     // the idle one rings at the edge of the audible band and adds a permanent whistle.
-    const q = 0.0001 + resonance * MAX_Q
-    this.lowpass.Q.setTargetAtTime(px < NEUTRAL_X ? q : 0.0001, now, glide)
-    this.highpass.Q.setTargetAtTime(px > NEUTRAL_X ? q : 0.0001, now, glide)
+    const q = resonanceQ(y)
+    this.lowpass.Q.setTargetAtTime(px < NEUTRAL_X ? q : MIN_Q, now, glide)
+    this.highpass.Q.setTargetAtTime(px > NEUTRAL_X ? q : MIN_Q, now, glide)
 
     this.active = true
   }
@@ -125,8 +137,8 @@ export class Kaoss {
     const now = this.ctx.currentTime
     this.lowpass.frequency.setTargetAtTime(LOW_CEILING, now, glide)
     this.highpass.frequency.setTargetAtTime(HIGH_FLOOR, now, glide)
-    this.lowpass.Q.setTargetAtTime(0.0001, now, glide)
-    this.highpass.Q.setTargetAtTime(0.0001, now, glide)
+    this.lowpass.Q.setTargetAtTime(MIN_Q, now, glide)
+    this.highpass.Q.setTargetAtTime(MIN_Q, now, glide)
     this.active = false
   }
 
@@ -144,9 +156,8 @@ export class Kaoss {
  */
 export function kaossReadout(x: number, y: number): { mode: 'low' | 'high' | 'open'; hz: number; q: number } {
   const px = clamp01(x)
-  const q = 0.0001 + clamp01(y) * MAX_Q
+  const q = resonanceQ(y)
   if (Math.abs(px - NEUTRAL_X) < 0.02) return { mode: 'open', hz: 0, q }
-  return px < NEUTRAL_X
-    ? { mode: 'low', hz: ratioRange(px / NEUTRAL_X, LOW_FLOOR, LOW_CEILING), q }
-    : { mode: 'high', hz: ratioRange((px - NEUTRAL_X) / (1 - NEUTRAL_X), HIGH_FLOOR, HIGH_CEILING), q }
+  const { low, high } = cutoffs(px)
+  return px < NEUTRAL_X ? { mode: 'low', hz: low, q } : { mode: 'high', hz: high, q }
 }
