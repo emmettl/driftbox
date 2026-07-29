@@ -206,6 +206,17 @@ under a fixed camera, which is a cross-fade wearing a move — geometry appearin
 stationary observer never reads as travel. Flying the camera down into the same, entirely
 static, trench is the same number of lines and an actual dive.
 
+**A figure needs volume, not a skeleton.** The dancers began as single lines between
+joints, which reads as a stick figure however good the motion is. Rebuilt as an artist's
+mannequin — tapered prisms with oversized balls at the pivots — the same poses read as
+bodies. The taper is the part doing the work: a limb of constant width is a pipe, and the
+balls are what say the thing bends there.
+
+**Orient a prism from a reference that is not parallel to it.** Extruding a cross-section
+along a bone needs two axes perpendicular to that bone, and there is no natural choice —
+so one comes from any handy reference vector. Using a fixed one fails precisely when the
+bone points along it, which for a dancer is every time an arm goes straight up.
+
 **A phone is taller than the phone preset.** A real iPhone in Safari is about 0.46 wide
 for its height; Playwright's device preset is 393×660, which is 0.6 — a fifth shorter, and
 wide enough to hide a scene disappearing completely. Fitting a wide subject at 0.46 asked
