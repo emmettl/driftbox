@@ -209,6 +209,27 @@ cutting the groove into the sphere fixed it, and two things fell straight out: t
 an angle rather than scrolling geometry with a modulo wrap, and from orbit the thing you are
 about to dive into is the thing you can already see.
 
+**Flatness is a radius, not a shading choice.** How much a trench cut round a sphere
+appears to bend is just arc length over radius. At a station radius of 420 the hundred and
+fifty units you can see ahead bend through seventeen degrees and the floor rolls away like
+the inside of a barrel; at 3200 the same stretch bends through three and it converges to a
+vanishing point the way the cabinet's does. Nothing about the drawing changed.
+
+**A long lens does not flatten a curve; it magnifies one.** The obvious camera fix for a
+trench that curls is a narrower field of view, on the reasoning that a telephoto compresses
+depth. It does not help here and it was worth building to find out: at 34 degrees the walls
+jam into the frame edges, the visible run collapses to almost nothing, and the bend that is
+left is *enlarged* by the same factor everything else is. Apparent curvature is arc over
+radius and nothing the camera does changes it. A mild narrowing — 60 down to 46 — is still
+worth having, but for a different reason: it stops the near walls splaying to the corners.
+
+**A detail nobody is looking at is a detail that does not exist.** The station's dish was
+correct, present and on the far side of the sphere from where the run begins, so it had
+never once been seen. Aiming it at the starting camera works and is brittle — it ties a
+feature of the station to a property of the flight. Arcing the approach round the hull
+instead carries the dish past the frame as a consequence of the path, which does not care
+where on the station it sits.
+
 **"Up" is whatever the geometry says it is.** A trench cut round an equator opens RADIALLY
 OUTWARD, and its walls are the north and south faces — so from inside it, up points away
 from the station's axis, which is horizontal in world terms. Leaving the camera's up as

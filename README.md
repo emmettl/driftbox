@@ -286,6 +286,9 @@ stop at the trench lip and the floor is a ring of its own at a smaller radius, s
 you can see the band missing from the sphere, and flying down it is flying around the
 equator. Travel is an angle going up; there is no scrolling geometry and nothing to wrap.
 
+The approach **arcs**: the camera starts a radian or so round the station and swings to the
+trench entry as it drops, so the hull turns under you and the dish comes past on the way in.
+
 It took three goes. First the corridor was a separate object that faded up as the music
 started — a cross-fade dressed as a move. Then the camera flew down into it, which is a real
 move but still a move toward a different thing: you were diving at a canyon that happened to
