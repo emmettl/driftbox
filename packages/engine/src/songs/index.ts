@@ -4,6 +4,7 @@ import { chillwaveSong } from './chillwave.js'
 import { darkwaveSong } from './darkwave.js'
 import { ascendSong } from './ascend.js'
 import { runnerSong } from './runner.js'
+import { cloudsSong } from './clouds.js'
 import { cyclesSong } from './cycles.js'
 import { defconSong } from './defcon.js'
 import { saturnSong } from './saturn.js'
@@ -13,7 +14,7 @@ export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Nine of them, because one demonstrates the machines and nine demonstrate the range.
+// Ten of them, because one demonstrates the machines and ten demonstrate the range.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -88,6 +89,13 @@ export const SONGS: SongPreset[] = [
     build: defconSong,
   },
   {
+    id: 'clouds',
+    visual: 'clouds',
+    name: 'Cumulus',
+    blurb: 'Ambient house — 116bpm, the heaviest swing here, and the only cheerful one',
+    build: cloudsSong,
+  },
+  {
     id: 'ascend',
     visual: 'wireframe',
     name: 'Ascend',
@@ -121,6 +129,7 @@ export function defaultSong(): Song {
 
 export {
   acidSong,
+  cloudsSong,
   cyclesSong,
   defconSong,
   ascendSong,
