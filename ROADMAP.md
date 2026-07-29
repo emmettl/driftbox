@@ -7,7 +7,7 @@ anything in `packages/engine/`.
 
 **Working end to end.** Two drum machines, two 303s, a step sequencer with an arrangement,
 a per-voice channel strip, two send effects, an oscilloscope and a chillwave visualiser
-with a performance mode. CI is green; there are 240 unit tests.
+with a performance mode. CI is green; there are 395 unit tests.
 
 | | |
 |---|---|
@@ -24,7 +24,7 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Visuals | Four meters, twelve 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
-| Not built | Published packages |
+| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.1.0, with provenance |
 
 ## What is deliberate
 
@@ -508,28 +508,48 @@ it is going well, and something sparse when it is going badly. The chain is plai
 sections take effect at the next bar, so this is `engine.song = {...}` and nothing more.
 That is a better demonstration of a reusable engine than a loop playing underneath.
 
-**Before publishing to npm for real**, the things worth re-checking:
+**Both packages are published**, at 0.1.0, with SLSA provenance naming
+`refs/tags/v0.1.0` on this repo. Verified from the registry rather than from the green
+tick: installed into an empty project and imported (22 voices, 12 songs), and
+`npx @driftbox/app@0.1.0` served its index and its 1.27 MB bundle.
 
-- **`Ladder.toString()` under a consumer's bundler.** It holds under this build — verified
-  against both the minified app bundle and the engine's own `dist/`, where the class comes
-  out self-contained and still self-oscillates when evaluated in isolation. A consumer
-  minifying differently is the one genuine risk in publishing this, and `ladder.test.ts`
-  can only guard our own build. If it ever breaks, the symptom is silence on the first
-  bass note, not a build error.
-- **The version numbers.** Both packages are at `0.1.0` and have never been published.
-  `@driftbox/app` does not depend on `@driftbox/engine` at runtime — it bundles it — so
-  they can drift, but the app's devDependency pins an exact version and will need bumping
-  in step.
-- **Whether the `@driftbox` scope exists and the release token owns it.** Both packages
-  now carry `publishConfig.access: public`, which they have to: a scoped package is
-  RESTRICTED by default and restricted publishing needs a paid plan, so the first release
-  would have failed with a 402 that no dry run catches — `--dry-run` never makes the
-  access check. What is left is outside the repo: `@driftbox` has to be a scope the
-  publishing account owns, and `NPM_TOKEN` has to be an **Automation** token (or a
-  granular one with *Packages and scopes: read and write* granted over the `@driftbox`
-  **scope** — not over a package list, since neither package exists to be listed yet). No
-  organisation permission is needed; that one governs managing the org, not publishing
-  into it.
+The one thing still worth watching is **`Ladder.toString()` under a consumer's bundler**.
+It holds under this build — verified against both the minified app bundle and the engine's
+own `dist/`, where the class comes out self-contained and still self-oscillates when
+evaluated in isolation. A consumer minifying differently is the one genuine risk in
+shipping this, and `ladder.test.ts` can only guard our own build. If it ever breaks, the
+symptom is silence on the first bass note, not a build error.
+
+## Releasing
+
+Publishing runs from `.github/workflows/publish.yml`, on a published GitHub Release or a
+manual dispatch that defaults to a dry run. Bump a package, tag `vX.Y.Z` matching one of
+them — the workflow refuses a tag that matches neither — and cut the release.
+
+`@driftbox/app` does not depend on `@driftbox/engine` at runtime; it bundles it. So the
+two versions can drift, but the app's devDependency pins an exact version and needs
+bumping in step.
+
+Three things cost a failed run getting 0.1.0 out, all of which are now fixed or worth
+knowing:
+
+- **A scoped package is RESTRICTED by default**, and restricted publishing needs a paid
+  plan. Both packages carry `publishConfig.access: public` for this reason. No dry run
+  catches its absence — `--dry-run` never makes the access check, and the notice it prints
+  says "default access", which reads as fine and is not.
+- **The token has to bypass 2FA.** A classic *Publish* token does not, and fails with
+  `EOTP` after building the tarball and signing the provenance — so the run gets a long
+  way in before dying. A classic *Automation* token works.
+- **Provenance needs a CI runner.** Publishing by hand from a laptop cannot produce an
+  attestation, which is why bootstrapping the first version manually would have been a
+  worse trade than fixing the token.
+
+**Move to trusted publishing.** npm's OIDC flow needs no stored secret at all, and the
+workflow already has the `id-token: write` and `--provenance` half of it. It could not be
+used for 0.1.0 because a trusted publisher is configured on a package's settings page and
+there is no way to pre-register a name — but both packages exist now, so the block is
+gone. npm has said 2FA-bypass tokens stop publishing directly around January 2027; this is
+worth doing well before that, not at it.
 
 ### 2. ~~Per-voice outputs~~ — done, as stems
 

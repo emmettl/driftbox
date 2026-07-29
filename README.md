@@ -20,10 +20,38 @@ npx @driftbox/app
 
 ## Two packages
 
+Both are on npm, published from CI with [provenance](https://docs.npmjs.com/generating-provenance-statements)
+— every tarball carries a signed attestation naming the commit and the workflow run that
+built it.
+
 | | |
 |---|---|
-| [`@driftbox/engine`](packages/engine) | The synthesis and the sequencer. No React, no DOM — meant to be embedded. |
-| [`@driftbox/app`](packages/app) | This sequencer, as a runnable app. |
+| [`@driftbox/engine`](https://www.npmjs.com/package/@driftbox/engine) | The synthesis and the sequencer. No React, no DOM — meant to be embedded. |
+| [`@driftbox/app`](https://www.npmjs.com/package/@driftbox/app) | This sequencer, as a runnable app. |
+
+To build something with the engine:
+
+```bash
+npm install @driftbox/engine
+```
+
+```js
+import { DriftboxEngine, SONGS } from '@driftbox/engine'
+
+// From a click or a tap — an AudioContext starts suspended otherwise.
+const engine = new DriftboxEngine(SONGS[0].build())
+await engine.start()
+
+engine.song = SONGS[3].build()   // takes effect at the next bar
+engine.kaoss.set(0.4, 0.7)       // the performance filter, across the whole mix
+```
+
+Each preset carries a `visual` hint — an opaque string naming the scene it was written to
+be seen with. The engine has no idea what a scene is; a host with its own visuals maps it
+however it likes, and one without ignores it.
+
+It has **no runtime dependencies** and ships its own `src/` alongside `dist/`, so the
+reasoning in the comments travels with it and "go to definition" lands somewhere real.
 
 The split is the point rather than tidiness: the engine is meant to score
 [Driftlings](https://github.com/emmettl/driftlings), and two copies of a synthesis engine
