@@ -5,7 +5,66 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#07040f" />
-    <title>Driftbox</title>
+
+    <title>Driftbox — an 808, a 909 and two 303s in the browser</title>
+    <meta
+      name="description"
+      content="A drum machine and step sequencer with nothing sampled. Every sound is synthesised from the circuit of the machine it came from, down to a real 4-pole ladder filter on the 303s."
+    />
+
+    <!--
+      Link previews.
+
+      WhatsApp, iMessage, Slack and Signal all read Open Graph, and none of them run
+      JavaScript — so every tag here has to be in the static HTML rather than set by the
+      app at runtime. That is why they live in index.html and not in a component.
+
+      The URLs are absolute and hardcoded to the GitHub Pages deployment, deliberately.
+      A relative og:image is the single most common reason a preview comes back blank:
+      crawlers do not resolve them against the page. Hardcoding also means the card stays
+      correct when the app is served from somewhere else — `npx @driftbox/app`, or a
+      local build — where it points at the canonical public copy rather than at
+      localhost, which is the only useful answer.
+
+      Note that a shared song link carries the song in the URL *hash*, which is never
+      sent to a server and is ignored by every crawler. A shared song therefore shows
+      this same card rather than a preview of that particular song. That is the expected
+      trade for putting songs in the URL at all, and it is why the copy here describes
+      the app rather than the song.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Driftbox" />
+    <meta property="og:title" content="Driftbox — an 808, a 909 and two 303s in the browser" />
+    <meta
+      property="og:description"
+      content="A drum machine and step sequencer with nothing sampled. Every sound is synthesised from the circuit of the machine it came from, down to a real 4-pole ladder filter on the 303s."
+    />
+    <meta property="og:url" content="https://emmettl.github.io/driftbox/" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:image" content="https://emmettl.github.io/driftbox/og.png" />
+    <!-- WhatsApp looks for the https variant specifically. -->
+    <meta property="og:image:secure_url" content="https://emmettl.github.io/driftbox/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <!-- Given explicitly: without them WhatsApp tends to fall back to a small square
+         thumbnail instead of the wide card. -->
+    <meta property="og:image:width" content="1600" />
+    <meta property="og:image:height" content="840" />
+    <meta
+      property="og:image:alt"
+      content="The Driftbox sequencer: a song arrangement, a step grid of drum patterns lit in pink and amber, and a TR-808 channel strip."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Driftbox — an 808, a 909 and two 303s in the browser" />
+    <meta
+      name="twitter:description"
+      content="A drum machine and step sequencer with nothing sampled. Every sound is synthesised from the circuit of the machine it came from."
+    />
+    <meta name="twitter:image" content="https://emmettl.github.io/driftbox/og.png" />
+    <meta
+      name="twitter:image:alt"
+      content="The Driftbox sequencer: a song arrangement, a step grid of drum patterns, and a TR-808 channel strip."
+    />
   </head>
   <body>
     <div id="root"></div>

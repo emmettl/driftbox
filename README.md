@@ -27,6 +27,11 @@ Your work is saved as you go. **share** puts the whole song in a link, **save** 
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
 is how to check a change actually sounds right without trusting your ears or the tests.
 
+`public/og.png` is the link preview, and it is a real screenshot — so it goes stale when
+the UI changes. Regenerate it by loading the app at a 1600×840 viewport, pressing play so
+the scope has something in it, and screenshotting the page. The tags that point at it live
+in `index.html`, with the reasoning next to them.
+
 ## No samples
 
 Every sound is synthesised from the circuit topology of the machine it comes from. The
