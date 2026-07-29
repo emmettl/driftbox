@@ -27,5 +27,16 @@ export function fitDistance(
   const halfFov = Math.tan((camera.fov * Math.PI) / 360)
   const forHeight = halfHeight / halfFov
   const forWidth = halfWidth / (halfFov * camera.aspect)
-  return Math.max(forHeight, forWidth) / fill
+  const want = Math.max(forHeight, forWidth) / fill
+
+  // Never past the far plane. A tall phone — a real one is about 0.46 wide for its height,
+  // rather than the 0.6 a desktop browser's phone preset gives you — makes the width term
+  // enormous, and a wide subject can ask to be framed from further away than the canvas can
+  // draw. The whole scene is then behind the far plane and the screen is simply black: no
+  // error, no warning, nothing rendered at all.
+  //
+  // Cropping is the right failure. Being too close shows you part of something; being past
+  // the far plane shows you nothing.
+  const ceiling = camera.far - Math.max(halfWidth, halfHeight) * 1.6
+  return Math.min(want, Math.max(1, ceiling))
 }

@@ -4,6 +4,7 @@ import { Sunset } from './Sunset'
 import { Wireframe } from './Wireframe'
 import { Clouds } from './Clouds'
 import { Cycles } from './Cycles'
+import { Dancers } from './Dancers'
 import { Defcon } from './Defcon'
 import { Saturn } from './Saturn'
 import { Stillwater } from './Stillwater'
@@ -57,6 +58,9 @@ export const SCENES: SceneInfo[] = [
   // The only dark accent, and the only ring: a dark blob on a bright sky is a smudge on
   // the lens, whereas an outline reads as something drawn on top of it.
   { id: 'clouds', name: 'Clouds', Component: Clouds, accent: '40, 70, 130', trail: { scale: 1.8, ring: true } },
+  // Magenta, against a stage lit in every other colour, and a small trail: the figures are
+  // fine bright lines and a big soft blob buries them.
+  { id: 'dancers', name: 'Dancers', Component: Dancers, accent: '255, 90, 190', trail: { scale: 0.75 } },
 ]
 
 export type SceneId = string

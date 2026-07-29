@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Ten songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
+| Ships with | Eleven songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Four meters, ten 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Four meters, eleven 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -205,6 +205,14 @@ interference without clumping anything.
 under a fixed camera, which is a cross-fade wearing a move — geometry appearing around a
 stationary observer never reads as travel. Flying the camera down into the same, entirely
 static, trench is the same number of lines and an actual dive.
+
+**A phone is taller than the phone preset.** A real iPhone in Safari is about 0.46 wide
+for its height; Playwright's device preset is 393×660, which is 0.6 — a fifth shorter, and
+wide enough to hide a scene disappearing completely. Fitting a wide subject at 0.46 asked
+for a camera further away than the canvas's far plane, so the whole arena was clipped and
+the screen was black, with no error anywhere. `fitDistance` clamps to the far plane now,
+because cropping shows you part of something and overshooting shows you nothing. Check
+portrait at the real proportions, not the preset's.
 
 **Solve for the frame; do not guess twice.** Scenes picked their camera distance with
 `portrait ? a : b`, which is two hand-tuned numbers standing in for one piece of
