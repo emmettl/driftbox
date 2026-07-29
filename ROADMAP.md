@@ -15,14 +15,14 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Five songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance |
+| Ships with | Six songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance, and one upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, four 3D scenes that warp under a finger, and a full-screen XY filter pad |
-| Son et lumière | Every song names the visual it was written for, and loading it switches |
+| Visuals | Oscilloscope, six 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
 
@@ -155,6 +155,41 @@ own animation frame rather than from a scene's `useFrame`. The first version did
 latter, which is right for a scene with one object and wrong for one with seven —
 Lifeforms called it eight times a frame and the warp decayed eight times too fast. Whose
 job it is to advance shared state should never depend on how many things happen to read it.
+
+**A warp aimed at a fingertip has to solve for depth, not just for a plane.** The Web's
+black hole and the Trench's cannons both land under the finger only because the point they
+aim at is derived per-vertex from the eye ray. Solved once on a single plane, a scene with
+any depth to it puts the effect visibly beside the finger — and it looks correct on the one
+viewport it was tuned on, which is how it survives to being noticed.
+
+**A scene aimed at one record should read that record's shape, not just its level.**
+Every scene but one maps loudness to motion, which is right for music that is continuous
+and wrong for Undertow — 82bpm, no snare, mostly the space around the hits. Stillwater
+does onset detection instead and drops a ring per hit, so the quiet is part of the picture.
+Reading levels is the default; it is not the only thing the analyser is good for.
+
+**A composition constant that frames well in landscape frames badly in portrait, and
+camera distance will not save it.** Lifeforms' bodies are hand-placed twice as wide as they
+are tall; pulling the camera back far enough to fit that on a phone left a band through the
+middle with dead space above and below. The fix is to squeeze the layout horizontally and
+stretch it vertically — reshape the subject, not the lens.
+
+**Write uniforms through the material, never through the object you handed it.** Building
+a uniforms object with `useMemo`, passing it to `<shaderMaterial uniforms={...} />` and
+then mutating it every frame reads correctly and does not work: under StrictMode the
+material ends up holding a different object, and the shader sees its initial values
+forever. Three of the four scenes shipped like this. Nothing errored, and they still
+*moved* — their cameras are animated from JS — so a corridor still flew and a web still
+spun. All that was missing was every reaction to the music, which is the only thing a
+visualiser is for. `uniforms.ts` exists to make the right version the short one. The
+general lesson is that "it animates" is not evidence the audio is reaching it: read the
+live uniform values off the material and check they are moving.
+
+**A compressed peak is not a mix measurement.** On a dense pattern the master compressor
+pins, and its output peak then barely responds to how loud the input is — rendering one
+pattern with every voice at `level: 0.05` and at `0.9` gave the same peak both times. Trim
+against the raw pre-compressor bus sum instead, and compare with the shipped songs rather
+than with 1.0. Half an hour went into lowering faders that could not have helped.
 
 **Nothing that asks to be pressed should animate its `transform`.** The play button pulsed
 with a `scale`, which makes it a moving target for a thumb — and a browser refuses to click

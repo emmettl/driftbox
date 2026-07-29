@@ -141,8 +141,24 @@ console.log({ peak, clipped })
 pattern. A user turning things up and clipping is their business; the defaults clipping is
 ours.
 
-If a pattern clips, lower the offending voice's `level` in `defaultSong()` — the mix
-layer — rather than the master. The master is already set as low as it should go.
+If a pattern clips, lower the offending voice's `level` in the song — the mix layer —
+rather than the master. The master is already set as low as it should go.
+
+> **The peak above is not a mix measurement.** On a dense pattern the compressor pins, and
+> once it is pinned its output peak barely moves however loud the input is. Rendering
+> `runner`'s busiest pattern with every voice at `level: 0.05` and again at `0.9` gave the
+> same peak, near 0.95, both times. Trimming voices against that number is chasing nothing:
+> it looks like the mix is broken and no amount of cutting fixes it.
+>
+> To judge how loud a mix is, take the compressor out and measure the **raw bus sum** —
+> `bus.connect(ctx.destination)` and nothing between. That responds to `level` properly.
+> Compare against the shipped songs rather than against an absolute: the raw peaks run from
+> about 0.9 for `transmission` to 2.3 for `chillwave`, and anything inside that band is
+> fine, because 0.7 on the master was chosen to survive the top of it.
+>
+> The noise-based voices start at a random offset into a shared buffer, so peaks move by as
+> much as 20% between renders of the same pattern. Take the worst of several before
+> concluding anything, and do not read significance into a single number.
 
 ## Recipe 4 — do hits land where the pattern says
 

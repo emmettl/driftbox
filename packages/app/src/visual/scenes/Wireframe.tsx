@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useBox } from '../../store'
 import { ease, readLevels } from '../levels'
 import { touch } from '../touch'
+import { uniformsOf } from '../uniforms'
 
 // Flying down a wireframe corridor. The Rez one.
 //
@@ -155,7 +156,9 @@ export function Wireframe() {
   useFrame((_, dt) => {
     const { bass, high } = readLevels(engine)
     const warp = touch.energy
-    const u = uniforms
+    // The material's own uniforms, not the memoised object — see uniforms.ts.
+    const u = uniformsOf(material)
+    if (!u) return
 
     // Speed follows the low end, so the corridor surges on every kick. A constant rate
     // would be a screensaver; this is the picture reading the record.

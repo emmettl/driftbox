@@ -3,13 +3,14 @@ import { acidSong } from './acid.js'
 import { chillwaveSong } from './chillwave.js'
 import { darkwaveSong } from './darkwave.js'
 import { ascendSong } from './ascend.js'
+import { runnerSong } from './runner.js'
 import { transmissionSong } from './transmission.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Five of them, because one demonstrates the machines and five demonstrate the range.
+// Six of them, because one demonstrates the machines and six demonstrate the range.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -35,6 +36,11 @@ export interface SongPreset {
   build: () => Song
 }
 
+// Ordered as a listening sequence, not as they were written. Acieed and Ascend used to sit
+// next to each other and open with the same four bars — literally the same pattern, a 909
+// kick on the floor and a closed hat on the "e", differing only in tempo — so the set
+// sounded like one track restarting. They are now three apart, and the arc runs gentle,
+// hard, dark, abstract, building, fast.
 export const SONGS: SongPreset[] = [
   {
     id: 'chillwave',
@@ -44,18 +50,25 @@ export const SONGS: SongPreset[] = [
     build: chillwaveSong,
   },
   {
-    id: 'darkwave',
-    visual: 'lifeforms',
-    name: 'Undertow',
-    blurb: 'Darkwave — 82bpm, no snare, mostly room',
-    build: darkwaveSong,
-  },
-  {
     id: 'acid',
     visual: 'web',
     name: 'Acieed',
     blurb: 'Acid house — 126bpm, straight, 303 doing its thing',
     build: acidSong,
+  },
+  {
+    id: 'darkwave',
+    visual: 'water',
+    name: 'Undertow',
+    blurb: 'Darkwave — 82bpm, no snare, mostly room',
+    build: darkwaveSong,
+  },
+  {
+    id: 'transmission',
+    visual: 'lifeforms',
+    name: 'Transmission',
+    blurb: 'ISDN-era FSOL — 104bpm, nothing lines up, no backbeat at all',
+    build: transmissionSong,
   },
   {
     id: 'ascend',
@@ -65,11 +78,11 @@ export const SONGS: SongPreset[] = [
     build: ascendSong,
   },
   {
-    id: 'transmission',
-    visual: 'lifeforms',
-    name: 'Transmission',
-    blurb: 'ISDN-era FSOL — 104bpm, nothing lines up, no backbeat at all',
-    build: transmissionSong,
+    id: 'runner',
+    visual: 'trench',
+    name: 'Runner',
+    blurb: 'Upbeat — 150bpm, toms not hats, and a major line that leaps',
+    build: runnerSong,
   },
 ]
 
@@ -82,4 +95,4 @@ export function defaultSong(): Song {
   return SONGS[0].build()
 }
 
-export { acidSong, ascendSong, chillwaveSong, darkwaveSong, transmissionSong }
+export { acidSong, ascendSong, chillwaveSong, darkwaveSong, runnerSong, transmissionSong }

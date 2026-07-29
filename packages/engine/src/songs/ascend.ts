@@ -18,11 +18,22 @@ import { clonePatterns, pattern } from './notation.js'
 //
 // Fast and dead straight. Any swing at all and it stops being this genre.
 
-// The pulse. Kick and a closed hat, and nothing else — where every Rez stage starts.
-const pulse = pattern('pulse', 'Pulse', {
-  '909.bd': 'X... x... X... x...',
-  '909.ch': '..x. ..x. ..x. ..x.',
-})
+// The pulse. Kick, an offbeat open hat, and the sub holding the root — where every Rez
+// stage starts.
+//
+// The open hat and the drone are here to keep this off Acieed's opening, which was the
+// same kick and the same closed hat on the "e" and therefore the same four bars at a
+// different tempo. An offbeat open hat is the most trance sound there is and the one thing
+// an acid intro never does, so four bars in you already know which record this is.
+const pulse = pattern(
+  'pulse',
+  'Pulse',
+  {
+    '909.bd': 'X... x... X... x...',
+    '909.oh': '..x. ..x. ..x. ..x.',
+  },
+  { '303.b': '0a . . . | . . . . | 0a . . . | . . . .' },
+)
 
 // The line arrives. Sixteenths on the 303, sliding through almost all of it.
 const vector = pattern(
