@@ -6,37 +6,53 @@ import { useBox } from '../store'
 // wanted playing chromatically since the day they were added.
 //
 // The layout is the one every tracker and DAW has used for thirty years: the home row is
-// the white keys and the row above it the black ones, laid out like a piano. It is worth
-// noticing what that gives you here for nothing. The 303's note 0 is an A, so the white
-// keys from the root spell **A major** — and the black row above them is where the minor
-// third, sixth and seventh live. Press `d` for a bright third, `e` for a dark one.
+// the white keys and the row above it the black ones. What matters is that the colours
+// follow the PITCH — the 303's note 0 is an A, so the white keys from the root spell A
+// natural minor, and the two gaps in the black row fall where B meets C and E meets F,
+// exactly as they do on a piano. For a major scale under the fingers, start on `d`, which
+// is a C.
 //
 // Monophonic, because a 303 is. That is not a limitation to work around, it is the
 // feature: hold one key, press another without letting go, and the two glide together on
 // one envelope. Which is the slide from the sequencer, arrived at from the other end.
 
 /**
- * Semitones above the root, laid out as a piano. `a` is the root.
+ * One octave of a real piano, from the 303's root.
  *
- * Each key also carries its scale degree, and that label is doing real work. The 303's
- * root is an A, so the raised keys come out named C, F and G — which on an actual piano
- * are *white*, and reading them on black keys is baffling. The degree says what is
- * actually going on: the home row is the major scale and the row above it is where the
- * flattened third, sixth and seventh live. `d` is a bright third, `e` a dark one.
+ * The colours follow the PITCH, not the scale. That sounds obvious and the first version
+ * got it wrong: it put white keys at 0,2,4,5,7,9,11 — the shape of a piano starting at C —
+ * while the 303's note 0 is an A. So C, F and G came out on black keys and C#, F# and G#
+ * on white ones, which is precisely backwards from every keyboard ever built, and no
+ * amount of helpful degree labelling makes that read as anything but wrong.
+ *
+ * From A the pattern is: one black, a gap where B meets C, two blacks, a gap where E meets
+ * F, then two more. Those two gaps are the thing that makes a keyboard legible at a glance
+ * — they are how you find middle C without counting — and they only appear if the black
+ * keys are placed by pitch.
+ *
+ * The consequence, worth saying out loud: the home row now spells A natural MINOR rather
+ * than A major, because that is what the white keys from an A are. The major third, sixth
+ * and seventh moved up to the black row where they belong. For a major scale under the
+ * fingers, start on `d` — which is a C, and C major is all white keys.
+ *
+ * The letters keep the shape of the computer keyboard: black keys sit on the number row's
+ * neighbours, above the gap between the two white keys they fall between.
  */
 const LAYOUT: { key: string; semitone: number; black: boolean; degree: string }[] = [
   { key: 'a', semitone: 0, black: false, degree: '1' },
-  { key: 'w', semitone: 1, black: true, degree: '♭2' },
+  { key: 'w', semitone: 1, black: true, degree: '\u266d2' },
   { key: 's', semitone: 2, black: false, degree: '2' },
-  { key: 'e', semitone: 3, black: true, degree: '♭3' },
-  { key: 'd', semitone: 4, black: false, degree: '3' },
+  // No black key between B and C. This gap is not a mistake.
+  { key: 'd', semitone: 3, black: false, degree: '\u266d3' },
+  { key: 'r', semitone: 4, black: true, degree: '3' },
   { key: 'f', semitone: 5, black: false, degree: '4' },
-  { key: 't', semitone: 6, black: true, degree: '♭5' },
+  { key: 't', semitone: 6, black: true, degree: '\u266d5' },
   { key: 'g', semitone: 7, black: false, degree: '5' },
-  { key: 'y', semitone: 8, black: true, degree: '♭6' },
-  { key: 'h', semitone: 9, black: false, degree: '6' },
-  { key: 'u', semitone: 10, black: true, degree: '♭7' },
-  { key: 'j', semitone: 11, black: false, degree: '7' },
+  // Nor between E and F.
+  { key: 'h', semitone: 8, black: false, degree: '\u266d6' },
+  { key: 'u', semitone: 9, black: true, degree: '6' },
+  { key: 'j', semitone: 10, black: false, degree: '\u266d7' },
+  { key: 'i', semitone: 11, black: true, degree: '7' },
   { key: 'k', semitone: 12, black: false, degree: '8' },
 ]
 
