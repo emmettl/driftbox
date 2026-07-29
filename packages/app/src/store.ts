@@ -13,6 +13,7 @@ import {
   chainSetPattern,
   chainSetRepeat,
   cycleStep,
+  songPresetById,
   addPattern,
   duplicatePattern,
   removePattern,
@@ -107,6 +108,7 @@ interface State {
 
   /** Replace the whole song — from a file, a shared link, or back to the defaults. */
   loadSong: (song: Song) => void
+  loadPreset: (id: string) => void
   adoptSharedSong: () => Promise<boolean>
   importSong: () => Promise<boolean>
   exportSong: () => void
@@ -403,6 +405,14 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   loadSong: (song) => set(adopt(song, get().engine)),
+
+  loadPreset: (id) => {
+    const preset = songPresetById(id)
+    if (!preset) return
+    // build(), not a stored object — each call is a fresh song, so loading one twice
+    // cannot hand back something edited in between.
+    set(adopt(preset.build(), get().engine))
+  },
 
   adoptSharedSong: async () => {
     const song = await takeSongFromUrl()

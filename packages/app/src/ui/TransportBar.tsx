@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SONGS } from '@driftbox/engine'
 import { useBox } from '../store'
 import { PatternBar } from './PatternBar'
 
@@ -32,6 +33,7 @@ export function TransportBar() {
   const copyShareLink = useBox((s) => s.copyShareLink)
   const resetSong = useBox((s) => s.resetSong)
   const setPatternLength = useBox((s) => s.setPatternLength)
+  const loadPreset = useBox((s) => s.loadPreset)
   const metronome = useBox((s) => s.metronome)
   const countIn = useBox((s) => s.countIn)
   const toggleMetronome = useBox((s) => s.toggleMetronome)
@@ -157,6 +159,33 @@ export function TransportBar() {
       <button className="ghost" onClick={clearPattern} title="Clear this pattern">
         clear
       </button>
+      {/* Loading a preset throws away whatever is on screen, and there is no undo
+          anywhere in this app — so it asks, and only when there is something to lose. */}
+      <label className="field">
+        <span>Song</span>
+        <select
+          className="song-pick"
+          value=""
+          onChange={(e) => {
+            const preset = SONGS.find((s) => s.id === e.target.value)
+            if (!preset) return
+            e.target.value = ''
+            if (confirm(`Load "${preset.name}"? This replaces the song you have open.`)) {
+              loadPreset(preset.id)
+              showFlash(`loaded ${preset.name}`)
+            }
+          }}
+          title="Load one of the shipped songs"
+        >
+          <option value="">load a song…</option>
+          {SONGS.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name} — {preset.blurb}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div className="song-tools">
         <button
           className="ghost"

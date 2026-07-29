@@ -108,6 +108,23 @@ here it is an assertion. It also means a patch can be serialised, and that the s
 can be rendered into a live context *or* an `OfflineAudioContext` — which is how the kit
 is actually verified, and how the channel strip draws each voice's real waveform.
 
+## Three songs, one pair of 303s
+
+It ships with three, and they share nothing — different tempos, different halves of the
+drum rack, different rooms:
+
+| | |
+|---|---|
+| **Sundown** | Chillwave. 102bpm, swung, lots of space. |
+| **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. |
+| **Acieed** | Acid house. 126bpm, dead straight, four to the floor. |
+
+The part worth noticing is that the two 303s are the same synth in all three and do not
+sound like the same instrument. Acid is resonance near the top with a **short** decay, so
+the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
+mostly closed with the envelope barely moving and a long decay — strings, not acid. That
+difference is four knobs.
+
 ## A song is a value
 
 A `Song` is plain JSON — patterns, a chain, kit settings and the effect sends. That was a

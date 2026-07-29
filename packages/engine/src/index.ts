@@ -22,7 +22,7 @@ export * from './kaoss.js'
 // patterns as much as the machines — an adaptive soundtrack that has to author its own
 // haze/drift/neon before it can play anything is not much of a soundtrack — and the
 // argument against copying a synthesis engine applies just as well to copying its songs.
-export * from './songs.js'
+export * from './songs/index.js'
 export { metronomeClick } from './metronome.js'
 export { Transport, type StepEvent } from './transport.js'
 export { renderVoice } from './render.js'
