@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Four songs — chillwave, darkwave, acid house, ISDN-era FSOL |
+| Ships with | Five songs — chillwave, darkwave, acid house, ISDN-era FSOL, trance |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, two 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Oscilloscope, three 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
 
@@ -121,6 +121,12 @@ session is.
 underneath it and its buttons stop working. This has now caught the scene switcher and the
 whole now-playing strip. The strip stays pointer-transparent and only its buttons opt back
 in, so drags still reach the filter everywhere else.
+**A scene is a whole geometry moved by the audio, not a filter over a picture.** Each of
+the three does one thing the others cannot: Sunset is a fixed horizon, Lifeforms drifts in
+place, Wireframe travels. Forward motion turned out to be the biggest difference of the
+three, and the cheapest — the corridor is one buffer built once and moved entirely in the
+vertex shader, so an endless tunnel is a single draw call and never allocates a rib.
+
 **A touch has to be mapped to what the camera can actually see.** The floor warp took the
 touch position straight to a fixed world width, which on a portrait phone put the
 deformation a long way off-camera for most of the screen — it read as "too subtle" when it
