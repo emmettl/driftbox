@@ -166,6 +166,50 @@ button {
   box-shadow: 0 0 18px rgba(255, 176, 46, 0.3);
 }
 
+.pattern-rename {
+  width: 84px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--nine);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+.pattern-tool {
+  width: 30px;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--dim);
+  line-height: 1;
+}
+
+.pattern-tool:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.pattern-tool:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pattern-drop:hover:not(:disabled) {
+  color: #ffd9e0;
+  border-color: rgba(255, 90, 120, 0.6);
+  background: rgba(255, 90, 120, 0.15);
+}
+
+/* A lit ghost button — used by the metronome and count-in toggles, which are states
+   rather than actions and should look like it. */
+.ghost.on {
+  color: var(--nine);
+  border-color: var(--nine);
+}
+
 .patterns button.on {
   color: var(--ink);
   border-color: rgba(255, 255, 255, 0.4);

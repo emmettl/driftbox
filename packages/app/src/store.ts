@@ -13,6 +13,10 @@ import {
   chainSetPattern,
   chainSetRepeat,
   cycleStep,
+  addPattern,
+  duplicatePattern,
+  removePattern,
+  renamePattern,
   setBassStep,
   type BassParams,
   type BassStep,
@@ -80,6 +84,17 @@ interface State {
   setChainPattern: (index: number, patternId: string) => void
   moveChain: (index: number, delta: number) => void
   setPatternLength: (length: number) => void
+
+  /** The pattern list. Without these the app can only ever arrange what it shipped with. */
+  newPattern: () => void
+  copyPattern: (id: string) => void
+  namePattern: (id: string, name: string) => void
+  dropPattern: (id: string) => void
+
+  metronome: boolean
+  countIn: boolean
+  toggleMetronome: () => void
+  toggleCountIn: () => void
   audition: (voiceId: string) => void
   auditionBass: (voiceId: string, step: BassStep) => void
   togglePerformance: () => void
@@ -127,6 +142,8 @@ export const useBox = create<State>()((set, get) => ({
   running: false,
   view: 'tr808',
   editing: initialSong.patterns[0]?.id ?? '',
+  metronome: false,
+  countIn: false,
   selectedVoice: '808.bd',
   selectedBass: BASS_VOICES[0].id,
   performance: false,
@@ -136,7 +153,12 @@ export const useBox = create<State>()((set, get) => ({
   // suspended context that nobody resumes is the classic "why is it silent".
   init: () => {
     if (get().engine) return
-    set({ engine: new DriftboxEngine(get().song) })
+    const engine = new DriftboxEngine(get().song)
+    // The engine is built on first interaction, so anything toggled before that — the
+    // metronome, a count-in — has to be carried across or it silently does nothing.
+    engine.metronome = get().metronome
+    engine.countInBars = get().countIn ? 1 : 0
+    set({ engine })
   },
 
   toggleTransport: () => {
@@ -303,6 +325,53 @@ export const useBox = create<State>()((set, get) => ({
     const next = replacePattern(song, { ...pattern, length: clamped, tracks, bass })
     if (engine) engine.song = next
     set({ song: next })
+  },
+
+  // A new or copied pattern becomes the one being edited. You made it in order to work
+  // on it; making you then go and click it would be a small insult.
+  newPattern: () => {
+    const { song, engine, editing } = get()
+    const length = song.patterns.find((p) => p.id === editing)?.length ?? 16
+    const { song: next, id } = addPattern(song, length)
+    if (engine) engine.song = next
+    set({ song: next, editing: id })
+  },
+
+  copyPattern: (id) => {
+    const { song, engine } = get()
+    const { song: next, id: copy } = duplicatePattern(song, id)
+    if (engine) engine.song = next
+    set({ song: next, editing: copy })
+  },
+
+  namePattern: (id, name) => {
+    const { song, engine } = get()
+    const next = renamePattern(song, id, name)
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
+  dropPattern: (id) => {
+    const { song, engine, editing } = get()
+    const next = removePattern(song, id)
+    if (next === song) return
+    if (engine) engine.song = next
+    // If the grid was showing the one that just went, show something that still exists.
+    set({ song: next, editing: editing === id ? next.patterns[0].id : editing })
+  },
+
+  toggleMetronome: () => {
+    const metronome = !get().metronome
+    const engine = get().engine
+    if (engine) engine.metronome = metronome
+    set({ metronome })
+  },
+
+  toggleCountIn: () => {
+    const countIn = !get().countIn
+    const engine = get().engine
+    if (engine) engine.countInBars = countIn ? 1 : 0
+    set({ countIn })
   },
 
   loadSong: (song) => set(adopt(song, get().engine)),

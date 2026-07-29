@@ -1,8 +1,9 @@
 import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassStep } from './bass.js'
 import { Bassline } from './bassline.js'
 import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects.js'
+import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
-import { swingDelay } from './timing.js'
+import { STEPS_PER_BEAT, swingDelay } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
 import { TR808_VOICES } from './voices/tr808.js'
 import { TR909_VOICES } from './voices/tr909.js'
@@ -20,6 +21,7 @@ export * from './song-io.js'
 // haze/drift/neon before it can play anything is not much of a soundtrack — and the
 // argument against copying a synthesis engine applies just as well to copying its songs.
 export * from './songs.js'
+export { metronomeClick } from './metronome.js'
 export { Transport, type StepEvent } from './transport.js'
 export { renderVoice } from './render.js'
 export { Bassline } from './bassline.js'
@@ -93,6 +95,16 @@ export class DriftboxEngine {
    */
   usingLadder: boolean | undefined
 
+  /** Click on every beat. Off by default — it is a practice tool, not part of the song,
+   *  which is also why it lives on the engine rather than in the Song. */
+  metronome = false
+  /** Bars of clicks before the pattern starts. 0 plays immediately. */
+  countInBars = 0
+
+  /** Bar the count-in runs until. Set on start; the pattern is silent before it. */
+  private countInUntil = 0
+  private readonly clickOut: GainNode
+
   song: Song
 
   constructor(song: Song, options: EngineOptions = {}) {
@@ -125,6 +137,15 @@ export class DriftboxEngine {
     // and master as everything else. Returning them after the compressor would let a
     // long reverb tail push the output over full scale with nothing holding it.
     this.sends = new Sends(this.ctx, this.bus)
+
+    // The click goes straight to the destination, past everything.
+    //
+    // Not through the bus: it would duck the whole mix through the compressor on every
+    // beat, arrive in the reverb, and draw itself on the oscilloscope. A metronome is
+    // not part of the music and must not be treated as though it were.
+    this.clickOut = this.ctx.createGain()
+    this.clickOut.gain.value = 1
+    this.clickOut.connect(this.ctx.destination)
 
     this.bus.connect(compressor)
     compressor.connect(this.master)
@@ -240,7 +261,13 @@ export class DriftboxEngine {
   async start(): Promise<void> {
     await this.resume()
     await this.ensureBass()
+    this.countInUntil = Math.max(0, Math.floor(this.countInBars))
     this.transport.start()
+  }
+
+  /** Whether the transport is currently counting in rather than playing the song. */
+  get countingIn(): boolean {
+    return this.transport.running && this.transport.position.bar < this.countInUntil
   }
 
   stop(): void {
@@ -293,6 +320,16 @@ export class DriftboxEngine {
   }
 
   private playStep(event: StepEvent): void {
+    // The click lands on the beat, straight, whatever the song is swinging. Swing is a
+    // property of the music; a metronome that shuffled with it would be measuring
+    // against itself and useless for playing along to.
+    if (event.index % STEPS_PER_BEAT === 0 && (this.metronome || event.bar < this.countInUntil)) {
+      renderVoice(this.ctx, metronomeClick(event.index === 0), this.clickOut, event.time)
+    }
+
+    // Counting in: click only. The pattern starts when the count-in is over.
+    if (event.bar < this.countInUntil) return
+
     const pattern = patternForBar(this.song, event.bar)
     if (!pattern) return
 
@@ -333,6 +370,7 @@ export class DriftboxEngine {
 
   dispose(): void {
     this.stop()
+    this.clickOut.disconnect()
     for (const bassline of this.basslines.values()) bassline.dispose()
     this.basslines.clear()
     for (const gain of this.sendGains.values()) gain.disconnect()

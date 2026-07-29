@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useBox } from '../store'
+import { PatternBar } from './PatternBar'
 
 /** Confirmation that lives for a moment and then goes away. Sharing and saving both
  *  succeed silently otherwise, and a button that appears to do nothing gets pressed
@@ -24,7 +25,6 @@ export function TransportBar() {
   const setBpm = useBox((s) => s.setBpm)
   const setSwing = useBox((s) => s.setSwing)
   const setView = useBox((s) => s.setView)
-  const setEditing = useBox((s) => s.setEditing)
   const clearPattern = useBox((s) => s.clearPattern)
   const togglePerformance = useBox((s) => s.togglePerformance)
   const exportSong = useBox((s) => s.exportSong)
@@ -32,6 +32,10 @@ export function TransportBar() {
   const copyShareLink = useBox((s) => s.copyShareLink)
   const resetSong = useBox((s) => s.resetSong)
   const setPatternLength = useBox((s) => s.setPatternLength)
+  const metronome = useBox((s) => s.metronome)
+  const countIn = useBox((s) => s.countIn)
+  const toggleMetronome = useBox((s) => s.toggleMetronome)
+  const toggleCountIn = useBox((s) => s.toggleCountIn)
   const [flash, showFlash] = useFlash()
 
   const pattern = song.patterns.find((p) => p.id === editing)
@@ -90,17 +94,7 @@ export function TransportBar() {
         </button>
       </div>
 
-      <div className="patterns">
-        {song.patterns.map((p) => (
-          <button
-            key={p.id}
-            className={p.id === editing ? 'on' : ''}
-            onClick={() => setEditing(p.id)}
-          >
-            {p.name}
-          </button>
-        ))}
-      </div>
+      <PatternBar />
 
       {/* Pattern length. The model always supported any length; this is the control that
           was missing, and polymetric loops — a 15-step hat line against a 16-step kick —
@@ -117,6 +111,21 @@ export function TransportBar() {
           title="Steps in this pattern"
         />
       </label>
+
+      <button
+        className={`ghost${metronome ? ' on' : ''}`}
+        onClick={toggleMetronome}
+        title="Click on every beat"
+      >
+        click
+      </button>
+      <button
+        className={`ghost${countIn ? ' on' : ''}`}
+        onClick={toggleCountIn}
+        title="Count one bar in before playing"
+      >
+        1·2·3·4
+      </button>
 
       <button className="ghost" onClick={clearPattern} title="Clear this pattern">
         clear

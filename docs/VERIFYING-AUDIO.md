@@ -254,6 +254,47 @@ the same test. Re-run this after touching `DELAY_DIVISIONS`, the feedback cap, o
 default sends — a shorter delay overlaps its repeats more and builds faster, so the three
 interact.
 
+## Recipe 7 — the metronome
+
+Two things, and neither is about how it sounds.
+
+**Is it clipping?** The click goes straight to the destination, past the bus compressor
+that catches everything else — so it is the one sound in the engine with nothing to save
+it. Render both and check:
+
+```js
+const eng = await import('/@id/@driftbox/engine')
+const peakOf = async (spec) => {
+  const ctx = new OfflineAudioContext(1, 44100, 44100)
+  eng.renderVoice(ctx, spec, ctx.destination, 0.01)
+  const d = (await ctx.startRendering()).getChannelData(0)
+  let p = 0; for (let i = 0; i < d.length; i++) p = Math.max(p, Math.abs(d[i]))
+  return p
+}
+console.log({ strong: await peakOf(eng.metronomeClick(true)), weak: await peakOf(eng.metronomeClick(false)) })
+```
+
+**What good looks like.** Strong around `0.70`, weak around `0.50`, neither near `1.0`.
+Check the *ratio* as well as the ceiling: the two clicks are at different frequencies, so
+equal gains do not give equal peaks, and a first pass at this rendered them at `0.68` and
+`0.67` — the downbeat stopped being audible as a downbeat.
+
+**Is it really out of the mix?** The claim is that the click bypasses the bus, so it is
+neither compressed with the music, nor sent to the reverb, nor drawn on the scope. The
+analyser sits after the master bus, so anything it sees went through it:
+
+```js
+const song = eng.defaultSong()
+song.patterns = song.patterns.map(p => ({ ...p, tracks: {}, bass: {} }))  // silent song
+const engine = new eng.DriftboxEngine(song)
+engine.metronome = true
+await engine.start()
+// sample engine.analyser over a couple of seconds
+```
+
+**What good looks like.** Exactly `0`. Anything above it means the click is going through
+the bus and ducking the mix on every beat.
+
 ## Things measurement has caught
 
 Kept as a record of what these are worth.
@@ -270,7 +311,11 @@ Kept as a record of what these are worth.
    at maximum: 1.109 peak, 33 clipped samples, still over full scale a second after the
    last hit. Only reachable at extreme settings, but a control that can break the output
    when it is turned all the way up is a control with the wrong range.
-5. **A comment that had stopped being true.** The default delay was documented as the
+5. **A metronome that clipped.** The click peaked at `1.01` — over full scale, and the
+   one sound with no compressor downstream to catch it. Correcting that naively then made
+   the strong and weak clicks near-identical in level, so the downbeat stopped reading;
+   both were set from rendered peaks rather than from gains.
+6. **A comment that had stopped being true.** The default delay was documented as the
    dotted eighth and was in fact a straight quarter — the knob value did not map where the
    prose said it did. Caught by printing what the UI actually renders, not by reading it.
 

@@ -13,14 +13,14 @@ with a performance mode. CI is green; there are 240 unit tests.
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
-| Sequencer | 1–64 steps, off / on / accent, four patterns, swing per voice |
+| Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
 | Visuals | Oscilloscope (waveform + vectorscope), chillwave scene, performance mode |
-| Not built | Per-voice outputs, metronome, published packages |
+| Not built | Per-voice outputs, published packages |
 
 ## What is deliberate
 
@@ -51,6 +51,21 @@ audio the moment you switch tabs.
 preference — it is what lets the engine be embedded elsewhere. It is now enforced by the
 package split rather than by discipline: `packages/engine` cannot reach into
 `packages/app`, because nothing declares that dependency and it would not resolve.
+
+**The metronome is not a voice and does not go through the bus.** It is a `VoiceSpec` so
+it can reuse the renderer, but it connects straight to the destination: through the bus it
+would duck the whole mix through the compressor on every beat, arrive in the reverb, and
+draw itself on the oscilloscope. It also ignores swing — swing is a property of the music,
+and a click that shuffled with it would be measuring against itself.
+
+The cost of bypassing the bus is that it is the one sound in the engine with no compressor
+downstream to catch it, so its level is measured rather than chosen. See recipe 7 in
+docs/VERIFYING-AUDIO.md.
+
+**A pattern's id is a stable key; its name is not.** The arrangement refers to patterns by
+id, so renaming must never touch it and removing a pattern must strip it from the chain —
+a stale chain entry does not error, it silently plays the wrong bar, because
+`patternForBar` falls back to the first pattern.
 
 **TypeScript 7.** The native compiler, taken for the speed: type-checking both packages
 went from 0.94s to 0.17s cold, and the engine's declaration emit from 0.36s to 0.13s.
@@ -184,9 +199,12 @@ Everything lands on one bus. Separate outputs per voice — or at least per mach
 what would let this feed a real mixer or a DAW, and it is the last structural thing
 between "a toy that sounds good" and "something you would actually track with".
 
-### 3. A metronome and a count-in
+### 3. Confirm how it sounds
 
-Still missing, and still the thing you notice the moment you try to play along.
+The oldest limitation and the one nothing here can close: everything has been verified by
+measurement, and no ear has passed judgement. The 909 hats, ride and crash are where to
+listen first — 6-bit samples on the real machine, so the inharmonic-oscillator approach is
+furthest from the original there — and then whether the 303s squelch like a real one.
 
 ## Known limitations
 
