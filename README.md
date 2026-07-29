@@ -150,3 +150,20 @@ Doing that caught three things nothing else would have:
 - **The output clipped.** The busiest shipped pattern peaked at 2.14 raw and still 1.08
   after the bus compressor. All four patterns now peak under full scale with zero clipped
   samples.
+
+## Licence
+
+[MIT](LICENSE). Use it, embed it, sell what you build with it — the engine is meant to be
+picked up, and that is the licence that gets least in the way of doing so.
+
+The ladder filter follows the nonlinear Moog model published by **Antti Huovilainen**
+("Non-linear digital implementation of the Moog ladder filter", DAFx-04). The
+implementation here is original; the model is his, and it is worth reading if you want to
+understand what the four stages are doing.
+
+**Not affiliated with, endorsed by, or connected to Roland Corporation.** TR-808, TR-909
+and TB-303 are Roland's trademarks, and ReBirth is Reason Studios'. They appear here only
+to describe which instrument each voice is modelled on — nothing in this project is a
+Roland product, and a software licence grants no trademark rights either way. Every sound
+is synthesised from scratch: there are no samples, and no recordings of any hardware were
+used to make it.
