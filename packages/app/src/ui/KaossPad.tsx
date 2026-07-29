@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { kaossReadout } from '@driftbox/engine'
 import { useBox } from '../store'
 import { endTouch, setTouch } from '../visual/touch'
+import { SCENES } from '../visual/scenes'
 
 
 // The visualiser, as a control surface.
@@ -18,6 +19,10 @@ interface Point {
   y: number
 }
 
+/** What the pad falls back to for a scene that has not said. Amber, which is what every
+ *  scene used before they could choose. */
+const ACCENT_FALLBACK = '255, 176, 46'
+
 export function KaossPad() {
   const init = useBox((s) => s.init)
   const [point, setPoint] = useState<Point | null>(null)
@@ -27,6 +32,12 @@ export function KaossPad() {
   // renders a second competing with the audio scheduler for the main thread.
   const trail = useRef<{ x: number; y: number; at: number }[]>([])
   const canvas = useRef<HTMLCanvasElement>(null)
+  // Held in a ref rather than read in the draw loop, because that loop runs on its own
+  // animation frame and never re-renders — a value pulled from the store inside it would
+  // be whatever it was when the effect was set up and would never change again.
+  const scene = useBox((s) => s.scene)
+  const accent = useRef(ACCENT_FALLBACK)
+  accent.current = SCENES.find((s) => s.id === scene)?.accent ?? ACCENT_FALLBACK
 
   const positionOf = useCallback((event: React.PointerEvent): Point => {
     const box = surface.current!.getBoundingClientRect()
@@ -100,8 +111,8 @@ export function KaossPad() {
           (1 - p.y) * height,
           radius,
         )
-        gradient.addColorStop(0, `rgba(255, 176, 46, ${alpha})`)
-        gradient.addColorStop(1, 'rgba(255, 176, 46, 0)')
+        gradient.addColorStop(0, `rgba(${accent.current}, ${alpha})`)
+        gradient.addColorStop(1, `rgba(${accent.current}, 0)`)
         context.fillStyle = gradient
         context.beginPath()
         context.arc(p.x * width, (1 - p.y) * height, radius, 0, Math.PI * 2)

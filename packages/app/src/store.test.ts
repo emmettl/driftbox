@@ -194,3 +194,14 @@ describe('which pattern is sounding', () => {
     expect(soundingPatternAt(song, 7)).toBe(song.patterns[0].id)
   })
 })
+
+describe('every scene', () => {
+  it('declares an accent the pad can use', () => {
+    // The filter pad draws over whatever scene is running, on its own animation frame. A
+    // scene without an accent silently falls back to amber, which is the one colour that
+    // is wrong on the bright one.
+    for (const scene of SCENES) {
+      expect(scene.accent, `${scene.id} has no accent`).toMatch(/^\d+, \d+, \d+$/)
+    }
+  })
+})

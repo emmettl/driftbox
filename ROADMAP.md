@@ -15,13 +15,13 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Nine songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, trance, breakbeat, upbeat |
+| Ships with | Ten songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, nine 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Oscilloscope, ten 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
@@ -211,6 +211,11 @@ as it is deep, and a phone's horizontal field of view is about 0.6 of its vertic
 landscape it becomes a strip through the middle with dead space above and below. Rotating
 the board a quarter turn in portrait fills the same screen at two thirds the distance. Same
 lesson as Lifeforms' bodies, from the opposite direction.
+
+**Restraint stops being a style once it is the only one you have.** Nine scenes of glowing
+vectors in a dark room is a house style; the tenth being a bright blue sky is what proves
+the first nine were a choice. It is also the only honest reading of an ambient house record
+that is fundamentally *cheerful* — doing the Orb in cold cyan would have been a misread.
 
 **A scene aimed at one record should read that record's shape, not just its level.**
 Every scene but one maps loudness to motion, which is right for music that is continuous

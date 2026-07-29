@@ -127,7 +127,7 @@ the machine's three of them are for. Select one in the grid and it appears as a 
 
 ## Three songs, one pair of 303s
 
-It ships with nine, and they share nothing — different tempos, different halves of the
+It ships with ten, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -141,16 +141,17 @@ scene used twice:
 | **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
 | **Defcon** | Downtempo. 68bpm, the slowest thing here, built on the tritone — the one interval that refuses to resolve. | *Defcon* |
+| **Cumulus** | Ambient house, after the Orb. 116bpm, the heaviest swing here by a distance, and the only cheerful thing in the set. | *Clouds* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
 | **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
 | **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
 
 The order is a listening sequence rather than the order they were written: gentle, hard,
-dark, machine, abstract, dread, building, breaking, fast. Acieed and Ascend used to sit next to each other and open
-with literally the same four bars at different tempos, so the set sounded like one track
-restarting.
+dark, machine, abstract, dread, bright, building, breaking, fast. Acieed and Ascend used
+to sit next to each other and open with literally the same four bars at different tempos,
+so the set sounded like one track restarting.
 
-The part worth noticing is that the two 303s are the same synth in all nine and do not
+The part worth noticing is that the two 303s are the same synth in all ten and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -195,14 +196,14 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are nine — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are ten — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
-*Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*; and
-*Defcon*.
+*Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*;
+*Defcon*; and *Clouds*.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
@@ -235,6 +236,18 @@ on the axes and turn ninety degrees only, and **they turn on the beat** — so t
 with right angles drawn by the kick drum, and the picture is a record of what the music did
 rather than a reaction to how loud it was. A big hit derezzes the arena and they start
 again.
+
+*Clouds* is the bright one, and it is the only one. Nine scenes of glowing lines in a dark
+room had stopped being a style and started being a rut, so this is a blue sky in the middle
+of the afternoon with nothing on it but weather. The puffs squash and stretch on the kick —
+cartoon volume, so anything that flattens also widens — and a rainbow turns up when it gets
+loud enough to deserve one. Nothing is a texture: the clouds are point sprites shaded in
+the fragment shader, the sky is a gradient, the rainbow is seven arcs.
+
+**Each scene picks the filter pad's colour.** The pad draws over whatever is running, and it
+was amber for every scene — chosen against a dark blue horizon, wrong on a spectrum-cycling
+Tempest web, and actively bad on a bright sky. A scene knows what it looks like; the pad
+does not.
 
 *Defcon* is the only scene where the music makes something **happen** rather than something
 move. A kick launches a missile from one side of the board, it takes several seconds to
