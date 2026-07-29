@@ -124,6 +124,22 @@ describe('the set of them', () => {
     expect(defaultSong()).toEqual(SONGS[0].build())
   })
 
+  it('does not open two songs with the same four bars', () => {
+    // Acieed and Ascend shipped with byte-identical opening patterns — the same kick, the
+    // same closed hat, differing only in tempo — and sat next to each other in the set, so
+    // skipping from one to the other sounded like the same track starting again. Ordering
+    // them apart hides that; this is what stops it being written twice in the first place.
+    const openings = new Map<string, string>()
+    for (const preset of SONGS) {
+      const song = preset.build()
+      const first = patternForBar(song, 0)!
+      const shape = JSON.stringify([first.tracks, first.bass ?? {}])
+      const clash = openings.get(shape)
+      expect(clash, `${preset.id} opens exactly like ${clash}`).toBeUndefined()
+      openings.set(shape, preset.id)
+    }
+  })
+
   it('starts every song on a bar that actually plays something', () => {
     // An intro that is four bars of silence reads as the app being broken.
     for (const preset of SONGS) {

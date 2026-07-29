@@ -130,14 +130,22 @@ the machine's three of them are for. Select one in the grid and it appears as a 
 It ships with six, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
-| | |
-|---|---|
-| **Sundown** | Chillwave. 102bpm, swung, lots of space. |
-| **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. |
-| **Acieed** | Acid house. 126bpm, dead straight, four to the floor. |
-| **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. |
-| **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. |
-| **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. |
+In playing order, each with the scene it was written for — one song, one visual, no
+scene used twice:
+
+| | | |
+|---|---|---|
+| **Sundown** | Chillwave. 102bpm, swung, lots of space. | *Sunset* |
+| **Acieed** | Acid house. 126bpm, dead straight, four to the floor. | *Web* |
+| **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
+| **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
+| **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
+| **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
+
+The order is a listening sequence rather than the order they were written: gentle, hard,
+dark, abstract, building, fast. Acieed and Ascend used to sit next to each other and open
+with literally the same four bars at different tempos, so the set sounded like one track
+restarting.
 
 The part worth noticing is that the two 303s are the same synth in all six and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
@@ -178,13 +186,20 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are five — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are six — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
-lights one lane and a hat lights another and the shape of the mix is the picture; and
-*Trench*, after the vector Star Wars cabinet.
+lights one lane and a hat lights another and the shape of the mix is the picture;
+*Trench*, after the vector Star Wars cabinet; and *Stillwater*.
+
+*Stillwater* is the one that reads **events** rather than a level. Everything else moves
+continuously with how loud the mix is, which suits music that is continuous and does
+nothing for a record that is a few sounds in a large room. Here a hit drops a ring on black
+water and the ring travels out and dies; between hits nothing moves but the drift. It is
+also the only scene made of points rather than lines — 25,600 of them, scattered off the
+lattice, because a regular grid seen at that angle collapses into radial spokes.
 
 *Trench* is the only scene that is a **sequence** rather than a steady state. It opens
 holding station off a wireframe battle station — hull, equatorial trench, dish — and dives

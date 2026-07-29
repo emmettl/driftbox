@@ -121,7 +121,22 @@ const BODIES = [
   { pos: [1.2, 3.1, -23], size: 2.0, seed: 26.8, inner: '#1a0b3a', rim: '#c46bff' },
 ] as const
 
-function Body({ body }: { body: (typeof BODIES)[number] }) {
+/**
+ * How far apart the bodies sit, given the shape of the screen.
+ *
+ * The cluster is hand-placed about twice as wide as it is tall, which frames well in
+ * landscape and badly on a phone: pulling the camera back far enough to fit ten units of
+ * width across a 0.46-aspect screen leaves the bodies in a band through the middle with
+ * dead space above and below. Squeezing the layout horizontally and stretching it
+ * vertically turns the same seven bodies into a portrait composition, which is cheaper and
+ * looks better than trying to solve it with camera distance alone.
+ */
+function spreadFor(aspect: number): { x: number; y: number } {
+  if (aspect >= 0.85) return { x: 1, y: 1 }
+  return { x: 0.6, y: 2.5 }
+}
+
+function Body({ body, spread }: { body: (typeof BODIES)[number]; spread: { x: number; y: number } }) {
   const material = useRef<THREE.ShaderMaterial>(null)
   const mesh = useRef<THREE.Mesh>(null)
   const engine = useBox((s) => s.engine)
@@ -166,14 +181,15 @@ function Body({ body }: { body: (typeof BODIES)[number] }) {
       // would make seven bodies look like one object.
       mesh.current.rotation.y += dt * (0.05 + body.seed * 0.004)
       mesh.current.rotation.x += dt * 0.021
-      mesh.current.position.y = body.pos[1] + Math.sin(u.uTime.value * 0.31 + body.seed) * 0.35
+      mesh.current.position.x = body.pos[0] * spread.x
+      mesh.current.position.y = body.pos[1] * spread.y + Math.sin(u.uTime.value * 0.31 + body.seed) * 0.35
       mesh.current.scale.setScalar(body.size * (1 + bass * 0.1))
     }
     if (material.current) material.current.uniformsNeedUpdate = true
   })
 
   return (
-    <mesh ref={mesh} position={[body.pos[0], body.pos[1], body.pos[2]]}>
+    <mesh ref={mesh} position={[body.pos[0] * spread.x, body.pos[1] * spread.y, body.pos[2]]}>
       {/* Detail 5 is about 5k vertices — enough that the noise reads as a surface rather
           than as facets, and cheap enough to run seven of on a phone. */}
       <icosahedronGeometry args={[1, 5]} />
@@ -196,6 +212,7 @@ function Body({ body }: { body: (typeof BODIES)[number] }) {
 export function Lifeforms() {
   const engine = useBox((s) => s.engine)
   const { camera, size } = useThree()
+  const spread = spreadFor(size.width / size.height)
   const drift = useRef(0)
 
   useFrame((_, dt) => {
@@ -211,8 +228,10 @@ export function Lifeforms() {
     // portrait phone at the desktop distance frames them into the bottom third with an
     // empty sky above — the same composition that works in landscape falls apart turned
     // ninety degrees.
+    // Closer than it used to be on a phone: with the cluster squeezed narrower there is
+    // no longer ten units of width to fit, so the old 9.5 just pushed everything small.
     const portrait = size.width / size.height < 0.85
-    camera.position.z = (portrait ? 9.5 : 5.5) - bass * 0.6
+    camera.position.z = (portrait ? 7.2 : 5.5) - bass * 0.6
     camera.lookAt(0, 0.4, -12)
   })
 
@@ -221,7 +240,7 @@ export function Lifeforms() {
       <color attach="background" args={['#04030c']} />
       <fog attach="fog" args={['#080418', 8, 34]} />
       {BODIES.map((body, i) => (
-        <Body key={i} body={body} />
+        <Body key={i} body={body} spread={spread} />
       ))}
     </>
   )

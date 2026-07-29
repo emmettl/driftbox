@@ -21,8 +21,8 @@ with a performance mode. CI is green; there are 240 unit tests.
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Oscilloscope, five 3D scenes that warp under a finger, and a full-screen XY filter pad |
-| Son et lumière | Every song names the visual it was written for, and loading it switches |
+| Visuals | Oscilloscope, six 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Not built | Per-voice outputs, published packages |
 
@@ -155,6 +155,18 @@ own animation frame rather than from a scene's `useFrame`. The first version did
 latter, which is right for a scene with one object and wrong for one with seven —
 Lifeforms called it eight times a frame and the warp decayed eight times too fast. Whose
 job it is to advance shared state should never depend on how many things happen to read it.
+
+**A scene aimed at one record should read that record's shape, not just its level.**
+Every scene but one maps loudness to motion, which is right for music that is continuous
+and wrong for Undertow — 82bpm, no snare, mostly the space around the hits. Stillwater
+does onset detection instead and drops a ring per hit, so the quiet is part of the picture.
+Reading levels is the default; it is not the only thing the analyser is good for.
+
+**A composition constant that frames well in landscape frames badly in portrait, and
+camera distance will not save it.** Lifeforms' bodies are hand-placed twice as wide as they
+are tall; pulling the camera back far enough to fit that on a phone left a band through the
+middle with dead space above and below. The fix is to squeeze the layout horizontally and
+stretch it vertically — reshape the subject, not the lens.
 
 **Write uniforms through the material, never through the object you handed it.** Building
 a uniforms object with `useMemo`, passing it to `<shaderMaterial uniforms={...} />` and

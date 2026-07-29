@@ -36,6 +36,11 @@ export interface SongPreset {
   build: () => Song
 }
 
+// Ordered as a listening sequence, not as they were written. Acieed and Ascend used to sit
+// next to each other and open with the same four bars — literally the same pattern, a 909
+// kick on the floor and a closed hat on the "e", differing only in tempo — so the set
+// sounded like one track restarting. They are now three apart, and the arc runs gentle,
+// hard, dark, abstract, building, fast.
 export const SONGS: SongPreset[] = [
   {
     id: 'chillwave',
@@ -45,18 +50,25 @@ export const SONGS: SongPreset[] = [
     build: chillwaveSong,
   },
   {
-    id: 'darkwave',
-    visual: 'lifeforms',
-    name: 'Undertow',
-    blurb: 'Darkwave — 82bpm, no snare, mostly room',
-    build: darkwaveSong,
-  },
-  {
     id: 'acid',
     visual: 'web',
     name: 'Acieed',
     blurb: 'Acid house — 126bpm, straight, 303 doing its thing',
     build: acidSong,
+  },
+  {
+    id: 'darkwave',
+    visual: 'water',
+    name: 'Undertow',
+    blurb: 'Darkwave — 82bpm, no snare, mostly room',
+    build: darkwaveSong,
+  },
+  {
+    id: 'transmission',
+    visual: 'lifeforms',
+    name: 'Transmission',
+    blurb: 'ISDN-era FSOL — 104bpm, nothing lines up, no backbeat at all',
+    build: transmissionSong,
   },
   {
     id: 'ascend',
@@ -71,13 +83,6 @@ export const SONGS: SongPreset[] = [
     name: 'Runner',
     blurb: 'Upbeat — 150bpm, toms not hats, and a major line that leaps',
     build: runnerSong,
-  },
-  {
-    id: 'transmission',
-    visual: 'lifeforms',
-    name: 'Transmission',
-    blurb: 'ISDN-era FSOL — 104bpm, nothing lines up, no backbeat at all',
-    build: transmissionSong,
   },
 ]
 
