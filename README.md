@@ -35,6 +35,9 @@ Space plays and stops · `V` drops into performance mode · `X` switches the sco
 a waveform and a vectorscope · click a step to cycle it off → on → accented · on the 303
 page, click a step to place a note and drag it up or down to tune it.
 
+Patterns can be added, renamed (double click one), duplicated and deleted. **click** turns
+on a metronome and **1·2·3·4** counts a bar in before playing.
+
 The **Song** strip along the top is the arrangement — each card is a pattern and a number
 of bars, and it can be rearranged while the thing is playing.
 

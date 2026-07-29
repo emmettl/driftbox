@@ -95,7 +95,103 @@ export interface Song {
 }
 
 export function emptyPattern(id: string, name: string, length = 16): Pattern {
-  return { id, name, length, tracks: {} }
+  return { id, name, length, tracks: {}, bass: {} }
+}
+
+// ---- the pattern list ----------------------------------------------------------
+//
+// Adding, copying and removing whole patterns. Pure Song transforms, so they live here
+// rather than in the app's store: a host driving the engine has as much reason to build
+// a pattern list as a sequencer UI does.
+
+/** An id nothing else is using, derived from `base`. Ids are stable keys — the chain
+ *  refers to them — so they are generated once and never renamed afterwards. */
+export function uniquePatternId(song: Song, base = 'pattern'): string {
+  const taken = new Set(song.patterns.map((p) => p.id))
+  if (!taken.has(base)) return base
+  for (let n = 2; ; n++) {
+    const id = `${base}-${n}`
+    if (!taken.has(id)) return id
+  }
+}
+
+/** A name nothing else is using. Unlike ids, names are for humans and can repeat — but
+ *  defaulting to a duplicate makes the pattern buttons unreadable. */
+function uniquePatternName(song: Song, base: string): string {
+  const taken = new Set(song.patterns.map((p) => p.name))
+  if (!taken.has(base)) return base
+  for (let n = 2; ; n++) {
+    const name = `${base} ${n}`
+    if (!taken.has(name)) return name
+  }
+}
+
+export function addPattern(song: Song, length = 16): { song: Song; id: string } {
+  const id = uniquePatternId(song, `pattern-${song.patterns.length + 1}`)
+  const name = uniquePatternName(song, `Pattern ${song.patterns.length + 1}`)
+  return {
+    song: { ...song, patterns: [...song.patterns, emptyPattern(id, name, length)] },
+    id,
+  }
+}
+
+/**
+ * Copy a pattern, everything in it, and put the copy after the original.
+ *
+ * The usual way anybody writes a second pattern: take the one that works and change two
+ * things. Starting from empty every time is why people end up with one pattern.
+ */
+export function duplicatePattern(song: Song, id: string): { song: Song; id: string } {
+  const index = song.patterns.findIndex((p) => p.id === id)
+  if (index === -1) return { song, id }
+
+  const source = song.patterns[index]
+  const copyId = uniquePatternId(song, `${source.id}-copy`)
+  const copy: Pattern = {
+    ...source,
+    id: copyId,
+    name: uniquePatternName(song, `${source.name} copy`),
+    // Deep enough to be independent. A shallow copy would share the step arrays, so
+    // editing the copy would silently edit the original — the worst kind of bug,
+    // because it looks like it worked until you play the other one.
+    tracks: Object.fromEntries(Object.entries(source.tracks).map(([v, t]) => [v, [...t]])),
+    bass: Object.fromEntries(
+      Object.entries(source.bass ?? {}).map(([v, line]) => [v, line.map((s) => ({ ...s }))]),
+    ),
+  }
+
+  const patterns = [...song.patterns]
+  patterns.splice(index + 1, 0, copy)
+  return { song: { ...song, patterns }, id: copyId }
+}
+
+export function renamePattern(song: Song, id: string, name: string): Song {
+  const trimmed = name.trim()
+  if (trimmed === '') return song
+  return {
+    ...song,
+    patterns: song.patterns.map((p) => (p.id === id ? { ...p, name: trimmed } : p)),
+  }
+}
+
+/**
+ * Remove a pattern, and every reference to it in the arrangement.
+ *
+ * Leaving the chain entries behind would not error — `patternForBar` falls back to the
+ * first pattern for an unknown id — it would just quietly play the wrong bar, which is
+ * worse than an obvious failure.
+ *
+ * Refuses to remove the last one: a song with no patterns has nothing to show in the
+ * grid and no sensible state for the editor to be in.
+ */
+export function removePattern(song: Song, id: string): Song {
+  if (song.patterns.length <= 1) return song
+  if (!song.patterns.some((p) => p.id === id)) return song
+  return {
+    ...song,
+    patterns: song.patterns.filter((p) => p.id !== id),
+    chain: song.chain.filter((step) => step.pattern !== id),
+  }
 }
 
 export function stepAt(pattern: Pattern, voiceId: string, step: number): StepValue {
