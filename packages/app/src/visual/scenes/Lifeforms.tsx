@@ -73,7 +73,7 @@ const BODY_VERTEX = /* glsl */ `
     // Dragged toward the finger, and squashed along the way — a body leaning, not a
     // whole object sliding.
     vec3 toPull = uPull - pos;
-    pos += toPull * uWarp * 0.16 * (0.5 + slow * 0.5);
+    pos += toPull * uWarp * 0.42 * (0.5 + slow * 0.5);
 
     vBulge = bulge;
     vNormal = normalize(normalMatrix * n);
@@ -148,8 +148,8 @@ function Body({ body }: { body: (typeof BODIES)[number] }) {
     // The finger, put into the scene at this body's depth so the pull is toward a point
     // in space rather than toward the camera plane.
     u.uPull.value.set(
-      (touch.x - 0.5) * 14,
-      (touch.y - 0.5) * 9,
+      (touch.x - 0.5) * 9,
+      (touch.y - 0.5) * 7,
       // Relative to the body, since the shader works in object space.
       -body.pos[2] * 0.15,
     )

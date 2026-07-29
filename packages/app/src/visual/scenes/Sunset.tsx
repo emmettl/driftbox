@@ -22,6 +22,7 @@ const GRID_VERTEX = /* glsl */ `
   uniform float uBass;
   uniform vec2 uTouch;
   uniform float uWarp;
+  uniform float uSpread;
   varying vec2 vUv;
   varying float vDist;
   varying float vPull;
@@ -36,13 +37,25 @@ const GRID_VERTEX = /* glsl */ `
 
     // The finger. A gaussian well centred on it, so the floor lifts toward the touch and
     // falls away smoothly rather than denting at a point.
-    vec2 target = vec2((uTouch.x - 0.5) * 90.0, mix(6.0, 74.0, 1.0 - uTouch.y));
+    //
+    // uSpread is the width of floor the camera can actually see, and it has to come from
+    // outside: this was a fixed 90 units, which on a portrait phone put the well a long
+    // way off-camera for most of the screen. The warp was not too subtle, it was
+    // happening where nobody could see it.
+    //
+    // The depth range is tight for the same reason. Mapped across the whole plane, the
+    // top half of a portrait screen aimed the well at the horizon, where a lift of any
+    // size is a few pixels.
+    vec2 target = vec2((uTouch.x - 0.5) * uSpread, mix(9.0, 40.0, 1.0 - uTouch.y));
     float d = length(pos.xy - target);
-    float pull = exp(-d * d / 420.0);
-    pos.z += pull * uWarp * 16.0;
+    // Tight enough to stay a bulge. Widening the falloff along with the lift folded the
+    // entire plane and took the horizon with it — the effect has to be big AND local, or
+    // there is nothing left for it to be big against.
+    float pull = exp(-d * d / 480.0);
+    pos.z += pull * uWarp * 30.0;
     // And a ripple running out from it, so it reads as something disturbing the surface
     // rather than a lump under a carpet.
-    pos.z += sin(d * 0.32 - uTime * 5.0) * pull * uWarp * 3.0;
+    pos.z += sin(d * 0.30 - uTime * 5.5) * pull * uWarp * 6.5;
 
     vPull = pull * uWarp;
     vDist = length(pos.xy);
@@ -74,8 +87,8 @@ const GRID_FRAGMENT = /* glsl */ `
 
     if (glow < 0.004) discard;
     // Lit where the finger is, so the warp is visible even on a still floor.
-    vec3 lit = mix(colour * (0.7 + uHigh), vec3(1.0, 0.72, 0.3), clamp(vPull * 1.3, 0.0, 0.85));
-    gl_FragColor = vec4(lit, glow * (1.0 + vPull * 1.6));
+    vec3 lit = mix(colour * (0.7 + uHigh), vec3(1.0, 0.78, 0.36), clamp(vPull * 2.2, 0.0, 0.95));
+    gl_FragColor = vec4(lit, glow * (1.0 + vPull * 4.0));
   }
 `
 
@@ -109,7 +122,7 @@ export function Sunset() {
   const gridRef = useRef<THREE.ShaderMaterial>(null)
   const sunRef = useRef<THREE.ShaderMaterial>(null)
   const sunMesh = useRef<THREE.Mesh>(null)
-  const { camera } = useThree()
+  const { camera, size } = useThree()
 
   const gridUniforms = useMemo(
     () => ({
@@ -120,6 +133,7 @@ export function Sunset() {
       uFar: { value: new THREE.Color('#4be0ff') },
       uTouch: { value: new THREE.Vector2(0.5, 0.5) },
       uWarp: { value: 0 },
+      uSpread: { value: 40 },
     }),
     [],
   )
@@ -144,6 +158,10 @@ export function Sunset() {
       u.uHigh.value = ease(u.uHigh.value, high, dt)
       u.uTouch.value.set(touch.x, touch.y)
       u.uWarp.value = warp
+      // How wide a slice of floor the camera sees, from its own field of view. A phone in
+      // portrait sees a narrow one; a desktop window a wide one, and a fixed number is
+      // wrong for both.
+      u.uSpread.value = 30 * (size.width / size.height)
     }
     if (sunRef.current) {
       sunRef.current.uniforms.uBass.value = ease(sunRef.current.uniforms.uBass.value, bass, dt)
@@ -154,8 +172,8 @@ export function Sunset() {
 
     // The camera leans toward the finger, which is most of why the warp reads as depth
     // rather than as a texture effect.
-    camera.position.y = 1.15 + bass * 0.22 + warp * 0.5
-    camera.position.x += ((touch.x - 0.5) * 3.2 * warp - camera.position.x) * Math.min(1, dt * 3)
+    camera.position.y = 1.15 + bass * 0.22 + warp * 1.1
+    camera.position.x += ((touch.x - 0.5) * 5.5 * warp - camera.position.x) * Math.min(1, dt * 3)
     camera.lookAt(0, 1.6, -30)
   })
 
