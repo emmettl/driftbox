@@ -1,0 +1,48 @@
+{
+  "name": "@driftbox/app",
+  "version": "0.1.0",
+  "description": "Driftbox — a drum machine and step sequencer in the browser. Run it with npx @driftbox/app.",
+  "keywords": ["drum-machine", "step-sequencer", "web-audio", "tr-808", "tr-909", "tb-303"],
+  "license": "MIT",
+  "author": "Louis Emmett",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmettl/driftbox.git",
+    "directory": "packages/app"
+  },
+  "homepage": "https://emmettl.github.io/driftbox/",
+  "type": "module",
+  "bin": {
+    "driftbox": "./bin/driftbox.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node bin/driftbox.js"
+  },
+  "//": "No runtime dependencies, deliberately. What ships is a prebuilt dist/ with everything already bundled into it, and a bin that serves it using nothing but Node built-ins — so `npx @driftbox/app` downloads one small package and runs, instead of resolving React, three and the rest first. That includes @driftbox/engine: it is compiled into the bundle at build time, so listing it as a dependency would make every user install a copy nothing loads.",
+  "devDependencies": {
+    "@driftbox/engine": "0.1.0",
+    "@react-three/fiber": "^9.6.1",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.185.1",
+    "@vitejs/plugin-react": "^6.0.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "three": "^0.185.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10",
+    "zustand": "^5.0.14"
+  }
+}

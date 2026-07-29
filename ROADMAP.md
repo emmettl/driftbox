@@ -1,7 +1,7 @@
 # Driftbox — state and roadmap
 
 Where this is, what is deliberate, and what to do next. Read this before changing
-anything in `src/engine/`.
+anything in `packages/engine/`.
 
 ## Where it is
 
@@ -48,8 +48,32 @@ about a second, far longer than the 120 ms lookahead, so a foreground-only timer
 audio the moment you switch tabs.
 
 **The engine imports no React and touches no DOM.** This is a hard boundary, not a
-preference — it is what lets the engine be embedded elsewhere. Nothing under
-`src/engine/` may import from `src/ui/`, `src/visual/` or `src/store.ts`.
+preference — it is what lets the engine be embedded elsewhere. It is now enforced by the
+package split rather than by discipline: `packages/engine` cannot reach into
+`packages/app`, because nothing declares that dependency and it would not resolve.
+
+**The engine has no runtime dependencies, and neither does the published app.** The engine
+imports no package at all. The app ships a prebuilt bundle plus a server written against
+Node built-ins, so `npx @driftbox/app` fetches one tarball and runs — no install tree
+between somebody and a drum sound. Adding a runtime dependency to either is a decision,
+not a detail.
+
+**Relative imports inside the engine carry an explicit `.js` extension.** TypeScript emits
+specifiers verbatim, so without them the published output is `from './bass'`, which raw
+Node ESM cannot resolve. This was not theoretical — importing the packed tarball from a
+fresh project failed with `ERR_MODULE_NOT_FOUND` until they were added.
+
+**The app resolves the engine from source, not from `dist/`.** Aliased in
+`vite.config.ts`, `vitest.config.ts` and `tsconfig.app.json`. Otherwise the workspace
+symlink resolves through the package's `exports` to a build, and every engine edit would
+need a rebuild before the app saw it — with a stale `dist/` quietly serving old audio code
+in the meantime. The published package still ships its own `dist/` for outside consumers.
+
+**The app builds with a relative base.** One `dist/` serves the Pages project site at
+`/driftbox/`, `npx @driftbox/app` at the root, and any other static host. The cost is that
+an unknown path cannot be served the app inline — relative asset paths would resolve
+against the wrong directory — so the `npx` server redirects to `/` instead. Driftbox has
+no routes, and a shared song lives in the fragment, which survives a redirect.
 
 **The ladder filter is written once and shipped to the audio thread as a string.**
 `worklet.ts` builds the processor's source from `Ladder.toString()` and loads it as a
@@ -120,59 +144,31 @@ Roughly in the order I would do them.
 
 ### 1. Score Driftlings with it
 
-The reason the engine boundary exists, and still unproven. `src/engine/` is a standalone
-module with no UI dependencies; [Driftlings](https://github.com/emmettl/driftlings) is
-the intended host.
+The reason the engine boundary exists, and the last part of it still unproven. The
+packaging is done — `packages/engine/` is `@driftbox/engine`, published-shaped and
+verified as a tarball — so what is left is the actual scoring.
 
-The interesting part is not playback, it is **adaptation**: Driftlings already knows how
-a level is going (driftlings out, saved, lost, time elapsed), so the pattern chain can
-follow it — `haze` while the crowd is walking, `drift` once skills are being spent,
-`neon` when it is going well, and something sparse when it is going badly. That is a
-better demonstration of a reusable engine than a loop playing underneath.
+The interesting part is not playback, it is **adaptation**: Driftlings already knows how a
+level is going (driftlings out, saved, lost, time elapsed), so the arrangement can follow
+it — `haze` while the crowd is walking, `drift` once skills are being spent, `neon` when
+it is going well, and something sparse when it is going badly. The chain is plain data and
+sections take effect at the next bar, so this is `engine.song = {...}` and nothing more.
+That is a better demonstration of a reusable engine than a loop playing underneath.
 
-**Decided: two published packages.** `@driftbox/engine` is the synthesis engine, and
-`@driftbox/app` is this sequencer, runnable with `npx @driftbox/app`. Copying the files
-was never the answer — two copies of a synthesis engine diverge, and the whole point is
-that they cannot — and a git dependency gives Driftlings no version to pin to. GitHub
-Pages stays as the third way in, so the app ships from three places at once.
+**Before publishing to npm for real**, the things worth re-checking:
 
-**One build can serve all of them.** Pages is a project site at `/<repo>/` and an `npx`
-copy is served from the root, which normally means two builds. It does not have to:
-built with `base: './'`, a single `dist/` was verified running identically at
-`http://host/driftbox/` and at `http://host/` — plays, loads the ladder, shares links,
-no console errors at either. Making that switch would retire the `BASE_PATH` plumbing in
-the deploy workflow. It is a live deployment, so it is a deliberate change rather than a
-tidy-up.
-
-**The blob-URL worklet is what makes that possible.** Because the ladder's source is
-built in memory rather than emitted as an asset, it has no URL to resolve and is immune
-to the base path entirely. Had it been a second build entry point — the obvious approach,
-and the one rejected in "What is deliberate" above — every distribution channel would
-have needed its own asset resolution, and the `npx` copy would have been the one that
-quietly fell back to a biquad.
-
-The engine is already in a state to be extracted. Checked, and worth re-checking before
-publishing, because all three are easy to break by accident:
-
-- **No runtime dependencies at all.** Nothing under `src/engine/` imports a package.
-- **No React, no DOM, no storage.** The only host APIs it touches are Web Audio plus
-  `Blob`, `URL` and `Worker`, all of which exist in a worker as well as a page.
-- **Nothing reaches back up.** No import from `src/ui/`, `src/visual/`, `src/store.ts`
-  or `src/songs.ts`.
-
-What the split still needs:
-
-1. A `package.json` per package, an `exports` map, and `.d.ts` output — the engine is
-   consumed as TypeScript today and would need declarations built.
-2. **A check that `Ladder.toString()` survives a consumer's bundler.** It holds under
-   this build (verified against the minified output: the class comes out self-contained,
-   with no helper references). A consumer minifying differently is the one real risk in
-   publishing this, and `ladder.test.ts` only guards our own build.
-3. A `bin` for `@driftbox/app` that serves the built static files — the app is a Vite
-   SPA with no server, so this is a static handler and an open, not a port of anything.
-4. Deciding whether `songs.ts` ships with the engine. Driftlings wants the patterns, not
-   just the machines, so probably yes — but it is app content living outside the app,
-   and that is worth being deliberate about rather than discovering later.
+- **`Ladder.toString()` under a consumer's bundler.** It holds under this build — verified
+  against both the minified app bundle and the engine's own `dist/`, where the class comes
+  out self-contained and still self-oscillates when evaluated in isolation. A consumer
+  minifying differently is the one genuine risk in publishing this, and `ladder.test.ts`
+  can only guard our own build. If it ever breaks, the symptom is silence on the first
+  bass note, not a build error.
+- **The version numbers.** Both packages are at `0.1.0` and have never been published.
+  `@driftbox/app` does not depend on `@driftbox/engine` at runtime — it bundles it — so
+  they can drift, but the app's devDependency pins an exact version and will need bumping
+  in step.
+- **Whether the `@driftbox` scope is available**, and whether it should be public
+  (`npm publish --access public`).
 
 ### 2. Per-voice outputs
 
@@ -208,6 +204,11 @@ Still missing, and still the thing you notice the moment you try to play along.
 - **A pattern's length is shared by its drums and its basslines.** Polymetry works across
   the chain — a 12-step pattern next to a 16-step one — but not *within* a bar, so a
   15-step hat line under a 16-step kick still needs the two as separate patterns.
+- **The 909 open hat occasionally peaks just over full scale on its own** — `1.023` in one
+  of five measured renders. Intermittent, because noise sources start at a random offset,
+  so it depends on the render. Not audible as clipping through the bus, but it breaks the
+  rule that no voice exceeds `1.0`, and the fix is a smaller `trim` on that voice measured
+  across several runs rather than one.
 - **The chillwave backdrop is nearly invisible behind the console.** Deliberate (the step
   grid has to stay readable) but the sun in particular never shows. If it should read
   more strongly, move the scene's sun down rather than raising the opacity.
