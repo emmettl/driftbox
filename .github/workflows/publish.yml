@@ -33,8 +33,23 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          # Writes the .npmrc that makes npm read NODE_AUTH_TOKEN.
+          # Still needed with trusted publishing: it writes the .npmrc that points npm at
+          # the public registry. The auth line in it goes unused, because there is no
+          # token any more — npm exchanges the workflow's OIDC identity instead.
           registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later, and which npm a Node release bundles
+      # is not something to find out from a failed release. Checked rather than upgraded
+      # blindly, so the log says what the runner actually had.
+      - name: Check npm is new enough for OIDC
+        run: |
+          set -euo pipefail
+          echo "node $(node --version), npm $(npm --version)"
+          if [ "$(printf '11.5.1\n%s\n' "$(npm --version)" | sort -V | head -1)" != "11.5.1" ]; then
+            echo "::notice::npm $(npm --version) predates trusted publishing — upgrading"
+            npm install -g npm@^11.5.1
+            echo "now npm $(npm --version)"
+          fi
 
       - run: npm ci
 
@@ -63,9 +78,13 @@ jobs:
             exit 1
           fi
 
+      # No NODE_AUTH_TOKEN. Both packages are published by a TRUSTED PUBLISHER — npm
+      # trades the `id-token: write` identity below for a short-lived credential, so there
+      # is no long-lived secret in this repo to leak, rotate or forget. Leaving a stale
+      # token in the environment would be worse than useless: npm prefers an explicit
+      # token over OIDC, so a revoked one turns a working release into a 401.
       - name: Publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           set -euo pipefail
@@ -90,7 +109,8 @@ jobs:
               echo "- \`$name@$version\` — dry run, not published" >> "$GITHUB_STEP_SUMMARY"
             else
               # --provenance attaches a signed attestation linking this tarball to this
-              # commit and this workflow run, which is why the repo needs id-token: write.
+              # commit and this workflow run. The same id-token: write that signs it is
+              # what authenticates the publish now, so the permission carries both jobs.
               # access is public via publishConfig in each package.json.
               npm publish --workspace "$name" --provenance
               echo "- \`$name@$version\` — published" >> "$GITHUB_STEP_SUMMARY"
