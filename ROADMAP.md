@@ -52,6 +52,14 @@ preference — it is what lets the engine be embedded elsewhere. It is now enfor
 package split rather than by discipline: `packages/engine` cannot reach into
 `packages/app`, because nothing declares that dependency and it would not resolve.
 
+**TypeScript 7.** The native compiler, taken for the speed: type-checking both packages
+went from 0.94s to 0.17s cold, and the engine's declaration emit from 0.36s to 0.13s.
+Worth recording that the emit is **byte-identical** to 6.0.3 — both compilers were run
+over `packages/engine` and every `.js` and `.d.ts` compared — because the engine's `dist/`
+is published output and a compiler swap that quietly changed it would be a bad way to find
+out. Declaration emit, declaration maps, project references and the explicit `.js`
+specifiers all behave the same.
+
 **The engine has no runtime dependencies, and neither does the published app.** The engine
 imports no package at all. The app ships a prebuilt bundle plus a server written against
 Node built-ins, so `npx @driftbox/app` fetches one tarball and runs — no install tree
