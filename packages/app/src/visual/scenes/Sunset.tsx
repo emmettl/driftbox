@@ -1,7 +1,9 @@
 import { useMemo, useRef } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../store'
+import { useBox } from '../../store'
+import { ease, readLevels } from '../levels'
+import { touch } from '../touch'
 
 // The chillwave scene: a sun with slatted bands, a wireframe floor running to the
 // horizon, haze. Everything that moves is driven by the audio rather than by a clock,
@@ -10,12 +12,19 @@ import { useBox } from '../store'
 // Bass drives the sun and the ground swell, highs drive the grid's brightness. Because
 // the analyser sits on the master bus, this responds to the actual output — including
 // the bus compressor — which is why the sun breathes on the kick.
+//
+// A finger on the screen pulls the floor toward it. Not a post-effect over the top: the
+// vertex shader bends the actual geometry, so the grid lines stretch around the touch
+// and the horizon moves with it.
 
 const GRID_VERTEX = /* glsl */ `
   uniform float uTime;
   uniform float uBass;
+  uniform vec2 uTouch;
+  uniform float uWarp;
   varying vec2 vUv;
   varying float vDist;
+  varying float vPull;
 
   void main() {
     vUv = uv;
@@ -24,6 +33,18 @@ const GRID_VERTEX = /* glsl */ `
     // than a flat plane, so the grid has something to describe.
     float ridge = sin(pos.x * 0.18 + uTime * 0.25) * cos(pos.y * 0.13 - uTime * 0.16);
     pos.z += ridge * (1.1 + uBass * 3.4) * smoothstep(4.0, 40.0, abs(pos.y));
+
+    // The finger. A gaussian well centred on it, so the floor lifts toward the touch and
+    // falls away smoothly rather than denting at a point.
+    vec2 target = vec2((uTouch.x - 0.5) * 90.0, mix(6.0, 74.0, 1.0 - uTouch.y));
+    float d = length(pos.xy - target);
+    float pull = exp(-d * d / 420.0);
+    pos.z += pull * uWarp * 16.0;
+    // And a ripple running out from it, so it reads as something disturbing the surface
+    // rather than a lump under a carpet.
+    pos.z += sin(d * 0.32 - uTime * 5.0) * pull * uWarp * 3.0;
+
+    vPull = pull * uWarp;
     vDist = length(pos.xy);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
@@ -37,6 +58,7 @@ const GRID_FRAGMENT = /* glsl */ `
   uniform vec3 uFar;
   varying vec2 vUv;
   varying float vDist;
+  varying float vPull;
 
   void main() {
     // Scroll toward the viewer. The lines are drawn from the fract of the scaled uv,
@@ -51,7 +73,9 @@ const GRID_FRAGMENT = /* glsl */ `
     float glow = line * fade * (0.55 + uHigh * 0.85);
 
     if (glow < 0.004) discard;
-    gl_FragColor = vec4(colour * (0.7 + uHigh), glow);
+    // Lit where the finger is, so the warp is visible even on a still floor.
+    vec3 lit = mix(colour * (0.7 + uHigh), vec3(1.0, 0.72, 0.3), clamp(vPull * 1.3, 0.0, 0.85));
+    gl_FragColor = vec4(lit, glow * (1.0 + vPull * 1.6));
   }
 `
 
@@ -80,14 +104,12 @@ const SUN_FRAGMENT = /* glsl */ `
   }
 `
 
-function Scene() {
+export function Sunset() {
   const engine = useBox((s) => s.engine)
   const gridRef = useRef<THREE.ShaderMaterial>(null)
   const sunRef = useRef<THREE.ShaderMaterial>(null)
   const sunMesh = useRef<THREE.Mesh>(null)
   const { camera } = useThree()
-
-  const spectrum = useMemo(() => new Uint8Array(1024), [])
 
   const gridUniforms = useMemo(
     () => ({
@@ -96,6 +118,8 @@ function Scene() {
       uHigh: { value: 0 },
       uNear: { value: new THREE.Color('#ff5fc8') },
       uFar: { value: new THREE.Color('#4be0ff') },
+      uTouch: { value: new THREE.Vector2(0.5, 0.5) },
+      uWarp: { value: 0 },
     }),
     [],
   )
@@ -110,45 +134,28 @@ function Scene() {
   )
 
   useFrame((_, dt) => {
-    let bass = 0
-    let high = 0
-
-    const analyser = engine?.analyser
-    if (analyser) {
-      const bins = Math.min(spectrum.length, analyser.frequencyBinCount)
-      analyser.getByteFrequencyData(spectrum.subarray(0, bins) as Uint8Array<ArrayBuffer>)
-      // Roughly: the first few bins are the kick's fundamental, the top third is hats
-      // and the noise in snares and claps.
-      const lowEnd = Math.max(1, Math.floor(bins * 0.035))
-      for (let i = 0; i < lowEnd; i++) bass += spectrum[i]
-      bass /= lowEnd * 255
-
-      const highStart = Math.floor(bins * 0.55)
-      for (let i = highStart; i < bins; i++) high += spectrum[i]
-      high /= (bins - highStart) * 255
-    }
-
-    // Asymmetric smoothing: snap up on a transient, ease down afterwards. Symmetric
-    // smoothing makes every hit look like a slow swell and loses the punch entirely.
-    const ease = (current: number, target: number) =>
-      target > current ? target : current + (target - current) * Math.min(1, dt * 3.2)
+    const { bass, high } = readLevels(engine)
+    const warp = touch.energy
 
     if (gridRef.current) {
       const u = gridRef.current.uniforms
       u.uTime.value += dt
-      u.uBass.value = ease(u.uBass.value, bass)
-      u.uHigh.value = ease(u.uHigh.value, high)
+      u.uBass.value = ease(u.uBass.value, bass, dt)
+      u.uHigh.value = ease(u.uHigh.value, high, dt)
+      u.uTouch.value.set(touch.x, touch.y)
+      u.uWarp.value = warp
     }
     if (sunRef.current) {
-      const u = sunRef.current.uniforms
-      u.uBass.value = ease(u.uBass.value, bass)
+      sunRef.current.uniforms.uBass.value = ease(sunRef.current.uniforms.uBass.value, bass, dt)
     }
     if (sunMesh.current) {
-      const scale = 1 + bass * 0.06
-      sunMesh.current.scale.setScalar(scale)
+      sunMesh.current.scale.setScalar(1 + bass * 0.06 + warp * 0.04)
     }
 
-    camera.position.y = 1.15 + bass * 0.22
+    // The camera leans toward the finger, which is most of why the warp reads as depth
+    // rather than as a texture effect.
+    camera.position.y = 1.15 + bass * 0.22 + warp * 0.5
+    camera.position.x += ((touch.x - 0.5) * 3.2 * warp - camera.position.x) * Math.min(1, dt * 3)
     camera.lookAt(0, 1.6, -30)
   })
 
@@ -182,18 +189,5 @@ function Scene() {
         />
       </mesh>
     </>
-  )
-}
-
-export function Chillwave({ className }: { className?: string }) {
-  return (
-    <Canvas
-      className={className}
-      camera={{ fov: 60, position: [0, 1.15, 6], near: 0.1, far: 200 }}
-      dpr={[1, 1.75]}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
-    >
-      <Scene />
-    </Canvas>
   )
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { kaossReadout } from '@driftbox/engine'
 import { useBox } from '../store'
+import { endTouch, setTouch } from '../visual/touch'
 
 
 // The visualiser, as a control surface.
@@ -49,6 +50,10 @@ export function KaossPad() {
       setPoint(next)
       trail.current.push({ ...next, at: performance.now() })
       useBox.getState().engine?.kaoss.set(next.x, next.y)
+      // The scene warps toward the finger as well as the filter moving. Same gesture,
+      // two consequences — which is what makes the picture feel connected to the sound
+      // rather than playing alongside it.
+      setTouch(next.x, next.y)
     },
     [positionOf],
   )
@@ -56,6 +61,7 @@ export function KaossPad() {
   const release = useCallback(() => {
     setPoint(null)
     useBox.getState().engine?.kaoss.release()
+    endTouch()
   }, [])
 
   // Let go on the way out.

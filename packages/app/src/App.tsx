@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBox } from './store'
 import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
@@ -10,7 +10,9 @@ import { FxPanel } from './ui/FxPanel'
 import { Sequencer } from './ui/Sequencer'
 import { TransportBar } from './ui/TransportBar'
 import { VoicePanel } from './ui/VoicePanel'
-import { Chillwave } from './visual/Chillwave'
+import { PlayBeacon } from './ui/PlayBeacon'
+import { Visualiser } from './visual/Visualiser'
+import { SCENES, nextScene, type SceneId } from './visual/scenes'
 import { Oscilloscope, type ScopeMode } from './visual/Oscilloscope'
 import './styles.css'
 
@@ -26,6 +28,8 @@ export default function App() {
   const view = useBox((s) => s.view)
   const adoptSharedSong = useBox((s) => s.adoptSharedSong)
   const [scope, setScope] = useState<ScopeMode>('wave')
+  const [scene, setScene] = useState<SceneId>(SCENES[0].id)
+  const playButton = useRef<HTMLButtonElement>(null)
 
   // The console flies out of the edit button, and folds back into it.
   //
@@ -65,6 +69,9 @@ export default function App() {
       if (event.key.toLowerCase() === 'v') togglePerformance()
       if (event.key === 'Escape' && performing) togglePerformance()
       if (event.key.toLowerCase() === 'x') setScope((m) => (m === 'wave' ? 'xy' : 'wave'))
+      if (event.key.toLowerCase() === 'c') {
+        setScene(nextScene)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -72,7 +79,7 @@ export default function App() {
 
   return (
     <div className={`app${performing ? ' performing' : ''}`}>
-      <Chillwave className="backdrop" />
+      <Visualiser className="backdrop" scene={scene} />
 
       {performing && (
         <div className="stage">
@@ -89,19 +96,33 @@ export default function App() {
           {/* Vibes mode had no transport at all — it relied on the space bar, which does
               not exist on a phone. Since touch devices now open here, that made the app
               start silent with no way to start it. */}
+          {/* Only while stopped: a permanent effect is decoration, one that exists only
+              while there is something to say is an instruction. */}
+          <PlayBeacon active={!running} target={playButton} />
           <button
-            className={`stage-play${running ? ' on' : ''}`}
+            ref={playButton}
+            className={`stage-play${running ? ' on' : ' calling'}`}
             onClick={toggleTransport}
             aria-label={running ? 'Stop' : 'Play'}
           >
             {running ? '■' : '▶'}
           </button>
 
-          {/* The way back to the console, and the thing the console appears to come out
-              of. It pulses while stopped, because on a phone this is the only clue that
-              there is anything here besides a picture. */}
           <button
-            className={`stage-edit${running ? '' : ' calling'}`}
+            className="stage-scene"
+            onClick={() =>
+              setScene(nextScene)
+            }
+            title="Change the scene (C)"
+          >
+            {SCENES.find((s) => s.id === scene)?.name}
+          </button>
+
+          {/* The way back to the console, and the thing the console appears to come out
+              of. No longer the loudest thing on screen while stopped — the play button
+              has taken that job, since starting it is what you want first. */}
+          <button
+            className="stage-edit"
             onClick={togglePerformance}
             aria-label="Edit the song"
           >
