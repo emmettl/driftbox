@@ -130,8 +130,12 @@ export function TransportBar() {
       <button className="ghost" onClick={clearPattern} title="Clear this pattern">
         clear
       </button>
-      <button className="ghost" onClick={togglePerformance} title="Performance mode (V)">
-        visuals
+      {/* Not a ghost button. This is the way into the best thing the app does — the
+          full-screen visuals with the filter pad on them — and it spent its life looking
+          like "clear" and "load". */}
+      <button className="vibes" onClick={togglePerformance} title="Full-screen visuals and filter pad (V)">
+        <span className="vibes-dot" />
+        vibes
       </button>
 
       <div className="song-tools">

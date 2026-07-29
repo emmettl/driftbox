@@ -1,6 +1,7 @@
 import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassStep } from './bass.js'
 import { Bassline } from './bassline.js'
 import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects.js'
+import { Kaoss } from './kaoss.js'
 import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT, swingDelay } from './timing.js'
@@ -16,6 +17,7 @@ export * from './timing.js'
 export * from './bass.js'
 export * from './effects.js'
 export * from './song-io.js'
+export * from './kaoss.js'
 // The shipped patterns ship WITH the engine, not with the app. Driftlings wants the
 // patterns as much as the machines — an adaptive soundtrack that has to author its own
 // haze/drift/neon before it can play anything is not much of a soundtrack — and the
@@ -105,6 +107,15 @@ export class DriftboxEngine {
   private countInUntil = 0
   private readonly clickOut: GainNode
 
+  /**
+   * The performance filter, across the whole mix.
+   *
+   * Public because it is played rather than configured — the UI drives it from a pointer
+   * at frame rate, and routing that through the song and a store update per move would
+   * put a React render between a finger and a filter.
+   */
+  readonly kaoss: Kaoss
+
   song: Song
 
   constructor(song: Song, options: EngineOptions = {}) {
@@ -141,14 +152,21 @@ export class DriftboxEngine {
     // The click goes straight to the destination, past everything.
     //
     // Not through the bus: it would duck the whole mix through the compressor on every
-    // beat, arrive in the reverb, and draw itself on the oscilloscope. A metronome is
-    // not part of the music and must not be treated as though it were.
+    // beat, arrive in the reverb, and draw itself on the oscilloscope. It also lands
+    // downstream of the performance filter, which is the behaviour you want for free —
+    // sweeping the pad shut must not take the click with it, or a count-in disappears
+    // exactly when somebody is leaning on the filter.
     this.clickOut = this.ctx.createGain()
     this.clickOut.gain.value = 1
     this.clickOut.connect(this.ctx.destination)
 
+    // After the compressor, so the compressor is not reacting to signal the filter is
+    // about to throw away, and a resonant peak cannot be pumped by it.
+    this.kaoss = new Kaoss(this.ctx)
+
     this.bus.connect(compressor)
-    compressor.connect(this.master)
+    compressor.connect(this.kaoss.input)
+    this.kaoss.output.connect(this.master)
     this.master.connect(this.analyser)
     this.analyser.connect(this.ctx.destination)
 
@@ -371,6 +389,7 @@ export class DriftboxEngine {
   dispose(): void {
     this.stop()
     this.clickOut.disconnect()
+    this.kaoss.dispose()
     for (const bassline of this.basslines.values()) bassline.dispose()
     this.basslines.clear()
     for (const gain of this.sendGains.values()) gain.disconnect()

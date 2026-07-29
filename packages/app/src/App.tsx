@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useBox } from './store'
 import { Arrangement } from './ui/Arrangement'
 import { BassGrid } from './ui/BassGrid'
+import { KaossPad } from './ui/KaossPad'
 import { BassPanel } from './ui/BassPanel'
 import { FxPanel } from './ui/FxPanel'
 import { Sequencer } from './ui/Sequencer'
@@ -53,10 +54,23 @@ export default function App() {
 
       {performing ? (
         <div className="stage">
-          <Oscilloscope mode={scope} height={260} persistence={0.42} transparent />
-          <p className="stage-hint">
-            {running ? '' : 'space to start · '}x switches the scope · escape returns
-          </p>
+          {/* The pad is the whole screen and sits UNDER the scope and the hint, so a
+              finger anywhere lands on it. Both of those are pointer-transparent. */}
+          <KaossPad />
+          <div className="stage-scope">
+            <Oscilloscope mode={scope} height={260} persistence={0.42} transparent />
+            <p className="stage-hint">
+              drag anywhere to filter · {running ? '' : 'space to start · '}x switches the
+              scope · escape returns
+            </p>
+          </div>
+          <button
+            className="stage-exit"
+            onClick={togglePerformance}
+            aria-label="Leave the visuals"
+          >
+            ✕
+          </button>
         </div>
       ) : (
         <div className="console">
