@@ -522,34 +522,52 @@ symptom is silence on the first bass note, not a build error.
 
 ## Releasing
 
-Publishing runs from `.github/workflows/publish.yml`, on a published GitHub Release or a
-manual dispatch that defaults to a dry run. Bump a package, tag `vX.Y.Z` matching one of
-them — the workflow refuses a tag that matches neither — and cut the release.
+**There is no npm token.** Both packages are published by a **trusted publisher** — npm
+trades the workflow's `id-token: write` identity for a short-lived credential, so nothing
+long-lived is stored in this repo, and there is no secret to leak, rotate or forget. The
+Automation token that got 0.1.0 out has been revoked and `NPM_TOKEN` deleted.
+
+Two consequences worth knowing before touching `publish.yml`:
+
+- **Do not add `NODE_AUTH_TOKEN` back.** npm prefers an explicit token over OIDC, so a
+  stale or empty one turns a working release into a 401 rather than falling back.
+- **The trusted publisher is configured per package**, on npmjs.com, against this
+  repository and the workflow *filename* — `publish.yml`. Renaming or moving that file
+  breaks publishing, and the failure will look like an auth problem rather than a rename.
+  Its allowed action is `npm publish`; `npm stage publish` — which parks a candidate for
+  human 2FA approval — is deliberately not enabled, because the trigger is already a
+  deliberate act and a second approval would only mean approving the same decision twice.
+
+To release: bump a package, tag `vX.Y.Z` matching one of them — the workflow refuses a tag
+that matches neither — and publish a GitHub Release. It also runs on manual dispatch,
+defaulting to a dry run.
 
 `@driftbox/app` does not depend on `@driftbox/engine` at runtime; it bundles it. So the
 two versions can drift, but the app's devDependency pins an exact version and needs
 bumping in step.
 
-Three things cost a failed run getting 0.1.0 out, all of which are now fixed or worth
-knowing:
+### What getting 0.1.0 out cost
+
+Kept because none of it is guessable, and all of it will read as a build problem when it
+happens again.
 
 - **A scoped package is RESTRICTED by default**, and restricted publishing needs a paid
   plan. Both packages carry `publishConfig.access: public` for this reason. No dry run
   catches its absence — `--dry-run` never makes the access check, and the notice it prints
   says "default access", which reads as fine and is not.
-- **The token has to bypass 2FA.** A classic *Publish* token does not, and fails with
-  `EOTP` after building the tarball and signing the provenance — so the run gets a long
-  way in before dying. A classic *Automation* token works.
+- **A token that does not bypass 2FA fails with `EOTP`** *after* building the tarball and
+  signing the provenance, so the run gets a long way in before dying. This is history now
+  — there is no token — but it is what the `Publish` step looks like when auth is wrong,
+  and OIDC misconfiguration fails just as late.
 - **Provenance needs a CI runner.** Publishing by hand from a laptop cannot produce an
-  attestation, which is why bootstrapping the first version manually would have been a
-  worse trade than fixing the token.
+  attestation. That is why bootstrapping 0.1.0 manually would have been a worse trade than
+  fixing the credential, and why trusted publishing could not be used for it either: a
+  trusted publisher is configured on a package's settings page and there is no way to
+  pre-register a name.
 
-**Move to trusted publishing.** npm's OIDC flow needs no stored secret at all, and the
-workflow already has the `id-token: write` and `--provenance` half of it. It could not be
-used for 0.1.0 because a trusted publisher is configured on a package's settings page and
-there is no way to pre-register a name — but both packages exist now, so the block is
-gone. npm has said 2FA-bypass tokens stop publishing directly around January 2027; this is
-worth doing well before that, not at it.
+**The OIDC path is not yet proven.** 0.1.0 went out on a token; the dry run since cannot
+test the credential, because both versions already exist and the workflow skips them — and
+`--dry-run` never authenticates in any case. The next real publish is the first test of it.
 
 ### 2. ~~Per-voice outputs~~ — done, as stems
 
