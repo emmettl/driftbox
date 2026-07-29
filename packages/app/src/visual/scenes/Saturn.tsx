@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { useBox } from '../../store'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
+import { fitDistance } from '../fit'
 import { uniformsOf } from '../uniforms'
 
 // Rings of Saturn.
@@ -265,7 +266,7 @@ export function Saturn() {
   const planetMat = useRef<THREE.ShaderMaterial>(null)
   const ringMat = useRef<THREE.ShaderMaterial>(null)
   const system = useRef<THREE.Group>(null)
-  const { camera, size, viewport } = useThree()
+  const { camera, viewport } = useThree()
 
   const planetUniforms = useMemo(
     () => ({
@@ -342,11 +343,12 @@ export function Saturn() {
       system.current.rotation.set(0.42 - (touch.y - 0.5) * 0.7 * touch.energy, spin.current, 0.16)
     }
 
-    // Further back in portrait: the rings are twice as wide as the planet is tall, so a
-    // phone framed for the planet cuts both ring ansae off the sides.
-    const portrait = size.width / size.height < 0.85
+    // Framed against whichever edge is binding rather than against a guess per orientation.
+    // Seen at this tilt the system is as wide as the outer ring and roughly two thirds as
+    // tall, so those are the extents to fit — using the radius for both would frame a
+    // square of mostly empty sky.
     const orbitAngle = (touch.x - 0.5) * 1.6 * touch.energy
-    const distance = (portrait ? 62 : 42) - bass * 1.5
+    const distance = fitDistance(camera as THREE.PerspectiveCamera, RING_OUTER, 15) - bass * 1.5
     camera.position.set(Math.sin(orbitAngle) * distance, 9 + bass * 0.8, Math.cos(orbitAngle) * distance)
     camera.lookAt(0, 0, 0)
     if (planetMat.current) planetMat.current.uniformsNeedUpdate = true

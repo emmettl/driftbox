@@ -206,6 +206,23 @@ under a fixed camera, which is a cross-fade wearing a move — geometry appearin
 stationary observer never reads as travel. Flying the camera down into the same, entirely
 static, trench is the same number of lines and an actual dive.
 
+**Solve for the frame; do not guess twice.** Scenes picked their camera distance with
+`portrait ? a : b`, which is two hand-tuned numbers standing in for one piece of
+arithmetic. A perspective camera's field of view is VERTICAL, so the width it can see is
+that times the aspect: narrow the window and width binds, widen it and height does. A
+distance chosen on a 16:9 laptop therefore left a third of a 1920×950 window empty above
+the subject, because at that aspect there had never been a width problem to back away from.
+`fit.ts` solves both constraints and takes the larger, and keeps working at aspects nobody
+tried. The extents it is given have to be the subject's extent ON SCREEN, not in space — a
+ring system seen almost edge on is as wide as its radius and a fraction as tall.
+
+**Looking down at a floor, aim NEARER than the middle.** The near half of a ground plane is
+far larger on screen than the far half, so centring on the origin puts the visual mass in
+the bottom third with empty sky above it. Aiming closer pitches the camera down and lifts
+the board up the frame; aiming further away does the exact opposite, because a more distant
+target sits nearer the horizon. Getting that backwards is a one-character mistake that moves
+things the wrong way, and only a measurement tells you which way you went.
+
 **Turn the subject when the frame is the wrong shape.** Defcon's board is half again as wide
 as it is deep, and a phone's horizontal field of view is about 0.6 of its vertical; framed
 landscape it becomes a strip through the middle with dead space above and below. Rotating
