@@ -27,6 +27,29 @@
   box-sizing: border-box;
 }
 
+/* No accidental text selection.
+ *
+ * Every gesture in this page is a drag — a knob, a cable, the Kaoss pad to come — and a drag across a label
+ * highlights it, which then fights the next drag and leaves blue smears over the faceplates. `touch-action: none`
+ * on the surfaces already stopped the scroll-versus-drag argument; this is the same problem one layer up.
+ *
+ * Selection is handed back where it is the point: a share link exists to be copied, and a field exists to be
+ * typed in. Blanket `user-select: none` without those exceptions would make the URL uncopyable, which is the one
+ * piece of text on the page anybody actually needs. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.rk-shared,
+.rk-note,
+.rk-warn,
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 body {
   margin: 0;
   background: radial-gradient(120% 80% at 50% -10%, #16102c 0%, var(--bg) 60%);

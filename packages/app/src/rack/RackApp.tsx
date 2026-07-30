@@ -40,6 +40,7 @@ export default function RackApp() {
   const setTempo = useRack((s) => s.setTempo)
   const playing = useRack((s) => s.running)
   const setRunning = useRack((s) => s.setRunning)
+  const ensureSampler = useRack((s) => s.ensureSampler)
 
   const rack = useRef<Rack | null>(null)
   /**
@@ -58,6 +59,14 @@ export default function RackApp() {
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const [loadedBreak, setLoadedBreak] = useState<string | null>(null)
+  /**
+   * What the AudioContext says about itself.
+   *
+   * Worth knowing rather than assuming, because a browser suspends a context on its own — a background tab, an
+   * interruption on iOS — and then the transport is running as far as this app is concerned while nothing is
+   * coming out. Event-driven off `statechange` rather than polled.
+   */
+  const [audioState, setAudioState] = useState<AudioContextState | 'none'>('none')
   const midi = useRef<MidiHandle | null>(null)
   const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
 
@@ -97,19 +106,35 @@ export default function RackApp() {
    * this side, so loading one break into two samplers would give the second one nothing. That is the cost of not
    * copying on the audio thread's doorstep, and it is worth it; it just has to be known about.
    */
-  const loadBreak = useCallback(async (id: string) => {
-    const live = rack.current
-    const entry = BREAKS.find((candidate) => candidate.id === id)
-    if (!live || !entry) return
+  const loadBreak = useCallback(
+    async (id: string) => {
+      const live = rack.current
+      const entry = BREAKS.find((candidate) => candidate.id === id)
+      if (!live || !entry) return
 
-    const rendered = await renderBreak(entry, { sampleRate: live.output?.context.sampleRate })
-    const samplers = useRack.getState().patch.modules.filter((m) => m.type === 'sampler')
-    for (const module of samplers) live.setData(module.id, 'sample', rendered.slice())
-    setLoadedBreak(samplers.length > 0 ? entry.name : null)
-    // A break is rendered at its own tempo and only slices cleanly at that tempo, so adopting it means adopting
-    // the tempo too. Saying nothing and letting the chop drift would be the worse silence.
-    if ((useRack.getState().patch.tempo ?? 120) !== entry.tempo) setTempo(entry.tempo)
-  }, [setTempo])
+      // **If there is nowhere to put it, make somewhere.** Clicking a break used to do nothing at all when the
+      // patch had no Sampler — there was a hint saying to add one, and the button stayed enabled and silently
+      // no-opped. For an instrument whose whole aim is being fun in four seconds, clicking a break has to produce
+      // a break; being told to go and assemble three modules first is the opposite of that.
+      ensureSampler()
+      // The patch it may just have changed has to reach the audio thread before the data does, or the data is for
+      // a module the Graph has not built yet.
+      live.patch = useRack.getState().patch
+
+      const rendered = await renderBreak(entry, { sampleRate: live.output?.context.sampleRate })
+      const samplers = useRack.getState().patch.modules.filter((m) => m.type === 'sampler')
+      // A copy per sampler, because `setData` transfers: after the first send the array is empty on this side.
+      for (const module of samplers) live.setData(module.id, 'sample', rendered.slice())
+      setLoadedBreak(entry.name)
+
+      // A break is rendered at its own tempo and only slices cleanly at that tempo, so adopting it means adopting
+      // the tempo too. Letting the chop drift silently would be the worse outcome.
+      if ((useRack.getState().patch.tempo ?? 120) !== entry.tempo) setTempo(entry.tempo)
+      // And it should be playing. Loading a break and hearing nothing is the same failure as the stop button.
+      setRunning(true)
+    },
+    [ensureSampler, setTempo, setRunning],
+  )
 
   async function toggleMidi() {
     if (midi.current) {
@@ -193,6 +218,9 @@ export default function RackApp() {
       setFailed(true)
       return
     }
+    ctx.onstatechange = () => setAudioState(ctx.state)
+    setAudioState(ctx.state)
+
     const scope = ctx.createAnalyser()
     scope.fftSize = 2048
     scope.smoothingTimeConstant = 0.75
@@ -220,10 +248,32 @@ export default function RackApp() {
     midi.current?.setVoices(voices)
   }, [voices])
 
-  // The transport lives on the audio thread and is not part of the plan, so it has to be pushed whenever either
-  // half of it changes — and re-pushed by `Rack.start`, which a patch reload does not do.
+  /**
+   * Push the transport, and suspend the audio context when stopped.
+   *
+   * Both, and the second one is the fix for a real bug. Stop used to only set `running: false`, which the
+   * Transport module honours and **nothing else does** — the Clock is free-running by design, so on the shipped
+   * patches, which drive themselves from a Clock, Stop changed the button's label and nothing else. A stop button
+   * that does not stop is worse than no stop button.
+   *
+   * Suspending is the honest answer: it stops everything regardless of what is driving the patch, it is instant,
+   * and it is what a transport control on a player does. The transport message still goes out, because a
+   * Transport-driven patch should also come back in the right place.
+   */
   useEffect(() => {
-    rack.current?.setTransport(tempo, playing)
+    const live = rack.current
+    if (!live) return
+    live.setTransport(tempo, playing)
+
+    // An AudioWorkletNode's context is typed as BaseAudioContext, which has neither suspend nor resume — the rack
+    // is always given a real AudioContext, so this is a narrowing rather than an assumption.
+    const ctx = live.output?.context as AudioContext | undefined
+    if (!ctx) return
+    if (playing) {
+      if (ctx.state === 'suspended') void ctx.resume()
+    } else if (ctx.state === 'running') {
+      void ctx.suspend()
+    }
   }, [tempo, playing])
 
   useEffect(() => {
@@ -251,7 +301,7 @@ export default function RackApp() {
   )
 
   return (
-    <div className="rk">
+    <div className="rk" data-playing={playing ? 'yes' : 'no'} data-audio={audioState}>
       <header className="rk-header">
         <h1>
           Driftbox <span>Rack</span>
@@ -386,6 +436,12 @@ export default function RackApp() {
       )}
 
       {shared && <p className="rk-shared">{shared}</p>}
+
+      {started && playing && audioState === 'suspended' && (
+        <p className="rk-warn">
+          The browser has suspended audio — press Play again, or click anywhere on the page.
+        </p>
+      )}
 
       {voices > 1 && !hasMidi && (
         <p className="rk-warn">

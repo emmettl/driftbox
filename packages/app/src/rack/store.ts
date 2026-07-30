@@ -71,6 +71,17 @@ interface RackState {
   /** Session state, not part of the patch. */
   running: boolean
   setRunning: (running: boolean) => void
+  /**
+   * Make sure there is a Sampler with somewhere to send its output, and return its id.
+   *
+   * Exists because clicking a break with no Sampler in the patch used to do nothing at all. Being told to go and
+   * assemble three modules before a break will play is the opposite of what this instrument is for — so it wires
+   * the smallest thing that works: a Transport if there is not one, a Sampler, a sixteenth into its trigger, and
+   * its output to the existing Out or a new one.
+   *
+   * A no-op when a Sampler already exists, so it never rearranges a patch somebody built.
+   */
+  ensureSampler: () => string
   load: (patch: Patch) => void
   select: (moduleId: string | null) => void
   flip: (flipped?: boolean) => void
@@ -215,6 +226,38 @@ export const useRack = create<RackState>((set, get) => {
     },
 
     setRunning: (running) => set({ running }),
+
+    ensureSampler: () => {
+      const existing = get().patch.modules.find((m) => m.type === 'sampler')
+      if (existing) return existing.id
+
+      const id = freshId(get().patch, 'sampler')
+      structural((patch) => {
+        const modules = [...patch.modules]
+        const cables = [...patch.cables]
+
+        // Reuse whatever is already there rather than duplicating it — a second Out would sum alongside the first
+        // and a second Transport would just agree with it.
+        let transport = modules.find((m) => m.type === 'transport')?.id
+        if (!transport) {
+          transport = freshId({ ...patch, modules }, 'transport')
+          modules.push({ id: transport, type: 'transport' })
+        }
+        let out = modules.find((m) => m.type === 'out')?.id
+        if (!out) {
+          out = freshId({ ...patch, modules }, 'out')
+          modules.push({ id: out, type: 'out' })
+        }
+        modules.push({ id, type: 'sampler' })
+
+        // One slice per sixteenth, which is the chop a one-bar break at sixteen slices is built for.
+        cables.push({ from: [transport, 'sixteenth'], to: [id, 'trig'] })
+        cables.push({ from: [transport, 'bar'], to: [id, 'slice'] })
+        cables.push({ from: [id, 'out'], to: [out, 'in'] })
+        return { ...patch, modules, cables }
+      })
+      return id
+    },
 
     setVoices: (voices) =>
       structural((patch) => {

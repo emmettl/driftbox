@@ -1,4 +1,4 @@
-import { MODULES } from '@driftbox/rack'
+import { MODULES, compile, type Patch } from '@driftbox/rack'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { STARTER, useRack } from './store.js'
 
@@ -149,5 +149,63 @@ describe('the starter patch', () => {
       expect(MODULES[from.type].outlets.some((p) => p.id === cable.from[1]), cable.from.join('.')).toBe(true)
       expect(MODULES[to.type].inlets.some((p) => p.id === cable.to[1]), cable.to.join('.')).toBe(true)
     }
+  })
+})
+
+describe('making somewhere to put a break', () => {
+  // Clicking a break used to do nothing at all when the patch had no Sampler: there was a hint saying to add one,
+  // and the button stayed enabled and silently no-opped. For an instrument whose aim is being fun in four seconds,
+  // being told to assemble three modules first is the opposite of that.
+
+  it('adds a sampler wired to a transport and an out', () => {
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
+    const id = useRack.getState().ensureSampler()
+    const patch = useRack.getState().patch
+
+    expect(patch.modules.map((m) => m.type).sort()).toEqual(['out', 'sampler', 'transport'])
+    const cables = patch.cables.map((c) => `${c.from.join('.')}>${c.to.join('.')}`)
+    // A sixteenth into the trigger is the chop; the bar ramp into the slice inlet steps through the break in
+    // order. One slice per sixteenth is what a one-bar break at sixteen slices is built for.
+    expect(cables).toContain(`transport-1.sixteenth>${id}.trig`)
+    expect(cables).toContain(`transport-1.bar>${id}.slice`)
+    expect(cables).toContain(`${id}.out>out-1.in`)
+  })
+
+  it('reuses the transport and out already in the patch', () => {
+    // A second Out would sum alongside the first and a second Transport would only agree with it.
+    useRack.setState({ patch: STARTER(), revision: 0 })
+    useRack.getState().ensureSampler()
+    const patch = useRack.getState().patch
+    expect(patch.modules.filter((m) => m.type === 'out')).toHaveLength(1)
+    expect(patch.modules.filter((m) => m.type === 'transport')).toHaveLength(1)
+  })
+
+  it('never rearranges a patch that already has a sampler', () => {
+    const withOne: Patch = {
+      modules: [{ id: 'mine', type: 'sampler' }],
+      cables: [],
+    }
+    useRack.setState({ patch: withOne, revision: 5 })
+    expect(useRack.getState().ensureSampler()).toBe('mine')
+    expect(useRack.getState().patch).toBe(withOne)
+    // And it did not count as an edit.
+    expect(useRack.getState().revision).toBe(5)
+  })
+
+  it('is structural, because the graph gains modules', () => {
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
+    useRack.getState().ensureSampler()
+    expect(useRack.getState().revision).toBe(1)
+  })
+
+  it('produces a patch that compiles with nothing dropped', () => {
+    // The wiring is written by hand here, so it is exactly the sort of thing that goes stale when a port is
+    // renamed — and the compiler's own notes are the assertion.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
+    useRack.getState().ensureSampler()
+    const plan = compile(useRack.getState().patch, MODULES)
+    expect(plan.notes.filter((n) => n.kind === 'dropped-cable')).toEqual([])
+    expect(plan.notes.filter((n) => n.kind === 'placeholder')).toEqual([])
+    expect(plan.outputs.length).toBeGreaterThan(0)
   })
 })
