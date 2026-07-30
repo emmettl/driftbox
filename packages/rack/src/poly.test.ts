@@ -140,7 +140,7 @@ describe('what the compiler says about voices', () => {
     // do it. If a new module appears here, it should be because duplicating it would be wrong rather than
     // because nobody thought about it.
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
-    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'seq', 'tracker', 'transport'])
+    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'reverb', 'seq', 'tracker', 'transport'])
   })
 })
 
@@ -162,10 +162,12 @@ describe('the four cases', () => {
         ['t', 'out', 'o', 'in'],
       ]),
     )
-    spread(graph, plan, 'm', [0.1, 0.2, 0.3, 0.4])
-    // The output sums every voice of a polyphonic terminal, so 0.1+0.2+0.3+0.4.
+    // Kept under the master limiter's 0.95 threshold, here and below. These values are arbitrary and the
+    // claim is about routing, not level — but a sum that trips the limiter is measuring the limiter.
+    spread(graph, plan, 'm', [0.08, 0.16, 0.24, 0.32])
+    // The output sums every voice of a polyphonic terminal, so 0.08+0.16+0.24+0.32.
     const audio = render(graph, 3)
-    expect(audio[audio.length - 1]).toBeCloseTo(1, 4)
+    expect(audio[audio.length - 1]).toBeCloseTo(0.8, 4)
   })
 
   it('poly to mono: every voice is summed before the module runs', () => {
@@ -192,11 +194,11 @@ describe('the four cases', () => {
         ['t', 'out', 'o', 'in'],
       ]),
     )
-    // Mark is polyphonic, so this sets four different values which the mono module sums to 0.5; every voice
-    // of the Thru then reads that same 0.5, and the polyphonic output sums four of them.
-    spread(graph, plan, 'm', [0.05, 0.1, 0.15, 0.2])
+    // Mark is polyphonic, so this sets four different values which the mono module sums to 0.2; every voice
+    // of the Thru then reads that same 0.2, and the polyphonic output sums four of them.
+    spread(graph, plan, 'm', [0.02, 0.04, 0.06, 0.08])
     const audio = render(graph, 3)
-    expect(audio[audio.length - 1]).toBeCloseTo(2, 3)
+    expect(audio[audio.length - 1]).toBeCloseTo(0.8, 3)
   })
 
   it('mono to mono: one buffer, one instance, no summing', () => {
@@ -219,27 +221,27 @@ describe('params across voices', () => {
     const { graph, plan } = build(
       chain(4, [['m', 'mark'], ['o', 'polyout']], [['m', 'out', 'o', 'in']]),
     )
-    graph.setParam(plan.slots.m.value, 0.5)
+    graph.setParam(plan.slots.m.value, 0.2)
     const audio = render(graph, 3)
-    expect(audio[audio.length - 1]).toBeCloseTo(2, 4)
+    expect(audio[audio.length - 1]).toBeCloseTo(0.8, 4)
   })
 
   it('sets one voice when one is named, which is what a keyboard means', () => {
     const { graph, plan } = build(
       chain(4, [['m', 'mark'], ['o', 'polyout']], [['m', 'out', 'o', 'in']]),
     )
-    graph.setParam(plan.slots.m.value, 1.5, 2)
+    graph.setParam(plan.slots.m.value, 0.8, 2)
     const audio = render(graph, 3)
-    // One voice at 1.5, three at the default of 0.
-    expect(audio[audio.length - 1]).toBeCloseTo(1.5, 4)
+    // One voice at 0.8, three at the default of 0.
+    expect(audio[audio.length - 1]).toBeCloseTo(0.8, 4)
   })
 
   it('ignores a voice that does not exist rather than writing the wrong one', () => {
     const { graph, plan } = build(
       chain(2, [['m', 'mark'], ['o', 'polyout']], [['m', 'out', 'o', 'in']]),
     )
-    graph.setParam(plan.slots.m.value, 1.5, 7)
-    graph.setParam(plan.slots.m.value, 1.5, -1)
+    graph.setParam(plan.slots.m.value, 0.8, 7)
+    graph.setParam(plan.slots.m.value, 0.8, -1)
     expect(render(graph, 3)[FRAMES * 3 - 1]).toBeCloseTo(0, 4)
   })
 
@@ -318,7 +320,10 @@ describe('a polyphonic patch of real modules', () => {
       voices,
       modules: [
         { id: 'noise-1', type: 'noise' },
-        { id: 'out-1', type: 'out', params: { level: 1 } },
+        // Quiet enough that four voices of it stay under the master limiter. At level 1 the four-voice sum
+        // was riding the limiter and the ratio came back as 1.18 — which measures the limiter working, not
+        // the seeding, and would have gone on "passing" as a seeding test long after it stopped being one.
+        { id: 'out-1', type: 'out', params: { level: 0.2 } },
       ],
       cables: [{ from: ['noise-1', 'white'], to: ['out-1', 'in'] }],
     })

@@ -246,13 +246,50 @@ Pressing a key with no MIDI module patches one in, the same way loading a break 
 **takes over** the pitch and gate inlets it lands on, because one cable per inlet is the rule everywhere and two
 sources into a pitch inlet would sum into a wrong note.
 
-### C — the sound
+### C — the sound ✅
 
-**C1. Pan on the Out**, per voice. Unlocks the Reese.
-**C2. Compressor.** D&B is glued together by compression; without it a chopped break and a bass fight.
-**C3. Reverb.** In-worklet, so a feedback-delay network rather than the engine's convolver.
-**C4. A master limiter** replacing the ±4 clamp. The clamp exists to stop a feedback patch killing the tab and
-should stay as the last resort behind something musical — a loud mix currently meets a brick wall.
+**C1. Pan on the Out.** ✅ Built. Cables stay mono, exactly as argued above; what changed is that `Plan.outputs`
+carries a **param slot** alongside each terminal buffer, and the Graph reads that buffer when it sums. So pan is
+a property of the mix rather than of the module, the law lives in one place, and a knob turn needs no recompile.
+
+The law is **balance, not equal-power**, and that is the load-bearing choice. Equal-power puts centre at 0.707 on
+both channels, which would have made every patch shared before this quietly 3dB quieter — for a format whose
+selling point is that a patch travels in a URL, that is not cosmetic. Balance leaves centre at unity, so the
+default is a genuine no-op.
+
+The `Thru` outlet stays mono and pre-pan. A patch cable in this rack carries one signal, and a Thru that quietly
+carried only the left half would be a trap.
+
+**C2. Compressor.** ✅ Built. The sidechain inlet is the point: fed from a kick it is the duck that makes a
+bassline breathe, and left unpatched it reads its own input and is an ordinary compressor. Peak detection rather
+than RMS, because the thing being tamed is a drum transient and an RMS window smooth enough to be pleasant is
+long enough to miss it. Gain reduction comes out as a signal, so the compressor's own ducking can drive
+something else.
+
+**C3. Reverb.** ✅ Built, as an FDN — a convolver needs Web Audio nodes, which an `AudioWorkletGlobalScope` does
+not have. **Eight lines**, not four, and that was measured: at four lines a fifth of a second into the tail only
+12% of samples were meaningfully non-zero, which is a rattle rather than a room. Householder mixing because it
+is `subtract a share of the sum` at any size and is unitary, so the loop cannot gain energy whatever the delay
+lengths are. Lengths are prime numbers of samples, nudged odd after rate scaling, so nothing can share a factor
+and ring at one period.
+
+**C4. A master limiter.** ✅ Built, replacing the bare ±4 clamp — the clamp is still behind it, because it is
+what keeps a feedback patch from killing the tab and no amount of gain riding substitutes for that. Linked
+across the pair so a peak on one side does not shift the image; downward gain immediate and upward eased, which
+is what makes the attack instant without a lookahead and stops the release pumping.
+
+Seven existing tests asserted master levels of 1, 1.5 and 2, which a limiter at 0.95 can no longer produce.
+Those were updated by **scaling the probe signals** rather than by baking 0.95 into them: their subject is voice
+routing, and a sum that trips the limiter is measuring the limiter. One of them — the noise-seeding test —
+had been reduced to a ratio of 1.18 by limiting, and would have gone on "passing" as a seeding test long after
+it stopped being one.
+
+Two things phase C broke and fixed. **A hand-built faceplate does not follow its def**: `pan` was added to
+`OUT_MODULE` and simply did not appear, because `faceplates/Out.tsx` names its params rather than walking them.
+`faceplates.test.ts` now renders every hand-built faceplate and checks that each non-hidden param its module
+declares is actually asked for — verified by reverting the fix and watching it fail. And **B3's sticky keyboard
+painted over the bottom of the rack**: fixed with `scroll-padding-bottom` on the document and matching padding
+on the stage, so the last module can be scrolled — and tab-focused — clear of the keys.
 
 ### D — instant DJ
 

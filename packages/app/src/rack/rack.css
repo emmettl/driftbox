@@ -21,6 +21,10 @@
    * short enough that Tab still feels like a shortcut. Reason snapped instantly; this is the one
    * place worth spending 520ms. */
   --spin: 520ms;
+
+  /* How much room the sticky keyboard takes at the bottom. Named because the stage has to leave exactly
+     this much space below the rack, and two numbers that must agree should be one number. */
+  --keys-height: 134px;
 }
 
 * {
@@ -48,6 +52,14 @@ input,
 textarea {
   -webkit-user-select: text;
   user-select: text;
+}
+
+html {
+  /* The sticky header and the sticky keyboard both overlay the page, so anything scrolled to must stop
+     clear of them. This is what `scrollIntoView` and focus-scrolling honour — without it, tabbing to a knob
+     near the bottom of the rack parks it underneath the keys. */
+  scroll-padding-top: 64px;
+  scroll-padding-bottom: var(--keys-height);
 }
 
 body {
@@ -358,7 +370,10 @@ kbd {
 
 .rk-stage {
   perspective: 2400px;
-  padding: 32px 16px 48px;
+  /* The bottom padding clears the sticky keyboard. Without it the keys paint over the last module in the
+     rack and it cannot be scrolled out from under them — found by screenshotting the bottom module and
+     getting a picture of the keyboard. */
+  padding: 32px 16px calc(48px + var(--keys-height));
   display: flex;
   justify-content: center;
   overflow-x: auto;
@@ -873,5 +888,12 @@ kbd {
   }
   .rk-keys-hint {
     display: none;
+  }
+  /* Taller here: the controls wrap onto their own row above the keys. */
+  .rk-keys {
+    --keys-height: 176px;
+  }
+  .rk-stage {
+    --keys-height: 176px;
   }
 }

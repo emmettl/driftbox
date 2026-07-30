@@ -1,4 +1,6 @@
 import { MODULES } from '@driftbox/rack'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { rowsForJacks } from '../layout.js'
 import { Generic, faceplateFor, genericRows, sizeFor } from './index.js'
@@ -66,4 +68,46 @@ describe('how big a module is', () => {
       expect([1, 2]).toContain(size(type).span)
     }
   })
+})
+
+describe('a hand-built faceplate still shows everything its module has', () => {
+  // The one hazard of the escape hatch, and it bit. `pan` was added to `OUT_MODULE` and simply did not
+  // appear: the Out's faceplate names its params rather than walking them, so a new one is invisible until
+  // somebody edits the component. The generic faceplate cannot have this problem — it walks the def.
+  //
+  // Rendered rather than inspected, because the question is "does a control for this param exist on screen",
+  // and no amount of reading the source answers that as directly.
+
+  const HAND_BUILT = ['vco', 'ladder', 'out', 'midi'] as const
+
+  /** Every param id the faceplate asked about, collected by handing it a probing `value`. */
+  const asked = (type: string): Set<string> => {
+    const def = MODULES[type]
+    const seen = new Set<string>()
+    const Faceplate = faceplateFor(type)
+    renderToStaticMarkup(
+      createElement(Faceplate, {
+        def,
+        module: { id: `${type}-1`, type },
+        value: (id: string) => {
+          seen.add(id)
+          return def.params.find((p) => p.id === id)?.default ?? 0
+        },
+        onChange: () => {},
+      }),
+    )
+    return seen
+  }
+
+  for (const type of HAND_BUILT) {
+    it(`reaches every param on the ${type}`, () => {
+      const def = MODULES[type]
+      const seen = asked(type)
+      // `hidden` params are deliberately not on the faceplate — the MIDI module's note and gate are written
+      // by the host, and a knob fighting incoming MIDI is the bug that flag exists to prevent.
+      const wanted = def.params.filter((p) => !p.hidden).map((p) => p.id)
+      const missing = wanted.filter((id) => !seen.has(id))
+      expect(missing, `${type} declares params its faceplate never shows`).toEqual([])
+    })
+  }
 })

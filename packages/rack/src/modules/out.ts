@@ -10,6 +10,15 @@ import type { ModuleDef, Processor } from '../types.js'
 // It still has a real outlet, which means it can be patched onward like anything else — an
 // Out feeding a Delay feeding another Out is a legal patch and does what it looks like.
 //
+// **Pan lives here and is applied by the Graph, not by this processor.** A module's outlets are mono and
+// staying that way — see the note on `process` in `graph.ts` — so this module cannot place itself in the
+// field even if it wanted to. What it does instead is declare `terminalPan`, and the Graph reads that
+// param's buffer when it sums the terminal outlets. The pan law then lives in exactly one place, which is
+// what it should be: it is a property of the mix, not of the module.
+//
+// The `Thru` outlet stays MONO and pre-pan. It is a patch cable, and a patch cable in this rack carries one
+// signal; a Thru that quietly carried only the left half would be a trap.
+//
 // This class is SELF-CONTAINED — see the comment in `worklet.ts`.
 
 export class OutProcessor implements Processor {
@@ -32,9 +41,15 @@ export const OUT_MODULE: ModuleDef = {
   name: 'Out',
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [{ id: 'out', name: 'Thru' }],
-  params: [{ id: 'level', name: 'Level', min: 0, max: 1, default: 0.7 }],
+  params: [
+    { id: 'level', name: 'Level', min: 0, max: 1, default: 0.7 },
+    // Centre by default, which is what every Out was before stereo existed — so a patch shared before this
+    // is byte-identical and sounds identical after it.
+    { id: 'pan', name: 'Pan', min: -1, max: 1, default: 0 },
+  ],
   processor: OutProcessor,
   terminal: true,
+  terminalPan: 'pan',
   // One master bus. Eight copies would each apply the level knob to their own voice and then be summed,
   // which is the same arithmetic — but the collapse has to happen somewhere obvious, and the end of the
   // rack is where anybody would look for it.
