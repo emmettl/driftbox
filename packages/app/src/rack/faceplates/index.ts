@@ -6,6 +6,7 @@ import { Ladder } from './Ladder.js'
 import { Midi } from './Midi.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
+import { Tracker } from './Tracker.js'
 import { Vco } from './Vco.js'
 import type { FaceplateComponent } from './types.js'
 
@@ -49,6 +50,9 @@ const FACEPLATES: Record<string, Entry> = {
   midi: { component: Midi, rows: 2 },
   out: { component: Out, span: 1 },
   sampler: { component: Sampler, rows: 3 },
+  // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.
+  // The Tracker was the tallest module in the rack and the least use — a pattern you could not see.
+  tracker: { component: Tracker, rows: 7 },
 }
 
 export function faceplateFor(type: string): FaceplateComponent {

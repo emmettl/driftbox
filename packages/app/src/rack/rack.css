@@ -1056,6 +1056,87 @@ kbd {
 }
 
 /* -----------------------------------------------------------------------------------------
+   The Tracker's step grid — the only place in the rack you can write a note.
+   ----------------------------------------------------------------------------------------- */
+
+.rk-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 10px 10px;
+  /* Fills the module rather than sitting at the top of it. The Tracker is seven rows tall whatever the
+     front does — twelve jacks force that on the back — so the space exists and the grid may as well use
+     it. Taller cells are also easier to hit with a thumb, which is the real argument. */
+  flex: 1;
+  min-height: 0;
+}
+.rk-steps-pager {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+.rk-page {
+  font: 9px var(--mono);
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.rk-page-on {
+  color: var(--bg);
+  background: var(--nine);
+  border-color: var(--nine);
+}
+
+.rk-lane {
+  display: flex;
+  gap: 2px;
+  align-items: stretch;
+  flex: 1;
+  /* Capped so four lanes in a tall module do not become four enormous bars. */
+  max-height: 46px;
+}
+/* A muted lane is dimmed rather than hidden: you still want to see and edit what it will play when you
+   bring it back, which is most of what a mute is for. */
+.rk-lane-muted {
+  opacity: 0.35;
+}
+.rk-lane-tag {
+  font: 9px var(--mono);
+  color: var(--dim);
+  width: 18px;
+  flex: none;
+  align-self: center;
+}
+.rk-step {
+  flex: 1;
+  min-width: 0;
+  font: 9px var(--mono);
+  color: var(--dim);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 0;
+  cursor: ns-resize;
+  touch-action: none;
+}
+/* Every fourth cell brighter. A bar you cannot count is a bar you cannot edit, and this is cheaper than
+   a ruler above the grid — which would cost a row the module does not have. */
+.rk-step[data-beat='yes'] {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.rk-step-on {
+  color: var(--bg);
+  background: var(--three);
+  border-color: var(--three);
+}
+.rk-step:hover {
+  border-color: var(--nine);
+}
+
+/* -----------------------------------------------------------------------------------------
    The Combinator: four rotaries, four buttons, and the routing panel they open.
    ----------------------------------------------------------------------------------------- */
 

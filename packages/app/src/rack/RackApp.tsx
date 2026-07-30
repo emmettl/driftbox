@@ -556,9 +556,23 @@ export default function RackApp() {
       if (!live || state.patch === previous.patch || state.revision !== previous.revision) return
       for (const module of state.patch.modules) {
         const before = previous.patch.modules.find((m) => m.id === module.id)
-        if (!before || before.params === module.params) continue
-        for (const [id, value] of Object.entries(module.params ?? {})) {
-          if (before.params?.[id] !== value) live.setParam(module.id, id, value)
+        if (!before) continue
+        if (before.params !== module.params) {
+          for (const [id, value] of Object.entries(module.params ?? {})) {
+            if (before.params?.[id] !== value) live.setParam(module.id, id, value)
+          }
+        }
+        // Pattern data takes the same road as a knob, and for the same reason: `data` is compiled into the
+        // plan, so treating an edit as structural would rebuild every processor on every cell you touched.
+        // Sent as a `data` message instead, which the Graph keeps in `pushed` — and `pushed` beats `seeded`,
+        // which is precisely why recompiling never throws away a loaded break. A pattern is the same shape.
+        if (before.data !== module.data) {
+          for (const [slot, values] of Object.entries(module.data ?? {})) {
+            if (before.data?.[slot] === values) continue
+            // A fresh array every time, because `setData` **transfers** it — the buffer is gone on this side
+            // the moment it is sent, and the patch's own copy must not be the one that leaves.
+            live.setData(module.id, slot, Float32Array.from(values))
+          }
         }
       }
     })
