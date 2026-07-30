@@ -9,19 +9,59 @@ import type { Breakpoint, FilterSpec, Source, VoiceSpec } from './types.js'
  *  below audibility, but a legal target. */
 const SILENCE = 1e-4
 
-/** One shared noise buffer per context. Snares, hats and claps all draw from it, and
- *  allocating two seconds of random floats per hit at 140bpm is not an option. */
-const noiseBuffers = new WeakMap<BaseAudioContext, AudioBuffer>()
+/** Noise buffers are shared by context and format. Snares and claps use full-rate random
+ *  noise; the 909's digital cymbals use deterministic, quantised low-rate noise so each
+ *  hit reads the same generated "ROM" rather than allocating a waveform per trigger. */
+const noiseBuffers = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>()
 
-export function noiseBuffer(ctx: BaseAudioContext): AudioBuffer {
-  const cached = noiseBuffers.get(ctx)
+interface NoiseBufferOptions {
+  sampleRate?: number
+  bitDepth?: number
+  seed?: number
+}
+
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0 || 1
+  return () => {
+    // xorshift32: tiny, deterministic and amply long for a few seconds of noise.
+    state ^= state << 13
+    state ^= state >>> 17
+    state ^= state << 5
+    return (state >>> 0) / 0x1_0000_0000
+  }
+}
+
+export function noiseBuffer(
+  ctx: BaseAudioContext,
+  options: NoiseBufferOptions = {},
+): AudioBuffer {
+  const sampleRate = options.sampleRate ?? ctx.sampleRate
+  const key = `${sampleRate}:${options.bitDepth ?? 'float'}:${options.seed ?? 'random'}`
+  let buffers = noiseBuffers.get(ctx)
+  if (!buffers) {
+    buffers = new Map()
+    noiseBuffers.set(ctx, buffers)
+  }
+  const cached = buffers.get(key)
   if (cached) return cached
 
-  const length = Math.floor(ctx.sampleRate * 2)
-  const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+  // Four seconds covers the longest cymbal decay without looping its generated ROM.
+  // Ordinary noise keeps the original two-second allocation and can loop invisibly.
+  const seconds = options.seed === undefined ? 2 : 4
+  const length = Math.floor(sampleRate * seconds)
+  const buffer = ctx.createBuffer(1, length, sampleRate)
   const data = buffer.getChannelData(0)
-  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
-  noiseBuffers.set(ctx, buffer)
+  const random = options.seed === undefined ? Math.random : seededRandom(options.seed)
+  const maximumCode = options.bitDepth
+    ? Math.pow(2, Math.max(2, Math.min(16, options.bitDepth))) - 1
+    : 0
+  for (let i = 0; i < data.length; i++) {
+    const value = random() * 2 - 1
+    data[i] = maximumCode
+      ? (Math.round(((value + 1) * maximumCode) / 2) / maximumCode) * 2 - 1
+      : value
+  }
+  buffers.set(key, buffer)
   return buffer
 }
 
@@ -106,12 +146,13 @@ function buildSource(
         })()
       : (() => {
           const noise = ctx.createBufferSource()
-          noise.buffer = noiseBuffer(ctx)
+          noise.buffer = noiseBuffer(ctx, source)
           noise.loop = true
-          // Start somewhere random in the buffer, so repeated hits are not identical
-          // — two claps in a row from the same offset comb-filter against each other.
           noise.loopStart = 0
           noise.loopEnd = noise.buffer.duration
+          if (source.playbackRate !== undefined) {
+            noise.playbackRate.setValueAtTime(source.playbackRate, start)
+          }
           return noise
         })()
 
@@ -140,8 +181,14 @@ function buildSource(
   // `source.kind` rather than `instanceof AudioBufferSourceNode`: the spec already says
   // which this is, and the global only exists in a browser — so the instanceof made the
   // renderer unusable anywhere else, including from a test.
-  if (source.kind === 'noise') (node as AudioBufferSourceNode).start(start, Math.random() * 1.5)
-  else node.start(start)
+  if (source.kind === 'noise') {
+    // Ordinary analogue-style noise starts at a random offset, so overlapping claps do
+    // not comb-filter. A seeded source represents generated PCM ROM and starts at zero:
+    // repeated hits being identical is part of a sampled voice's character.
+    const offset = source.seed === undefined ? Math.random() * 1.5 : 0
+    const noise = node as AudioBufferSourceNode
+    noise.start(start, offset)
+  } else node.start(start)
   node.stop(time + duration)
 
   return node

@@ -44,10 +44,10 @@ Measured against what the rack has, not against a vibe:
 
 ## Decisions taken
 
-**Samples: the rack gets them, the engine does not.** `ROADMAP.md`'s "No samples anywhere" keeps meaning
-exactly what it says about the drum machines — every sound synthesised from the circuit it came from. The rack
-is a different instrument, and "two engines, one host" was already the framing. Both docs should say so
-explicitly rather than leaving the rule looking broken.
+**Recorded samples: the rack gets them, the engine does not.** `ROADMAP.md`'s boundary keeps meaning
+exactly what it says about the drum machines — every waveform is generated in the browser, including the
+909's procedural low-resolution PCM. The rack is a different instrument, and "two engines, one host" was
+already the framing. Both docs should say so explicitly rather than leaving the rule looking broken.
 
 **Breaks are synthesised on load, not shipped as audio.** This is the interesting one and it is only available
 because `engine/stems.ts` already renders a song offline into AudioBuffers. So a break is written as a
