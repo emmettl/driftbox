@@ -352,9 +352,34 @@ The fix is `processorOptions`, which is structured-cloned into the processor's c
 when the node is built, so there is no thread and no ordering to get wrong. The plan, the transport and any
 bulk data all take that route now, and the live path is a little safer for it.
 
-## The risk worth naming up front
+## The risk worth naming up front — and how it turned out
 
 A 909-derived break is not the Amen break and the difference will be audible. If the rendered breaks turn out
 not to carry the genre, the honest fallbacks are a verified CC0 pack chosen by a human, or accepting that this
 is drum and bass adjacent rather than the real thing. Better to find that out in phase B with one break than in
 phase D with a finished performance mode built on it.
+
+**Answered, and against the synthesised breaks.** Listened to on 2026-07-30: *"I don't think it really sounds
+super d&b; some sample pack will likely be required."* The plan was right to name it and right about the size
+of it — everything else stands, and the fix is the fallback this section already chose.
+
+So **loading your own file is now built**, which this document argued for from the start on the grounds that a
+sampler which can only play what we shipped is a toy. The shipped breaks stay: they need no licence, they
+survive URL sharing, and layering 909s over a break is what jungle actually did.
+
+Two decisions in it worth keeping:
+
+- **The tempo is derived from the file, not asked for.** The Sampler slices by equal division, so a chop only
+  lands on the beat if the buffer is a whole number of bars *and* the patch runs at the tempo that makes it
+  so. State the bar count and the tempo follows exactly — the same arithmetic `breaks.ts` uses in reverse.
+  The bar count is guessed by picking the reading whose implied tempo sits closest to what the patch is
+  already playing, compared as a **ratio** rather than a difference, because 87 is exactly as far from 174 as
+  348 is. When the guess is wrong it is wrong by a factor of two, which is audible and one press to correct.
+- **The Sampler gets a hand-built faceplate**, the second one to reach into the store and for the same reason
+  the MIDI module does: "what is loaded in here" is session state that arrived from outside the patch, and no
+  faceplate generated from a def could ever show it. It exists now rather than later because a patch can have
+  two Samplers — before this there was nowhere to say which one a file was meant for, and loading pushed into
+  all of them.
+
+Still not doing: picking or vendoring a pack. That needs a human who can be accountable for having read the
+licence, and this repo publishes with signed provenance naming one.
