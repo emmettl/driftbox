@@ -15,6 +15,7 @@ import { Modulation } from './Modulation.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
 import { openingPatch, useRack, type Opening } from './store.js'
+import { buildLabel, buildTitle } from '../version.js'
 
 // The rack, as a page.
 //
@@ -831,6 +832,11 @@ export default function RackApp() {
         </span>
         <span className="rk-hint">
           {flipped ? 'Drag between jacks to patch · click a cable to unpatch' : 'Drag a knob · Tab for the back'}
+        </span>
+        {/* Last, and quiet. It is the answer to "which build is this?" — asked once, when something is
+            wrong — so it should be findable rather than prominent. */}
+        <span className="rk-build" title={buildTitle()}>
+          {buildLabel()}
         </span>
       </footer>
     </div>
