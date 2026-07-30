@@ -197,4 +197,32 @@ describe('the shared step planner', () => {
     expect(second.drums.map((hit) => hit.voiceId)).toEqual(['909.bd'])
     expect(second.bass.map((hit) => hit.voiceId)).toEqual(['303.a'])
   })
+
+  it('schedules a 909 flam as a second strike at the configured width', () => {
+    const base = defaultSong()
+    const song = {
+      ...base,
+      patterns: [
+        {
+          id: 'flam',
+          name: 'Flam',
+          length: 4,
+          tracks: { '909.sd': [1, 0, 0, 0] as (0 | 1 | 2)[] },
+          flams: { '909.sd': [true, false, false, false] },
+        },
+      ],
+      chain: [{ pattern: 'flam', repeat: 1 }],
+      kit: { ...base.kit, flam: 0.5 },
+    }
+    const plan = planStep(song, {
+      absolute: 0,
+      index: 0,
+      bar: 0,
+      time: 2,
+      stepSeconds: 0.1,
+    })
+    expect(plan.drums).toHaveLength(2)
+    expect(plan.drums[1].voiceId).toBe('909.sd')
+    expect(plan.drums[1].time - plan.drums[0].time).toBeCloseTo(0.036, 6)
+  })
 })

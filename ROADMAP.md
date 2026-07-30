@@ -13,7 +13,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
-| Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 steps; off / on / accent; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
+| Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 steps; off / on / accent / 909 flam; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
 | Song | Multi-clip sections with repeat counts, editable while playing |
 | Ships with | Sixteen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro |
 | Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |

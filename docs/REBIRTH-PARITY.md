@@ -50,7 +50,7 @@ user could approximate it from oscillators.
 | Independent machine pattern banks | Yes | Tracker/Seq primitives | Reuse the shared clip-bank model in rack mode |
 | Per-machine pattern length and launch | Arrangement selection | Possible manually | Add live quantised launch to the shared clip model |
 | 303 note/accent/slide/tie editing | Partial | Tracker primitives | One clip editor and equivalent rack lanes |
-| 909 flam | No | Possible manually | Flam step plus width control in both modes |
+| 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song automation | No | Combinator/MIDI only | Recordable parameter timeline shared by both modes |
@@ -80,9 +80,9 @@ work is ordered by dependency:
 3. **Section buses and effects.** Add the four machine strips and the ReBirth signal
    path: distortion, pattern-controlled filter and compressor as inserts, delay as a
    send. Keep Driftbox's reverb and per-voice controls.
-4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise and
-   material-preserving alter are present. Add 909 flam, sequential 303 entry, keyboard
-   tap recording and focused cut/copy/paste.
+4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise,
+   material-preserving alter and 909 flam are present. Add sequential 303 entry,
+   keyboard tap recording and focused cut/copy/paste.
 5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
    full-mix rendering and put songs and patches in one named library.
 

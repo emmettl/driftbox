@@ -55,6 +55,21 @@ describe('a round trip', () => {
     expect(decodeSong(encodeSong(withClips))!.chain).toEqual(withClips.chain)
   })
 
+  it('keeps 909 flam marks and their global width', () => {
+    const original = song({
+      patterns: [
+        {
+          ...song().patterns[0],
+          flams: { '909.sd': [true, ...Array<boolean>(15).fill(false)] },
+        },
+      ],
+      kit: { ...song().kit, flam: 0.73 },
+    })
+    const loaded = decodeSong(encodeSong(original))!
+    expect(loaded.patterns[0].flams).toEqual(original.patterns[0].flams)
+    expect(loaded.kit.flam).toBe(0.73)
+  })
+
   it('keeps per-voice send levels', () => {
     const text = JSON.stringify(
       song({ kit: { params: {}, sends: { '808.bd': { delay: 0.4, reverb: 0.9 } } } }),

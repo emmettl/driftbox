@@ -1,5 +1,5 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react'
-import { ALL_VOICES, stepAt, type StepValue } from '@driftbox/engine'
+import { ALL_VOICES, flamAt, stepAt, type StepValue } from '@driftbox/engine'
 import { useBox } from '../store'
 import { useLiveStep } from './useLiveStep'
 
@@ -14,6 +14,8 @@ export function Sequencer() {
   const selectedVoice = useBox((s) => s.selectedVoice)
   const toggleStep = useBox((s) => s.toggleStep)
   const setDrumStep = useBox((s) => s.setDrumStep)
+  const flamMode = useBox((s) => s.flamMode)
+  const toggleFlamStep = useBox((s) => s.toggleFlamStep)
   const audition = useBox((s) => s.audition)
   const selectVoice = useBox((s) => s.selectVoice)
 
@@ -107,10 +109,12 @@ export function Sequencer() {
           >
             {Array.from({ length: pattern.length }, (_, step) => {
               const value = stepAt(pattern, voice.id, step)
+              const flam = view === 'tr909' && flamAt(pattern, voice.id, step)
               const classes = [
                 'step',
                 value === 1 ? 'on' : '',
                 value === 2 ? 'accent' : '',
+                flam ? 'flam' : '',
                 step % 4 === 0 ? 'downbeat' : '',
                 live === step ? 'live' : '',
               ]
@@ -123,6 +127,11 @@ export function Sequencer() {
                   data-step={step}
                   data-voice={voice.id}
                   onPointerDown={(event) => {
+                    if (view === 'tr909' && flamMode) {
+                      paint.current = null
+                      suppressClick.current = false
+                      return
+                    }
                     paint.current = {
                       pointer: event.pointerId,
                       voiceId: voice.id,
@@ -140,10 +149,11 @@ export function Sequencer() {
                       suppressClick.current = false
                       return
                     }
-                    toggleStep(voice.id, step)
+                    if (view === 'tr909' && flamMode) toggleFlamStep(voice.id, step)
+                    else toggleStep(voice.id, step)
                   }}
                   onDragStart={(event) => event.preventDefault()}
-                  aria-label={`${voice.name} step ${step + 1}`}
+                  aria-label={`${voice.name} step ${step + 1}${flam ? ', flam' : ''}`}
                   aria-pressed={value !== 0}
                 />
               )

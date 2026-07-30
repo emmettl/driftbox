@@ -30,6 +30,7 @@ import {
   rotateTrack,
   setBassStep,
   setStep as setPatternStep,
+  toggleFlam,
   transposeBassLine,
   type BassParams,
   type BassStep,
@@ -96,6 +97,8 @@ interface State {
   followPlayhead: boolean
   selectedVoice: string
   selectedBass: string
+  /** 909 step buttons program flam marks instead of cycling hit velocity. */
+  flamMode: boolean
   /** Full-screen visuals with the sequencer hidden. */
   performance: boolean
   /** The transport thinks it is playing but the audio context is not running — iOS took
@@ -127,6 +130,9 @@ interface State {
   toggleStep: (voiceId: string, step: number) => void
   setDrumStep: (voiceId: string, step: number, value: StepValue) => void
   editBassStep: (voiceId: string, step: number, value: BassStep) => void
+  toggleFlamMode: () => void
+  toggleFlamStep: (voiceId: string, step: number) => void
+  setFlamWidth: (value: number) => void
   /** ReBirth-style focused transforms. `all` expands from the selected lane to the
    *  visible machine; it never touches a machine on another editor page. */
   rotateSelection: (delta: number, all: boolean) => void
@@ -278,6 +284,7 @@ export const useBox = create<State>()((set, get) => ({
   countIn: false,
   selectedVoice: '808.bd',
   selectedBass: BASS_VOICES[0].id,
+  flamMode: false,
   // Touch devices land in the visuals.
   //
   // A phone opening on a step grid is opening on the one part of this that a small screen
@@ -366,6 +373,27 @@ export const useBox = create<State>()((set, get) => ({
     set({ song: next, selectedBass: voiceId })
   },
 
+  toggleFlamMode: () => set({ flamMode: !get().flamMode }),
+
+  toggleFlamStep: (voiceId, step) => {
+    const { song, editing, engine } = get()
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern || !voiceId.startsWith('909.')) return
+    const next = replacePattern(song, toggleFlam(pattern, voiceId, step))
+    if (engine) engine.song = next
+    set({ song: next, selectedVoice: voiceId })
+  },
+
+  setFlamWidth: (value) => {
+    const { song, engine } = get()
+    const next = {
+      ...song,
+      kit: { ...song.kit, flam: Math.max(0, Math.min(1, value)) },
+    }
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
   rotateSelection: (delta, all) => {
     const { song, editing, engine, view, selectedVoice, selectedBass } = get()
     const pattern = song.patterns.find((p) => p.id === editing)
@@ -430,7 +458,9 @@ export const useBox = create<State>()((set, get) => ({
     if (!pattern) return
     // Everything in the pattern, drums and basslines both. "Clear this pattern" leaving
     // an acid line running underneath would be a surprise, and an unhelpful one.
-    const next = replacePattern(song, { ...pattern, tracks: {}, bass: {} })
+    const cleared: Pattern = { ...pattern, tracks: {}, bass: {} }
+    if (pattern.flams) cleared.flams = {}
+    const next = replacePattern(song, cleared)
     if (engine) engine.song = next
     set({ song: next })
   },
@@ -540,8 +570,14 @@ export const useBox = create<State>()((set, get) => ({
     for (const [voiceId, line] of Object.entries(pattern.bass ?? {})) {
       bass[voiceId] = Array.from({ length: clamped }, (_, i) => line[i] ?? { ...REST })
     }
+    const flams: Record<string, boolean[]> = {}
+    for (const [voiceId, marks] of Object.entries(pattern.flams ?? {})) {
+      flams[voiceId] = Array.from({ length: clamped }, (_, i) => marks[i] === true)
+    }
 
-    const next = replacePattern(song, { ...pattern, length: clamped, tracks, bass })
+    const resized: Pattern = { ...pattern, length: clamped, tracks, bass }
+    if (pattern.flams) resized.flams = flams
+    const next = replacePattern(song, resized)
     if (engine) engine.song = next
     set({ song: next })
   },
