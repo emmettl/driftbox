@@ -169,7 +169,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Twenty-three modules
+## Twenty-five modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -196,6 +196,8 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Compressor** | dynamics and sidechain control for glue and ducking |
 | **Reverb** | an in-worklet feedback-delay network |
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
+| **Follower** | an envelope follower: audio in, its contour out as CV, plus a gate above a threshold |
+| **Alligator** | three filtered gates across one signal — fixed low/band/high, gated and enveloped apart |
 | **Combinator** | four rotaries and four buttons, each driving any parameter of any module — and each also a CV outlet |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
@@ -709,6 +711,41 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
    did — filled now with the list of what each control drives, which is the one thing a macro panel
    cannot otherwise say. And `display: contents` set inline beat the narrow-screen media query, so on a
    390px viewport the five cells of each routing interleaved with the next one's.
+
+   **5b¾. Two more Reason devices.** ✅ Built — a **Follower** and an **Alligator**, chosen because each
+   does something no arrangement of the existing modules does.
+
+   The **Follower** is arithmetic the rack already had and kept to itself. `compressor.ts` follows an
+   envelope to decide how much to duck by, and nothing else could see it — so sidechaining meant a
+   Compressor with its sidechain patched, and only that. As a module it is the one CV source that comes
+   from something you can *hear*: a filter opening on a kick is a cable rather than a sequencer lane kept
+   in sync by hand. It has a gate outlet as well as a contour one, because a comparator on a follower is
+   how audio clocks a sequencer.
+
+   The **Alligator** is the device that is hard to describe and instantly recognisable — a drone in, three
+   independently gated bands out, a rhythm made of something that had no rhythm in it. Three decisions
+   carried it:
+
+   - **Fixed lowpass, bandpass, highpass.** Three configurable filters is what you can already patch; the
+     fixed split *is* the device, and a device earns its place by making one arrangement effortless.
+   - **Gates arrive on cables, with no pattern sequencer inside** — the same call `docs/RACK.md` records
+     for Clock and Seq. A gate from a cable can come from the Tracker, a Clock division, an envelope, a
+     Follower on the kick, or another Alligator; building the sequencer in makes every one of those a
+     special case.
+   - **Three outlets rather than a mix**, because sending the top band to a delay and leaving the bottom
+     dry is what people actually do with it. A Mixer is one module away.
+
+   The per-band envelope is not decoration: a raw gate multiplied into audio clicks on every edge, twice.
+   Shared attack, per-band decay — the attack only exists to kill the click and one value does that for
+   all three, while the decay is the musical control.
+
+   The `chop` chunk ships it wired up. And the chunk suite grew the assertion it had been missing all
+   along: **every chunk that can make a sound is now run through the Graph in Node and measured.**
+   "Compiles with nothing dropped" was never the same claim as "you hear something", and this codebase
+   has closed that gap by hand twice already — `ensureSampler` and `ensureMidi` both exist because a
+   freshly dropped thing did nothing at all. Measured peaks: reese 0.48, combi 0.56, chop 0.39, sub 0.69,
+   hats 0.64, and Break 0.0000 exactly, which is what makes its `needsSample` flag a real distinction
+   rather than a precaution.
 
    **5c. A VCV Rack importer, topology only.** ✅ Built. Both predictions held.
 

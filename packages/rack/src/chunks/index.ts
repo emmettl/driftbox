@@ -155,6 +155,49 @@ export const CHUNKS: readonly Chunk[] = [
     clocked: [['tracker', 'clock']],
   },
   {
+    id: 'chop',
+    name: 'Chop',
+    blurb: 'A drone cut into a rhythm by three filtered gates',
+    modules: [
+      {
+        id: 'tracker',
+        type: 'tracker',
+        params: { length: 16 },
+        // Three lanes, three rhythms, deliberately not in step with each other — which is the whole
+        // demonstration. Any non-zero value opens a gate; the numbers themselves go nowhere here.
+        data: {
+          lane1: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0],
+          lane2: [0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0],
+          lane3: [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1],
+        },
+      },
+      // Two saws a fraction apart: a drone with no rhythm of its own, which is the point. There is no
+      // envelope anywhere in this chunk — the Alligator's own gates are the envelope, and that is the
+      // shortest way to show what the device is for.
+      { id: 'vco-a', type: 'vco', params: { tune: -12 } },
+      { id: 'vco-b', type: 'vco', params: { tune: -11.85 } },
+      { id: 'pad', type: 'mixer', params: { level1: 0.5, level2: 0.5 } },
+      { id: 'gator', type: 'alligator' },
+      { id: 'bands', type: 'mixer', params: { level1: 0.6, level2: 0.5, level3: 0.4 } },
+    ],
+    cables: [
+      { from: ['vco-a', 'out'], to: ['pad', 'in1'] },
+      { from: ['vco-b', 'out'], to: ['pad', 'in2'] },
+      { from: ['pad', 'out'], to: ['gator', 'in'] },
+      { from: ['tracker', 'gate1'], to: ['gator', 'gate1'] },
+      { from: ['tracker', 'gate2'], to: ['gator', 'gate2'] },
+      { from: ['tracker', 'gate3'], to: ['gator', 'gate3'] },
+      // Back to one signal, because a chunk leaves on one port. Summed through a Mixer rather than
+      // inside the Alligator, so the three bands can be pulled apart again — send the top to a delay
+      // and leave the bottom dry, which is what people actually do with this device.
+      { from: ['gator', 'out1'], to: ['bands', 'in1'] },
+      { from: ['gator', 'out2'], to: ['bands', 'in2'] },
+      { from: ['gator', 'out3'], to: ['bands', 'in3'] },
+    ],
+    output: ['bands', 'out'],
+    clocked: [['tracker', 'clock']],
+  },
+  {
     id: 'sub',
     name: 'Sub',
     blurb: 'A triangle an octave down, gated and nothing else',
