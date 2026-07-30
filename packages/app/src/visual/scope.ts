@@ -4,16 +4,19 @@
 // component and constants breaks fast refresh, and this is imported by the store, the
 // stage and the editor panel as well as by the canvas that draws it.
 
-export type ScopeMode = 'wave' | 'bars' | 'xy' | 'off'
+export type ScopeMode = 'wave' | 'bars' | 'waterfall' | 'xy' | 'stereo' | 'vu' | 'off'
 
 /** In the order the selector cycles them. Waveform first because it is the best default
  *  and the most diagnostic; off last, so you have seen the others before you reach it. */
-export const SCOPE_MODES: ScopeMode[] = ['wave', 'bars', 'xy', 'off']
+export const SCOPE_MODES: ScopeMode[] = ['wave', 'bars', 'waterfall', 'xy', 'stereo', 'vu', 'off']
 
 export const SCOPE_LABELS: Record<ScopeMode, string> = {
   wave: 'wave',
   bars: 'bars',
+  waterfall: 'fall',
   xy: 'x/y',
+  stereo: 'l/r',
+  vu: 'vu',
   off: 'off',
 }
 

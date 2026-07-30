@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resetSceneAudio, sceneAudio, setSceneAudio } from './audio.js'
 import { ease, readBands, readLevels } from './levels.js'
+import { dbPosition, decibelBands, measureLevel, smoothMeter, spectrumBands } from './meter.js'
+import { nextScope, SCOPE_MODES } from './scope.js'
 
 // The visual layer, and the one rule that makes it shareable.
 //
@@ -106,6 +108,58 @@ describe('reading the mix', () => {
     const falling = ease(0.9, 0, 1 / 60)
     expect(falling).toBeLessThan(0.9)
     expect(falling).toBeGreaterThan(0.5)
+  })
+})
+
+describe('scope meters', () => {
+  it('measures sustained level and a transient separately', () => {
+    const samples = new Float32Array([0.25, -0.25, 0.25, -1])
+    const level = measureLevel(samples)
+    expect(level.rms).toBeCloseTo(Math.sqrt((0.25 ** 2 * 3 + 1) / 4))
+    expect(level.peak).toBe(1)
+  })
+
+  it('places amplitude on a bounded decibel scale', () => {
+    expect(dbPosition(0)).toBe(0)
+    expect(dbPosition(0.001)).toBeCloseTo(0)
+    expect(dbPosition(0.1)).toBeCloseTo(2 / 3)
+    expect(dbPosition(1)).toBe(1)
+    expect(dbPosition(4)).toBe(1)
+  })
+
+  it('gives the VU a faster attack than release', () => {
+    expect(smoothMeter(0, 1, 1 / 60)).toBeGreaterThan(0.2)
+    expect(smoothMeter(1, 0, 1 / 60)).toBeGreaterThan(0.9)
+  })
+
+  it('puts low and high FFT energy in different waterfall bands', () => {
+    const low = new Uint8Array(512)
+    low[2] = 255
+    const high = new Uint8Array(512)
+    high[450] = 255
+    const lowBands = spectrumBands(low, new Float32Array(48))
+    const highBands = spectrumBands(high, new Float32Array(48))
+    expect(lowBands.indexOf(Math.max(...lowBands))).toBeLessThan(24)
+    expect(highBands.indexOf(Math.max(...highBands))).toBeGreaterThan(24)
+  })
+
+  it('keeps mastered spectra distinct above the analyser byte ceiling', () => {
+    // Both values would be 255 through an AnalyserNode's default −30 dB byte ceiling. The waterfall
+    // reads floats so a loud partial still differs from merely present broadband energy.
+    const bands = decibelBands(new Float32Array([-12, -36]), new Float32Array(2))
+    expect(bands[0]).toBeGreaterThan(bands[1])
+    expect(bands[0]).toBeLessThan(1)
+  })
+
+  it('cycles through every display before returning to wave', () => {
+    let mode = SCOPE_MODES[0]
+    const seen = new Set([mode])
+    for (let i = 1; i < SCOPE_MODES.length; i++) {
+      mode = nextScope(mode)
+      seen.add(mode)
+    }
+    expect(seen).toEqual(new Set(SCOPE_MODES))
+    expect(nextScope(mode)).toBe('wave')
   })
 })
 
