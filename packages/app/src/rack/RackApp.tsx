@@ -5,6 +5,7 @@ import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
+import { BREAKS, renderBreak } from './breaks.js'
 import { midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
@@ -56,6 +57,7 @@ export default function RackApp() {
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
+  const [loadedBreak, setLoadedBreak] = useState<string | null>(null)
   const midi = useRef<MidiHandle | null>(null)
   const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
 
@@ -87,6 +89,27 @@ export default function RackApp() {
     },
     [],
   )
+
+  /**
+   * Render a break and hand it to every sampler in the patch.
+   *
+   * A copy per sampler, because `setData` **transfers** the buffer — after the first send the array is empty on
+   * this side, so loading one break into two samplers would give the second one nothing. That is the cost of not
+   * copying on the audio thread's doorstep, and it is worth it; it just has to be known about.
+   */
+  const loadBreak = useCallback(async (id: string) => {
+    const live = rack.current
+    const entry = BREAKS.find((candidate) => candidate.id === id)
+    if (!live || !entry) return
+
+    const rendered = await renderBreak(entry, { sampleRate: live.output?.context.sampleRate })
+    const samplers = useRack.getState().patch.modules.filter((m) => m.type === 'sampler')
+    for (const module of samplers) live.setData(module.id, 'sample', rendered.slice())
+    setLoadedBreak(samplers.length > 0 ? entry.name : null)
+    // A break is rendered at its own tempo and only slices cleanly at that tempo, so adopting it means adopting
+    // the tempo too. Saying nothing and letting the chop drift would be the worse silence.
+    if ((useRack.getState().patch.tempo ?? 120) !== entry.tempo) setTempo(entry.tempo)
+  }, [setTempo])
 
   async function toggleMidi() {
     if (midi.current) {
@@ -234,6 +257,7 @@ export default function RackApp() {
           Driftbox <span>Rack</span>
         </h1>
         {name && <span className="rk-open">{name}</span>}
+        {loadedBreak && <span className="rk-open">{loadedBreak}</span>}
 
         {!started && !failed && (
           <button type="button" className="rk-primary" onClick={start}>
@@ -357,7 +381,9 @@ export default function RackApp() {
         </div>
       )}
 
-      {browsing && <PatchBrowser onClose={() => setBrowsing(false)} />}
+      {browsing && (
+        <PatchBrowser onClose={() => setBrowsing(false)} onLoadBreak={started ? loadBreak : undefined} />
+      )}
 
       {shared && <p className="rk-shared">{shared}</p>}
 

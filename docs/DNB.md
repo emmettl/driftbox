@@ -158,10 +158,32 @@ the sequencer are phase B, and both were waiting on exactly this.
 
 ### B — the instruments
 
-**B1. Sampler.** The genre-defining module, and slicing is the part that matters: divide a buffer into N slices
-and trigger by index, because that is what chopping a break *is*. Plus playback rate on a V/Oct inlet, reverse,
-loop points, and a start-offset CV. A break you can only loop is a drum loop; a break you can retrigger by
-slice is jungle.
+**B1. Sampler.** ✅ Built, with the breaks to feed it.
+
+Slicing is equal division rather than transient detection, which sounds like a shortcut and is how people
+actually chop: sixteen slices on a one-bar break is one slice per sixteenth. That only lines up because the break
+is **rendered at the patch's tempo**, so the arithmetic is exact rather than approximately right — and it is why
+loading a break adopts its tempo instead of leaving the chop to drift.
+
+The slice is latched at the trigger and read nowhere else. Following the knob per sample would make a slice
+change mid-play jump the playhead into the middle of a different drum, which is a glitch rather than an edit.
+Selection wraps rather than clamps, so a random source sweeping past the end comes back round instead of
+hammering the last slice.
+
+It is the first module to take bulk data, and change detection is exactly what `types.ts` describes: read the
+buffer every block, and a different array means a different break.
+
+**The breaks are synthesised, and they work.** Three of them — Jungle, Chopper, Roller — written as four lines of
+the engine's ASCII notation each and rendered through the 909 on load. Two bars are rendered and the second is
+kept, so the first bar's tails have decayed into it and the loop does not click where it wraps. Measured in a
+browser: all exactly 1.379s, normalised to 0.9 peak, and their density orders the way the patterns say it should.
+
+**What is still unverified is whether they carry the genre**, which is the risk this document opens with and is
+not something measurement can answer. They are 909-derived and not the Amen. That needs ears.
+
+One consequence of transferring rather than copying, worth knowing: `setData` empties the array on the host side,
+so loading one break into two samplers needs a copy per sampler. The alternative was copying on the audio
+thread's doorstep, which is what transferring exists to avoid.
 
 **B2. Sequencer.** Multi-lane, 16 to 64 steps, transport-locked, patterns written in the engine's notation.
 Lanes emit gates; one lane emits pitch. This is what drives the sampler's slice index, which is where the
