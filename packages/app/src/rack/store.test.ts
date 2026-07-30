@@ -192,6 +192,75 @@ describe('making somewhere to put a break', () => {
     expect(useRack.getState().revision).toBe(5)
   })
 
+  it('wires a keyboard into whatever voice is already there', () => {
+    // Pressing a key on a rack with no MIDI module used to be indistinguishable from a broken keyboard,
+    // which is the same bug loading a break with no sampler had.
+    useRack.setState({ patch: STARTER(), revision: 0 })
+    const id = useRack.getState().ensureMidi()!
+    const patch = useRack.getState().patch
+    const cables = patch.cables.map((c) => `${c.from.join('.')}>${c.to.join('.')}`)
+    const vco = patch.modules.find((m) => m.type === 'vco')!
+    const adsr = patch.modules.find((m) => m.type === 'adsr')!
+    expect(cables).toContain(`${id}.pitch>${vco.id}.pitch`)
+    expect(cables).toContain(`${id}.gate>${adsr.id}.gate`)
+  })
+
+  it('takes over the pitch inlet rather than summing into it', () => {
+    // One cable per inlet is the rule the compiler enforces and `connect` mirrors, and it is what dragging
+    // a cable onto an occupied input does in Reason. Two sources into a pitch inlet would SUM, which is a
+    // wrong note rather than an obvious break — much worse, because it sounds like the patch is fine.
+    useRack.setState({ patch: STARTER(), revision: 0 })
+    const before = useRack.getState().patch
+    const vco = before.modules.find((m) => m.type === 'vco')!
+    // The starter patch has its sequencer driving the VCO, so there is something to displace.
+    expect(before.cables.filter((c) => c.to[0] === vco.id && c.to[1] === 'pitch')).toHaveLength(1)
+
+    useRack.getState().ensureMidi()
+    const after = useRack.getState().patch
+    const intoPitch = after.cables.filter((c) => c.to[0] === vco.id && c.to[1] === 'pitch')
+    expect(intoPitch).toHaveLength(1)
+    expect(intoPitch[0].from[1]).toBe('pitch')
+    expect(after.modules.find((m) => m.id === intoPitch[0].from[0])!.type).toBe('midi')
+  })
+
+  it('gates a VCA directly when there is no envelope to open', () => {
+    // Otherwise a patch with no ADSR would drone: the note would change pitch and nothing would ever
+    // articulate it.
+    const patch: Patch = {
+      modules: [
+        { id: 'vco-1', type: 'vco' },
+        { id: 'vca-1', type: 'vca' },
+      ],
+      cables: [],
+    }
+    useRack.setState({ patch, revision: 0 })
+    const id = useRack.getState().ensureMidi()!
+    const cables = useRack.getState().patch.cables.map((c) => `${c.from.join('.')}>${c.to.join('.')}`)
+    // The GATE, not the pitch. Inferring the source port from the target's id sent pitch here at first,
+    // which is a drone at the wrong note rather than a note.
+    expect(cables).toContain(`${id}.gate>vca-1.cv`)
+  })
+
+  it('declines rather than adding a keyboard with nothing to play', () => {
+    // A MIDI module wired to nothing is exactly the silent no-op this exists to prevent, so absence has to
+    // read as absence and let the UI say so.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
+    expect(useRack.getState().ensureMidi()).toBeNull()
+    expect(useRack.getState().patch.modules).toHaveLength(0)
+    expect(useRack.getState().revision).toBe(0)
+  })
+
+  it('never rearranges a patch that already has a keyboard', () => {
+    const withOne: Patch = {
+      modules: [{ id: 'mine', type: 'midi' }, { id: 'vco-1', type: 'vco' }],
+      cables: [],
+    }
+    useRack.setState({ patch: withOne, revision: 5 })
+    expect(useRack.getState().ensureMidi()).toBe('mine')
+    expect(useRack.getState().patch).toBe(withOne)
+    expect(useRack.getState().revision).toBe(5)
+  })
+
   it('is structural, because the graph gains modules', () => {
     useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
     useRack.getState().ensureSampler()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Keyboard, midiTargets, type VoiceState } from './midi.js'
+import { Keyboard, midiTargets, type VoiceState, KeyboardBank } from './midi.js'
 
 // The allocation rule, tested as arithmetic on note numbers. It is split away from the Web MIDI plumbing for
 // exactly this reason — the rule is where the behaviour anybody would notice lives, and the plumbing is three
@@ -248,5 +248,74 @@ describe('choosing which MIDI modules hear a note', () => {
       { id: 'b', type: 'midi', params: { channel: 3 } },
     ]
     expect(midiTargets(pair, 3)).toEqual(['a', 'b'])
+  })
+})
+
+describe('one bank of keyboards for every way of playing', () => {
+  // Hoisted out of `openMidi` so the on-screen keys share it. Two allocators would each believe they owned
+  // all the voices: a note played on screen could be silently stolen by one arriving from hardware, and a
+  // release would hand back a voice the other still thought it held.
+
+  it('gives the same channel the same keyboard', () => {
+    const bank = new KeyboardBank()
+    expect(bank.for(1)).toBe(bank.for(1))
+  })
+
+  it('gives different channels different keyboards', () => {
+    // So two MIDI modules set to different channels split a controller rather than both playing everything.
+    const bank = new KeyboardBank()
+    expect(bank.for(1)).not.toBe(bank.for(2))
+  })
+
+  it('reports what is sounding across every channel', () => {
+    // What lights the on-screen keys — including for notes that arrived from a controller, which is the
+    // cheapest possible way to see that a controller is working.
+    const bank = new KeyboardBank()
+    bank.setVoices(4)
+    bank.for(1).down(60, 1)
+    bank.for(2).down(67, 1)
+    expect(bank.sounding().sort((a, b) => a - b)).toEqual([60, 67])
+    bank.for(1).up(60)
+    expect(bank.sounding()).toEqual([67])
+  })
+
+  it('hands a note played on screen and one played on hardware different voices', () => {
+    // The whole reason the bank is shared. With two banks both notes would be allocated voice 0 and the
+    // second would silently replace the first.
+    const bank = new KeyboardBank()
+    bank.setVoices(4)
+    const keyboard = bank.for(1)
+    const first = keyboard.down(60, 1).filter((s) => s.gate === 1)
+    const second = keyboard.down(64, 1).filter((s) => s.gate === 1)
+    expect(first[0].voice).not.toBe(second[0].voice)
+    expect(bank.sounding().sort((a, b) => a - b)).toEqual([60, 64])
+  })
+
+  it('applies a new voice count to keyboards that already exist', () => {
+    // The count used to be set once, when Web MIDI was opened. Changing it afterwards left the keyboards
+    // allocating across a number the audio thread no longer had — and the on-screen keys can now play
+    // without Web MIDI ever being opened at all.
+    const bank = new KeyboardBank()
+    const keyboard = bank.for(1)
+    bank.setVoices(4)
+    expect(keyboard.count).toBe(4)
+  })
+
+  it('gives a keyboard created later the current voice count', () => {
+    // A channel first heard from after the patch went polyphonic must not start out mono.
+    const bank = new KeyboardBank()
+    bank.setVoices(6)
+    expect(bank.for(3).count).toBe(6)
+  })
+
+  it('stops every channel at once', () => {
+    const bank = new KeyboardBank()
+    bank.setVoices(2)
+    bank.for(1).down(60, 1)
+    bank.for(2).down(72, 1)
+    const stopped = bank.allOff()
+    expect(bank.sounding()).toEqual([])
+    expect(stopped.every((change) => change.state.gate === 0)).toBe(true)
+    expect(new Set(stopped.map((change) => change.channel))).toEqual(new Set([1, 2]))
   })
 })

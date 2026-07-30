@@ -82,6 +82,22 @@ interface RackState {
    * A no-op when a Sampler already exists, so it never rearranges a patch somebody built.
    */
   ensureSampler: () => string
+  /**
+   * Make sure there is a MIDI module with somewhere to send its notes, and return its id.
+   *
+   * The same reasoning as `ensureSampler`, and the same bug avoided: pressing a key on a rack with no MIDI
+   * module used to be indistinguishable from a broken keyboard. Being told to go and patch two cables
+   * before a note will sound is the opposite of what this instrument is for.
+   *
+   * **It takes over the pitch and gate inlets it lands on**, because one cable per inlet is the rule
+   * everywhere — the compiler enforces it and `connect` mirrors it, which is what dragging a cable onto an
+   * occupied input does in Reason. On the starter patch that means the keyboard replaces the sequencer as
+   * what plays the voice, which is exactly what somebody pressing a key is asking for. It is visible on the
+   * back panel and undone by patching the sequencer back.
+   *
+   * A no-op when a MIDI module already exists, so it never rearranges a patch somebody built.
+   */
+  ensureMidi: () => string | null
   load: (patch: Patch) => void
   select: (moduleId: string | null) => void
   flip: (flipped?: boolean) => void
@@ -255,6 +271,43 @@ export const useRack = create<RackState>((set, get) => {
         cables.push({ from: [transport, 'bar'], to: [id, 'slice'] })
         cables.push({ from: [id, 'out'], to: [out, 'in'] })
         return { ...patch, modules, cables }
+      })
+      return id
+    },
+
+    ensureMidi: () => {
+      const existing = get().patch.modules.find((m) => m.type === 'midi')
+      if (existing) return existing.id
+
+      // Somewhere for the notes to go. Without a pitch inlet to drive there is nothing useful to build —
+      // a MIDI module wired to nothing is the silent no-op this exists to prevent, so say so instead.
+      const patch = get().patch
+      const vco = patch.modules.find((m) => m.type === 'vco')
+      if (!vco) return null
+
+      const id = freshId(patch, 'midi')
+      structural((current) => {
+        const modules = [...current.modules, { id, type: 'midi' }]
+        const cables = [...current.cables]
+
+        // One cable per inlet, so anything already driving these is replaced rather than summed — a summed
+        // pitch would be a wrong note rather than an obvious break, which is the worse failure.
+        // Named explicitly rather than inferred from the destination: the gate goes to a VCA's `cv` inlet
+        // when there is no envelope, and guessing the source from the target's port id would have sent it
+        // pitch instead — a drone at the wrong note rather than a note.
+        const takeOver = (from: string, to: [string, string]) => {
+          const at = cables.findIndex((c) => c.to[0] === to[0] && c.to[1] === to[1])
+          if (at >= 0) cables.splice(at, 1)
+          cables.push({ from: [id, from], to })
+        }
+        takeOver('pitch', [vco.id, 'pitch'])
+        // The gate goes to an envelope if there is one; a VCA's own CV inlet otherwise, so a patch with no
+        // ADSR still articulates rather than droning.
+        const adsr = current.modules.find((m) => m.type === 'adsr')
+        const vca = current.modules.find((m) => m.type === 'vca')
+        if (adsr) takeOver('gate', [adsr.id, 'gate'])
+        else if (vca) takeOver('gate', [vca.id, 'cv'])
+        return { ...current, modules, cables }
       })
       return id
     },
