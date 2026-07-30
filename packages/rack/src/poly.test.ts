@@ -135,9 +135,12 @@ describe('what the compiler says about voices', () => {
     expect(plan.nodes.find((n) => n.id === 'm')!.poly).toBe(false)
   })
 
-  it('marks the four shipped modules that must run once, and nothing else', () => {
+  it('marks the shipped modules that must run once, and nothing else', () => {
+    // Transport joined this list: eight transports would agree with each other and cost eight times as much to
+    // do it. If a new module appears here, it should be because duplicating it would be wrong rather than
+    // because nobody thought about it.
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
-    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'seq'])
+    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'seq', 'transport'])
   })
 })
 

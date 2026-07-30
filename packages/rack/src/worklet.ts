@@ -49,6 +49,9 @@ export const RACK_PROCESSOR = 'driftbox-rack'
 export type RackMessage =
   | { kind: 'plan'; plan: unknown }
   | { kind: 'param'; slot: number; value: number; voice?: number }
+  | { kind: 'transport'; tempo: number; running: boolean }
+  /** `data` is transferred rather than copied — see `Rack.setData`. */
+  | { kind: 'data'; module: string; slot: string; data: Float32Array }
 
 /**
  * Assemble the processor source for a set of modules.
@@ -104,6 +107,10 @@ class RackProcessor extends AudioWorkletProcessor {
         }
       } else if (message.kind === 'param') {
         this.graph.setParam(message.slot, message.value, message.voice)
+      } else if (message.kind === 'transport') {
+        this.graph.setTransport(message.tempo, message.running)
+      } else if (message.kind === 'data') {
+        this.graph.setData(message.module, message.slot, message.data)
       }
     }
   }

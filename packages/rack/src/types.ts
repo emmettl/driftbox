@@ -52,6 +52,41 @@ export interface ParamDef {
 }
 
 /**
+ * Where the transport is, as of the start of this block.
+ *
+ * Handed to `process` as a fifth argument, which exactly one module reads — see `modules/transport.ts`. Every
+ * other module syncs by patching to that module's outlets, which is how a real rack does it and is why this
+ * widened the contract once rather than eighteen times. Existing modules ignore it because this is JavaScript
+ * and an extra argument costs nothing.
+ *
+ * `beat` is accumulated per block rather than derived from an absolute frame count, so that changing the tempo
+ * mid-bar carries on from where the music was instead of jumping to wherever the new arithmetic lands.
+ */
+export interface Transport {
+  /** Beats per minute. */
+  tempo: number
+  /** Whether it is running. A stopped transport holds its position. */
+  running: boolean
+  /** Position in beats since the transport started, fractional. */
+  beat: number
+  /** How many beats one block covers, so a module can work out where inside the block a division falls. */
+  beatsPerBlock: number
+}
+
+/**
+ * Bulk data for one module — a sample buffer, a pattern.
+ *
+ * Not params. A param is a number with a range and a knob; this is hundreds of kilobytes of audio, or a
+ * 64-step 8-lane pattern that is 512 values and could never be 512 knobs. See `docs/DNB.md`.
+ *
+ * **Read it every block and compare by identity.** A different array means different data — that is the whole
+ * change-detection protocol, and it is deliberately that crude so nothing has to subscribe to anything.
+ */
+export interface ModuleData {
+  get(slot: string): Float32Array | undefined
+}
+
+/**
  * The audio-thread half of a module.
  *
  * `inlets`, `outlets` and `params` all arrive as `Float32Array`s of `frames` samples, in
@@ -75,6 +110,7 @@ export interface Processor {
     outlets: Float32Array[],
     params: Float32Array[],
     frames: number,
+    transport?: Transport,
   ): void
 }
 
@@ -94,6 +130,7 @@ export type ProcessorClass = new (
   sampleRate: number,
   deps: Record<string, unknown>,
   id: string,
+  data: ModuleData,
 ) => Processor
 
 /** A shared DSP class a module can ask for by name. `never[]` rather than `unknown[]` so
@@ -144,6 +181,16 @@ export interface PatchModule {
   type: string
   version?: number
   params?: Record<string, number>
+  /**
+   * Bulk data that belongs *in* the document — a sequencer's pattern.
+   *
+   * Plain number arrays, so it is JSON and travels in a file and a URL like everything else. The other kind of
+   * bulk data, a sample buffer, deliberately does **not** live here: it is pushed straight at the audio thread
+   * with `Rack.setData`, because a patch should store *which* break rather than several hundred kilobytes of
+   * one. Same argument as the MIDI module's hidden params, and the same consequence — a patch using a loaded
+   * sample cannot travel in a URL, and has to say so.
+   */
+  data?: Record<string, number[]>
   /** Where it sits in the rack. The engine does not read this; the UI does. */
   pos?: [number, number]
 }
@@ -167,6 +214,14 @@ export interface Patch {
    * different counts meet. One number is predictable, testable, and enough to play chords with.
    */
   voices?: number
+  /**
+   * Beats per minute. Absent means 120.
+   *
+   * In the patch rather than the session, because the engine's `Song` carries `bpm` for the same reason: a
+   * drum-and-bass patch *is* 174, and one shared at the wrong tempo is not the patch that was shared. Whether
+   * the transport is *running* is session state and deliberately not here.
+   */
+  tempo?: number
 }
 
 // ---------------------------------------------------------------------------------------
@@ -184,6 +239,8 @@ export interface PlanNode {
   params: number[]
   /** False for a module that runs once however many voices there are. */
   poly: boolean
+  /** Bulk data carried in the patch, seeded into the Graph when the plan is applied. */
+  data?: Record<string, number[]>
 }
 
 export interface PlanParam {

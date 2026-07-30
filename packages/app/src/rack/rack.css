@@ -110,6 +110,15 @@ kbd {
   color: var(--dim);
   text-transform: uppercase;
 }
+.rk-voices input {
+  font: inherit;
+  width: 62px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 5px 6px;
+}
 .rk-voices select {
   font: inherit;
   color: var(--ink);

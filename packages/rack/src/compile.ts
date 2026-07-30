@@ -344,6 +344,10 @@ export function compile(patch: Patch, registry: Registry): Plan {
       outlets: def.outlets.map((port) => outletBuffer.get(key(module.id, port.id)) ?? ZERO),
       params: def.params.map((param) => slots[module.id][param.id]),
       poly: def.poly !== false,
+      // Carried through untouched. `compile` has no opinion about what a module's data means — it is the module
+      // that knows whether a run of numbers is a pattern or a wavetable — and validating it here would need a
+      // schema per module type, which is the sort of thing the placeholder rule exists to avoid.
+      ...(module.data ? { data: module.data } : {}),
     }
   })
 

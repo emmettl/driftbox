@@ -186,3 +186,57 @@ describe('the assembled worklet', () => {
     expect(() => rackSource(registry)).toThrow(/disagree/)
   })
 })
+
+describe('the transport and bulk data across the message boundary', () => {
+  // Both are new message kinds, and the worklet is where a message shape mistake actually bites — the host and
+  // the audio thread agree by convention only.
+
+  const TICKING: Patch = {
+    modules: [
+      { id: 't', type: 'transport' },
+      { id: 'out', type: 'out', params: { level: 1 } },
+    ],
+    cables: [{ from: ['t', 'sixteenth'], to: ['out', 'in'] }],
+  }
+
+  it('does not run until told to, then does', () => {
+    const { instance } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(TICKING, MODULES) } })
+    // The plan alone is not a transport: a patch that started playing the moment it compiled would start
+    // playing every time it was edited.
+    expect(rms(render(instance, 8))).toBe(0)
+
+    instance.port.onmessage?.({ data: { kind: 'transport', tempo: 174, running: true } })
+    expect(rms(render(instance, 8))).toBeGreaterThan(0)
+  })
+
+  it('stops when told to stop', () => {
+    const { instance } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(TICKING, MODULES) } })
+    instance.port.onmessage?.({ data: { kind: 'transport', tempo: 174, running: true } })
+    render(instance, 8)
+    instance.port.onmessage?.({ data: { kind: 'transport', tempo: 174, running: false } })
+    expect(rms(render(instance, 40))).toBe(0)
+  })
+
+  it('accepts bulk data for a module', () => {
+    // No module uses data yet — the sampler is phase B — so this checks the message is understood and does not
+    // throw, which is what would break the moment one does.
+    const { instance } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(TICKING, MODULES) } })
+    expect(() =>
+      instance.port.onmessage?.({
+        data: { kind: 'data', module: 't', slot: 'table', data: Float32Array.from([1, 2, 3]) },
+      }),
+    ).not.toThrow()
+    instance.port.onmessage?.({ data: { kind: 'transport', tempo: 174, running: true } })
+    expect(rms(render(instance, 8))).toBeGreaterThan(0)
+  })
+
+  it('still ignores a message it does not understand', () => {
+    const { instance } = instantiate(MODULES)
+    for (const data of [{ kind: 'transport' }, { kind: 'data' }, { kind: 'data', module: 't' }]) {
+      expect(() => instance.port.onmessage?.({ data })).not.toThrow()
+    }
+  })
+})

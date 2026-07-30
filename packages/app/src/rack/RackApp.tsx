@@ -35,6 +35,10 @@ export default function RackApp() {
   const setVoices = useRack((s) => s.setVoices)
   const voices = useRack((s) => s.patch.voices ?? 1)
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
+  const tempo = useRack((s) => s.patch.tempo ?? 120)
+  const setTempo = useRack((s) => s.setTempo)
+  const playing = useRack((s) => s.running)
+  const setRunning = useRack((s) => s.setRunning)
 
   const rack = useRef<Rack | null>(null)
   /**
@@ -47,7 +51,7 @@ export default function RackApp() {
    * flattened top, and both are otherwise invisible.
    */
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
-  const [running, setRunning] = useState(false)
+  const [started, setStarted] = useState(false)
   const [failed, setFailed] = useState(false)
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -175,7 +179,11 @@ export default function RackApp() {
 
     live.patch = useRack.getState().patch
     rack.current = live
+    // The gesture that starts audio is also the gesture that starts the music. Anything else means arriving,
+    // pressing a button, and getting silence — which is the "instant DJ" problem in `docs/DNB.md`.
+    live.setTransport(useRack.getState().patch.tempo ?? 120, true)
     setRunning(true)
+    setStarted(true)
   }
 
   // Knob moves go straight to the audio thread. Subscribing rather than doing it in the handler keeps
@@ -188,6 +196,12 @@ export default function RackApp() {
   useEffect(() => {
     midi.current?.setVoices(voices)
   }, [voices])
+
+  // The transport lives on the audio thread and is not part of the plan, so it has to be pushed whenever either
+  // half of it changes — and re-pushed by `Rack.start`, which a patch reload does not do.
+  useEffect(() => {
+    rack.current?.setTransport(tempo, playing)
+  }, [tempo, playing])
 
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
@@ -221,7 +235,7 @@ export default function RackApp() {
         </h1>
         {name && <span className="rk-open">{name}</span>}
 
-        {!running && !failed && (
+        {!started && !failed && (
           <button type="button" className="rk-primary" onClick={start}>
             Start audio
           </button>
@@ -254,6 +268,25 @@ export default function RackApp() {
           Patches
         </button>
 
+        {started && (
+          <>
+            <button type="button" onClick={() => setRunning(!playing)} aria-pressed={playing}>
+              {playing ? '■ Stop' : '▶ Play'}
+            </button>
+            <label className="rk-voices">
+              BPM
+              <input
+                type="number"
+                min={20}
+                max={400}
+                value={Math.round(tempo)}
+                aria-label="Tempo"
+                onChange={(event) => setTempo(Number(event.target.value))}
+              />
+            </label>
+          </>
+        )}
+
         <label
           className="rk-voices"
           title={
@@ -281,8 +314,8 @@ export default function RackApp() {
             type="button"
             onClick={toggleMidi}
             aria-pressed={midiState === 'on'}
-            disabled={!running}
-            title={running ? undefined : 'Start audio first'}
+            disabled={!started}
+            title={started ? undefined : 'Start audio first'}
           >
             {/* "MIDI in" rather than "MIDI": the palette has a button for the module itself, and two
                 controls sharing an accessible name is ambiguous to a screen reader and to a test. */}
@@ -361,7 +394,7 @@ export default function RackApp() {
         </div>
       </div>
 
-      {running && (
+      {started && (
         <div className="rk-scope">
           {/* No `colour`: it becomes a canvas strokeStyle, which cannot read a CSS custom property — it
               would silently keep whatever was set last. The default is already --nine's value. */}

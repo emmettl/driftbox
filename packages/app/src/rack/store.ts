@@ -65,6 +65,12 @@ interface RackState {
   setMidi: (note: number | null, inputs?: string[]) => void
   /** Structural: the graph is rebuilt with a different number of processors per module. */
   setVoices: (voices: number) => void
+  /** Not structural. Tempo is a value in the patch — it saves and it travels in a link, but changing it does not
+   *  rebuild the graph, so it goes down the same path a knob does. */
+  setTempo: (tempo: number) => void
+  /** Session state, not part of the patch. */
+  running: boolean
+  setRunning: (running: boolean) => void
   load: (patch: Patch) => void
   select: (moduleId: string | null) => void
   flip: (flipped?: boolean) => void
@@ -113,6 +119,7 @@ export const useRack = create<RackState>((set, get) => {
     name: null,
     midiNote: null,
     midiInputs: [],
+    running: false,
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -194,6 +201,20 @@ export const useRack = create<RackState>((set, get) => {
     setName: (name) => set({ name }),
     setMidi: (midiNote, inputs) =>
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
+
+    setTempo: (tempo) => {
+      set((state) => {
+        const wanted = Math.max(20, Math.min(400, tempo))
+        const patch =
+          wanted === 120
+            ? (({ tempo: _drop, ...rest }) => rest)(state.patch)
+            : { ...state.patch, tempo: wanted }
+        autosavePatch(patch)
+        return { patch }
+      })
+    },
+
+    setRunning: (running) => set({ running }),
 
     setVoices: (voices) =>
       structural((patch) => {
