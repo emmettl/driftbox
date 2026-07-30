@@ -1,4 +1,4 @@
-import { MIDI_INPUTS, MODULE_LIST, MODULES, Rack, compile } from '@driftbox/rack'
+import { MIDI_INPUTS, MODULE_LIST, MODULES, Rack, compile, renderPatch } from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
@@ -6,7 +6,7 @@ import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
-import { Kaoss } from '@driftbox/engine'
+import { Kaoss, toWav } from '@driftbox/engine'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
@@ -66,7 +66,20 @@ export default function RackApp() {
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
-  const [loadedBreak, setLoadedBreak] = useState<string | null>(null)
+  /** Which break is loaded, by id as well as name — the id so an export can render it again.
+   *  Keeping the audio itself would mean holding about 700kB for the life of the page, and `setData`
+   *  transfers the array away anyway, so there is nothing left on this side to keep. */
+  const [loadedBreak, setLoadedBreak] = useState<{ id: string; name: string } | null>(null)
+  /**
+   * The break this patch is written around, whether or not one has been pushed to the audio thread yet.
+   *
+   * Separate from `loadedBreak` on purpose, and the export is why. Exporting before pressing play used to
+   * produce a file with the bass and no drums: `loadedBreak` only becomes true once `loadBreak` has run, and
+   * the render does not need a live rack at all. Showing a break as loaded when it is not would be a lie;
+   * exporting the wrong file silently is worse. So there are two facts and they are both recorded.
+   */
+  const [intendedBreak, setIntendedBreak] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
   /**
    * What the AudioContext says about itself.
    *
@@ -122,9 +135,15 @@ export default function RackApp() {
 
   const loadBreak = useCallback(
     async (id: string) => {
-      const live = rack.current
       const entry = BREAKS.find((candidate) => candidate.id === id)
-      if (!live || !entry) return
+      if (!entry) return
+      // Recorded before the live-rack check, not after. This used to return early when audio had not started,
+      // which meant choosing a break-backed patch from the picker and exporting it produced a file with the
+      // bass and no drums — the same early-return-before-recording-the-fact shape as the bug above.
+      setIntendedBreak(entry.id)
+
+      const live = rack.current
+      if (!live) return
 
       // **If there is nowhere to put it, make somewhere.** Clicking a break used to do nothing at all when the
       // patch had no Sampler — there was a hint saying to add one, and the button stayed enabled and silently
@@ -139,7 +158,7 @@ export default function RackApp() {
       const samplers = useRack.getState().patch.modules.filter((m) => m.type === 'sampler')
       // A copy per sampler, because `setData` transfers: after the first send the array is empty on this side.
       for (const module of samplers) live.setData(module.id, 'sample', rendered.slice())
-      setLoadedBreak(entry.name)
+      setLoadedBreak({ id: entry.id, name: entry.name })
 
       // A break is rendered at its own tempo and only slices cleanly at that tempo, so adopting it means adopting
       // the tempo too. Letting the chop drift silently would be the worse outcome.
@@ -230,8 +249,45 @@ export default function RackApp() {
     void openingPatch().then((result) => {
       opening.current = result
       load(result.patch)
+      // Recorded before anything is played, so an export straight off the page still has its drums.
+      if (result.preset?.needsBreak) setIntendedBreak(result.preset.needsBreak)
     })
   }, [load])
+
+  /**
+   * Render the patch to a WAV and hand it over.
+   *
+   * Offline rather than a recording of what is playing — see the note at the top of `render.ts`. The break
+   * is rendered again rather than kept: `setData` transfers the array to the audio thread, so there is
+   * nothing on this side to reuse, and holding a copy would be 700kB for the life of the page.
+   *
+   * It does not need the live rack at all, which is the useful part: exporting works before audio has ever
+   * been started, and a patch shared as a link can be turned into a file without pressing play.
+   */
+  const exportPatch = useCallback(async () => {
+    const patch = useRack.getState().patch
+    const entry = intendedBreak ? BREAKS.find((b) => b.id === intendedBreak) : undefined
+
+    const data: Record<string, Record<string, Float32Array>> = {}
+    if (entry) {
+      const rendered = await renderBreak(entry, { sampleRate: 44100 })
+      for (const module of patch.modules) {
+        if (module.type !== 'sampler') continue
+        // A copy per sampler, for the same reason `loadBreak` makes one: `setData` transfers.
+        data[module.id] = { sample: rendered.slice() }
+      }
+    }
+
+    const buffer = await renderPatch(patch, { bars: 8, sampleRate: 44100, data })
+    const url = URL.createObjectURL(toWav(buffer))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${(useRack.getState().name ?? 'driftbox-rack').replace(/[^\w-]+/g, '-')}.wav`
+    link.click()
+    // Revoked on the next turn of the event loop rather than immediately: revoking before the click has
+    // been handled cancels the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }, [intendedBreak])
 
   /**
    * Keep the allocator agreeing with the graph about how many voices exist.
@@ -421,7 +477,7 @@ export default function RackApp() {
           Driftbox <span>Rack</span>
         </h1>
         {name && <span className="rk-open">{name}</span>}
-        {loadedBreak && <span className="rk-open">{loadedBreak}</span>}
+        {loadedBreak && <span className="rk-open">{loadedBreak.name}</span>}
 
         {!started && !failed && (
           <button type="button" className="rk-primary" onClick={start}>
@@ -537,6 +593,22 @@ export default function RackApp() {
           Copy link
         </button>
 
+        <button
+          type="button"
+          disabled={exporting}
+          title="Render this patch to a WAV file"
+          onClick={async () => {
+            setExporting(true)
+            try {
+              await exportPatch()
+            } finally {
+              setExporting(false)
+            }
+          }}
+        >
+          {exporting ? 'Rendering…' : 'Export'}
+        </button>
+
         <a className="rk-away" href="./index.html">
           Sequencer →
         </a>
@@ -559,8 +631,10 @@ export default function RackApp() {
         </div>
       )}
 
+      {/* `onLoadBreak` is always passed now, not only once audio has started: `loadBreak` records which
+          break a patch wants even when there is no live rack to push it to, and the export needs that. */}
       {browsing && (
-        <PatchBrowser onClose={() => setBrowsing(false)} onLoadBreak={started ? loadBreak : undefined} />
+        <PatchBrowser onClose={() => setBrowsing(false)} onLoadBreak={loadBreak} />
       )}
 
       {shared && <p className="rk-shared">{shared}</p>}

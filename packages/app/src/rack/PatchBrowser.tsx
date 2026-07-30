@@ -26,7 +26,8 @@ import { useRack } from './store.js'
 
 interface Props {
   onClose: () => void
-  /** Absent until audio has started — rendering a break needs a sample rate, and pushing it needs a live Rack. */
+  /** Note which break a patch wants, and load it if there is a live rack to load it into. Always present:
+   *  the export needs to know which break a patch was written around whether or not audio is running. */
   onLoadBreak?: (id: string) => void
 }
 
