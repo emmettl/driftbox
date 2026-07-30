@@ -227,6 +227,136 @@ export function clearTrack(pattern: Pattern, voiceId: string): Pattern {
   return { ...pattern, tracks }
 }
 
+// ---- pattern transforms -------------------------------------------------------
+//
+// ReBirth put these on a menu. They live beside the pattern data here instead of in the
+// app so a rack clip editor, a game or a script gets exactly the same operation. Every
+// transform is immutable and bounded by `pattern.length`; hidden array tails must never
+// reappear after a rotate.
+
+export type RandomSource = () => number
+
+function rotate<T>(values: readonly T[], length: number, delta: number, fallback: () => T): T[] {
+  if (length <= 0) return []
+  const source = Array.from({ length }, (_, index) => values[index] ?? fallback())
+  const offset = ((Math.round(delta) % length) + length) % length
+  return Array.from({ length }, (_, index) => source[(index - offset + length) % length])
+}
+
+/** Move one drum lane around the loop. Positive is right/later, negative left/earlier. */
+export function rotateTrack(pattern: Pattern, voiceId: string, delta: number): Pattern {
+  const track = pattern.tracks[voiceId]
+  if (!track) return pattern
+  return {
+    ...pattern,
+    tracks: { ...pattern.tracks, [voiceId]: rotate(track, pattern.length, delta, () => 0) },
+  }
+}
+
+/** Move one 303 line around the loop, preserving every note's articulation flags. */
+export function rotateBassLine(pattern: Pattern, voiceId: string, delta: number): Pattern {
+  const line = pattern.bass?.[voiceId]
+  if (!line) return pattern
+  return {
+    ...pattern,
+    bass: {
+      ...pattern.bass,
+      [voiceId]: rotate(line, pattern.length, delta, () => ({ ...REST })),
+    },
+  }
+}
+
+/** Transpose the sounding notes in one 303 line; rests and articulation stay untouched. */
+export function transposeBassLine(
+  pattern: Pattern,
+  voiceId: string,
+  semitones: number,
+): Pattern {
+  const line = pattern.bass?.[voiceId]
+  if (!line) return pattern
+  const by = Math.round(semitones)
+  return {
+    ...pattern,
+    bass: {
+      ...pattern.bass,
+      [voiceId]: Array.from({ length: pattern.length }, (_, index) => {
+        const step = line[index] ?? REST
+        return step.note === null
+          ? { ...step }
+          : { ...step, note: Math.max(0, Math.min(24, step.note + by)) }
+      }),
+    },
+  }
+}
+
+/** Create a fresh drum lane. The bias towards rests keeps the result a rhythm, not noise. */
+export function randomizeTrack(
+  pattern: Pattern,
+  voiceId: string,
+  random: RandomSource = Math.random,
+): Pattern {
+  const track = Array.from({ length: pattern.length }, (): StepValue => {
+    const value = random()
+    return value < 0.58 ? 0 : value < 0.88 ? 1 : 2
+  })
+  return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: track } }
+}
+
+/** Create pitches and articulation for one 303 while leaving the other machines alone. */
+export function randomizeBassLine(
+  pattern: Pattern,
+  voiceId: string,
+  random: RandomSource = Math.random,
+): Pattern {
+  const line = Array.from({ length: pattern.length }, (): BassStep => {
+    if (random() < 0.46) return { ...REST }
+    const note = Math.min(24, Math.floor(random() * 25))
+    return { note, accent: random() < 0.24, slide: random() < 0.18 }
+  })
+  return { ...pattern, bass: { ...pattern.bass, [voiceId]: line } }
+}
+
+function shuffled<T>(values: readonly T[], random: RandomSource): T[] {
+  const next = [...values]
+  for (let index = next.length - 1; index > 0; index--) {
+    const swap = Math.min(index, Math.floor(random() * (index + 1)))
+    ;[next[index], next[swap]] = [next[swap], next[index]]
+  }
+  return next
+}
+
+/**
+ * Reorder the material already in a drum lane. Unlike randomise, the number of normal
+ * hits, accents and rests is exactly preserved.
+ */
+export function alterTrack(
+  pattern: Pattern,
+  voiceId: string,
+  random: RandomSource = Math.random,
+): Pattern {
+  const track = pattern.tracks[voiceId]
+  if (!track) return pattern
+  const source = Array.from({ length: pattern.length }, (_, index) => track[index] ?? 0)
+  return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: shuffled(source, random) } }
+}
+
+/** Reorder existing 303 steps without inventing or discarding notes or articulation. */
+export function alterBassLine(
+  pattern: Pattern,
+  voiceId: string,
+  random: RandomSource = Math.random,
+): Pattern {
+  const line = pattern.bass?.[voiceId]
+  if (!line) return pattern
+  const source = Array.from({ length: pattern.length }, (_, index) => ({
+    ...(line[index] ?? REST),
+  }))
+  return {
+    ...pattern,
+    bass: { ...pattern.bass, [voiceId]: shuffled(source, random) },
+  }
+}
+
 export function defaultKit(voiceIds: string[]): Kit {
   const params: Record<string, VoiceParams> = {}
   for (const id of voiceIds) params[id] = { ...DEFAULT_PARAMS }

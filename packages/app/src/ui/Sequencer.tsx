@@ -1,4 +1,5 @@
-import { ALL_VOICES, stepAt } from '@driftbox/engine'
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react'
+import { ALL_VOICES, stepAt, type StepValue } from '@driftbox/engine'
 import { useBox } from '../store'
 import { useLiveStep } from './useLiveStep'
 
@@ -12,18 +13,62 @@ export function Sequencer() {
   const editing = useBox((s) => s.editing)
   const selectedVoice = useBox((s) => s.selectedVoice)
   const toggleStep = useBox((s) => s.toggleStep)
+  const setDrumStep = useBox((s) => s.setDrumStep)
   const audition = useBox((s) => s.audition)
   const selectVoice = useBox((s) => s.selectVoice)
 
   const live = useLiveStep()
   const pattern = song.patterns.find((p) => p.id === editing)
   const voices = ALL_VOICES.filter((v) => v.machine === view)
+  const paint = useRef<{
+    pointer: number
+    voiceId: string
+    start: number
+    last: number
+    value: StepValue
+    moved: boolean
+  } | null>(null)
+  // Pointer-up is followed by click. A drag has already written its cells, so that click
+  // must not cycle the last one a second time.
+  const suppressClick = useRef(false)
+
+  useEffect(() => {
+    const finish = (event: PointerEvent) => {
+      if (paint.current?.pointer !== event.pointerId) return
+      suppressClick.current = paint.current.moved
+      paint.current = null
+    }
+    window.addEventListener('pointerup', finish)
+    window.addEventListener('pointercancel', finish)
+    return () => {
+      window.removeEventListener('pointerup', finish)
+      window.removeEventListener('pointercancel', finish)
+    }
+  }, [])
 
   if (!pattern) return null
 
+  const continuePaint = (event: ReactPointerEvent) => {
+    const stroke = paint.current
+    if (!stroke || stroke.pointer !== event.pointerId) return
+    // Touch pointers are implicitly captured by the first pad, so event.target stays on
+    // that pad while the finger crosses the row. Hit-test the pointer position instead;
+    // the same path then works for mouse, pen and touch.
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest<HTMLButtonElement>('button[data-step]')
+    if (!target || target.dataset.voice !== stroke.voiceId) return
+    const step = Number(target.dataset.step)
+    if (!Number.isInteger(step) || step === stroke.last) return
+
+    if (!stroke.moved) setDrumStep(stroke.voiceId, stroke.start, stroke.value)
+    setDrumStep(stroke.voiceId, step, stroke.value)
+    stroke.last = step
+    stroke.moved = true
+  }
 
   return (
-    <div className="grid">
+    <div className="grid" onPointerMove={continuePaint}>
       {/* The ruler. A row of ticks above the pads with the current one lit, so the cursor
           is legible on a pattern whose top rows happen to be empty — the pads alone only
           show a position where there is already something to light up. */}
@@ -75,7 +120,29 @@ export function Sequencer() {
                 <button
                   key={step}
                   className={classes}
-                  onClick={() => toggleStep(voice.id, step)}
+                  data-step={step}
+                  data-voice={voice.id}
+                  onPointerDown={(event) => {
+                    paint.current = {
+                      pointer: event.pointerId,
+                      voiceId: voice.id,
+                      start: step,
+                      last: step,
+                      // Starting on an empty pad paints normal hits. Starting on either
+                      // kind of hit erases, matching ReBirth's drag gesture.
+                      value: value === 0 ? 1 : 0,
+                      moved: false,
+                    }
+                    suppressClick.current = false
+                  }}
+                  onClick={() => {
+                    if (suppressClick.current) {
+                      suppressClick.current = false
+                      return
+                    }
+                    toggleStep(voice.id, step)
+                  }}
+                  onDragStart={(event) => event.preventDefault()}
                   aria-label={`${voice.name} step ${step + 1}`}
                   aria-pressed={value !== 0}
                 />
