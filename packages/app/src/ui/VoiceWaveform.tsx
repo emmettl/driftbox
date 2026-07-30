@@ -25,7 +25,11 @@ export function VoiceWaveform({ voice, params, colour = '#ff7ad9', height = 66 }
     // Debounced: dragging a knob fires this on every pointer move, and each render
     // spins up a context. A frame or two of lag is invisible and costs nothing.
     const timer = setTimeout(() => {
-      renderVoiceOffline(voice, params, 1, 22050)
+      // Render at the engine's full-rate default before reducing the result to canvas
+      // columns. The 909 hats put useful energy above the 11.025kHz Nyquist limit of
+      // the old 22.05kHz preview, so rendering cheaply first made the picture differ
+      // from the voice heard through a normal 44.1/48kHz AudioContext.
+      renderVoiceOffline(voice, params, 1)
         .then((data) => {
           if (!cancelled) setSamples(data)
         })
