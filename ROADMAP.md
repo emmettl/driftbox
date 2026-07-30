@@ -660,7 +660,20 @@ new machinery.
 
 ## Verifying changes
 
-`npm test` covers the pure layer. Anything about how it *sounds* has to be measured —
-see [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md). Please re-run the level
-measurements after touching any voice, `render.ts`, or the bus chain; three real bugs
-came out of that and all three were invisible to the tests.
+`npm test` covers the pure layer in Node, and the level measurements in Chromium. **The
+request that used to live here — re-run the levels by hand after touching any voice,
+`render.ts` or the bus chain — is now a test.** Three real bugs came out of those
+measurements and all three were invisible to the Node suite; a checklist item that finds
+bugs at that rate should not depend on somebody remembering it.
+
+What is left to a person is in [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md): the mix
+measurements, which need judgement about which pattern and where in the bus to read, and
+everything about whether a change actually *sounds* right.
+
+**A browser test here is not a component test.** The project drives real Chromium because
+`OfflineAudioContext` and `AudioWorklet` are browser APIs, not because anything renders. It
+inherits the root aliases and defines and no React plugin, so the first `.browser.test.tsx`
+will need its own project extending `packages/app/vite.config.ts` — there is a note in
+`vitest.config.ts` saying so. Worth having eventually: the rack's cable drag and jack
+positions are pure `getBoundingClientRect`, which `layout.ts` already flags as checkable
+only by hand.

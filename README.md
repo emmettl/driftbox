@@ -63,9 +63,24 @@ npm install     # workspaces; installs all three
 npm run dev     # the app, with the engine built from source for HMR
 npm run lint    # oxlint
 npm run typecheck
-npm test        # vitest, across all workspaces
+npm test        # vitest, across all workspaces — both projects
 npm run build   # engine to dist/, then the app
 ```
+
+### Two test projects
+
+Most of the suite is Node — the pure layer, and `npm run test:node` is that alone, for the
+inner loop. The rest runs in **real Chromium**, and needs one setup step:
+
+```bash
+npx playwright install chromium
+```
+
+That project exists because `OfflineAudioContext` is a browser API, and in this repo it is not
+a detail at the edge — it is where the audio is. The measurements below under *Verification*
+each caught a real bug and each used to be a page of instructions somebody had to remember to
+re-run; they are now assertions that run on every push. Set `DRIFTBOX_CHROMIUM` to an existing
+Chrome or Chromium binary to use that instead of downloading one.
 
 Space plays and stops · `V` drops into performance mode · `X` switches the scope between
 a waveform and a vectorscope · click a step to cycle it off → on → accented · on the 303
@@ -449,8 +464,13 @@ hats use six *inharmonic* partials, that the 909's digital metal carries a deter
 6-bit/30kHz layer, that claps retrigger rather than firing once, and that the 909 kick is
 shorter and more driven than the 808's.
 
-What tests cannot reach was measured by rendering offline and looking at the samples.
-Doing that caught three things nothing else would have:
+What the Node tests cannot reach is measured by rendering offline and looking at the
+samples. That used to mean running `docs/VERIFYING-AUDIO.md` by hand; the measurements that
+come down to a number now run in Chromium as part of `npm test` —
+`packages/engine/src/render.browser.test.ts` holds the levels, and
+`bassline.browser.test.ts` checks that the ladder filter really loaded onto the audio thread
+rather than falling back to a biquad. Rendering offline caught three things nothing else
+would have:
 
 - **Voice levels were all over the place.** The 808 snare peaked at 2.27 while its clap
   and closed hat sat at 0.25 — nine to one, so the clap was inaudible under the kick and

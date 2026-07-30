@@ -12,7 +12,10 @@
     "dev": "npm run dev --workspace @driftbox/app",
     "build": "npm run build --workspaces --if-present",
     "lint": "oxlint",
+    "//test": "Both projects. `test:node` is the fast inner loop; the browser project measures what only a real OfflineAudioContext can answer, and needs a Chromium — `npx playwright install chromium`, or point DRIFTBOX_CHROMIUM at one you already have.",
     "test": "vitest run",
+    "test:node": "vitest run --project node",
+    "test:browser": "vitest run --project browser",
     "test:watch": "vitest",
     "preview": "npm run preview --workspace @driftbox/app",
     "start": "npm run start --workspace @driftbox/app",
@@ -20,7 +23,10 @@
     "bench": "vitest bench --run"
   },
   "devDependencies": {
+    "@vitest/browser": "^4.1.10",
+    "@vitest/browser-playwright": "^4.1.10",
     "oxlint": "^1.71.0",
+    "playwright": "^1.62.1",
     "typescript": "~7.0.2",
     "vitest": "^4.1.10"
   }

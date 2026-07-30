@@ -9,6 +9,30 @@ The whole approach rests on one property of the engine: a `VoiceSpec` renders in
 `OfflineAudioContext` exactly as it renders into a live one. So you can render a voice,
 or a whole pattern, faster than real time and read the samples.
 
+## What is now automatic
+
+**Recipes 1 and 2 no longer need running by hand, and neither does recipe 5's first check.**
+`npm test` renders the kit in Chromium and asserts the numbers this page used to ask you to
+read off a console — `packages/engine/src/render.browser.test.ts` for the levels and decays,
+`bassline.browser.test.ts` for whether the ladder actually loaded. A voice drifting out of
+the 0.65–0.90 band, the kit spread going past 1.2, or the 303 quietly falling back to a
+biquad now fail a test rather than waiting for somebody to remember.
+
+Two notes on the automated versions, because they differ from the recipes below:
+
+- **Twenty-five renders per voice, not seven.** Seven is enough for a human reading one
+  number; it is not enough to divide the loudest voice by the quietest and compare against a
+  fixed threshold. Averaging seven leaves the spread wobbling between 1.06 and 1.19 across
+  full passes, so a 1.2 threshold would fail about one run in five for no reason. Twenty-five
+  holds it to 1.07–1.11.
+- **Decay is only asserted for voices that do not vary** — the kicks, the closed hats and the
+  crash. The claps swing by 70ms between renders and would be a coin toss.
+
+Everything below still matters. Recipes 3 and 4 are not automated — a mix measurement needs
+judgement about which pattern and which stage of the bus, and the spread of shipped songs is
+a band to compare against rather than a threshold to assert. And no test on this page can
+tell you whether a kick *sounds* like a kick.
+
 ## Running a measurement
 
 `OfflineAudioContext` is a browser API, so these run in the page, not in Node. Start the
