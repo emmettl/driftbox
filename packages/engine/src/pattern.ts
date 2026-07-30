@@ -19,6 +19,8 @@ export interface Pattern {
   length: number
   /** Voice id to its steps. A voice with no entry simply never fires. */
   tracks: Record<string, StepValue[]>
+  /** Optional flam marks, parallel to drum tracks. Only 909 voices render them today. */
+  flams?: Record<string, boolean[]>
   /**
    * Bass voice id to its line. Optional, so a pattern written before the 303s existed
    * still loads — which matters now that patterns are saved and shared.
@@ -55,6 +57,8 @@ export interface Kit {
    * values would silently freeze every voice you had ever touched.
    */
   swing?: Record<string, number>
+  /** Global TR-909 flam spacing, 0..1. Optional for pre-flam songs. */
+  flam?: number
 }
 
 /** How much a voice actually swings: the song's swing, shifted by that voice's offset.
@@ -161,6 +165,13 @@ export function duplicatePattern(song: Song, id: string): { song: Song; id: stri
     // editing the copy would silently edit the original — the worst kind of bug,
     // because it looks like it worked until you play the other one.
     tracks: Object.fromEntries(Object.entries(source.tracks).map(([v, t]) => [v, [...t]])),
+    ...(source.flams
+      ? {
+          flams: Object.fromEntries(
+            Object.entries(source.flams).map(([voiceId, marks]) => [voiceId, [...marks]]),
+          ),
+        }
+      : {}),
     bass: Object.fromEntries(
       Object.entries(source.bass ?? {}).map(([v, line]) => [v, line.map((s) => ({ ...s }))]),
     ),
@@ -222,6 +233,15 @@ export function cycleStep(pattern: Pattern, voiceId: string, step: number): Patt
   const track = pattern.tracks[voiceId] ?? new Array<StepValue>(pattern.length).fill(0)
   const next = [...track]
   next[step] = (((track[step] ?? 0) + 1) % 3) as StepValue
+  if (next[step] === 0 && pattern.flams?.[voiceId]) {
+    const flams = {
+      ...pattern.flams,
+      [voiceId]: pattern.flams[voiceId].map((mark, index) =>
+        index === step ? false : mark,
+      ),
+    }
+    return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: next }, flams }
+  }
   return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: next } }
 }
 
@@ -234,13 +254,48 @@ export function setStep(
   const track = pattern.tracks[voiceId] ?? new Array<StepValue>(pattern.length).fill(0)
   const next = [...track]
   next[step] = value
+  if (value === 0 && pattern.flams?.[voiceId]) {
+    const flams = {
+      ...pattern.flams,
+      [voiceId]: pattern.flams[voiceId].map((mark, index) =>
+        index === step ? false : mark,
+      ),
+    }
+    return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: next }, flams }
+  }
   return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: next } }
 }
 
 export function clearTrack(pattern: Pattern, voiceId: string): Pattern {
   const tracks = { ...pattern.tracks }
   delete tracks[voiceId]
-  return { ...pattern, tracks }
+  if (!pattern.flams?.[voiceId]) return { ...pattern, tracks }
+  const flams = { ...pattern.flams }
+  delete flams[voiceId]
+  return { ...pattern, tracks, flams }
+}
+
+export function flamAt(pattern: Pattern, voiceId: string, step: number): boolean {
+  return pattern.flams?.[voiceId]?.[step % pattern.length] === true
+}
+
+/** Toggle a 909 flam. Enabling one on a rest also creates the hit it articulates. */
+export function toggleFlam(pattern: Pattern, voiceId: string, step: number): Pattern {
+  const marks = Array.from(
+    { length: pattern.length },
+    (_, index) => pattern.flams?.[voiceId]?.[index] === true,
+  )
+  marks[step] = !marks[step]
+  const track = Array.from(
+    { length: pattern.length },
+    (_, index) => pattern.tracks[voiceId]?.[index] ?? 0,
+  )
+  if (marks[step] && track[step] === 0) track[step] = 1
+  return {
+    ...pattern,
+    tracks: { ...pattern.tracks, [voiceId]: track },
+    flams: { ...pattern.flams, [voiceId]: marks },
+  }
 }
 
 // ---- pattern transforms -------------------------------------------------------
@@ -263,9 +318,13 @@ function rotate<T>(values: readonly T[], length: number, delta: number, fallback
 export function rotateTrack(pattern: Pattern, voiceId: string, delta: number): Pattern {
   const track = pattern.tracks[voiceId]
   if (!track) return pattern
+  const marks = pattern.flams?.[voiceId]
   return {
     ...pattern,
     tracks: { ...pattern.tracks, [voiceId]: rotate(track, pattern.length, delta, () => 0) },
+    flams: marks
+      ? { ...pattern.flams, [voiceId]: rotate(marks, pattern.length, delta, () => false) }
+      : pattern.flams,
   }
 }
 
@@ -315,7 +374,12 @@ export function randomizeTrack(
     const value = random()
     return value < 0.58 ? 0 : value < 0.88 ? 1 : 2
   })
-  return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: track } }
+  if (!pattern.flams?.[voiceId]) {
+    return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: track } }
+  }
+  const flams = { ...pattern.flams }
+  delete flams[voiceId]
+  return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: track }, flams }
 }
 
 /** Create pitches and articulation for one 303 while leaving the other machines alone. */
@@ -352,8 +416,25 @@ export function alterTrack(
 ): Pattern {
   const track = pattern.tracks[voiceId]
   if (!track) return pattern
-  const source = Array.from({ length: pattern.length }, (_, index) => track[index] ?? 0)
-  return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: shuffled(source, random) } }
+  const source = Array.from({ length: pattern.length }, (_, index) => ({
+    value: track[index] ?? 0,
+    flam: pattern.flams?.[voiceId]?.[index] === true,
+  }))
+  const altered = shuffled(source, random)
+  const next: Pattern = {
+    ...pattern,
+    tracks: {
+      ...pattern.tracks,
+      [voiceId]: altered.map((step) => step.value),
+    },
+  }
+  if (pattern.flams?.[voiceId]) {
+    next.flams = {
+      ...pattern.flams,
+      [voiceId]: altered.map((step) => step.flam),
+    }
+  }
+  return next
 }
 
 /** Reorder existing 303 steps without inventing or discarding notes or articulation. */
@@ -378,9 +459,8 @@ export function defaultKit(voiceIds: string[]): Kit {
   for (const id of voiceIds) params[id] = { ...DEFAULT_PARAMS }
   const bass: Record<string, BassParams> = {}
   for (const voice of BASS_VOICES) bass[voice.id] = { ...DEFAULT_BASS_PARAMS }
-  // Every field, so a fresh kit and a decoded one are the same shape. They are compared
-  // directly in the tests, and more usefully it means "the kit is missing X" is never a
-  // state the rest of the app has to reason about.
+  // Every collection field, so a fresh kit and a decoded one are the same shape. Optional
+  // scalar articulation settings such as flam width stay absent until somebody uses them.
   return { params, bass, sends: {}, swing: {} }
 }
 

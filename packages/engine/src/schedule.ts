@@ -2,6 +2,7 @@ import { DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassNote } from './ba
 import {
   CLIP_SLOTS,
   barLengthForBar,
+  flamAt,
   patternForBar,
   patternForClip,
   patternForVoice,
@@ -76,7 +77,15 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
     if (!source) continue
     const value = stepAt(source, voiceId, event.index)
     if (value === 0) continue
-    drums.push({ voiceId, time: swung(voiceId), accent: value === 2 ? 1 : 0.55 })
+    const time = swung(voiceId)
+    const accent = value === 2 ? 1 : 0.55
+    drums.push({ voiceId, time, accent })
+    if (voiceId.startsWith('909.') && flamAt(source, voiceId, event.index)) {
+      // ReBirth's flam knob controls the gap between the two strikes. Keep the useful
+      // range narrow enough to read as one articulated hit rather than an echo.
+      const spacing = 0.012 + (song.kit.flam ?? 0.4) * 0.048
+      drums.push({ voiceId, time: time + spacing, accent })
+    }
   }
 
   const bassVoices = new Set(

@@ -6,6 +6,7 @@ import {
   defaultKit,
   duplicatePattern,
   emptyPattern,
+  flamAt,
   randomizeBassLine,
   randomizeTrack,
   removePattern,
@@ -13,6 +14,7 @@ import {
   rotateBassLine,
   rotateTrack,
   transposeBassLine,
+  toggleFlam,
   uniquePatternId,
   type Pattern,
   type Song,
@@ -248,6 +250,36 @@ describe('pattern transforms', () => {
     const before = pattern()
     expect(rotateTrack(before, '808.bd', 1)).toBe(before)
     expect(alterBassLine(before, '303.b', () => 0)).toBe(before)
+  })
+})
+
+describe('909 flam marks', () => {
+  const pattern = (): Pattern => ({
+    id: 'flam',
+    name: 'Flam',
+    length: 4,
+    tracks: { '909.sd': [0, 2, 0, 0] },
+    flams: {},
+  })
+
+  it('creates a hit when a flam is enabled on a rest', () => {
+    const next = toggleFlam(pattern(), '909.sd', 0)
+    expect(next.tracks['909.sd']).toEqual([1, 2, 0, 0])
+    expect(flamAt(next, '909.sd', 0)).toBe(true)
+  })
+
+  it('rotates the mark with its hit', () => {
+    const marked = toggleFlam(pattern(), '909.sd', 1)
+    const next = rotateTrack(marked, '909.sd', 1)
+    expect(next.tracks['909.sd']).toEqual([0, 0, 2, 0])
+    expect(flamAt(next, '909.sd', 2)).toBe(true)
+  })
+
+  it('keeps the mark paired with its hit while altering', () => {
+    const marked = toggleFlam(pattern(), '909.sd', 1)
+    const next = alterTrack(marked, '909.sd', () => 0)
+    const accented = next.tracks['909.sd'].findIndex((value) => value === 2)
+    expect(flamAt(next, '909.sd', accented)).toBe(true)
   })
 })
 

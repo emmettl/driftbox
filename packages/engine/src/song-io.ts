@@ -32,6 +32,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 /**
  * Bumped when the shape changes in a way a reader cannot infer from the value alone.
  *
+ * 4 — patterns may carry 909 flam marks and the kit may carry their global width.
  * 3 — chain entries may independently select an 808, 909 and each 303 clip.
  * 2 — the chain became a list of `{ pattern, repeat }` rather than a list of pattern ids,
  *     so an arrangement can say "eight bars of this" without eight entries.
@@ -42,7 +43,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
  * rather than against the version number, because a v1 file and a hand-written one with
  * no version at all are the same problem, and only one of them announces itself.
  */
-export const SONG_FORMAT = 3
+export const SONG_FORMAT = 4
 
 interface Envelope {
   v: number
@@ -98,6 +99,11 @@ function bassLine(value: unknown, length: number): BassStep[] | null {
   })
 }
 
+function flamLine(value: unknown, length: number): boolean[] | null {
+  if (!Array.isArray(value)) return null
+  return Array.from({ length }, (_, index) => value[index] === true)
+}
+
 function pattern(value: unknown, index: number): Pattern | null {
   if (!isRecord(value)) return null
 
@@ -120,12 +126,21 @@ function pattern(value: unknown, index: number): Pattern | null {
     }
   }
 
+  const flams: Record<string, boolean[]> = {}
+  if (isRecord(value.flams)) {
+    for (const [voiceId, marks] of Object.entries(value.flams)) {
+      const parsed = flamLine(marks, length)
+      if (parsed) flams[voiceId] = parsed
+    }
+  }
+
   return {
     id,
     name: typeof value.name === 'string' && value.name !== '' ? value.name : id,
     length,
     tracks,
     bass,
+    ...(Object.keys(flams).length > 0 ? { flams } : {}),
   }
 }
 
@@ -169,7 +184,11 @@ function kit(value: unknown): Kit {
   // forgetting one of the places that rebuilds a Kit loses it silently, and the symptom
   // is a knob that works until you reload. `song-io.test.ts` round-trips a fully
   // populated kit for exactly that reason.
-  return { params, bass, sends, swing }
+  const flam =
+    typeof source.flam === 'number' && Number.isFinite(source.flam)
+      ? clamp(source.flam, 0, 1, 0.4)
+      : undefined
+  return { params, bass, sends, swing, ...(flam === undefined ? {} : { flam }) }
 }
 
 /**

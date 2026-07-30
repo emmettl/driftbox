@@ -15,6 +15,10 @@ export function PatternTools() {
   const randomizeSelection = useBox((state) => state.randomizeSelection)
   const alterSelection = useBox((state) => state.alterSelection)
   const transposeSelectedBass = useBox((state) => state.transposeSelectedBass)
+  const flamMode = useBox((state) => state.flamMode)
+  const toggleFlamMode = useBox((state) => state.toggleFlamMode)
+  const flamWidth = useBox((state) => state.song.kit.flam ?? 0.4)
+  const setFlamWidth = useBox((state) => state.setFlamWidth)
   const [all, setAll] = useState(false)
 
   const target =
@@ -34,6 +38,16 @@ export function PatternTools() {
       >
         {all ? 'all' : 'lane'}
       </button>
+      {view === 'tr909' && (
+        <button
+          className={`ghost${flamMode ? ' on' : ''}`}
+          onClick={toggleFlamMode}
+          title="Program a second, closely spaced strike on 909 steps"
+          aria-pressed={flamMode}
+        >
+          flam
+        </button>
+      )}
       <button
         className="ghost pattern-arrow"
         onClick={() => rotateSelection(-1, all)}
@@ -50,24 +64,40 @@ export function PatternTools() {
       >
         →
       </button>
-      <button
-        className="ghost"
-        onClick={() => {
-          if (confirm(`Randomise ${target}? This replaces that lane.`)) randomizeSelection()
-        }}
-        title={`Create a new random ${target} lane`}
-      >
-        random
-      </button>
-      <button
-        className="ghost"
-        onClick={() => {
-          if (confirm(`Alter ${target}? This rearranges its existing material.`)) alterSelection()
-        }}
-        title={`Rearrange ${target} without changing the amount of material`}
-      >
-        alter
-      </button>
+      {view === 'tr909' && flamMode ? (
+        <input
+          className="flam-width"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={flamWidth}
+          onChange={(event) => setFlamWidth(Number(event.target.value))}
+          aria-label="Flam width"
+          title="Space between the two 909 strikes"
+        />
+      ) : (
+        <>
+          <button
+            className="ghost"
+            onClick={() => {
+              if (confirm(`Randomise ${target}? This replaces that lane.`)) randomizeSelection()
+            }}
+            title={`Create a new random ${target} lane`}
+          >
+            random
+          </button>
+          <button
+            className="ghost"
+            onClick={() => {
+              if (confirm(`Alter ${target}? This rearranges its existing material.`)) alterSelection()
+            }}
+            title={`Rearrange ${target} without changing the amount of material`}
+          >
+            alter
+          </button>
+        </>
+      )}
       {view === 'bass' && (
         <>
           <button

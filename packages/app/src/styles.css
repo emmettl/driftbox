@@ -188,6 +188,11 @@ button {
   padding-inline: 0;
 }
 
+.flam-width {
+  width: 62px;
+  accent-color: var(--nine);
+}
+
 /* Which build this is. Deliberately the quietest thing in the row: it is read once, when something
    has gone wrong, and it must not compete with the controls it sits beside. */
 .build {
@@ -588,6 +593,17 @@ aside {
   background: linear-gradient(180deg, #fff3a8, #ffb02e);
   border-color: #fff;
   box-shadow: 0 0 14px rgba(255, 190, 70, 0.55);
+}
+
+/* A second bright edge reads as the second 909 strike without inventing another lane. */
+.step.flam {
+  box-shadow: inset -5px 0 rgba(255, 255, 255, 0.72);
+}
+
+.step.flam.accent {
+  box-shadow:
+    0 0 14px rgba(255, 190, 70, 0.55),
+    inset -5px 0 rgba(120, 60, 0, 0.48);
 }
 
 /* The playhead column.

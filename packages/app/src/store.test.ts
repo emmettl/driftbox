@@ -226,6 +226,16 @@ describe('focused pattern tools', () => {
     expect(pattern.bass!['303.a'][2].accent).toBe(false)
     expect(pattern.bass!['303.b'].map((step) => step.note)).toEqual([7, null, null, null])
   })
+
+  it('programs 909 flams and their global width without touching another machine', () => {
+    useBox.getState().toggleFlamStep('909.sd', 0)
+    useBox.getState().setFlamWidth(0.72)
+
+    expect(song().patterns[0].tracks['909.sd'][0]).toBe(1)
+    expect(song().patterns[0].flams!['909.sd'][0]).toBe(true)
+    expect(song().patterns[0].tracks['808.bd']).toEqual([1, 0, 0, 0])
+    expect(song().kit.flam).toBe(0.72)
+  })
 })
 
 describe('the visual a song asks for', () => {
