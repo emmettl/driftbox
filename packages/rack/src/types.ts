@@ -36,6 +36,19 @@ export interface ParamDef {
    * Omit it when the numbers are the meaning: a sequencer's length really is 1 to 8.
    */
   labels?: readonly string[]
+  /**
+   * A param the host writes rather than a control anybody turns. A faceplate leaves it out.
+   *
+   * The MIDI module is why: its note, gate and velocity arrive from Web MIDI, which cannot reach the audio
+   * thread — a worklet scope has no `navigator` — so they come in as params instead, needing nothing new in
+   * the message ABI. A *visible* knob on the same slot would fight the keyboard: it would read 0 while the
+   * audio thread held 3, and nudging it would snap the note back. Hidden means exactly one writer.
+   *
+   * Everything else about it is a normal param: it clamps, it ramps or steps, it has a slot. What it is not
+   * is part of the document — the host writes these straight to `Rack.setParam` and never through a patch,
+   * so a note somebody played is never saved as one.
+   */
+  hidden?: boolean
 }
 
 /**

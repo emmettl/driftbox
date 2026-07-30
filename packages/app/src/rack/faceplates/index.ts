@@ -2,6 +2,7 @@ import type { ModuleDef } from '@driftbox/rack'
 import { CELL_HEIGHT, PAD, ROW, TITLE, columnsFor, rowsForJacks, type Size, type Span } from '../layout.js'
 import { Generic } from './Generic.js'
 import { Ladder } from './Ladder.js'
+import { Midi } from './Midi.js'
 import { Out } from './Out.js'
 import { Vco } from './Vco.js'
 import type { FaceplateComponent } from './types.js'
@@ -39,6 +40,7 @@ interface Entry {
 const FACEPLATES: Record<string, Entry> = {
   vco: { component: Vco, rows: 2 },
   ladder: { component: Ladder },
+  midi: { component: Midi, rows: 2 },
   out: { component: Out, span: 1 },
 }
 
@@ -75,8 +77,12 @@ export function sizeFor(defs: Record<string, ModuleDef>): (type: string) => Size
  * module with a large empty hole in it.
  */
 export function genericRows(def: ModuleDef, span: Span): number {
-  if (def.params.length === 0) return 1
-  const stacked = Math.ceil(def.params.length / columnsFor(span))
+  // Visible params only. A hidden one is written by the host and never drawn, so counting it would reserve
+  // height for a control that is not there — which is the same class of mistake as the flex-wrap formula
+  // this replaced, just quieter.
+  const shown = def.params.filter((param) => !param.hidden).length
+  if (shown === 0) return 1
+  const stacked = Math.ceil(shown / columnsFor(span))
   return Math.max(1, Math.ceil((TITLE + PAD + stacked * CELL_HEIGHT) / ROW))
 }
 
