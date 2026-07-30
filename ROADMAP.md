@@ -7,13 +7,12 @@ anything in `packages/engine/`.
 
 **Working end to end.** Two drum machines, two 303s, a step sequencer with an arrangement,
 a per-voice channel strip, two send effects, an oscilloscope and a chillwave visualiser
-with a performance mode — plus a modular rack on a second page, with a back panel that turns and a
-Combinator over the top of it. CI is green; there are 1276 unit tests.
+with a performance mode. CI is green; the unit suite covers all three workspaces.
 
 | | |
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
-| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere** — this is about the drum machines and the 303s, and it still holds. The rack in `packages/rack` is a separate instrument and [is getting a sampler](docs/DNB.md). |
+| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
 | Ships with | Twelve songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
@@ -26,7 +25,7 @@ Combinator over the top of it. CI is green; there are 1276 unit tests.
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.1.0, with provenance |
-| Rack | A modular in `packages/rack`, playable at `rack.html` — compiler, worklet host, 23 modules, cables on a back panel that turns, and a Combinator whose four rotaries drive any parameter anywhere. Not published: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 23 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere, performance mode and offline export. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## What is deliberate
 

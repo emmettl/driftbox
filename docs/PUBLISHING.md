@@ -1,30 +1,24 @@
 # Publishing
 
-Two packages go to npm: `@driftbox/engine` and `@driftbox/app`. Neither has been published
-yet, and **nothing publishes automatically** — the workflow only runs when a GitHub Release
-is published, or when somebody runs it by hand.
+Today, two packages go to npm: `@driftbox/engine` and `@driftbox/app`. Both are published at
+`0.1.0`. The work-in-progress `@driftbox/rack` package will join them when it is complete
+and ready to support a public API. **Nothing publishes automatically** — the workflow only
+runs when a GitHub Release is published, or when somebody runs it by hand.
 
 That is deliberate. `npm unpublish` is heavily restricted after 72 hours, so a bad version
 is effectively permanent: the remedy is a new version with the broken one sitting on the
 registry forever. The trigger should be something you had to go and do.
 
-## One-time setup
+## Authentication
 
-**1. A token.** On npmjs.com, create a **Granular Access Token** scoped to the `@driftbox`
-packages with *Read and write*. Add it to the repo as a secret named `NPM_TOKEN`
-(`Settings → Secrets and variables → Actions`), or:
+Both packages use npm trusted publishing. The npm package settings trust this repository's
+publish workflow, and GitHub's `id-token: write` permission supplies a short-lived OIDC
+credential for each run. There is no `NPM_TOKEN` secret to create, rotate or accidentally
+override the OIDC path.
 
-```bash
-gh secret set NPM_TOKEN
-```
-
-Prefer a granular token over a classic automation token — it can be limited to these
-packages, so a leak cannot touch anything else you own.
-
-**2. That is it.** `publishConfig.access` is already `public` in both packages, so no flag
-is needed. A scoped package defaults to *private*, and a first publish without that setting
-fails with a payment-required error that reads like a billing problem rather than a missing
-option.
+`publishConfig.access` remains `public` in both packages. A scoped package defaults to
+*private*, and a publish without that setting fails with a payment-required error that reads
+like a billing problem rather than a missing option.
 
 ## Releasing
 
@@ -61,11 +55,10 @@ Published with `--provenance`, which attaches a signed attestation linking the t
 the commit and workflow run that built it. npm shows it as a "Provenance" panel on the
 package page. It needs `id-token: write` (set in the workflow) and a public repo.
 
-**After the first publish**, consider switching to npm's **trusted publishing**: configure
-this repo and workflow as a trusted publisher for each package on npmjs.com, and the
-`NPM_TOKEN` secret can be deleted entirely — authentication becomes a short-lived OIDC
-token issued per run. It cannot be set up before a package exists, which is why it is a
-second step rather than the first.
+Trusted publishing could not be configured until the package names existed, so version
+`0.1.0` was bootstrapped with a token. The workflow now has no token fallback by design:
+npm prefers an explicit token over OIDC, so a stale secret could turn a valid release into
+a 401.
 
 ## If a publish goes wrong
 

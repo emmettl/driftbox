@@ -8,11 +8,14 @@ That framing turned out to be half right, and step 5b½ at the bottom says where
 what makes a rack a rack; the **Combinator** is what made a Reason patch playable, and it is here
 too now — four rotaries and four buttons that move any parameter of any module at once.
 
-Steps 1 and 2 of the build order at the bottom are built and tested: `packages/rack` has the
-compiler, the worklet host, three modules and the patch format, and `packages/app/src/hash.ts`
-carries patches in a URL alongside songs. There is no UI yet. Everything below is the shape of
-it and the decisions that are expensive to change later — where the implementation taught us
-something different, this file says so rather than describing the plan we started with.
+The rack works end to end but remains a work in progress and is intentionally unpublished.
+Once complete and ready to support a public API, it can join the engine and app on npm.
+`packages/rack` has the compiler, worklet host, patch format and 23 modules; the app has
+front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
+Combinator routing, performance mode and offline export. `packages/app/src/hash.ts` carries
+patches in a URL alongside songs. Everything below records the shape of it and the decisions
+that are expensive to change later — where implementation taught us something different, this
+file says so rather than describing only the plan we started with.
 
 ## What this is not
 
@@ -166,16 +169,15 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Seventeen modules
+## Twenty-three modules
 
-Enough to make a track, and no more. Chosen so that nothing here is a placeholder. (Twenty-three
-now: a Sampler, a Tracker, a Reverb, a Compressor, a Transport and a Combinator have been added
-since, each for a reason recorded where it was decided rather than here.)
+Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
 | | |
 |---|---|
 | **VCO** | saw / pulse / tri, PWM, linear FM inlet, hard sync inlet |
 | **Noise** | white and pink |
+| **Sampler** | loaded or generated audio, sliced and retriggered from CV |
 | **Ladder** | the existing 4-pole. Already written, already tested |
 | **SVF** | state-variable multimode — LP/HP/BP/notch, cheap, and unlike the ladder |
 | **VCA** | linear and exponential, CV inlet |
@@ -186,18 +188,22 @@ since, each for a reason recorded where it was decided rather than here.)
 | **S&H** | sample and hold |
 | **Offset** | attenuverter and offset. Unglamorous and load-bearing |
 | **Mixer** | four in, CV levels |
+| **Transport** | bar, beat and musical-division signals at the patch tempo |
 | **MIDI** | pitch, gate, velocity and mod from a keyboard. The only module whose input does not arrive on a cable |
 | **Clock** | gate, a fixed 1ms trigger, and a phase ramp. Armed at construction, so it ticks the moment it is patched |
 | **Seq** | eight steps of pitch and on/off, advanced by an external clock. No clock inside it |
+| **Tracker** | four lanes and up to 64 steps, carrying pattern data in the patch |
+| **Compressor** | dynamics and sidechain control for glue and ducking |
+| **Reverb** | an in-worklet feedback-delay network |
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
+| **Combinator** | four rotaries and four buttons, each driving any parameter of any module — and each also a CV outlet |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
-Deliberate omissions. **No sampler** — for as long as this list stood alone. That has since been decided the
-other way for the rack specifically: see [docs/DNB.md](DNB.md), which keeps `ROADMAP.md`'s rule meaning exactly
-what it says about the drum machines while letting the rack — a different instrument, on the "two engines, one
-host" split — have a sampler in it. **No reverb**: the generated-IR reverb in `effects.ts` is a
-convolver, which belongs after the rack's output as an ordinary Web Audio send, not inside
-the worklet. **No polyphony** — see below.
+Two original omissions were later reversed for the rack specifically. The **sampler** and
+its generated or user-loaded breaks are the subject of [docs/DNB.md](DNB.md); the drum
+machines themselves remain sample-free. **Reverb** is an in-worklet feedback-delay network,
+because the engine's convolver is unavailable inside an `AudioWorkletGlobalScope`. The graph
+supports polyphony, but no note source drives more than one voice yet — see below.
 
 ## Monophonic first — and polyphony is cheaper than this section used to claim
 

@@ -74,7 +74,11 @@ function driveCurve(amount: number): Float32Array<ArrayBuffer> {
 
   const samples = 1024
   const curve = new Float32Array(samples)
-  const k = 1 + amount * 40
+  // Build from the same quantised value used as the cache key. Building from the raw
+  // amount made a bucket's curve depend on which nearby knob value happened to reach it
+  // first, so two fresh sessions could render the same setting differently.
+  const quantised = key / 20
+  const k = 1 + quantised * 40
   for (let i = 0; i < samples; i++) {
     const x = (i / (samples - 1)) * 2 - 1
     curve[i] = Math.tanh(k * x) / Math.tanh(k)

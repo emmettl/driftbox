@@ -34,16 +34,13 @@ import { VCO_MODULE } from './vco.js'
 // MIDI is the second, and it is the only module here whose input does not come from a cable — see the long
 // comment in `midi.ts` for why that needed no change to the message ABI.
 //
-// Two of the original omissions have since been decided the other way, and this list is the wrong place to
-// find out. **There is a sampler**: drum and bass is built on chopped breaks, and `docs/DNB.md` settles where
-// that line sits — the engine's drum machines stay fully synthesised and `ROADMAP.md`'s rule keeps meaning
-// exactly what it says about them, while the rack is a different instrument. **There is polyphony**, which was
-// always a decision rather than a gap.
+// Three of the original omissions were later decided the other way. **There is a sampler**: drum and bass is
+// built on chopped breaks, and `docs/DNB.md` settles where that line sits — the engine's drum machines stay
+// fully synthesised while the rack is a different instrument. **There is polyphony**, which was always a
+// decision rather than a gap. **There is reverb**, implemented as an FDN because the engine's convolver is not
+// available inside an AudioWorklet.
 //
-// Still missing on purpose: **no reverb** — the engine's is a convolver, which belongs after the rack's output
-// as an ordinary Web Audio send rather than inside the worklet, and an in-worklet one is phase C of the plan.
-//
-// The Combinator is the third departure and the only one that is not a sound. It makes no signal of its own
+// The Combinator is the third *departure from the plan*, and the only one of those that is not a sound. It makes no signal of its own
 // worth listening to; what it does is move other modules' *parameters*, which is the one thing a cable in
 // this rack cannot do — an inlet is a buffer, a param is a slot, and `modulation.ts` explains at length why
 // joining them would be worse than having both. It is Reason's Modulation Routing and it needed no change

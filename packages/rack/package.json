@@ -20,7 +20,7 @@
   },
   "homepage": "https://emmettl.github.io/driftbox/",
   "type": "module",
-  "//private": "Not published yet. This is the spine — a compiler, three modules and a worklet host — and a version on npm is a promise about an API that has not been used by a UI even once. Drop this and add publishConfig.access when the rack can be patched.",
+  "//private": "Intentionally unpublished while the rack remains a work in progress. It is playable, but its engine and patch API are still moving quickly; a version on npm would make compatibility promises the in-repo app does not need. When complete and ready to support external consumers, drop this, add publishConfig.access and publish it alongside the engine and app.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
