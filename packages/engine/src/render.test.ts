@@ -44,11 +44,14 @@ class FakeParam {
 }
 
 class FakeNode {
+  readonly starts: number[][] = []
   connect() {
     return this
   }
   disconnect() {}
-  start() {}
+  start(...args: number[]) {
+    this.starts.push(args)
+  }
   stop() {}
   onended: (() => void) | null = null
 }
@@ -67,6 +70,7 @@ class FakeBufferSource extends FakeNode {
   loop = false
   loopStart = 0
   loopEnd = 0
+  playbackRate = new FakeParam()
 }
 
 class FakeShaper extends FakeNode {
@@ -80,6 +84,8 @@ class FakeContext {
   /** Every gain node built, in creation order. */
   readonly gains: FakeGain[] = []
   readonly shapers: FakeShaper[] = []
+  readonly bufferSources: FakeBufferSource[] = []
+  readonly buffers: Array<{ channels: number; length: number; sampleRate: number; data: Float32Array }> = []
   createGain() {
     const g = new FakeGain()
     this.gains.push(g)
@@ -89,7 +95,9 @@ class FakeContext {
     return new FakeOsc()
   }
   createBufferSource() {
-    return new FakeBufferSource()
+    const source = new FakeBufferSource()
+    this.bufferSources.push(source)
+    return source
   }
   createBiquadFilter() {
     return { type: '', frequency: new FakeParam(), Q: new FakeParam(), ...new FakeNode() }
@@ -99,8 +107,10 @@ class FakeContext {
     this.shapers.push(shaper)
     return shaper
   }
-  createBuffer() {
-    return { duration: 2, getChannelData: () => new Float32Array(16) }
+  createBuffer(channels = 1, length = 16, sampleRate = this.sampleRate) {
+    const data = new Float32Array(Math.min(length, 256))
+    this.buffers.push({ channels, length, sampleRate, data })
+    return { duration: length / sampleRate, getChannelData: () => data }
   }
 }
 
@@ -185,6 +195,56 @@ describe('a pitch envelope', () => {
       0,
     )
     expect(osc.built!.frequency.calls.map((c) => c.value)).toEqual([100, 50])
+  })
+})
+
+describe('generated PCM noise', () => {
+  const pcm = (): VoiceSpec => ({
+    duration: 0.3,
+    gain: 1,
+    sources: [{
+      kind: 'noise',
+      gain: 1,
+      amp: [
+        { to: 1, at: 0.001, curve: 'lin' },
+        { to: 0, at: 0.2 },
+      ],
+      sampleRate: 30000,
+      bitDepth: 6,
+      seed: 0x909,
+      playbackRate: 1.1,
+    }],
+  })
+
+  it('builds a low-rate buffer quantised to the requested bit depth', () => {
+    const ctx = render(pcm())
+    const [buffer] = ctx.buffers
+
+    expect(buffer.sampleRate).toBe(30000)
+    expect(buffer.length).toBe(120000)
+    for (const sample of buffer.data) {
+      const code = ((sample + 1) * 63) / 2
+      expect(code).toBeCloseTo(Math.round(code), 5)
+    }
+  })
+
+  it('recreates a seeded waveform exactly', () => {
+    const a = render(pcm()).buffers[0].data
+    const b = render(pcm()).buffers[0].data
+    expect(a).toEqual(b)
+  })
+
+  it('reuses the generated ROM, applies tuning and starts it from the beginning', () => {
+    const spec = pcm()
+    spec.sources.push({ ...spec.sources[0] })
+    const ctx = render(spec)
+
+    expect(ctx.buffers).toHaveLength(1)
+    expect(ctx.bufferSources).toHaveLength(2)
+    for (const source of ctx.bufferSources) {
+      expect(source.playbackRate.calls).toContainEqual({ kind: 'set', value: 1.1, time: 0 })
+      expect(source.starts).toContainEqual([0, 0])
+    }
   })
 })
 

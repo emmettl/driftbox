@@ -92,18 +92,24 @@ stale when the UI changes. Regenerate it by loading the app at a 1600×840 viewp
 pressing play so the scope has something in it, and screenshotting the page. The tags that
 point at it live in `packages/app/index.html`, with the reasoning next to them.
 
-## No samples
+## No recorded samples
 
-Every sound is synthesised from the circuit topology of the machine it comes from. The
-808's bass drum is a sine with a fast pitch drop and a click of filtered noise; its snare
-is two tuned oscillators mixed against a noise generator by the "snappy" control; its
-hats and cymbals are six square oscillators at deliberately inharmonic ratios, so no two
-partials form a simple interval and the ear refuses to hear a pitch. The 909 uses the
-same approach with a different character — shorter, driven, brighter.
+Every sound is generated in the browser; no recordings or original ROM data ship with
+the engine. The 808's bass drum is a sine with a fast pitch drop and a click of filtered
+noise; its snare is two tuned oscillators mixed against a noise generator by the "snappy"
+control; its hats and cymbals are six square oscillators at deliberately inharmonic
+ratios, so no two partials form a simple interval and the ear refuses to hear a pitch.
 
-Reproducing the topology gets far closer than EQ-ing a noise burst into submission, and
-it means every knob does something real rather than filtering a fixed recording. It also
-keeps the whole kit to a few kilobytes of code.
+The 909 is deliberately different. Its analogue drums are shorter, driven and brighter.
+The original machine's hats, ride and crash came from 6-bit PCM clocked at roughly 30kHz,
+so these voices generate a deterministic waveform at that resolution and add quiet
+cymbal modes for the bell and plate resonances. That gives them the bandwidth, grain and
+repeatable attack of a sampled voice without copying a recording.
+
+Following the analogue topology where there was one, and the digital medium where there
+was not, gets far closer than EQ-ing one noise burst into submission. It also means every
+knob changes the generated voice rather than filtering a fixed recording, and keeps the
+whole kit to a few kilobytes of code.
 
 ## The 303s have a real ladder filter
 
@@ -438,9 +444,10 @@ an asset rather than as code.
 ## Verification
 
 The unit tests cover the pure layer: timing and swing maths, the pattern model, and the
-shape of every voice's spec. Some of them assert real musical properties — that hats are
-built from six *inharmonic* partials, that claps retrigger rather than firing once, that
-the 909 kick is shorter and more driven than the 808's.
+shape of every voice's spec. Some of them assert real musical properties — that the 808
+hats use six *inharmonic* partials, that the 909's digital metal carries a deterministic
+6-bit/30kHz layer, that claps retrigger rather than firing once, and that the 909 kick is
+shorter and more driven than the 808's.
 
 What tests cannot reach was measured by rendering offline and looking at the samples.
 Doing that caught three things nothing else would have:
@@ -469,5 +476,5 @@ understand what the four stages are doing.
 and TB-303 are Roland's trademarks, and ReBirth is Reason Studios'. They appear here only
 to describe which instrument each voice is modelled on — nothing in this project is a
 Roland product, and a software licence grants no trademark rights either way. Every sound
-is synthesised from scratch: there are no samples, and no recordings of any hardware were
-used to make it.
+is generated from scratch: there are no recorded samples, and no recordings or ROM data
+from any hardware were used to make it.

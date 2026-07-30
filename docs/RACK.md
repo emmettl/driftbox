@@ -196,9 +196,10 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 
 Two original omissions were later reversed for the rack specifically. The **sampler** and
 its generated or user-loaded breaks are the subject of [docs/DNB.md](DNB.md); the drum
-machines themselves remain sample-free. **Reverb** is an in-worklet feedback-delay network,
-because the engine's convolver is unavailable inside an `AudioWorkletGlobalScope`. The graph
-supports polyphony, but no note source drives more than one voice yet — see below.
+machines themselves still ship no recorded audio or ROM data. **Reverb** is an in-worklet
+feedback-delay network, because the engine's convolver is unavailable inside an
+`AudioWorkletGlobalScope`. The graph supports polyphony, but no note source drives more than
+one voice yet — see below.
 
 ## Monophonic first — and polyphony is cheaper than this section used to claim
 

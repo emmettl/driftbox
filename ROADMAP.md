@@ -12,7 +12,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | | |
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
-| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
+| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
 | Ships with | Twelve songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
@@ -605,10 +605,10 @@ new machinery.
 ## Known limitations
 
 - ~~**Nobody has confirmed how it sounds.**~~ Somebody has now, and the verdict was that
-  it is fine. The **909 hats, ride and crash** remain the place I would expect
-  disagreement first — 6-bit samples on the real machine, so the inharmonic-oscillator
-  approach is furthest from the original there — but this is no longer an open question
-  about the whole kit.
+  it is fine. The 909 hats, ride and crash no longer borrow the 808's square-oscillator
+  topology: they use deterministic 6-bit PCM at roughly 30kHz plus cymbal modes. They
+  remain a model rather than a copy of the original ROM, deliberately — shipping the
+  recording would break the engine's recording-free and redistributable boundary.
 - **A bassline cannot run at a different length from the drums under it.** Basslines live
   on the `Pattern` rather than in a sequence of their own, so one entry in the chain is
   one bar of the whole arrangement. That buys the chain, the pattern buttons and clear

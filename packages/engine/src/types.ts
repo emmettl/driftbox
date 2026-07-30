@@ -55,6 +55,19 @@ export interface OscSource extends SourceCommon {
 
 export interface NoiseSource extends SourceCommon {
   kind: 'noise'
+  /**
+   * Optional PCM character for a noise source.
+   *
+   * The 909's hats and cymbals came from low-resolution ROM rather than an analogue
+   * noise circuit. Giving their procedural waveform the ROM's sample rate and bit depth
+   * reproduces that bandwidth and grain without embedding somebody else's recording.
+   */
+  sampleRate?: number
+  bitDepth?: number
+  /** A seed makes repeated hits read the same generated waveform, like a sample ROM. */
+  seed?: number
+  /** Playback speed, used by the tune control on generated PCM voices. */
+  playbackRate?: number
 }
 
 export type Source = OscSource | NoiseSource

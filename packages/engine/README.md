@@ -1,8 +1,9 @@
 # @driftbox/engine
 
 A TR-808, a TR-909 and two TB-303s, synthesised from scratch with Web Audio. **No
-samples** — every sound is built from the circuit topology of the machine it comes from,
-including a real 4-pole ladder filter running in an `AudioWorklet`.
+recorded samples** — the analogue voices follow their circuit topologies, while the
+909's digital cymbals use generated 6-bit/30kHz PCM and modal synthesis. The 303 includes
+a real 4-pole ladder filter running in an `AudioWorklet`.
 
 Imports no React, touches no DOM, and does not know a sequencer UI exists. It is meant to
 be embedded — in a game, an installation, or your own sequencer.
@@ -85,5 +86,5 @@ implementation is original.
 
 **Not affiliated with, endorsed by, or connected to Roland Corporation.** TR-808, TR-909
 and TB-303 are Roland's trademarks and appear here only to describe which instrument each
-voice is modelled on. Every sound is synthesised: there are no samples, and no recordings
-of any hardware were used.
+voice is modelled on. Every waveform is generated: there are no recorded samples, and no
+recordings or ROM data from any hardware were used.

@@ -130,6 +130,38 @@ describe('metallic voices', () => {
     const open = ALL_VOICES.find((v) => v.id === '909.oh')!.build(knobs(), 1)
     expect(open.duration).toBeGreaterThan(closed.duration * 2)
   })
+
+  it.each(['909.ch', '909.oh', '909.rd', '909.cr'])(
+    '%s carries a deterministic 6-bit, 30kHz PCM layer',
+    (id) => {
+      const spec = ALL_VOICES.find((v) => v.id === id)!.build(knobs(), 1)
+      const pcm = spec.sources.find((source) => source.kind === 'noise' && source.seed !== undefined)
+
+      expect(pcm).toMatchObject({ sampleRate: 30000, bitDepth: 6 })
+    },
+  )
+
+  it.each(['909.ch', '909.oh', '909.rd', '909.cr'])(
+    '%s tune moves both the PCM and modal layers',
+    (id) => {
+      const voice = ALL_VOICES.find((v) => v.id === id)!
+      const low = voice.build(knobs({ tune: 0 }), 1)
+      const high = voice.build(knobs({ tune: 1 }), 1)
+      const lowPcm = low.sources.find((source) => source.kind === 'noise' && source.seed !== undefined)!
+      const highPcm = high.sources.find((source) => source.kind === 'noise' && source.seed !== undefined)!
+
+      expect(lowPcm.kind === 'noise' && highPcm.kind === 'noise').toBe(true)
+      if (lowPcm.kind !== 'noise' || highPcm.kind !== 'noise') return
+      expect(highPcm.playbackRate!).toBeGreaterThan(lowPcm.playbackRate!)
+
+      const lowModes = oscillators(low)
+      const highModes = oscillators(high)
+      expect(highModes).toHaveLength(lowModes.length)
+      highModes.forEach((mode, index) => {
+        expect(mode.frequency).toBeGreaterThan(lowModes[index].frequency)
+      })
+    },
+  )
 })
 
 describe('claps', () => {

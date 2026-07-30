@@ -85,8 +85,9 @@ for (const v of eng.ALL_VOICES) {
 console.log({ min, max, spread: max / min })
 ```
 
-**What good looks like.** Spread under about `1.2`, and no voice over `1.0`. Measured now:
-**1.08**, min `0.718`, max `0.775`.
+**What good looks like.** Spread under about `1.2`, and no voice over `1.0`. Repeated
+seven-render passes remain below that limit; the exact spread moves because the ordinary
+noise voices still vary. The four deterministic 909 PCM voices land at about `0.75`.
 
 **Average several renders per voice.** Noise sources start at a random offset into the
 shared buffer, so a voice with noise in it peaks differently every render, and a trim set

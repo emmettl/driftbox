@@ -1,12 +1,13 @@
 import type { Voice, VoiceParams, VoiceSpec } from '../types.js'
-import { accentGain, metallicSources, range, ratioRange } from './common.js'
+import { accentGain, range, ratioRange } from './common.js'
 
-// The 909 kit. Same synthesis approach as the 808, deliberately different character.
+// The 909 kit. The same pure-spec approach as the 808, deliberately different character.
 //
 // The 909 is a hybrid: its toms, kick and snare are analogue, while its hats, ride and
-// crash were 6-bit samples, which is where the machine's brittle metallic sizzle comes
-// from. Synthesising those from the same inharmonic oscillator bank as the 808 and
-// filtering them much brighter gets the family resemblance without shipping samples.
+// crash were 6-bit PCM, clocked at roughly 30kHz. These are rebuilt from a deterministic
+// low-rate, 6-bit procedural waveform and a bank of cymbal modes. It keeps the engine
+// sample-free while reproducing the limited bandwidth, grain and natural metallic spread
+// that the 808's six-square-oscillator circuit cannot give them.
 //
 // Where the 808 kick is a long round sine that gets out of the way, the 909's is short,
 // driven and front-loaded with click — it is a kick designed to be heard on a club
@@ -131,18 +132,32 @@ function clap(params: VoiceParams, accent: number): VoiceSpec {
   }
 }
 
-/** Hats, ride and crash: the sampled voices, rebuilt from the inharmonic bank and
- *  filtered far brighter than the 808's. */
-function metallic(
+interface DigitalMetal {
   decayRange: [number, number],
-  bandpass: number,
-  q: number,
-  highpass: number,
-) {
+  modes: readonly number[]
+  bandpass: number
+  q: number
+  highpass: number
+  pcmGain: number
+  modeGain: number
+  seed: number
+}
+
+/**
+ * Hats, ride and crash: a generated stand-in for the 909's PCM ROM.
+ *
+ * The noise layer supplies the dense wash of a real cymbal and is deliberately rendered
+ * at the original voice's approximate 30kHz/6-bit resolution. Quiet triangle modes add
+ * the bell and plate resonances that noise alone cannot provide. Unlike the 808 bank,
+ * their fundamentals sit in the audible cymbal band instead of relying on square-wave
+ * harmonics selected by a filter.
+ */
+function digitalMetal(profile: DigitalMetal) {
   return (params: VoiceParams, accent: number): VoiceSpec => {
-    const base = 40 * ratioRange(params.tune, 0.75, 1.6)
-    const decay = ratioRange(params.decay, decayRange[0], decayRange[1])
+    const tune = ratioRange(params.tune, 0.82, 1.22)
+    const decay = ratioRange(params.decay, profile.decayRange[0], profile.decayRange[1])
     const bright = ratioRange(params.tone, 0.65, 1.8)
+    const definition = range(params.colour, 0.65, 1.25)
     const amp = [
       { to: 1, at: 0.0006, curve: 'lin' as const },
       { to: 0, at: decay },
@@ -152,16 +167,28 @@ function metallic(
       duration: decay + 0.05,
       gain: accentGain(params, accent) * 0.45,
       sources: [
-        ...metallicSources(base, 0.3, amp),
-        // A whisper of noise the 808 hats do not have — the 6-bit sample's grain.
         {
           kind: 'noise',
-          gain: 0.16,
+          gain: profile.pcmGain,
           amp,
-          filter: { type: 'highpass', frequency: highpass },
+          filter: { type: 'highpass', frequency: profile.highpass },
+          sampleRate: 30000,
+          bitDepth: 6,
+          seed: profile.seed,
+          playbackRate: tune,
         },
+        ...profile.modes.map((frequency, index) => ({
+          kind: 'osc' as const,
+          type: 'triangle' as const,
+          frequency: frequency * tune,
+          gain: profile.modeGain * definition * (1 - index * 0.07),
+          amp: [
+            { to: 1, at: 0.0006, curve: 'lin' as const },
+            { to: 0, at: decay * (0.55 + index * 0.07) },
+          ],
+        })),
       ],
-      filter: { type: 'bandpass', frequency: bandpass * bright, Q: q },
+      filter: { type: 'bandpass', frequency: profile.bandpass * bright, Q: profile.q },
       pan: range(params.pan, -1, 1),
     }
   }
@@ -242,19 +269,67 @@ export const TR909_VOICES: Voice[] = [
   { id: '909.ht', trim: 0.8, name: 'Hi Tom', machine: 'tr909', build: tom(150, 288), pitched: { low: 150, high: 288 } },
   { id: '909.rim', trim: 1.71, name: 'Rim', machine: 'tr909', build: rim },
   {
-    id: '909.ch', trim: 8.58,
+    id: '909.ch', trim: 3.23,
     name: 'Closed Hat',
     machine: 'tr909',
     choke: '909.hats',
-    build: metallic([0.018, 0.08], 11500, 1.1, 8000),
+    build: digitalMetal({
+      decayRange: [0.018, 0.08],
+      modes: [5100, 6230, 7410, 8740, 10480, 11800],
+      bandpass: 10800,
+      q: 0.75,
+      highpass: 6200,
+      pcmGain: 0.9,
+      modeGain: 0.075,
+      seed: 0x909,
+    }),
   },
   {
-    id: '909.oh', trim: 5.1,
+    id: '909.oh', trim: 2.6,
     name: 'Open Hat',
     machine: 'tr909',
     choke: '909.hats',
-    build: metallic([0.14, 0.8], 10500, 0.9, 7000),
+    build: digitalMetal({
+      decayRange: [0.14, 0.8],
+      modes: [5100, 6230, 7410, 8740, 10480, 11800],
+      bandpass: 9800,
+      q: 0.65,
+      highpass: 5200,
+      pcmGain: 0.9,
+      modeGain: 0.075,
+      seed: 0x909,
+    }),
   },
-  { id: '909.rd', trim: 3.41, name: 'Ride', machine: 'tr909', build: metallic([0.4, 1.6], 6800, 0.8, 5000) },
-  { id: '909.cr', trim: 2.17, name: 'Crash', machine: 'tr909', build: metallic([0.7, 2.6], 5200, 0.5, 3500) },
+  {
+    id: '909.rd',
+    trim: 2.34,
+    name: 'Ride',
+    machine: 'tr909',
+    build: digitalMetal({
+      decayRange: [0.4, 1.6],
+      modes: [1820, 2730, 3840, 5160, 6840, 8920],
+      bandpass: 6200,
+      q: 0.55,
+      highpass: 1800,
+      pcmGain: 0.62,
+      modeGain: 0.15,
+      seed: 0x90a,
+    }),
+  },
+  {
+    id: '909.cr',
+    trim: 2.06,
+    name: 'Crash',
+    machine: 'tr909',
+    build: digitalMetal({
+      decayRange: [0.7, 2.6],
+      modes: [1460, 2210, 3190, 4550, 6270, 8580],
+      bandpass: 5200,
+      q: 0.45,
+      highpass: 1200,
+      pcmGain: 0.78,
+      modeGain: 0.11,
+      seed: 0x90b,
+    }),
+  },
 ]
