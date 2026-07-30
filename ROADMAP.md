@@ -514,9 +514,13 @@ That is a better demonstration of a reusable engine than a loop playing undernea
 green tick: installed into an empty project and imported (22 voices, 12 songs), and
 `npx @driftbox/app@0.1.0` served its index and its 1.27 MB bundle.
 
-0.2.0 has had no equivalent pass yet — the check above is a record of what was done to
-0.1.0, not a standing claim about whatever is latest. Repeat it against the new version
-before treating the release as finished.
+0.2.0 has now had the same pass, and it is a record of that version rather than a standing
+claim about whatever is latest — repeat it at each release. Installed from the registry into
+an empty project: 22 voices, 12 songs, and the `Ladder` still rings 0.45s after a single
+impulse (peak 0.185), which is the closest this check gets to the shipping risk named below.
+`npx @driftbox/app@0.2.0` served both pages, and each mounted in a browser with no console
+errors, reading `v0.2.0 · 93d9cf6` — the build label added in 0.2.0 turning out to verify the
+release it shipped in. Both tarballs carry SLSA provenance naming `refs/tags/v0.2.0`.
 
 The one thing still worth watching is **`Ladder.toString()` under a consumer's bundler**.
 It holds under this build — verified against both the minified app bundle and the engine's
@@ -578,9 +582,18 @@ happens again.
   trusted publisher is configured on a package's settings page and there is no way to
   pre-register a name.
 
-**The OIDC path is not yet proven.** 0.1.0 went out on a token; the dry run since cannot
-test the credential, because both versions already exist and the workflow skips them — and
-`--dry-run` never authenticates in any case. The next real publish is the first test of it.
+**The OIDC path is proven.** ~~0.1.0 went out on a token; the dry run since cannot test the
+credential, because both versions already exist and the workflow skips them — and `--dry-run`
+never authenticates in any case. The next real publish is the first test of it.~~ 0.2.0 was
+that publish and it went out cleanly over trusted publishing, in forty seconds, with
+provenance on both tarballs.
+
+The thing worth keeping from the worry is the shape of it: **a dry run could not have caught a
+credential problem here**, because `--dry-run` never authenticates and the workflow skips
+versions already on the registry. So the first release after any change to publishing —
+renaming `publish.yml`, moving it, or reconfiguring the trusted publisher — is still the first
+real test of that change, and it will still fail late. That is the property to remember, not
+the specific credential.
 
 ### 2. ~~Per-voice outputs~~ — done, as stems
 
