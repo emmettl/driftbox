@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderVoice } from './render.js'
 import type { VoiceSpec } from './types.js'
 
@@ -69,11 +69,17 @@ class FakeBufferSource extends FakeNode {
   loopEnd = 0
 }
 
+class FakeShaper extends FakeNode {
+  curve: Float32Array<ArrayBuffer> | null = null
+  oversample = ''
+}
+
 class FakeContext {
   sampleRate = 44100
   currentTime = 0
   /** Every gain node built, in creation order. */
   readonly gains: FakeGain[] = []
+  readonly shapers: FakeShaper[] = []
   createGain() {
     const g = new FakeGain()
     this.gains.push(g)
@@ -89,7 +95,9 @@ class FakeContext {
     return { type: '', frequency: new FakeParam(), Q: new FakeParam(), ...new FakeNode() }
   }
   createWaveShaper() {
-    return { curve: null, oversample: '', ...new FakeNode() }
+    const shaper = new FakeShaper()
+    this.shapers.push(shaper)
+    return shaper
   }
   createBuffer() {
     return { duration: 2, getChannelData: () => new Float32Array(16) }
@@ -177,5 +185,40 @@ describe('a pitch envelope', () => {
       0,
     )
     expect(osc.built!.frequency.calls.map((c) => c.value)).toEqual([100, 50])
+  })
+})
+
+describe('drive curve caching', () => {
+  it('builds a cache bucket identically regardless of which nearby value reaches it first', async () => {
+    const spec = (drive: number): VoiceSpec => ({
+      duration: 0.3,
+      gain: 1,
+      drive,
+      sources: [source(0.25)],
+    })
+
+    // A fresh module gives each order an empty cache. Both values round to bucket 5,
+    // whose curve must be a property of that bucket rather than of call history.
+    vi.resetModules()
+    const firstModule = await import('./render.js')
+    const lowFirst = new FakeContext()
+    firstModule.renderVoice(
+      lowFirst as unknown as BaseAudioContext,
+      spec(0.251),
+      new FakeNode() as never,
+      0,
+    )
+
+    vi.resetModules()
+    const secondModule = await import('./render.js')
+    const highFirst = new FakeContext()
+    secondModule.renderVoice(
+      highFirst as unknown as BaseAudioContext,
+      spec(0.274),
+      new FakeNode() as never,
+      0,
+    )
+
+    expect(lowFirst.shapers[0].curve).toEqual(highFirst.shapers[0].curve)
   })
 })
