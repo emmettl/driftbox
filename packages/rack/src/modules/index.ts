@@ -15,11 +15,12 @@ import { SAMPLE_HOLD_MODULE } from './sample-hold.js'
 import { SAMPLER_MODULE } from './sampler.js'
 import { SEQ_MODULE } from './seq.js'
 import { SVF_MODULE } from './svf.js'
+import { TRACKER_MODULE } from './tracker.js'
 import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 
-// Nineteen modules: enough to make a track, something to play it with, something that knows what a bar is,
+// Twenty modules: enough to make a track, something to play it with, something that knows what a bar is,
 // and — as of `docs/DNB.md` — something that can chop a break.
 //
 // `docs/RACK.md` planned fifteen and listed clock and sequencer as one. Splitting them was the first
@@ -62,6 +63,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   TRANSPORT_MODULE,
   CLOCK_MODULE,
   SEQ_MODULE,
+  TRACKER_MODULE,
   MIDI_MODULE,
   QUANTIZER_MODULE,
   OUT_MODULE,
@@ -87,6 +89,7 @@ export { SAMPLE_HOLD_MODULE, SampleHoldProcessor } from './sample-hold.js'
 export { SAMPLER_MODULE, SamplerProcessor } from './sampler.js'
 export { SEQ_MODULE, SeqProcessor } from './seq.js'
 export { SVF_MODULE, SvfProcessor } from './svf.js'
+export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './tracker.js'
 export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
