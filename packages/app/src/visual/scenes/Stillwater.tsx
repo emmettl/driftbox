@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -186,7 +186,6 @@ const HAZE_FRAGMENT = /* glsl */ `
 `
 
 export function Stillwater() {
-  const engine = useBox((s) => s.engine)
   const geometry = useWater()
   const material = useRef<THREE.ShaderMaterial>(null)
   const haze = useRef<THREE.ShaderMaterial>(null)
@@ -222,7 +221,7 @@ export function Stillwater() {
   useFrame((_, dt) => {
     const u = uniformsOf(material)
     if (!u) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
 
     u.uTime.value += dt
     // Not eased: the surface swell follows the low end loosely and the RINGS carry the

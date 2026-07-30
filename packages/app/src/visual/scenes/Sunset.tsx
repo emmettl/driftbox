@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { ease, readLevels } from '../levels'
 import { touch } from '../touch'
 
@@ -135,7 +135,6 @@ const SUN_FRAGMENT = /* glsl */ `
 `
 
 export function Sunset() {
-  const engine = useBox((s) => s.engine)
   const gridRef = useRef<THREE.ShaderMaterial>(null)
   const sunRef = useRef<THREE.ShaderMaterial>(null)
   const sunMesh = useRef<THREE.Mesh>(null)
@@ -165,7 +164,7 @@ export function Sunset() {
   )
 
   useFrame((_, dt) => {
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
     const warp = touch.energy
 
     if (gridRef.current) {

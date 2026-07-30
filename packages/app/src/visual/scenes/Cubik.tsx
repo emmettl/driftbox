@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { ease, readBands, readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -157,7 +157,6 @@ function useCubeField() {
 }
 
 export function Cubik() {
-  const engine = useBox((state) => state.engine)
   const geometry = useCubeField()
   const material = useRef<THREE.ShaderMaterial>(null)
   const elapsed = useRef(0)
@@ -178,8 +177,8 @@ export function Cubik() {
   )
 
   useFrame((_, dt) => {
-    const levels = readLevels(engine)
-    readBands(engine, rawBands.current)
+    const levels = readLevels(sceneAudio.analyser)
+    readBands(sceneAudio.analyser, rawBands.current)
     elapsed.current += dt * (0.72 + levels.bass * 1.5)
 
     const u = uniformsOf(material)

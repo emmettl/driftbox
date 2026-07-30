@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { ease, readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -144,7 +144,6 @@ function useCorridor() {
 }
 
 export function Wireframe() {
-  const engine = useBox((s) => s.engine)
   const geometry = useCorridor()
   const material = useRef<THREE.ShaderMaterial>(null)
   const { camera } = useThree()
@@ -164,7 +163,7 @@ export function Wireframe() {
   )
 
   useFrame((_, dt) => {
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
     const warp = touch.energy
     // The material's own uniforms, not the memoised object — see uniforms.ts.
     const u = uniformsOf(material)

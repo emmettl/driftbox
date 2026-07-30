@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
 import { fitDistance } from '../fit'
@@ -260,7 +260,6 @@ function makeDetector(rise: number, refractory: number) {
 }
 
 export function Saturn() {
-  const engine = useBox((s) => s.engine)
   const planet = usePlanet()
   const rings = useRings()
   const planetMat = useRef<THREE.ShaderMaterial>(null)
@@ -303,7 +302,7 @@ export function Saturn() {
     const p = uniformsOf(planetMat)
     const r = uniformsOf(ringMat)
     if (!p || !r) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
 
     p.uTime.value += dt
     p.uBass.value += (bass - p.uBass.value) * Math.min(1, dt * 4)

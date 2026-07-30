@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { ease, readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -296,8 +296,6 @@ const MUZZLE_DIST = 3
 const BEAM_STRANDS = [-1, 0, 1]
 
 export function Trench() {
-  const engine = useBox((s) => s.engine)
-  const running = useBox((s) => s.running)
   const station = useStation()
   const material = useRef<THREE.ShaderMaterial>(null)
   const lasers = useRef<THREE.LineSegments>(null)
@@ -346,7 +344,7 @@ export function Trench() {
   useFrame((_, dt) => {
     const u = uniformsOf(material)
     if (!u) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
     const warp = touch.energy
     const cam = camera as THREE.PerspectiveCamera
 
@@ -360,7 +358,7 @@ export function Trench() {
 
     clock.current += dt
     // The dive only happens once the music does. Before that you are holding station.
-    if (running) approach.current = Math.min(1, approach.current + dt * 0.16)
+    if (sceneAudio.running) approach.current = Math.min(1, approach.current + dt * 0.16)
     const dive = approach.current
     // Squared, so it hangs in orbit and then drops. A linear descent reads as a lift.
     const drop = dive * dive

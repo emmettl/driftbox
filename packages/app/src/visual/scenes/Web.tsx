@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { ease, readBands, readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -190,7 +190,6 @@ function useWeb() {
 }
 
 export function Web() {
-  const engine = useBox((s) => s.engine)
   const geometry = useWeb()
   const material = useRef<THREE.ShaderMaterial>(null)
   const { camera, size } = useThree()
@@ -210,8 +209,8 @@ export function Web() {
   )
 
   useFrame((_, dt) => {
-    const { bass, high } = readLevels(engine)
-    readBands(engine, bands)
+    const { bass, high } = readLevels(sceneAudio.analyser)
+    readBands(sceneAudio.analyser, bands)
     // The material's own uniforms, not the memoised object — see uniforms.ts.
     const u = uniformsOf(material)
     if (!u) return

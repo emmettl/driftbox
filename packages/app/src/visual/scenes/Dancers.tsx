@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
 import { fitDistance } from '../fit'
@@ -190,7 +190,6 @@ function useDancers(): Dancer[] {
 const SEGMENTS_PER_FIGURE = 360
 
 export function Dancers() {
-  const engine = useBox((s) => s.engine)
   const dancers = useDancers()
   const figureMat = useRef<THREE.ShaderMaterial>(null)
   const beamMat = useRef<THREE.ShaderMaterial>(null)
@@ -250,7 +249,7 @@ export function Dancers() {
     const f = uniformsOf(figureMat)
     const bm = uniformsOf(beamMat)
     if (!f || !bm) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
 
     clock.current += dt
     f.uBass.value += (bass - f.uBass.value) * Math.min(1, dt * 6)
@@ -258,7 +257,7 @@ export function Dancers() {
 
     // The beat clock. Advanced by the transport's own tempo rather than by a fixed rate, so
     // the dancing is ON the record instead of merely near it.
-    const bpm = useBox.getState().song.bpm
+    const bpm = sceneAudio.bpm
     beat.current = (beat.current + dt * (bpm / 60)) % 4
 
     // Where the finger is, on the floor.

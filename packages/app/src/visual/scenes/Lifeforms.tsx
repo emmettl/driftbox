@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { ease, readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -139,7 +139,6 @@ function spreadFor(aspect: number): { x: number; y: number } {
 function Body({ body, spread }: { body: (typeof BODIES)[number]; spread: { x: number; y: number } }) {
   const material = useRef<THREE.ShaderMaterial>(null)
   const mesh = useRef<THREE.Mesh>(null)
-  const engine = useBox((s) => s.engine)
 
   const uniforms = useMemo(
     () => ({
@@ -156,7 +155,7 @@ function Body({ body, spread }: { body: (typeof BODIES)[number]; spread: { x: nu
   )
 
   useFrame((_, dt) => {
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
     const warp = touch.energy
     // The material's own uniforms, not the memoised object — see uniforms.ts.
     const u = uniformsOf(material)
@@ -210,13 +209,12 @@ function Body({ body, spread }: { body: (typeof BODIES)[number]; spread: { x: nu
 }
 
 export function Lifeforms() {
-  const engine = useBox((s) => s.engine)
   const { camera, size } = useThree()
   const spread = spreadFor(size.width / size.height)
   const drift = useRef(0)
 
   useFrame((_, dt) => {
-    const { bass } = readLevels(engine)
+    const { bass } = readLevels(sceneAudio.analyser)
     const warp = touch.energy
     drift.current += dt * 0.08
 

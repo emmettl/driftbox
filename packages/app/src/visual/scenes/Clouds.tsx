@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -235,7 +235,6 @@ function makeDetector(rise: number, refractory: number) {
 }
 
 export function Clouds() {
-  const engine = useBox((s) => s.engine)
   const puffs = usePuffs()
   const rainbow = useRainbow()
   const skyMat = useRef<THREE.ShaderMaterial>(null)
@@ -280,7 +279,7 @@ export function Clouds() {
     const p = uniformsOf(puffMat)
     const b = uniformsOf(bowMat)
     if (!sky || !p || !b) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
 
     clock.current += dt
     sky.uBass.value += (bass - sky.uBass.value) * Math.min(1, dt * 4)

@@ -1,10 +1,13 @@
-import type { DriftboxEngine } from '@driftbox/engine'
-
 // Reading the mix, for whatever is on screen.
 //
 // Shared by every scene so they all agree about what "bass" means — two scenes with
 // slightly different band edges would look like one of them was broken the moment you
 // switched between them.
+//
+// **These take an `AnalyserNode`, not an engine.** They used to take a `DriftboxEngine` and reach into it
+// for `engine.analyser`, which is the whole of what they ever wanted — and that one field was what tied
+// every scene to the sequencer. See `audio.ts`. Taking the node makes them work against any graph that
+// has one, the rack's included, and makes them testable without an engine at all.
 
 export interface Levels {
   bass: number
@@ -14,8 +17,7 @@ export interface Levels {
 /** One reusable buffer. Allocating 1024 bytes per frame per scene is not free. */
 const spectrum = new Uint8Array(1024)
 
-export function readLevels(engine: DriftboxEngine | null | undefined): Levels {
-  const analyser = engine?.analyser
+export function readLevels(analyser: AnalyserNode | null | undefined): Levels {
   if (!analyser) return { bass: 0, high: 0 }
 
   const bins = Math.min(spectrum.length, analyser.frequencyBinCount)
@@ -57,10 +59,9 @@ export function ease(current: number, target: number, dt: number, fall = 3.2): n
  * entire point of showing them separately.
  */
 export function readBands(
-  engine: DriftboxEngine | null | undefined,
+  analyser: AnalyserNode | null | undefined,
   out: Float32Array,
 ): Float32Array {
-  const analyser = engine?.analyser
   if (!analyser) {
     out.fill(0)
     return out

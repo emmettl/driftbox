@@ -652,12 +652,12 @@ The risk is all in the first item. Do it first and alone.
 
 ## The visualiser, and why it is not on the rack yet
 
-The sequencer has twelve 3D scenes and the obvious next move is to put one behind the rack. Measured
+The sequencer has thirteen 3D scenes and the obvious next move is to put one behind the rack. Measured
 rather than assumed, that costs more than it looks:
 
 | | |
 |---|---|
-| rack page today | **39 kB** |
+| rack page today | **40 kB** |
 | `three` + `@react-three/fiber` | ~600 kB |
 
 Fifteen times the page, for something decorative. It is also the wrong decoration: the back panel is a
@@ -669,6 +669,28 @@ flat line and a patch clipping into the Out reads as a flattened top, and neithe
 
 If the scenes do arrive, the shape is a **dynamic import** behind a switch that is off by default, so the
 600 kB is paid by whoever asks for it. Worth deciding deliberately rather than drifting into.
+
+**The third obstacle is now gone** ✅, and it was the only one that was an accident rather than a decision.
+Every scene did `useBox((s) => s.engine)` and handed it to `readLevels`, which only ever wanted
+`engine.analyser` — so thirteen scenes depended on the sequencer's whole store, its songs and its engine
+to reach one `AnalyserNode`. The rack could not have used a scene at any price.
+
+- **`levels.ts` takes an `AnalyserNode`.** The coupling was one field deep and entirely accidental, which
+  is the same thing that was true of the Oscilloscope, and the same fix: remove the dependency rather than
+  add a fallback to it. It also makes the band-splitting testable against a fake analyser and no engine.
+- **`audio.ts` publishes what the scenes are watching** — analyser, running, tempo — as a mutable module
+  object, the shape `touch.ts` already uses and for the same reason: every scene reads these inside
+  `useFrame` and none of them re-renders when one changes. The two scenes reading `running` read it inside
+  the frame callback, and the tempo was already being fetched imperatively through `useBox.getState()`.
+- **The `Visualiser` is the boundary.** A scene cannot take a prop — it is looked up from a registry by
+  id, so there is nowhere to thread one through — so the page hands them to the canvas and the canvas
+  publishes them. One file for either page to know about.
+- **A test sweeps the directory** for an import of the store or the engine, because copying an existing
+  scene as the start of a new one is exactly how this comes back, and it would come back silently.
+
+Cost: 0.26 kB on the sequencer's bundle, nothing on the rack's. What remains between here and a scene
+behind the rack is the 600 kB and the argument about reading a back panel — a decision and a taste
+question, which is where it should be.
 5. **Playing it, then polyphony.** Decided rather than guessed at, in this order — and two things
    fell out of the deciding that make the work smaller than it looked.
 
