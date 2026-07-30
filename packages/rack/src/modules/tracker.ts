@@ -165,6 +165,9 @@ export const TRACKER_MODULE: ModuleDef = {
   type: 'tracker',
   version: 1,
   name: 'Tracker',
+  group: 'Sequencing',
+  blurb:
+    'Four lanes of up to sixty-four steps, and eight patterns of them. A bar of drum and bass with the break, the bass and two more parts in it.',
   inlets: [
     { id: 'clock', name: 'Clock' },
     { id: 'reset', name: 'Reset' },

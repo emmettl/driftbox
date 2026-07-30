@@ -97,7 +97,6 @@ body {
 }
 
 .rk-header button,
-.rk-palette button,
 .rk-module-tools button {
   font: inherit;
   color: var(--ink);
@@ -107,8 +106,7 @@ body {
   padding: 6px 11px;
   cursor: pointer;
 }
-.rk-header button:hover,
-.rk-palette button:hover {
+.rk-header button:hover {
   border-color: var(--nine);
 }
 .rk-header button[aria-pressed='true'] {
@@ -319,12 +317,103 @@ kbd {
   color: var(--eight);
 }
 
+/* -----------------------------------------------------------------------------------------
+   The picker: a card and a sentence per thing, shelved by what it does.
+   ----------------------------------------------------------------------------------------- */
+
 .rk-palette {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 10px 16px;
+  padding: 12px 16px 16px;
   border-bottom: 1px solid var(--edge);
+  /* Capped rather than pushing the rack off the page: the picker is a thing you open, look through and
+     close, and one that scrolled the whole document would lose your place in the rack behind it. */
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.rk-palette-search {
+  margin-bottom: 12px;
+}
+.rk-palette-search input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 7px 11px;
+  width: 100%;
+  max-width: 320px;
+}
+.rk-palette-search input:focus {
+  outline: none;
+  border-color: var(--nine);
+}
+
+.rk-shelf h2 {
+  font: 10px var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nine);
+  margin: 0 0 6px;
+}
+.rk-shelf + .rk-shelf {
+  margin-top: 16px;
+}
+.rk-shelf-note {
+  font: 11px var(--mono);
+  color: var(--dim);
+  margin: -2px 0 8px;
+}
+
+.rk-cards {
+  display: grid;
+  /* As many columns as fit at a readable width. A fixed count would give a phone three cramped columns
+     and a desktop three wide ones; this gives each what it has room for and needs no breakpoint. */
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.rk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 9px 11px;
+  cursor: pointer;
+}
+.rk-card:hover,
+.rk-card:focus-visible {
+  border-color: var(--nine);
+}
+/* A chunk adds several modules, some cables and a channel of its own, which is a bigger thing to have
+   happen than adding a VCO — so it does not look identical to one. */
+.rk-card-chunk {
+  border-color: rgba(255, 176, 46, 0.35);
+}
+.rk-card-chunk:hover,
+.rk-card-chunk:focus-visible {
+  border-color: var(--three);
+}
+.rk-card-name {
+  font-weight: 600;
+}
+.rk-card-blurb {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dim);
+}
+.rk-card-ports {
+  font: 9px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  opacity: 0.7;
+  margin-top: auto;
+  padding-top: 2px;
 }
 
 .rk-warn,
@@ -1039,22 +1128,6 @@ kbd {
   color: var(--three);
 }
 
-/* Section headings in the palette, so chunks and modules are not one undifferentiated wall of buttons. */
-.rk-palette-head {
-  flex-basis: 100%;
-  margin: 4px 0 0;
-  font: 10px var(--mono);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-.rk-palette-head:first-child {
-  margin-top: 0;
-}
-.rk-palette-chunk {
-  border-color: rgba(95, 240, 208, 0.35);
-}
-
 /* -----------------------------------------------------------------------------------------
    The Tracker's step grid — the only place in the rack you can write a note.
    ----------------------------------------------------------------------------------------- */
@@ -1133,6 +1206,78 @@ kbd {
   border-color: var(--three);
 }
 .rk-step:hover {
+  border-color: var(--nine);
+}
+
+/* -----------------------------------------------------------------------------------------
+   The Arranger's song list — sixteen sections, two columns of eight.
+   ----------------------------------------------------------------------------------------- */
+
+.rk-song {
+  display: flex;
+  gap: 10px;
+  padding: 2px 10px 10px;
+  flex: 1;
+  min-height: 0;
+}
+/* Two of these, so a song reads 1–8 down the left and 9–16 down the right. A single grid flowing by column
+   would lay them out identically but leaves nowhere to put a heading, and the headings are what say which
+   of the two numbers in a row is the pattern. */
+.rk-song-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.rk-song-head {
+  display: flex;
+  gap: 3px;
+  font: 8px var(--mono);
+  color: var(--dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rk-song-head span {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+.rk-song-head .rk-song-at {
+  flex: none;
+}
+.rk-song-row {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  min-height: 0;
+}
+/* A section past the song's length. Dimmed rather than removed, because shortening a song must be as
+   reversible as turning the knob back — the same promise the Tracker makes about a shortened pattern. */
+.rk-song-past {
+  opacity: 0.3;
+}
+.rk-song-at {
+  font: 9px var(--mono);
+  color: var(--dim);
+  width: 14px;
+  flex: none;
+  align-self: center;
+  text-align: right;
+}
+.rk-song-cell {
+  flex: 1;
+  min-width: 0;
+  font: 10px var(--mono);
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  padding: 0;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.rk-song-cell:hover {
   border-color: var(--nine);
 }
 

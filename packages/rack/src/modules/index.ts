@@ -1,5 +1,6 @@
 import type { ModuleDef, Registry } from '../types.js'
 import { ADSR_MODULE } from './adsr.js'
+import { ARRANGER_MODULE } from './arranger.js'
 import { ALLIGATOR_MODULE } from './alligator.js'
 import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
@@ -26,7 +27,7 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 
-// Twenty-six modules: enough to make a track, something to play it with, something that knows what a bar
+// Twenty-seven modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -53,37 +54,53 @@ import { VOCODER_MODULE } from './vocoder.js'
 // and `modules.test.ts` holds every entry to the same structural rules, so a new module gets that
 // coverage for free the moment it is listed.
 
-/** In the order a faceplate would sensibly show them: sources, then filters, then shapers, then
- *  control, then the output. Nothing depends on this order — `compile` reads the registry by key —
- *  but a UI that iterates it should not have to sort. */
+/**
+ * In the order a picker would sensibly show them, and **grouped**, which is new.
+ *
+ * The order always implied these groups — sources, then filters, then shapers, then control, then the
+ * output — but nothing stated them and nothing could read them, so a picker got twenty-seven names in a
+ * row. Each def now carries its own `group`, and this list is sorted to agree: every module of a group is
+ * contiguous, and the groups run in signal order. `modules.test.ts` holds it to that, because a list that
+ * has drifted out of group order reads as a bug in the picker rather than as a bug here.
+ *
+ * Nothing depends on the order — `compile` reads the registry by key — but a UI that iterates it should
+ * not have to sort.
+ */
 export const MODULE_LIST: readonly ModuleDef[] = [
   VCO_MODULE,
   NOISE_MODULE,
   SAMPLER_MODULE,
+
   LADDER_MODULE,
   SVF_MODULE,
-  VCA_MODULE,
   ALLIGATOR_MODULE,
   VOCODER_MODULE,
+
+  VCA_MODULE,
   DRIVE_MODULE,
+  COMPRESSOR_MODULE,
+
   DELAY_MODULE,
+  REVERB_MODULE,
+
   ADSR_MODULE,
-  FOLLOWER_MODULE,
   LFO_MODULE,
+  FOLLOWER_MODULE,
   SAMPLE_HOLD_MODULE,
   OFFSET_MODULE,
-  MIXER_MODULE,
+  QUANTIZER_MODULE,
+  // Last of the modulation sources, because a Combinator is not in a signal chain at all — it sits over
+  // the top of one, and every other module on this shelf makes a CV that travels down a cable.
+  COMBI_MODULE,
+
   TRANSPORT_MODULE,
   CLOCK_MODULE,
-  COMPRESSOR_MODULE,
   SEQ_MODULE,
-  REVERB_MODULE,
   TRACKER_MODULE,
+  ARRANGER_MODULE,
   MIDI_MODULE,
-  QUANTIZER_MODULE,
-  // Last before the output, because a Combinator is not part of a signal chain at all — it sits over the
-  // top of one. Anywhere in the sources-then-filters-then-control order would have implied otherwise.
-  COMBI_MODULE,
+
+  MIXER_MODULE,
   OUT_MODULE,
 ]
 
@@ -92,6 +109,7 @@ export const MODULES: Registry = Object.fromEntries(
 )
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
+export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'

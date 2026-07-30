@@ -143,6 +143,9 @@ export const REVERB_MODULE: ModuleDef = {
   type: 'reverb',
   version: 1,
   name: 'Reverb',
+  group: 'Space',
+  blurb:
+    'A room, built from feedback delay lines. Size, decay and damping rather than a list of presets.',
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [{ id: 'out', name: 'Out' }],
   params: [

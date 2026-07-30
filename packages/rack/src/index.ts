@@ -82,6 +82,7 @@ export { CHUNKS, chunkById, insertChunk, type Chunk, type Inserted } from './chu
 export { VCV_MODELS, importVcv, importVcvPatch, type ImportNote, type Imported } from './vcv/index.js'
 export { MODULES, MODULE_LIST } from './modules/index.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
+export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './modules/arranger.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './modules/combi.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './modules/follower.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './modules/midi.js'

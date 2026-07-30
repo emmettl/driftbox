@@ -96,6 +96,9 @@ export const CLOCK_MODULE: ModuleDef = {
   type: 'clock',
   version: 1,
   name: 'Clock',
+  group: 'Sequencing',
+  blurb:
+    'Divides a clock into a gate, a trigger and a ramp. One of these can drive four sequencers at four different rates.',
   inlets: [
     { id: 'rate', name: 'Rate' },
     { id: 'reset', name: 'Reset' },

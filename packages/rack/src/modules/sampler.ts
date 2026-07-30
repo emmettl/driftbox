@@ -142,6 +142,9 @@ export const SAMPLER_MODULE: ModuleDef = {
   type: 'sampler',
   version: 1,
   name: 'Sampler',
+  group: 'Sources',
+  blurb:
+    'Plays a break, sliced. Retriggering by slice is what chopping is, and chopping is what jungle is made of.',
   inlets: [
     { id: 'trig', name: 'Trig' },
     { id: 'slice', name: 'Slice' },

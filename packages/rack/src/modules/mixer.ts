@@ -42,6 +42,9 @@ export const MIXER_MODULE: ModuleDef = {
   type: 'mixer',
   version: 1,
   name: 'Mixer',
+  group: 'Mixing',
+  blurb:
+    'Four in, one out, with a level and a CV inlet on each. Every crossfade in the rack is one of these, in plain sight.',
   inlets: [
     { id: 'in1', name: 'In 1' },
     { id: 'in2', name: 'In 2' },

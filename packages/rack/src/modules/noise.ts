@@ -68,6 +68,9 @@ export const NOISE_MODULE: ModuleDef = {
   type: 'noise',
   version: 1,
   name: 'Noise',
+  group: 'Sources',
+  blurb:
+    'White and pink at once. Hiss for hats and snares, and the raw material a sample-and-hold turns into a melody.',
   inlets: [],
   outlets: [
     { id: 'white', name: 'White' },

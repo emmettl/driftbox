@@ -122,6 +122,9 @@ export const SEQ_MODULE: ModuleDef = {
   type: 'seq',
   version: 1,
   name: 'Seq',
+  group: 'Sequencing',
+  blurb:
+    'Eight steps, a pitch knob and a switch on each. Immediate — what you reach for when you want a line right now.',
   inlets: [
     { id: 'clock', name: 'Clock' },
     { id: 'reset', name: 'Reset' },

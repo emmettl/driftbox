@@ -38,6 +38,9 @@ export const SAMPLE_HOLD_MODULE: ModuleDef = {
   type: 'sample-hold',
   version: 1,
   name: 'S&H',
+  group: 'Modulation',
+  blurb:
+    'Grabs a value on each trigger and holds it. Noise in, a Quantizer after, and you have a melody nobody wrote.',
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'trig', name: 'Trig' },

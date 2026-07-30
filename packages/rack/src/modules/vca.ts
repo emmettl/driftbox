@@ -57,6 +57,9 @@ export const VCA_MODULE: ModuleDef = {
   type: 'vca',
   version: 1,
   name: 'VCA',
+  group: 'Shaping',
+  blurb:
+    'Volume you can control with a cable. The module that turns an envelope into a note.',
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cv', name: 'CV' },

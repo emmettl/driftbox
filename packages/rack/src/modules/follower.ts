@@ -103,6 +103,9 @@ export const FOLLOWER_MODULE: ModuleDef = {
   type: 'follower',
   version: 1,
   name: 'Follower',
+  group: 'Modulation',
+  blurb:
+    'Turns audio into the shape it is already making. A filter that opens on every kick is one cable.',
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [
     { id: 'env', name: 'Env' },

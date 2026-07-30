@@ -132,6 +132,9 @@ export const COMPRESSOR_MODULE: ModuleDef = {
   type: 'compressor',
   version: 1,
   name: 'Comp',
+  group: 'Shaping',
+  blurb:
+    'Ducks the loud parts so everything sits together. In drum and bass it is also where the pumping comes from.',
   inlets: [
     { id: 'in', name: 'In' },
     // Unpatched, the detector reads the input. Patched, this is the duck that makes a bassline breathe.

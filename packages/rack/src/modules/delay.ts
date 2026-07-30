@@ -95,6 +95,9 @@ export const DELAY_MODULE: ModuleDef = {
   type: 'delay',
   version: 1,
   name: 'Delay',
+  group: 'Space',
+  blurb:
+    'An echo with a time you can modulate. Wet only, so patch the dry through a Mixer and the balance stays visible.',
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'time', name: 'Time' },

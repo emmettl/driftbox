@@ -95,6 +95,9 @@ export const COMBI_MODULE: ModuleDef = {
   type: 'combi',
   version: 1,
   name: 'Combinator',
+  group: 'Modulation',
+  blurb:
+    'Four knobs and four buttons wired to any parameters in the rack. One gesture opening a filter, shortening a decay and pushing a send.',
   // See the note above: nothing patches *into* a macro control.
   inlets: [],
   // Rotaries then buttons, matching the param order, because the processor derives which is which from

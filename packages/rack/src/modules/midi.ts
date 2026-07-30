@@ -79,6 +79,9 @@ export const MIDI_MODULE: ModuleDef = {
   type: 'midi',
   version: 1,
   name: 'MIDI',
+  group: 'Sequencing',
+  blurb:
+    'Your keyboard, as pitch and a gate. The only module here whose input does not arrive down a cable.',
   inlets: [],
   outlets: [
     { id: 'pitch', name: 'V/Oct' },
