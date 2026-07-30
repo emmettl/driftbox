@@ -14,6 +14,7 @@ import { Web } from './Web'
 import { Cubik } from './Cubik'
 import { Convoy } from './Convoy'
 import { Machine } from './Machine'
+import { GraphicLab } from './GraphicLab'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -76,6 +77,9 @@ export const SCENES: SceneInfo[] = [
   // Warm white against the cyan machinery and rust-red sun. A small trail keeps the
   // gesture from obscuring the cargo silhouettes that make this scene itself.
   { id: 'convoy', name: 'Endless Convoy', Component: Convoy, accent: '255, 250, 220', trail: { scale: 0.75 } },
+  // White and ringed because the three editions move between paper, yellow and broadcast
+  // blue. It reads as a registration mark in the print systems and a reticle in the ident.
+  { id: 'graphic', name: 'Graphic Lab', Component: GraphicLab, accent: '255, 255, 255', trail: { scale: 0.8, ring: true } },
 ]
 
 export type SceneId = string
