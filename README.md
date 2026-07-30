@@ -28,7 +28,7 @@ built it.
 |---|---|
 | [`@driftbox/engine`](https://www.npmjs.com/package/@driftbox/engine) | The synthesis and the sequencer. No React, no DOM — meant to be embedded. |
 | [`@driftbox/app`](https://www.npmjs.com/package/@driftbox/app) | This sequencer, as a runnable app. |
-| `@driftbox/rack` | The private, in-repo modular engine behind [`rack.html`](packages/app/rack.html). |
+| `@driftbox/rack` | The unpublished, work-in-progress modular engine behind [`rack.html`](packages/app/rack.html). |
 
 To build something with the engine:
 

@@ -4,12 +4,13 @@ A modular synth rack, in the browser, patched with cables. Reason's back panel r
 Reason's front: a small set of modules, free routing between all of them, and a patch that
 fits in a URL.
 
-The rack is built end to end: `packages/rack` has the compiler, worklet host, patch format
-and 22 modules; the app has front and back panels, cable dragging, keyboard/MIDI, tracker,
-sampler, patch library, performance mode and offline export. `packages/app/src/hash.ts`
-carries patches in a URL alongside songs. Everything below records the shape of it and the
-decisions that are expensive to change later — where implementation taught us something
-different, this file says so rather than describing only the plan we started with.
+The rack works end to end but remains a work in progress and is intentionally unpublished.
+`packages/rack` has the compiler, worklet host, patch format and 22 modules; the app has
+front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
+performance mode and offline export. `packages/app/src/hash.ts` carries patches in a URL
+alongside songs. Everything below records the shape of it and the decisions that are
+expensive to change later — where implementation taught us something different, this file
+says so rather than describing only the plan we started with.
 
 ## What this is not
 

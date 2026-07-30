@@ -3,6 +3,8 @@
 A modular synth rack: modules, cables between any of them, and one graph running at sample
 rate inside a single AudioWorklet.
 
+It is still a work in progress and is intentionally private and unpublished.
+
 Twenty-two modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
 tracker, sampler, patch library, performance mode and offline export. `../../docs/RACK.md`

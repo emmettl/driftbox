@@ -9,7 +9,7 @@ harder and the more important:
 
 The plan through phases A–D is built. `docs/RACK.md` describes the rack itself; this file
 keeps the product argument, build order and the decisions discovered while turning it into
-the drum-and-bass instrument that now ships.
+the drum-and-bass instrument that now runs in the app.
 
 ## The reframe, which changes the order of everything
 
