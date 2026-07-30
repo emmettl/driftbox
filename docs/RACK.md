@@ -477,6 +477,22 @@ The risk is all in the first item. Do it first and alone.
      mechanism, and it honours `prefers-reduced-motion`.
    - **Cables sag much less than it feels like they should.** 0.10 of the span, down from 0.22 — at
      0.22 the back panel read as bunting rather than as patch leads.
+   - **The cables swing when the rack turns**, which is the detail that made Reason's back panel feel
+     like an object rather than a diagram. A damped pendulum per cable over 2.2s, `swingAngle` in
+     `cable.ts`, one rAF loop that runs only while a swing is in flight and honours
+     `prefers-reduced-motion`. Two things about it were wrong first and **only driving the page found
+     either** — every property test passed both times:
+     - The first version swung the belly on an arc of radius `sag`, so the cable could not change
+       length. Correct physics, measured at 10.8 design units of travel, and invisible on a rack 480
+       units wide: the mid-swing screenshot was indistinguishable from the settled one. The reach is now
+       its own number and length is only approximately conserved. An invisible effect that conserves
+       length perfectly is not a better effect.
+     - Deriving each cable's period from its own length is real and, here, worth almost nothing: every
+       cable in the shipped patch spans 433-508 units, because the rack is one column wide and they all
+       run about the same diagonal. That is a 5% spread in period and all eight peaked on the same
+       frame. A deterministic per-cable seed, hashed from the cable's own name, varies the period by
+       ±15% and staggers the start by up to 70ms. Real patch leads differ in stiffness and seating,
+       which is exactly why a real panel does not move as one sheet.
    - **Faceplates: a sparse registry with a generic fallback.** Hand-built for the VCO, the Ladder and
      Out; derived from the def for everything else. Same principle as the compiler's placeholder rule —
      degrade sensibly rather than fail — so adding a module stays a class, a def and a test with no UI
