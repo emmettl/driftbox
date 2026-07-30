@@ -62,7 +62,11 @@ export class TrackerProcessor implements Processor {
   ): void {
     const clockIn = inlets[0]
     const resetIn = inlets[1]
+    const patternIn = inlets[2]
     const lengthParam = params[0]
+    // Appended to the param list rather than inserted, so every existing index below is unchanged — the
+    // processor reads params[0] for length, then a mute per lane, then a unit per lane, then this.
+    const patternParam = params[params.length - 1]
 
     for (let i = 0; i < frames; i++) {
       const reset = resetIn[i] >= 0.5 ? 1 : 0
@@ -77,6 +81,17 @@ export class TrackerProcessor implements Processor {
       if (length < 1) length = 1
       else if (length > 64) length = 64
 
+      // Which pattern plays. The knob is the base and the inlet adds to it, the same arrangement every
+      // other CV-able control here uses — so a patch can select by hand, by sequencer, or by both.
+      //
+      // The inlet is scaled by sixteen so that **a Tracker's own Unit lane drives it one for one**: a Unit
+      // lane emits `value / 16`, so writing 0, 1, 2, 3 into one selects patterns 0, 1, 2, 3 on another.
+      // That is the whole song mechanism, and it wanted no new module — one Tracker clocked by the bar
+      // chaining another's patterns is an arrangement. Sixteen is inlined for the usual reason.
+      let pattern = Math.round(patternParam[i] + patternIn[i] * 16)
+      if (pattern < 0) pattern = 0
+      else if (pattern > 7) pattern = 7
+
       // Derived rather than a constant: this class is serialised into a scope that shares nothing with this
       // module, so it cannot read one. Three outlets per lane.
       const lanes = outlets.length / 3
@@ -87,7 +102,15 @@ export class TrackerProcessor implements Processor {
         for (let lane = 0; lane < lanes; lane++) {
           // Read on the edge only. Reading per sample would mean editing a pattern mid-step retriggered it.
           const values = this.data.get(`lane${lane + 1}`)
-          const value = values && this.step < values.length ? values[this.step] : 0
+          // **Patterns are stored end to end in the one lane array**, so pattern p occupies
+          // `[p * length, (p + 1) * length)`. That is what makes this change cost nothing in the patch
+          // format and nothing in compatibility: a lane of sixteen values at a length of sixteen is
+          // exactly pattern 0, which is every patch written before banks existed, byte for byte.
+          //
+          // The alternative — a slot per pattern, `p2lane1` and so on — would have meant a naming scheme
+          // in the data, a migration, and a reader that had to know about banks. This needs none of it.
+          const offset = pattern * length + this.step
+          const value = values && offset < values.length ? values[offset] : 0
           const muted = Math.round(params[1 + lane][i]) === 1
           this.open[lane] = value !== 0 && !muted
           if (this.open[lane]) {
@@ -145,6 +168,7 @@ export const TRACKER_MODULE: ModuleDef = {
   inlets: [
     { id: 'clock', name: 'Clock' },
     { id: 'reset', name: 'Reset' },
+    { id: 'pattern', name: 'Pattern' },
   ],
   // Three per lane. A CV to play, a gate to hold something open, and a trigger to strike something — which are
   // three different questions and a patch usually wants two of them.
@@ -173,6 +197,10 @@ export const TRACKER_MODULE: ModuleDef = {
       stepped: true,
       labels: ['Semi', 'Unit'] as const,
     })),
+    // Last, so adding it moved no existing param index. Eight is a bank: enough to build a track out of an
+    // intro, a main, a break and a drop with room to spare, and few enough that eight times sixty-four
+    // values still fits in a URL alongside everything else.
+    { id: 'pattern', name: 'Pattern', min: 0, max: 7, default: 0, stepped: true },
   ],
   processor: TrackerProcessor,
   // One sequence. Eight copies advanced by the same clock would play the same step — the same reasoning as `seq`.
