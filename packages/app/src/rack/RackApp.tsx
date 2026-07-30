@@ -6,11 +6,13 @@ import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
+import { Kaoss } from '@driftbox/engine'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
+import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
-import { openingPatch, useRack } from './store.js'
+import { openingPatch, useRack, type Opening } from './store.js'
 
 // The rack, as a page.
 //
@@ -54,6 +56,11 @@ export default function RackApp() {
    * flattened top, and both are otherwise invisible.
    */
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
+  /** The performance filter. A ref because the audio graph owns it; the boolean is only so React re-renders
+   *  the pad once there is something for it to move. */
+  const kaoss = useRef<Kaoss | null>(null)
+  const [hasKaoss, setHasKaoss] = useState(false)
+  const [performing, setPerforming] = useState(false)
   const [started, setStarted] = useState(false)
   const [failed, setFailed] = useState(false)
   const [shared, setShared] = useState<string | null>(null)
@@ -107,6 +114,12 @@ export default function RackApp() {
    * this side, so loading one break into two samplers would give the second one nothing. That is the cost of not
    * copying on the audio thread's doorstep, and it is worth it; it just has to be known about.
    */
+  /** `start` needs `loadBreak`, and `loadBreak` is defined here rather than above it. A ref bridges the two.
+   *  Declared before the assignment below and not next to `start`, because `loadBreakRef.current = loadBreak`
+   *  runs during render — putting the `const` further down the component was a temporal-dead-zone crash that
+   *  took the whole page out, and nothing but loading the page would have found it. */
+  const loadBreakRef = useRef<(id: string) => Promise<void>>(async () => {})
+
   const loadBreak = useCallback(
     async (id: string) => {
       const live = rack.current
@@ -136,6 +149,8 @@ export default function RackApp() {
     },
     [ensureSampler, setTempo, setRunning],
   )
+
+  loadBreakRef.current = loadBreak
 
   /**
    * One allocator for every keyboard, on screen or plugged in.
@@ -203,9 +218,19 @@ export default function RackApp() {
     setMidi(null, handle.inputs)
   }
 
-  // Whatever we were opened with: a shared link, the last session, or the starter patch.
+  /**
+   * Whatever we were opened with: a shared link, the last session, or the starter patch.
+   *
+   * The preset is kept so that pressing play can render the break it was written around. Only a *fresh*
+   * arrival has one — a shared link or a saved session is somebody's work, and swapping it for a demo
+   * because that makes a better first impression would be the worst thing this page could do.
+   */
+  const opening = useRef<Opening | null>(null)
   useEffect(() => {
-    void openingPatch().then(load)
+    void openingPatch().then((result) => {
+      opening.current = result
+      load(result.patch)
+    })
   }, [load])
 
   /**
@@ -267,11 +292,21 @@ export default function RackApp() {
     ctx.onstatechange = () => setAudioState(ctx.state)
     setAudioState(ctx.state)
 
+    // The performance filter, as an insert across everything the rack makes. After the rack's output means
+    // after its master limiter, which is the same order the engine uses and for the same reason: the
+    // limiter should not be reacting to a signal the filter is about to throw away.
+    const pad = new Kaoss(ctx)
+    live.output?.connect(pad.input)
+    kaoss.current = pad
+    setHasKaoss(true)
+
     const scope = ctx.createAnalyser()
     scope.fftSize = 2048
     scope.smoothingTimeConstant = 0.75
-    live.output?.connect(scope)
-    live.output?.connect(ctx.destination)
+    // The scope watches the filtered signal, so sweeping the pad shows on it. Watching the pre-filter output
+    // would have drawn a waveform nobody could hear.
+    pad.output.connect(scope)
+    pad.output.connect(ctx.destination)
     setAnalyser(scope)
 
     live.patch = useRack.getState().patch
@@ -281,7 +316,14 @@ export default function RackApp() {
     live.setTransport(useRack.getState().patch.tempo ?? 120, true)
     setRunning(true)
     setStarted(true)
+
+    // The reward for the gesture, and `docs/DNB.md` calls this the most important thing in it: a beat, not a
+    // bleep. The opening patch is a chopped break for a first-time visitor, and a break is silent until one
+    // has been rendered into it — so the gesture that starts audio is also the one that fills the Sampler.
+    const wanted = opening.current?.preset?.needsBreak
+    if (wanted) void loadBreakRef.current(wanted)
   }, [setRunning])
+
 
   /**
    * Make the rack able to make a sound, because somebody is about to play one.
@@ -401,6 +443,20 @@ export default function RackApp() {
           aria-expanded={adding}
         >
           Add module
+        </button>
+
+        {/* No extra class: the header already styles `aria-pressed` buttons, the way the flip button does.
+            A custom filled style put teal text on a teal background and the label vanished. */}
+        <button
+          type="button"
+          onClick={() => {
+            setPerforming((on) => !on)
+            setAdding(false)
+            setBrowsing(false)
+          }}
+          aria-pressed={performing}
+        >
+          {performing ? 'Rack' : 'Perform'}
         </button>
 
         <button
@@ -531,7 +587,16 @@ export default function RackApp() {
         </p>
       )}
 
-      <div className="rk-stage">
+      {/* Performance mode: the patching goes away and the pad takes the whole space. Not a separate page,
+          because the keyboard, the transport and the audio graph are all the same ones — what changes is
+          which of them are big enough to use with your hands. */}
+      {performing && (
+        <div className="rk-perform">
+          <PerformPad kaoss={hasKaoss ? kaoss.current : null} />
+        </div>
+      )}
+
+      <div className="rk-stage" hidden={performing}>
         <div
           className={flipped ? 'rk-rack rk-rack-flipped' : 'rk-rack'}
           style={{

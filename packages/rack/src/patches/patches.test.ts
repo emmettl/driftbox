@@ -92,3 +92,96 @@ describe('the patch library', () => {
     expect(covered.size).toBeGreaterThanOrEqual(12)
   })
 })
+
+describe('the patches built on a break', () => {
+  // A Sampler with no data is silent, so these two things have to agree or the patch arrives broken — which
+  // is the same "silent no-op" failure the Stop button and the breaks picker both shipped with once.
+
+  const needing = PATCHES.filter((preset) => preset.needsBreak)
+
+  it('exist at all, because that is the point of phase D', () => {
+    expect(needing.length).toBeGreaterThan(0)
+  })
+
+  it('have somewhere to put the break they ask for', () => {
+    for (const preset of needing) {
+      const samplers = preset.build().modules.filter((m) => m.type === 'sampler')
+      expect(samplers.length, preset.id).toBeGreaterThan(0)
+    }
+  })
+
+  it('are at a tempo the break can be rendered to', () => {
+    // A break only slices cleanly at the tempo it was rendered at, so a patch that names one has to state a
+    // tempo for the host to render against. Undefined would silently mean 120.
+    for (const preset of needing) {
+      const { tempo } = preset.build()
+      expect(tempo, preset.id).toBeGreaterThanOrEqual(160)
+      expect(tempo, preset.id).toBeLessThanOrEqual(180)
+    }
+  })
+})
+
+describe('the patterns inside the patches', () => {
+  it('only put data in slots the module actually reads', () => {
+    // Data is addressed by string, so a typo is silence rather than an error — `lane5` on a four-lane
+    // Tracker would simply never be read, and the lane would rest for ever.
+    for (const preset of PATCHES) {
+      for (const module of preset.build().modules) {
+        if (!module.data) continue
+        expect(module.type, `${preset.id}/${module.id}`).toBe('tracker')
+        for (const slot of Object.keys(module.data)) {
+          expect(slot, `${preset.id}/${module.id}`).toMatch(/^lane[1-4]$/)
+        }
+      }
+    }
+  })
+
+  it('write no more steps than the tracker is set to play', () => {
+    // Steps past the length are never reached. Not an error, but in a shipped patch it means somebody wrote
+    // a bar and a half and only ever hears the first bar.
+    for (const preset of PATCHES) {
+      for (const module of preset.build().modules) {
+        if (!module.data) continue
+        const length = module.params?.length ?? 16
+        for (const [slot, values] of Object.entries(module.data)) {
+          expect(values.length, `${preset.id}/${module.id}/${slot}`).toBeLessThanOrEqual(length)
+        }
+      }
+    }
+  })
+
+  it('keeps a slice lane inside the sampler’s slice count', () => {
+    // The Unit-mode trick only holds while the two agree. A lane value above the slice count still plays —
+    // the Sampler wraps — but it plays a different slice than the one written, which is the sort of wrong
+    // that is impossible to see in the source.
+    for (const preset of PATCHES) {
+      const patch = preset.build()
+      const sampler = patch.modules.find((m) => m.type === 'sampler')
+      if (!sampler) continue
+      const slices = sampler.params?.slices ?? 16
+      for (const module of patch.modules) {
+        if (module.type !== 'tracker' || !module.data) continue
+        // Whichever lanes are in Unit mode are the ones feeding a slice inlet.
+        for (let lane = 1; lane <= 4; lane++) {
+          if (module.params?.[`unit${lane}`] !== 1) continue
+          for (const value of module.data[`lane${lane}`] ?? []) {
+            expect(value, `${preset.id} lane${lane}`).toBeLessThanOrEqual(slices)
+            expect(value, `${preset.id} lane${lane}`).toBeGreaterThanOrEqual(0)
+          }
+        }
+      }
+    }
+  })
+
+  it('has something to say on every lane it declares', () => {
+    // A lane of nothing but rests is a lane somebody meant to write and did not.
+    for (const preset of PATCHES) {
+      for (const module of preset.build().modules) {
+        if (!module.data) continue
+        for (const [slot, values] of Object.entries(module.data)) {
+          expect(values.some((v) => v !== 0), `${preset.id}/${slot}`).toBe(true)
+        }
+      }
+    }
+  })
+})

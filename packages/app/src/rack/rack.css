@@ -368,6 +368,13 @@ kbd {
  * its own pointer events, its focus ring and its ARIA role through the animation.
  */
 
+/* `display: flex` beats the `hidden` attribute's own `display: none`, so performance mode left the whole
+   rack on screen underneath the pad. A rule that says so explicitly is the only fix that survives somebody
+   adding a display to an element they also hide. */
+[hidden] {
+  display: none !important;
+}
+
 .rk-stage {
   perspective: 2400px;
   /* The bottom padding clears the sticky keyboard. Without it the keys paint over the last module in the
@@ -897,3 +904,75 @@ kbd {
     --keys-height: 176px;
   }
 }
+
+/* ---- performance mode ---------------------------------------------------------
+ *
+ * The pad takes the space the rack was using. Not a separate page: the keyboard, the transport and the audio
+ * graph are the same ones, and what changes is which of them are big enough to use with your hands.
+ */
+.rk-perform {
+  display: flex;
+  padding: 24px max(16px, env(safe-area-inset-left)) calc(24px + var(--keys-height));
+  justify-content: center;
+}
+
+.rk-pad {
+  position: relative;
+  width: min(900px, 100%);
+  /* Tall enough to have travel in both axes. A pad wider than it is tall makes resonance a twitch. */
+  aspect-ratio: 3 / 2;
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 100% at 0% 100%, rgba(95, 240, 208, 0.16), transparent 60%),
+    radial-gradient(120% 100% at 100% 100%, rgba(255, 122, 217, 0.16), transparent 60%),
+    var(--panel);
+  cursor: crosshair;
+  /* Without this a drag scrolls the page under the finger instead of sweeping the filter. */
+  touch-action: none;
+  overflow: hidden;
+}
+.rk-pad[data-held='yes'] {
+  border-color: rgba(95, 240, 208, 0.5);
+}
+
+.rk-pad-dot {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: var(--nine);
+  box-shadow: 0 0 28px 6px rgba(95, 240, 208, 0.45);
+  pointer-events: none;
+}
+
+.rk-pad-axis {
+  position: absolute;
+  font: 10px var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  pointer-events: none;
+}
+.rk-pad-axis-x {
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.rk-pad-axis-y {
+  top: 50%;
+  left: 10px;
+  transform: rotate(-90deg);
+  transform-origin: left center;
+}
+
+.rk-pad-readout {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font: 12px var(--mono);
+  color: var(--ink);
+  pointer-events: none;
+}
+

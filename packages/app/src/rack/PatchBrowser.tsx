@@ -61,7 +61,15 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
         <ul>
           {PATCHES.map((preset) => (
             <li key={preset.id}>
-              <button type="button" onClick={() => adopt(preset.build(), preset.name)}>
+              <button
+                type="button"
+                onClick={() => {
+                  adopt(preset.build(), preset.name)
+                  // A patch built on a break arrives silent without one, which is the "nothing happened"
+                  // failure this app keeps having to fix. The preset names the break; the host renders it.
+                  if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
+                }}
+              >
                 <strong>{preset.name}</strong>
                 <span>{preset.blurb}</span>
               </button>

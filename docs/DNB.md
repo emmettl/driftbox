@@ -291,20 +291,48 @@ declares is actually asked for — verified by reverting the fix and watching it
 painted over the bottom of the rack**: fixed with `scroll-padding-bottom` on the document and matching padding
 on the stage, so the last module can be scrolled — and tab-focused — clear of the keys.
 
-### D — instant DJ
+### D — instant DJ ✅
 
-**D1. A performance mode.** Big controls, no patching visible, the Kaoss pad across the master. The pad is
-nearly free: `app/src/ui/KaossPad.tsx` and the engine's morphing LP/HP filter both exist, and it belongs as a
-Web Audio insert after the rack's output rather than as a module — for the reason `kaoss.ts` already gives,
-that *"the fun of a Kaoss pad is that the whole record ducks away and comes back, drums included"*.
+**D1. A performance mode.** ✅ Built. A `Perform` toggle swaps the rack for the pad; the keyboard, the transport
+and the audio graph are the same ones, and what changes is which of them are big enough to use with your hands.
 
-**D2. It arrives playing.** The single most important item in this document. An autoplay policy means audio
-needs a gesture, so the gesture has to be the first thing offered and the reward has to be immediate — a beat,
-not a bleep. The sequencer page's vibes mode is the reference.
+The pad was nearly free, as predicted — but **not by reusing `ui/KaossPad.tsx`**, which is welded to the
+sequencer's store, its scene list and its visualiser. What is reusable is the engine's `Kaoss` class, unchanged:
+a context in, an input and an output gain out. `rack/PerformPad.tsx` is a second surface over the same audio
+rather than a shared component pretending two pages are one.
 
-**D3. Shipped D&B patches**, in `@driftbox/rack` alongside the four that exist: a chopped break with a Reese, a
-half-time roller, something with the bass doing the work. Written as patterns so they are legible in source and
-compiled against the real registry in a test, like the current four.
+It is an insert after the rack's output, which here means after the phase C limiter — the same order the engine
+uses, and for the same reason: the limiter should not be reacting to a signal the filter is about to throw away.
+
+**D2. It arrives playing.** ✅ Built, and the important half was **not** making it play. It was deciding who
+gets it: `openingPatch` now returns whether this is a *fresh* arrival, and only a visitor with nothing of their
+own is given a demo. A shared link or a saved session is somebody's work, and replacing it because that makes a
+better first impression would be the worst thing this page could do.
+
+For a fresh arrival the starter patch is now `Cut Up` rather than `Acid` — a beat, not a bleep — and the one
+gesture that starts audio also renders the break into it, because a Sampler with no data is silent. Measured
+end to end: from the click to a playing break is about 2.6 seconds, and the level arrives at roughly double
+what the old acid starter produced.
+
+**D3. Shipped D&B patches.** ✅ Built: `Cut Up`, `Ducked` and `Wobbler`.
+
+They are **named apart from the breaks** deliberately. The breaks are already called Jungle, Chopper and Roller,
+and the two pickers sit next to each other — a patch called Chopper that loads a break called Chopper reads as
+one thing with two names until it very much does not. Found by driving the page and reading "Chopper" back
+without being able to tell which one it was.
+
+Two things they demonstrate that nothing else does:
+
+- **The Tracker drives the Sampler's slice with no scaler in between.** Lane 1 in `Unit` mode divides by 16 and
+  the Sampler multiplies by its slice count of 16, so a lane value *is* a slice number. That is what the Unit
+  switch was added for. One wrinkle: a lane value of zero is a rest, so slice 0 cannot be written — the Sampler
+  wraps, so 16 means slice 0, which is why those lanes count 1 to 16.
+- **The sidechain.** `Ducked`'s Compressor takes its key from the Sampler rather than from its own input, so
+  every hit of the break pushes the bass down. One cable, and it is the pump the genre is built on.
+
+A preset can now name the break it was written around (`needsBreak`). The break itself cannot live in
+`@driftbox/rack` — a rendered bar is about 700kB against a patch's few hundred bytes — so the preset names one
+and the host resolves it; that package deliberately does not know what the string means.
 
 ## Not in this plan
 
