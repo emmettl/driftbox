@@ -18,9 +18,9 @@ Run it without installing anything at
 npx @driftbox/app
 ```
 
-## Two packages
+## Two published packages, and the rack
 
-Both are on npm, published from CI with [provenance](https://docs.npmjs.com/generating-provenance-statements)
+The engine and app are on npm, published from CI with [provenance](https://docs.npmjs.com/generating-provenance-statements)
 — every tarball carries a signed attestation naming the commit and the workflow run that
 built it.
 
@@ -28,6 +28,7 @@ built it.
 |---|---|
 | [`@driftbox/engine`](https://www.npmjs.com/package/@driftbox/engine) | The synthesis and the sequencer. No React, no DOM — meant to be embedded. |
 | [`@driftbox/app`](https://www.npmjs.com/package/@driftbox/app) | This sequencer, as a runnable app. |
+| `@driftbox/rack` | The unpublished, work-in-progress modular engine behind [`rack.html`](packages/app/rack.html). |
 
 To build something with the engine:
 
@@ -58,11 +59,11 @@ The split is the point rather than tidiness: the engine is meant to score
 would diverge. One package, one engine.
 
 ```bash
-npm install     # workspaces; installs both
+npm install     # workspaces; installs all three
 npm run dev     # the app, with the engine built from source for HMR
 npm run lint    # oxlint
 npm run typecheck
-npm test        # vitest, across both packages
+npm test        # vitest, across all workspaces
 npm run build   # engine to dist/, then the app
 ```
 
@@ -79,8 +80,8 @@ of bars, and it can be rearranged while the thing is playing.
 Your work is saved as you go. **share** puts the whole song in a link, **save** and
 **load** move it to and from a file, and **reset** goes back to the shipped patterns.
 
-Neither package is published yet. [docs/PUBLISHING.md](docs/PUBLISHING.md) is the setup
-and the release steps; nothing goes to npm without cutting a release on purpose.
+The engine and app are published at `0.1.0`. [docs/PUBLISHING.md](docs/PUBLISHING.md) has
+the release steps; nothing goes to npm without cutting a release on purpose.
 
 **Picking this up?** [ROADMAP.md](ROADMAP.md) has the current state, the decisions worth
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)

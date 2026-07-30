@@ -3,9 +3,12 @@
 A modular synth rack: modules, cables between any of them, and one graph running at sample
 rate inside a single AudioWorklet.
 
-Sixteen modules, a compiler, a worklet host and a patch format. There is no UI and no way to
-drag a cable yet — `../../docs/RACK.md` is the design and the build order, and this package is
-steps one to three of it.
+It is still a work in progress and is intentionally private and unpublished.
+
+Twenty-two modules, a compiler, a worklet host and a patch format. The app supplies the
+playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
+tracker, sampler, patch library, performance mode and offline export. `../../docs/RACK.md`
+records the design and the decisions the implementation taught us.
 
 ```js
 import { Rack } from '@driftbox/rack'
