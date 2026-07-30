@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { sceneAudio } from '../audio'
-import { ease, readBands, readLevels } from '../levels'
+import { readBands, readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
 
@@ -17,6 +17,11 @@ const SIDE = 27
 const COUNT = SIDE * SIDE
 const SPACING = 0.64
 const BANDS = 12
+const CAMERA_TARGET_Z = -1.8
+const ORBIT_RADIUS = Math.hypot(7.8, 12.8 - CAMERA_TARGET_Z)
+const ORBIT_START = Math.atan2(7.8, 12.8 - CAMERA_TARGET_Z)
+/** One revolution in roughly a minute and a half: movement you feel before you notice. */
+const ORBIT_SPEED = (Math.PI * 2) / 92
 
 const CUBE_VERTEX = /* glsl */ `
   precision highp float;
@@ -51,15 +56,17 @@ const CUBE_VERTEX = /* glsl */ `
     // Two waves: the spectrum makes persistent rings, the kick sends a sharp front
     // outwards. The latter moves faster when the record gets louder.
     float standing = 0.5 + 0.5 * sin(radius * 0.92 - uTime * 2.1 + aBand * 0.33);
-    float travelling = max(0.0, sin(radius * 1.32 - uTime * (4.2 + uBass * 2.4)));
-    travelling = pow(travelling, 5.0);
-    float energy = lane * (0.4 + standing * 0.75) + uBass * travelling * 0.85;
+    float travelling = max(0.0, sin(radius * 1.32 - uTime * (3.2 + uBass * 1.2)));
+    // A broad crest reads as a wave passing through the field. The old fifth-power
+    // spike made each row switch on and off like a bank of camera flashes.
+    travelling = pow(travelling, 3.0);
+    float energy = lane * (0.34 + standing * 0.55) + uBass * travelling * 0.62;
     // Full-scale analysers are common once the limiter is working. Compress the visual
     // range here so a loud chorus is still a landscape rather than a solid wall.
-    energy = min(1.28, energy);
+    energy = min(1.12, energy);
 
     // A little height while silent keeps this a field of objects rather than a checkerboard.
-    float height = 0.22 + energy * 2.35;
+    float height = 0.22 + energy * 2.15;
     vec3 pos = position;
     pos.y *= height;
     pos.y += height * 0.5;
@@ -156,10 +163,17 @@ function useCubeField() {
   }, [])
 }
 
+/** Symmetric smoothing for a field of objects, where an instant onset looks like a flash. */
+function glide(current: number, target: number, dt: number, attack: number, release: number) {
+  const rate = target > current ? attack : release
+  return current + (target - current) * Math.min(1, dt * rate)
+}
+
 export function Cubik() {
   const geometry = useCubeField()
   const material = useRef<THREE.ShaderMaterial>(null)
   const elapsed = useRef(0)
+  const orbit = useRef(ORBIT_START)
   const rawBands = useRef(new Float32Array(BANDS))
   const smoothBands = useRef(new Float32Array(BANDS))
   const { camera } = useThree()
@@ -179,26 +193,33 @@ export function Cubik() {
   useFrame((_, dt) => {
     const levels = readLevels(sceneAudio.analyser)
     readBands(sceneAudio.analyser, rawBands.current)
-    elapsed.current += dt * (0.72 + levels.bass * 1.5)
+    elapsed.current += dt * (0.64 + levels.bass * 0.7)
+    orbit.current = (orbit.current + dt * ORBIT_SPEED) % (Math.PI * 2)
 
     const u = uniformsOf(material)
     if (!u) return
     u.uTime.value = elapsed.current
-    u.uBass.value = ease(u.uBass.value, levels.bass, dt, 4.2)
-    u.uHigh.value = ease(u.uHigh.value, levels.high, dt, 6.5)
+    u.uBass.value = glide(u.uBass.value, levels.bass, dt, 4.0, 2.6)
+    u.uHigh.value = glide(u.uHigh.value, levels.high, dt, 6.0, 4.0)
     u.uWarp.value = touch.energy
     u.uTouch.value.set(touch.x, touch.y)
     for (let i = 0; i < BANDS; i++) {
-      smoothBands.current[i] = ease(smoothBands.current[i], rawBands.current[i], dt, 5.2)
+      smoothBands.current[i] = glide(smoothBands.current[i], rawBands.current[i], dt, 3.2, 2.0)
     }
     ;(u.uBands.value as Float32Array).set(smoothBands.current)
 
-    const targetX = 7.8 + (touch.x - 0.5) * touch.energy * 3.2
+    // A slow lap around the board keeps the field changing even between interactions.
+    // Horizontal touch nudges the angle rather than sliding the camera off its orbit, so
+    // the gesture and the autonomous move compose instead of fighting one another.
+    const angle = orbit.current + (touch.x - 0.5) * touch.energy * 0.42
+    const radius = ORBIT_RADIUS - u.uBass.value * 1.1
+    const targetX = Math.sin(angle) * radius
     const targetY = 9.3 + (touch.y - 0.5) * touch.energy * 2.4
+    const targetZ = CAMERA_TARGET_Z + Math.cos(angle) * radius
     camera.position.x += (targetX - camera.position.x) * Math.min(1, dt * 2.2)
     camera.position.y += (targetY - camera.position.y) * Math.min(1, dt * 2.2)
-    camera.position.z = 12.8 - u.uBass.value * 1.1
-    camera.lookAt(0, 0.6, -1.8)
+    camera.position.z += (targetZ - camera.position.z) * Math.min(1, dt * 2.2)
+    camera.lookAt(0, 0.6, CAMERA_TARGET_Z)
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = 46
       camera.far = 80
