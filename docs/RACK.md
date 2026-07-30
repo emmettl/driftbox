@@ -333,7 +333,7 @@ Why a second page inside `packages/app` rather than a fourth package:
 
 What is genuinely shared, and worth keeping shared: the hash codec (`src/hash.ts` — already
 done, and already carrying both kinds), the stylesheet and its tokens, the knob and pointer-
-drag primitives, the oscilloscope, the fifteen scenes, the audio-start gesture handling, and the
+drag primitives, the oscilloscope, the seventeen scenes, the audio-start gesture handling, and the
 panel-fold machinery. What is not: the step grid, the pattern chain, the song picker — the rack
 has no patterns, and pretending otherwise is how the two flows end up tangled.
 
@@ -421,7 +421,7 @@ across something else:
 - **Spectra.** FFT work: big partitioned convolution, a phase vocoder, spectral freezing.
   Parallel across bins.
 
-And the fourth, which sidesteps the latency problem completely: **the visualiser.** Fifteen 3D
+And the fourth, which sidesteps the latency problem completely: **the visualiser.** Seventeen 3D
 scenes already exist, on the render thread where being a frame late costs nothing. A compute
 shader driving a particle field from the rack's output is the WebGPU idea with no architectural
 tax attached, and it is the one to do first.
@@ -666,7 +666,7 @@ The risk is all in the first item. Do it first and alone.
 
 ## The visualiser, and why it is not on the rack yet
 
-The sequencer has fifteen 3D scenes and the obvious next move is to put one behind the rack. Measured
+The sequencer has seventeen 3D scenes and the obvious next move is to put one behind the rack. Measured
 rather than assumed, that costs more than it looks:
 
 | | |
