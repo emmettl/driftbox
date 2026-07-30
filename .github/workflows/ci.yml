@@ -23,5 +23,15 @@ jobs:
 
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      # This is the same full test run with V8 coverage collection enabled. There is no threshold:
+      # the report exposes untested files and branches without pretending a percentage can judge
+      # the sound or the visuals.
+      - run: npm run coverage
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 14
       - run: npm run build

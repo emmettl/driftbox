@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:node": "vitest run --project node",
     "test:browser": "vitest run --project browser",
+    "coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "preview": "npm run preview --workspace @driftbox/app",
     "start": "npm run start --workspace @driftbox/app",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
     "oxlint": "^1.71.0",
     "playwright": "^1.62.1",
     "typescript": "~7.0.2",
