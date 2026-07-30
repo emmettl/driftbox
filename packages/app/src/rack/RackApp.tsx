@@ -7,6 +7,7 @@ import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
 import { Kaoss, toWav } from '@driftbox/engine'
+import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
@@ -80,6 +81,9 @@ export default function RackApp() {
    */
   const [intendedBreak, setIntendedBreak] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  /** Selected as the object, filtered outside. A selector that builds a new array returns a different
+   *  reference every call and re-renders for ever — this app has had that bug once already. */
+  const samples = useRack((s) => s.samples)
   /**
    * What the AudioContext says about itself.
    *
@@ -159,6 +163,14 @@ export default function RackApp() {
       // A copy per sampler, because `setData` transfers: after the first send the array is empty on this side.
       for (const module of samplers) live.setData(module.id, 'sample', rendered.slice())
       setLoadedBreak({ id: entry.id, name: entry.name })
+      for (const module of samplers) {
+        useRack.getState().setSample(module.id, {
+          name: entry.name,
+          bars: 1,
+          seconds: (4 * 60) / entry.tempo,
+          source: 'break',
+        })
+      }
 
       // A break is rendered at its own tempo and only slices cleanly at that tempo, so adopting it means adopting
       // the tempo too. Letting the chop drift silently would be the worse outcome.
@@ -255,6 +267,58 @@ export default function RackApp() {
   }, [load])
 
   /**
+   * The audio behind every loaded sample, by module id.
+   *
+   * A ref rather than store state: it is megabytes, the store is compared on every render, and keeping it
+   * there would put it one careless `encodePatch` away from a shared link. The store holds only what a
+   * faceplate needs to *say* — see `SampleInfo`.
+   *
+   * Kept at all because somebody's own file cannot be re-made: a shipped break can be rendered again from
+   * its id, and a loaded one is gone the moment `setData` transfers it to the audio thread. The export
+   * needs it back.
+   */
+  const sampleAudio = useRef(new Map<string, Float32Array>())
+
+  /**
+   * Load an audio file into one Sampler.
+   *
+   * Decoded through a throwaway `OfflineAudioContext`, so this works before audio has ever been started —
+   * the same standard the export holds itself to.
+   *
+   * The tempo is **derived from the file** rather than asked for. The Sampler slices by equal division, so
+   * a chop only lands on the beat if the buffer is a whole number of bars and the patch runs at the tempo
+   * that makes it so; see the note at the top of `sample.ts`.
+   */
+  const loadSampleInto = useCallback(async (moduleId: string, file: File) => {
+    const bytes = await file.arrayBuffer()
+    // 1 frame is the smallest legal length; nothing is rendered through it, it only decodes.
+    const decoder = new OfflineAudioContext(1, 1, 44100)
+    const decoded = await decoder.decodeAudioData(bytes)
+
+    const samples = normalise(toMono(decoded))
+    const seconds = decoded.length / decoded.sampleRate
+    const bars = guessBars(seconds, useRack.getState().patch.tempo ?? 120)
+
+    sampleAudio.current.set(moduleId, samples)
+    useRack.getState().setSample(moduleId, {
+      name: sampleName(file.name),
+      bars,
+      seconds,
+      source: 'file',
+    })
+
+    // A copy, because `setData` transfers and the export needs the original back.
+    rack.current?.setData(moduleId, 'sample', samples.slice())
+    const tempo = tempoForBars(seconds, bars)
+    if (tempo > 0) setTempo(Math.round(tempo * 100) / 100)
+    setRunning(true)
+  }, [setTempo, setRunning])
+
+  useEffect(() => {
+    useRack.getState().setSampleLoader(loadSampleInto)
+  }, [loadSampleInto])
+
+  /**
    * Render the patch to a WAV and hand it over.
    *
    * Offline rather than a recording of what is playing — see the note at the top of `render.ts`. The break
@@ -269,10 +333,15 @@ export default function RackApp() {
     const entry = intendedBreak ? BREAKS.find((b) => b.id === intendedBreak) : undefined
 
     const data: Record<string, Record<string, Float32Array>> = {}
+    // A loaded file wins over a shipped break, per sampler. Rendering the break over the top would silently
+    // export something other than what is playing.
+    for (const [moduleId, samples] of sampleAudio.current) {
+      data[moduleId] = { sample: samples.slice() }
+    }
     if (entry) {
       const rendered = await renderBreak(entry, { sampleRate: 44100 })
       for (const module of patch.modules) {
-        if (module.type !== 'sampler') continue
+        if (module.type !== 'sampler' || data[module.id]) continue
         // A copy per sampler, for the same reason `loadBreak` makes one: `setData` transfers.
         data[module.id] = { sample: rendered.slice() }
       }
@@ -465,6 +534,15 @@ export default function RackApp() {
   // again — an infinite loop, which React reports as "Maximum update depth exceeded" and a blank page.
   // Derive outside the selector, always.
   const notes = useRack((s) => s.notes)
+  /** Samples that came from somebody's own file rather than a shipped break. Only these break a link. */
+  const loadedFiles = useMemo(
+    () =>
+      Object.values(samples)
+        .filter((entry) => entry.source === 'file')
+        .map((entry) => entry.name),
+    [samples],
+  )
+
   const placeholders = useMemo(
     () => notes.filter((note) => note.kind === 'placeholder'),
     [notes],
@@ -638,6 +716,16 @@ export default function RackApp() {
       )}
 
       {shared && <p className="rk-shared">{shared}</p>}
+      {/* `docs/DNB.md` asked for this in as many words: a patch using a loaded sample cannot travel in a URL
+          and should say so plainly rather than silently sharing a broken link. The shipped breaks are fine —
+          they are named, not carried, and the other end renders its own. */}
+      {shared && loadedFiles.length > 0 && (
+        <p className="rk-warn">
+          {loadedFiles.length === 1
+            ? `That link does not carry “${loadedFiles[0]}” — whoever opens it gets the patch with an empty sampler.`
+            : `That link does not carry ${loadedFiles.length} loaded samples — whoever opens it gets the patch with empty samplers.`}
+        </p>
+      )}
 
       {started && playing && audioState === 'suspended' && (
         <p className="rk-warn">

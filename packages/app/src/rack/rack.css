@@ -976,3 +976,59 @@ kbd {
   pointer-events: none;
 }
 
+
+/* ---- the sampler's own strip ---------------------------------------------------
+ *
+ * What is loaded, and how to change it. The one thing a faceplate generated from the def could never show,
+ * which is why the Sampler is hand-built at all.
+ */
+.rk-sample {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--pad, 12px) 6px;
+  font: 11px var(--mono);
+}
+.rk-sample-load {
+  padding: 3px 8px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rk-sample-load:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.rk-sample-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--dim);
+}
+.rk-sample-bars {
+  display: flex;
+  gap: 4px;
+}
+.rk-sample-bars button {
+  padding: 2px 6px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.rk-sample-bars button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* A patch holding somebody's own file cannot travel in a link, and saying so beats sharing a broken one. */
+.rk-nolink {
+  margin: 0 0 0 auto;
+  font: 11px var(--mono);
+  color: var(--three);
+}

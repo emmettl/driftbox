@@ -10,6 +10,7 @@ import {
 } from '@driftbox/rack'
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takePatchFromUrl } from './persistence.js'
+import { tempoForBars } from './sample.js'
 
 // What is on screen. `@driftbox/rack` owns the sound; this owns the patch as immutable data so React
 // can diff it, and pushes it at the audio thread when it changes.
@@ -77,6 +78,35 @@ interface RackState {
   /** Not structural. Tempo is a value in the patch — it saves and it travels in a link, but changing it does not
    *  rebuild the graph, so it goes down the same path a knob does. */
   setTempo: (tempo: number) => void
+  /**
+   * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
+   *
+   * The audio itself is not here — only what a faceplate needs to say what it is holding. A break is
+   * megabytes and the store is diffed on every render; keeping it here would also put it one careless
+   * `encodePatch` away from being written into a shared link.
+   *
+   * It is keyed by module id rather than being one global sample because a patch can have two Samplers, and
+   * before this there was no way to say which one a file was meant for — loading pushed to all of them.
+   */
+  samples: Record<string, SampleInfo>
+  setSample: (moduleId: string, sample: SampleInfo | null) => void
+  /**
+   * Re-read a loaded file as a different number of bars, and adopt the tempo that implies.
+   *
+   * The correction for the one mistake `guessBars` can make. It is always out by a factor of two, so the
+   * fix is one press — and the tempo has to move with it or the slices stop landing on the beat, which is
+   * the whole reason the bar count matters.
+   */
+  setSampleBars: (moduleId: string, bars: number) => void
+  /**
+   * Load a file into one Sampler.
+   *
+   * Installed by `RackApp`, because decoding is cheap but *pushing* needs the live Rack and the store has
+   * no business knowing about it. Null until the page has mounted, which is also the honest answer for a
+   * faceplate rendered in a test.
+   */
+  loadSampleInto: ((moduleId: string, file: File) => Promise<void>) | null
+  setSampleLoader: (load: RackState['loadSampleInto']) => void
   /** Session state, not part of the patch. */
   running: boolean
   setRunning: (running: boolean) => void
@@ -147,6 +177,16 @@ function freshId(patch: Patch, type: string): string {
 const FIRST_PRESET = patchPresetById('cutup') ?? PATCHES[0]
 
 const STARTER = (): Patch => FIRST_PRESET.build()
+
+/** What a faceplate needs to say what a Sampler is holding. Deliberately not the audio. */
+export interface SampleInfo {
+  name: string
+  /** How many bars the file was taken to be — the number the derived tempo rests on. */
+  bars: number
+  seconds: number
+  /** A shipped break can be re-rendered from its id; somebody's own file cannot travel in a link. */
+  source: 'break' | 'file'
+}
 
 export const useRack = create<RackState>((set, get) => {
   /** Every structural edit goes through here, so nothing can forget the revision or the autosave. */
@@ -247,6 +287,25 @@ export const useRack = create<RackState>((set, get) => {
 
     setNotes: (notes) => set({ notes }),
     setName: (name) => set({ name }),
+    samples: {},
+    setSample: (moduleId, sample) =>
+      set((state) => {
+        const samples = { ...state.samples }
+        if (sample) samples[moduleId] = sample
+        else delete samples[moduleId]
+        return { samples }
+      }),
+    setSampleBars: (moduleId, bars) => {
+      const info = get().samples[moduleId]
+      if (!info) return
+      const tempo = tempoForBars(info.seconds, bars)
+      if (!(tempo > 0)) return
+      set((state) => ({ samples: { ...state.samples, [moduleId]: { ...info, bars } } }))
+      get().setTempo(Math.round(tempo * 100) / 100)
+    },
+    loadSampleInto: null,
+    setSampleLoader: (loadSampleInto) => set({ loadSampleInto }),
+
     setMidi: (midiNote, inputs) =>
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
 

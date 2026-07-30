@@ -4,6 +4,7 @@ import { Generic } from './Generic.js'
 import { Ladder } from './Ladder.js'
 import { Midi } from './Midi.js'
 import { Out } from './Out.js'
+import { Sampler } from './Sampler.js'
 import { Vco } from './Vco.js'
 import type { FaceplateComponent } from './types.js'
 
@@ -42,6 +43,7 @@ const FACEPLATES: Record<string, Entry> = {
   ladder: { component: Ladder },
   midi: { component: Midi, rows: 2 },
   out: { component: Out, span: 1 },
+  sampler: { component: Sampler, rows: 3 },
 }
 
 export function faceplateFor(type: string): FaceplateComponent {
