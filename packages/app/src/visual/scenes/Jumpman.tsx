@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
 import { uniformsOf } from '../uniforms'
@@ -260,8 +260,6 @@ function lcg(seed: number) {
 }
 
 export function Jumpman() {
-  const engine = useBox((s) => s.engine)
-  const running = useBox((s) => s.running)
   const material = useRef<THREE.ShaderMaterial>(null)
   const { camera, size, viewport } = useThree()
 
@@ -314,7 +312,7 @@ export function Jumpman() {
   useFrame((_, dt) => {
     const u = uniformsOf(material)
     if (!u) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
     u.uPixelRatio.value = viewport.dpr
 
     const w = world.current
@@ -322,7 +320,7 @@ export function Jumpman() {
 
     // Scrolling, and everything else, only happens while the record does. Standing still
     // when the music stops is the point rather than an oversight.
-    const pace = running ? 15 + bass * 10 : 0
+    const pace = sceneAudio.running ? 15 + bass * 10 : 0
     w.scroll += step * pace
 
     // Worked out before the physics, because how wide the view is decides where he stands,

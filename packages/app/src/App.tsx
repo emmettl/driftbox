@@ -45,6 +45,9 @@ export default function App() {
   // Lives in the store now, because loading a song changes it — each shipped song names
   // the visual it was written to be seen with.
   const scene = useBox((s) => s.scene)
+  // Handed to the scenes so a dancer moves ON the record. Read reactively here and passed down, where the
+  // Dancers scene used to reach in with `useBox.getState()` on every frame to get it.
+  const bpm = useBox((s) => s.song.bpm)
   const setScene = useBox((s) => s.setScene)
   const playButton = useRef<HTMLButtonElement>(null)
   const consolePlay = useRef<HTMLButtonElement>(null)
@@ -133,7 +136,16 @@ export default function App() {
 
   return (
     <div className={`app${performing ? ' performing' : ''}`}>
-      <Visualiser className="backdrop" scene={scene} />
+      {/* What the scenes are watching, said here rather than reached for from inside them. Same move the
+          Oscilloscope's `analyser` prop above is: the scenes each pulled the engine out of this store,
+          which tied all thirteen of them to the sequencer for the sake of one `AnalyserNode`. */}
+      <Visualiser
+        className="backdrop"
+        scene={scene}
+        analyser={engine?.analyser}
+        running={running}
+        bpm={bpm}
+      />
 
       {performing && (
         <div className="stage">

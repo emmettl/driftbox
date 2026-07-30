@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useBox } from '../../store'
+import { sceneAudio } from '../audio'
 import { readLevels } from '../levels'
 import { touch } from '../touch'
 import { fitDistance } from '../fit'
@@ -215,7 +215,6 @@ function makeDetector(rise: number, refractory: number) {
 }
 
 export function Cycles() {
-  const engine = useBox((s) => s.engine)
   const bikes = useBikes()
   const grid = useGrid()
   const wallMat = useRef<THREE.ShaderMaterial>(null)
@@ -277,7 +276,7 @@ export function Cycles() {
     const w = uniformsOf(wallMat)
     const g = uniformsOf(gridMat)
     if (!w || !g) return
-    const { bass, high } = readLevels(engine)
+    const { bass, high } = readLevels(sceneAudio.analyser)
 
     clock.current += dt
     w.uTime.value = clock.current

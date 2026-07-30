@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { useBox } from "../../store";
+import { sceneAudio } from "../audio";
 import { readLevels } from "../levels";
 import { touch } from "../touch";
 import { fitDistance } from "../fit";
@@ -242,7 +242,6 @@ function makeDetector(rise: number, refractory: number) {
 }
 
 export function Defcon() {
-  const engine = useBox((s) => s.engine);
   const world = useWorld();
   const landMat = useRef<THREE.ShaderMaterial>(null);
   const arcs = useRef<THREE.LineSegments>(null);
@@ -328,7 +327,7 @@ export function Defcon() {
   useFrame((_, dt) => {
     const u = uniformsOf(landMat);
     if (!u) return;
-    const { bass, high } = readLevels(engine);
+    const { bass, high } = readLevels(sceneAudio.analyser);
     clock.current += dt;
 
     u.uBass.value += (bass - u.uBass.value) * Math.min(1, dt * 4);
