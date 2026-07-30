@@ -88,6 +88,13 @@ export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './modules/midi.js'
 export { LADDER_MODULE, LadderProcessor } from './modules/ladder.js'
 export { OUT_MODULE, OutProcessor } from './modules/out.js'
 export { VCO_MODULE, VcoProcessor } from './modules/vco.js'
+export {
+  VOCODER_BAND_COUNTS,
+  VOCODER_MAX_BANDS,
+  VOCODER_MODULE,
+  VOCODER_RANGE_HZ,
+  VocoderProcessor,
+} from './modules/vocoder.js'
 export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './worklet.js'
 export { renderLength, renderPatch, type RenderOptions } from './render.js'
 

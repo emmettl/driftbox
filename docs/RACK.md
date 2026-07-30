@@ -10,7 +10,7 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 25 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 26 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -169,7 +169,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Twenty-five modules
+## Twenty-six modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -198,6 +198,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
 | **Follower** | an envelope follower: audio in, its contour out as CV, plus a gate above a threshold |
 | **Alligator** | three filtered gates across one signal — fixed low/band/high, gated and enveloped apart |
+| **Vocoder** | 8, 16 or 32 bands: one sound wearing another's spectral shape, with a formant shift |
 | **Combinator** | four rotaries and four buttons, each driving any parameter of any module — and each also a CV outlet |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
@@ -797,6 +798,38 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
    was driven in a browser against a **fake `requestMIDIAccess`**, and it is worth doing again if any of
    it moves. End to end: arm a rotary, send CC 74, the chip reads `CC 74`; sweep it 0 to 127 and the
    Combi chunk's filter goes 120Hz to 6000Hz, which is exactly the range that chunk's routing declares.
+
+   **5b⅞ (again). A vocoder.** ✅ Built. The biggest remaining Reason device, and the one the rack most
+   clearly could not fake: a filter bank on *two* signals at once with an envelope follower per band is
+   dozens of modules and a patch nobody would finish wiring.
+
+   It is worth noting **what made it cheap**: it is the Follower and the Alligator multiplied. The
+   Alligator established the filter bank, the Follower established the envelope, and this is those two
+   ideas at N bands. Built first it would have been a large unfamiliar module; built third it was an
+   afternoon.
+
+   - **Bands are a stepped choice — 8, 16, 32.** They are three different instruments, not three points on
+     a sweep: 8 is a robot and 32 is close to intelligible. The selector is 0..2 and the processor turns it
+     into a count with `8 << selector`, because a constant at module scope would not survive being
+     stringified into the worklet.
+   - **The shift is the control people play**, and Reason put it on the BV512's front panel for that
+     reason: it offsets which modulator band drives which carrier band, so the formants move without the
+     pitch. Bands pushed off either end read as silence rather than wrapping — wrapping folds the top of
+     the spectrum onto the bottom, which sounds like a fault rather than like a voice moved.
+   - **One instance, whatever the voice count.** `poly: false`, so a polyphonic carrier is summed first,
+     which is what vocoding a chord means. It is also the most expensive module here — 32 bands is 64
+     filters and 32 followers per sample — and eight of those is not a trade anybody would choose.
+   - **Band overlap is deliberate.** Measured at 16 bands, a 2kHz modulator still puts about a third as
+     much energy in the 300Hz band as a 300Hz modulator does. That is the bank overlapping rather than
+     leaving gaps, and a bank with gaps sounds worse — so `vocoder.test.ts` asserts the *diagonal* (each
+     run peaks where its modulator sits) rather than a ratio that would pin the filter width.
+
+   The test file measures with a ten-line Goertzel rather than an FFT: there are a handful of frequencies
+   worth asking about and Goertzel answers exactly one each time, with no dependency. It also goes through
+   `compile` and the `Graph`, which is the only way to catch the carrier and modulator inlets being wired
+   the wrong way round — a swap the class tests could never see, because they build both arrays themselves.
+
+   The `talk` chunk ships it: a chopped break as the modulator, two detuned saws as the carrier.
 
    **5c. A VCV Rack importer, topology only.** ✅ Built. Both predictions held.
 

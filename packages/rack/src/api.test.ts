@@ -82,6 +82,11 @@ const UNSTABLE = [
   'OutProcessor',
   'VCO_MODULE',
   'VcoProcessor',
+  'VOCODER_BAND_COUNTS',
+  'VOCODER_MAX_BANDS',
+  'VOCODER_MODULE',
+  'VOCODER_RANGE_HZ',
+  'VocoderProcessor',
 ]
 
 describe('the public API', () => {

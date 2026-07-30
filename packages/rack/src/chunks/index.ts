@@ -198,6 +198,46 @@ export const CHUNKS: readonly Chunk[] = [
     clocked: [['tracker', 'clock']],
   },
   {
+    id: 'talk',
+    name: 'Talk',
+    blurb: 'A break makes a chord speak, through a 16-band vocoder',
+    needsSample: true,
+    modules: [
+      {
+        id: 'tracker',
+        type: 'tracker',
+        params: { length: 16, unit1: 1 },
+        // Lane 1 drives the sampler's slice; lane 2 holds the carrier's chord, changing every four steps
+        // so the vocoded pad moves under the drums rather than droning.
+        data: {
+          lane1: [1, 0, 5, 3, 9, 0, 5, 0, 1, 11, 5, 3, 9, 13, 5, 15],
+          lane2: [0, 0, 0, 0, 5, 0, 0, 0, 3, 0, 0, 0, 10, 0, 0, 0],
+        },
+      },
+      // The modulator: a chopped break. A vocoder wants something with consonants in it, and a break is
+      // nothing but consonants.
+      { id: 'sampler', type: 'sampler', params: { slices: 16 } },
+      // The carrier: two detuned saws, which is what a vocoder is normally fed and what makes the result
+      // a chord rather than a buzz.
+      { id: 'vco-a', type: 'vco', params: { tune: -12 } },
+      { id: 'vco-b', type: 'vco', params: { tune: -11.8 } },
+      { id: 'pad', type: 'mixer', params: { level1: 0.5, level2: 0.5 } },
+      { id: 'vocoder', type: 'vocoder', params: { bands: 1, dry: 0.15 } },
+    ],
+    cables: [
+      { from: ['tracker', 'trig1'], to: ['sampler', 'trig'] },
+      { from: ['tracker', 'cv1'], to: ['sampler', 'slice'] },
+      { from: ['tracker', 'cv2'], to: ['vco-a', 'pitch'] },
+      { from: ['tracker', 'cv2'], to: ['vco-b', 'pitch'] },
+      { from: ['vco-a', 'out'], to: ['pad', 'in1'] },
+      { from: ['vco-b', 'out'], to: ['pad', 'in2'] },
+      { from: ['pad', 'out'], to: ['vocoder', 'carrier'] },
+      { from: ['sampler', 'out'], to: ['vocoder', 'mod'] },
+    ],
+    output: ['vocoder', 'out'],
+    clocked: [['tracker', 'clock']],
+  },
+  {
     id: 'sub',
     name: 'Sub',
     blurb: 'A triangle an octave down, gated and nothing else',
