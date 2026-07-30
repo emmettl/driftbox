@@ -95,6 +95,11 @@ page, click a step to place a note and drag it up or down to tune it.
 Patterns can be added, renamed (double click one), duplicated and deleted. **click** turns
 on a metronome and **1·2·3·4** counts a bar in before playing.
 
+Drag across drum steps to paint or erase a run. The selected drum or 303 line can be
+rotated, randomised or rearranged without changing how much material it contains; 303
+lines can also be transposed. Rotation can expand to the whole machine currently on
+screen.
+
 The **Song** strip along the top is the arrangement — each card is a pattern and a number
 of bars, and it can be rearranged while the thing is playing.
 

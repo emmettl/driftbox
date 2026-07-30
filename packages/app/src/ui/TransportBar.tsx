@@ -2,6 +2,7 @@ import { useState, type RefObject } from 'react'
 import { SONGS } from '@driftbox/engine'
 import { useBox } from '../store'
 import { PatternBar } from './PatternBar'
+import { PatternTools } from './PatternTools'
 import { buildLabel, buildTitle } from '../version'
 
 /** Confirmation that lives for a moment and then goes away. Sharing and saving both
@@ -152,6 +153,8 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
           title="Steps in this pattern"
         />
       </label>
+
+      <PatternTools />
 
       <button
         className={`ghost${metronome ? ' on' : ''}`}

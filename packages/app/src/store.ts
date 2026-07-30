@@ -18,10 +18,18 @@ import {
   SONGS,
   type SongPreset,
   addPattern,
+  alterBassLine,
+  alterTrack,
   duplicatePattern,
+  randomizeBassLine,
+  randomizeTrack,
   removePattern,
   renamePattern,
+  rotateBassLine,
+  rotateTrack,
   setBassStep,
+  setStep as setPatternStep,
+  transposeBassLine,
   type BassParams,
   type BassStep,
   type ChainStep,
@@ -115,7 +123,14 @@ interface State {
   selectVoice: (id: string) => void
   selectBass: (id: string) => void
   toggleStep: (voiceId: string, step: number) => void
+  setDrumStep: (voiceId: string, step: number, value: StepValue) => void
   editBassStep: (voiceId: string, step: number, value: BassStep) => void
+  /** ReBirth-style focused transforms. `all` expands from the selected lane to the
+   *  visible machine; it never touches a machine on another editor page. */
+  rotateSelection: (delta: number, all: boolean) => void
+  randomizeSelection: () => void
+  alterSelection: () => void
+  transposeSelectedBass: (semitones: number) => void
   clearPattern: () => void
   setParam: (voiceId: string, key: keyof VoiceParams, value: number) => void
   setBassParam: (voiceId: string, key: keyof BassParams, value: number) => void
@@ -330,6 +345,15 @@ export const useBox = create<State>()((set, get) => ({
     set({ song: next, selectedVoice: voiceId })
   },
 
+  setDrumStep: (voiceId, step, value) => {
+    const { song, editing, engine } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+    const next = replacePattern(song, setPatternStep(pattern, voiceId, step, value))
+    if (engine) engine.song = next
+    set({ song: next, selectedVoice: voiceId })
+  },
+
   editBassStep: (voiceId, step, value) => {
     const { song, editing, engine } = get()
     const pattern = song.patterns.find((p) => p.id === editing)
@@ -337,6 +361,64 @@ export const useBox = create<State>()((set, get) => ({
     const next = replacePattern(song, setBassStep(pattern, voiceId, step, value))
     if (engine) engine.song = next
     set({ song: next, selectedBass: voiceId })
+  },
+
+  rotateSelection: (delta, all) => {
+    const { song, editing, engine, view, selectedVoice, selectedBass } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+
+    let transformed = pattern
+    if (view === 'bass') {
+      const voices = all ? BASS_VOICES.map((voice) => voice.id) : [selectedBass]
+      for (const voiceId of voices) transformed = rotateBassLine(transformed, voiceId, delta)
+    } else {
+      const voices = all
+        ? ALL_VOICES.filter((voice) => voice.machine === view).map((voice) => voice.id)
+        : [selectedVoice]
+      for (const voiceId of voices) transformed = rotateTrack(transformed, voiceId, delta)
+    }
+
+    if (transformed === pattern) return
+    const next = replacePattern(song, transformed)
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
+  randomizeSelection: () => {
+    const { song, editing, engine, view, selectedVoice, selectedBass } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+    const transformed =
+      view === 'bass'
+        ? randomizeBassLine(pattern, selectedBass)
+        : randomizeTrack(pattern, selectedVoice)
+    const next = replacePattern(song, transformed)
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
+  alterSelection: () => {
+    const { song, editing, engine, view, selectedVoice, selectedBass } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+    const transformed =
+      view === 'bass' ? alterBassLine(pattern, selectedBass) : alterTrack(pattern, selectedVoice)
+    if (transformed === pattern) return
+    const next = replacePattern(song, transformed)
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
+  transposeSelectedBass: (semitones) => {
+    const { song, editing, engine, selectedBass } = get()
+    const pattern = song.patterns.find((p) => p.id === editing)
+    if (!pattern) return
+    const transformed = transposeBassLine(pattern, selectedBass, semitones)
+    if (transformed === pattern) return
+    const next = replacePattern(song, transformed)
+    if (engine) engine.song = next
+    set({ song: next })
   },
 
   clearPattern: () => {

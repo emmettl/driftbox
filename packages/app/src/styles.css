@@ -161,6 +161,33 @@ button {
   justify-content: flex-end;
 }
 
+.pattern-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--edge);
+}
+
+.pattern-tools-target {
+  max-width: 72px;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pattern-tools .ghost {
+  padding-inline: 8px;
+}
+
+.pattern-tools .pattern-arrow {
+  width: 30px;
+  padding-inline: 0;
+}
+
 /* Which build this is. Deliberately the quietest thing in the row: it is read once, when something
    has gone wrong, and it must not compete with the controls it sits beside. */
 .build {

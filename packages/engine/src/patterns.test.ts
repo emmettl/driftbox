@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
   addPattern,
+  alterBassLine,
+  alterTrack,
   defaultKit,
   duplicatePattern,
   emptyPattern,
+  randomizeBassLine,
+  randomizeTrack,
   removePattern,
   renamePattern,
+  rotateBassLine,
+  rotateTrack,
+  transposeBassLine,
   uniquePatternId,
+  type Pattern,
   type Song,
 } from './pattern.js'
 import { metronomeClick } from './metronome.js'
@@ -140,6 +148,93 @@ describe('removing', () => {
   it('is a no-op on an id that is not there', () => {
     const s = song()
     expect(removePattern(s, 'nope')).toEqual(s)
+  })
+})
+
+describe('pattern transforms', () => {
+  const pattern = (): Pattern => ({
+    id: 'tools',
+    name: 'Tools',
+    length: 4,
+    tracks: { '909.bd': [1, 0, 2, 0], '909.sd': [0, 1, 0, 0] },
+    bass: {
+      '303.a': [
+        { note: 2, accent: true, slide: false },
+        { note: null, accent: false, slide: false },
+        { note: 12, accent: false, slide: true },
+        { note: 24, accent: false, slide: false },
+      ],
+    },
+  })
+
+  it('rotates one drum lane around the pattern and leaves the others alone', () => {
+    const before = pattern()
+    const next = rotateTrack(before, '909.bd', 1)
+    expect(next.tracks['909.bd']).toEqual([0, 1, 0, 2])
+    expect(next.tracks['909.sd']).toBe(before.tracks['909.sd'])
+    expect(before.tracks['909.bd']).toEqual([1, 0, 2, 0])
+  })
+
+  it('rotates a bass line with its articulation attached', () => {
+    const next = rotateBassLine(pattern(), '303.a', -1)
+    expect(next.bass!['303.a']).toEqual([
+      { note: null, accent: false, slide: false },
+      { note: 12, accent: false, slide: true },
+      { note: 24, accent: false, slide: false },
+      { note: 2, accent: true, slide: false },
+    ])
+  })
+
+  it('transposes sounding notes and clamps them to the editor range', () => {
+    const up = transposeBassLine(pattern(), '303.a', 5).bass!['303.a']
+    expect(up.map((step) => step.note)).toEqual([7, null, 17, 24])
+    expect(up[0].accent).toBe(true)
+    expect(up[2].slide).toBe(true)
+
+    const down = transposeBassLine(pattern(), '303.a', -20).bass!['303.a']
+    expect(down.map((step) => step.note)).toEqual([0, null, 0, 4])
+  })
+
+  it('randomises a drum lane into rests, hits and accents with an injectable source', () => {
+    const values = [0.1, 0.7, 0.95, 0.2]
+    const next = randomizeTrack(pattern(), '909.bd', () => values.shift() ?? 0)
+    expect(next.tracks['909.bd']).toEqual([0, 1, 2, 0])
+  })
+
+  it('randomises a 303 line without touching the other pattern material', () => {
+    const values = [0.1, 0.7, 0.5, 0.9, 0.1, 0.99, 0.99, 0.1, 0.1, 0.2]
+    const before = pattern()
+    const next = randomizeBassLine(before, '303.a', () => values.shift() ?? 0)
+    expect(next.bass!['303.a']).toEqual([
+      { note: null, accent: false, slide: false },
+      { note: 12, accent: false, slide: true },
+      { note: 24, accent: true, slide: true },
+      { note: null, accent: false, slide: false },
+    ])
+    expect(next.tracks).toBe(before.tracks)
+  })
+
+  it('alters existing material without changing how much of it there is', () => {
+    const next = alterTrack(pattern(), '909.bd', () => 0)
+    expect(next.tracks['909.bd']).not.toEqual(pattern().tracks['909.bd'])
+    expect([...next.tracks['909.bd']].sort()).toEqual([0, 0, 1, 2])
+
+    const bass = alterBassLine(pattern(), '303.a', () => 0).bass!['303.a']
+    expect(bass).not.toEqual(pattern().bass!['303.a'])
+    expect(bass.map((step) => step.note).sort((a, b) => (a ?? -1) - (b ?? -1))).toEqual([
+      null,
+      2,
+      12,
+      24,
+    ])
+    expect(bass.filter((step) => step.accent)).toHaveLength(1)
+    expect(bass.filter((step) => step.slide)).toHaveLength(1)
+  })
+
+  it('does not create a lane when asked to rotate or alter one that is absent', () => {
+    const before = pattern()
+    expect(rotateTrack(before, '808.bd', 1)).toBe(before)
+    expect(alterBassLine(before, '303.b', () => 0)).toBe(before)
   })
 })
 

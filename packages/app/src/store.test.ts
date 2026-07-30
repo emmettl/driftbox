@@ -145,6 +145,79 @@ describe('pattern length', () => {
   })
 })
 
+describe('focused pattern tools', () => {
+  beforeEach(() => {
+    useBox.setState({
+      song: {
+        ...song(),
+        patterns: [
+          {
+            id: 'tools',
+            name: 'Tools',
+            length: 4,
+            tracks: {
+              '909.bd': [1, 0, 2, 0],
+              '909.sd': [0, 1, 0, 0],
+              '808.bd': [1, 0, 0, 0],
+            },
+            bass: {
+              '303.a': [
+                { note: 2, accent: true, slide: false },
+                { note: null, accent: false, slide: false },
+                { note: 12, accent: false, slide: true },
+                { note: 24, accent: false, slide: false },
+              ],
+              '303.b': [
+                { note: 7, accent: false, slide: false },
+                { note: null, accent: false, slide: false },
+                { note: null, accent: false, slide: false },
+                { note: null, accent: false, slide: false },
+              ],
+            },
+          },
+        ],
+        chain: [{ pattern: 'tools', repeat: 1 }],
+      },
+      editing: 'tools',
+      view: 'tr909',
+      selectedVoice: '909.bd',
+      selectedBass: '303.a',
+    })
+  })
+
+  it('paints an exact drum value instead of cycling through it', () => {
+    useBox.getState().setDrumStep('909.bd', 1, 1)
+    expect(song().patterns[0].tracks['909.bd']).toEqual([1, 1, 2, 0])
+    useBox.getState().setDrumStep('909.bd', 2, 0)
+    expect(song().patterns[0].tracks['909.bd']).toEqual([1, 1, 0, 0])
+  })
+
+  it('rotates only the focused lane by default', () => {
+    useBox.getState().rotateSelection(1, false)
+    expect(song().patterns[0].tracks['909.bd']).toEqual([0, 1, 0, 2])
+    expect(song().patterns[0].tracks['909.sd']).toEqual([0, 1, 0, 0])
+    expect(song().patterns[0].tracks['808.bd']).toEqual([1, 0, 0, 0])
+  })
+
+  it('rotates the visible machine without touching the other one', () => {
+    useBox.getState().rotateSelection(-1, true)
+    expect(song().patterns[0].tracks['909.bd']).toEqual([0, 2, 0, 1])
+    expect(song().patterns[0].tracks['909.sd']).toEqual([1, 0, 0, 0])
+    expect(song().patterns[0].tracks['808.bd']).toEqual([1, 0, 0, 0])
+  })
+
+  it('rotates and transposes the selected 303 independently', () => {
+    useBox.setState({ view: 'bass' })
+    useBox.getState().rotateSelection(1, false)
+    useBox.getState().transposeSelectedBass(2)
+
+    const pattern = song().patterns[0]
+    expect(pattern.bass!['303.a'].map((step) => step.note)).toEqual([24, 4, null, 14])
+    expect(pattern.bass!['303.a'][2].accent).toBe(false)
+    expect(pattern.bass!['303.b'].map((step) => step.note)).toEqual([7, null, null, null])
+  })
+})
+
 describe('the visual a song asks for', () => {
   // `visual` is a plain string on the engine side, and the engine cannot check it: the
   // scene registry lives here, in the app. So a typo — or a scene renamed without its
