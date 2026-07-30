@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const engineSource = fileURLToPath(new URL('../engine/src/index.ts', import.meta.url))
+const rackSource = fileURLToPath(new URL('../rack/src/index.ts', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
@@ -34,6 +35,7 @@ export default defineConfig({
       // The published engine still ships its own dist for outside consumers; this only
       // changes how the app in this repo consumes it.
       '@driftbox/engine': engineSource,
+      '@driftbox/rack': rackSource,
     },
   },
 })

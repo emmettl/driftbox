@@ -4,8 +4,11 @@ A modular synth rack, in the browser, patched with cables. Reason's back panel r
 Reason's front: a small set of modules, free routing between all of them, and a patch that
 fits in a URL.
 
-Nothing here is built. This is the shape of it, the decisions that are expensive to change
-later, and the order to prove them in.
+Steps 1 and 2 of the build order at the bottom are built and tested: `packages/rack` has the
+compiler, the worklet host, three modules and the patch format, and `packages/app/src/hash.ts`
+carries patches in a URL alongside songs. There is no UI yet. Everything below is the shape of
+it and the decisions that are expensive to change later — where the implementation taught us
+something different, this file says so rather than describing the plan we started with.
 
 ## What this is not
 
@@ -67,9 +70,14 @@ business.
 When a patch arrives, the audio thread compiles it into a flat execution plan:
 
 1. Topologically sort the modules.
-2. Allocate a `Float32Array(128)` per cable from a pool. Unconnected inlets point at a
-   shared zero buffer, so a module never branches on whether it is patched.
-3. Emit an ordered list of `(processor, inletBuffers, outletBuffers)`.
+2. Allocate one `Float32Array(128)` per **outlet** — not per cable, and not pooled. Unconnected
+   inlets point at a shared zero buffer, so a module never branches on whether it is patched.
+   Allocating only for *connected* outlets was the first attempt and it introduces a footgun:
+   an unconnected outlet has to write somewhere, and the only somewhere is the zero buffer,
+   which would invent a signal for every unconnected inlet in the patch at once. Reusing
+   buffers between modules whose lifetimes do not overlap is a real optimisation and belongs
+   later.
+3. Emit an ordered list of `(processor, inletBuffers, outletBuffers, paramBuffers)`.
 
 Then `process()` walks that list once per render quantum, module by module — not sample by
 sample across the whole graph. Each module's inner loop stays tight and stays hot.
@@ -79,25 +87,36 @@ topological order guarantees an upstream module has filled its 128 samples befor
 downstream reads them, so an LFO at audio rate modulates a cutoff per sample as it should.
 
 It costs accuracy in exactly one place. A cycle cannot be topologically ordered, so the
-compiler breaks each one by marking a cable as **delayed** — it reads the buffer the
-previous block wrote. That is a 2.9 ms delay at 44.1 kHz, and it is what Reason did. Tell
-the UI which cable was chosen so it can be drawn differently; a feedback patch that
-silently behaves unlike the picture is worse than one that admits it.
+compiler breaks each one by forcing a module out of order — and **this needs no delay
+mechanism at all**, which the sketch got wrong. The buffers are not cleared between blocks, so
+a module ordered before its source already reads what the source wrote last block. No copy, no
+second buffer, no flag on the cable: the 2.9 ms delay at 44.1 kHz falls out of the ordering for
+free, and it is what Reason did.
+
+What the compiler does have to do is *report* it, by comparing positions in the finished order.
+Tell the UI which cables ended up backwards so they can be drawn differently; a feedback patch
+that silently behaves unlike the picture is worse than one that admits it.
 
 Zero-delay feedback *inside* a module stays the module's own problem. The ladder already
 handles its own.
 
 ### Parameters, not AudioParams
 
-Knobs arrive as messages — `{ param, module, id, value, at }` — and the audio thread runs a
-one-pole smoother per parameter. `AudioParam` is the wrong tool: the parameter set is
-dynamic, it is large, and there is only one processor to hang them on.
+Knobs arrive as messages — `{ kind: 'param', slot, value }` — and every parameter is a
+`Float32Array` of its own, read per sample like an inlet. `AudioParam` is the wrong tool: the
+parameter set is dynamic, it is large, and there is only one processor to hang them on.
 
-`at` is a frame number. Inside a worklet you have `currentFrame`, which is a better clock
-than `ctx.currentTime` — the rack's own sequencer needs no lookahead timer and no worker
-ticker at all. It only needs a tempo and a start frame from outside.
+A knob change **ramps linearly across the block that follows** and then flattens. Not a
+one-pole smoother, as first sketched — a ramp to the target within one block is exact,
+testable, and clickless, and a slower gesture is the UI's business. The flattening is not
+optional: without it the ramp is replayed for as long as the knob sits still, which is a
+sawtooth LFO at the block rate, 344 Hz and very audible. `graph.test.ts` has that test.
 
-The message set is the ABI. Keep it to `patch`, `param`, and `transport`, and resist
+Scheduling a param against a frame is **not** built. When it is, `currentFrame` inside the
+worklet is a better clock than `ctx.currentTime`, and the rack's own sequencer will need no
+lookahead timer and no worker ticker at all — only a tempo and a start frame from outside.
+
+The message set is the ABI: `plan` and `param` today, `transport` when there is one. Resist
 growing it.
 
 ## The module contract
@@ -108,9 +127,11 @@ interface ModuleDef {
   version: number
   inlets: Port[]
   outlets: Port[]
-  params: ParamDef[]    // id, min, max, default, curve
-  processor: new (sampleRate: number) => Processor
-  migrate?(params: Record<string, unknown>, from: number): Record<string, unknown>
+  params: ParamDef[]    // id, min, max, default, stepped
+  processor: new (sampleRate: number, deps: Record<string, unknown>) => Processor
+  deps?: Record<string, Dep>   // shared DSP classes, BY STRING KEY — see below
+  terminal?: boolean           // its first outlet sums into the audio output
+  migrate?(params: Record<string, number>, from: number): Record<string, number>
 }
 
 interface Processor {
@@ -119,9 +140,27 @@ interface Processor {
 }
 ```
 
+Three things here were not in the first sketch and are load-bearing:
+
+**`deps` is keyed by string, and the processor looks its dependencies up as `deps.Ladder`.**
+Never by identifier. Minified, `Ladder.toString()` comes out as `class{s0=0;...}` —
+*anonymous*, not renamed — so any scheme that derives an identifier from `Class.name` at
+assembly time emits `const  = class{...}` and the whole worklet fails to parse. Production
+only; the dev build works perfectly. `worklet.ts` has the long version.
+
+**`terminal` replaces a reserved output buffer.** One line in a def rather than a special case
+in the compiler: an empty rack is silence, two Outs are a mix of both, and the Out module still
+has a real outlet so it can be patched onward.
+
+**`stepped` exists because a waveform selector is not a continuous control.** Everything else
+ramps across the block; a stepped param jumps, because a selector two thirds of the way between
+saw and pulse is not a sound and a ramping value would make it flicker across the changeover.
+
 `migrate` lives next to the module rather than in a central switch. At forty modules a
 central migration table is unmaintainable, and the person adding a parameter is the person
-who knows what the old value meant.
+who knows what the old value meant. It is called from `compile`, which is the one place with
+both the saved params and the def that owns them — `decodePatch` preserves the version and
+deliberately does nothing with it.
 
 ## Fifteen modules
 
@@ -212,9 +251,55 @@ This is the differentiated thing about the whole product. VCV Rack cannot be a l
 ## Where it lives
 
 ```
-packages/rack/        @driftbox/rack — compiler, registry, worklet assembly, patch-io
-packages/app/src/rack/  the faceplates and the cables
+packages/rack/           @driftbox/rack — compiler, registry, worklet assembly, patch-io
+packages/app/rack.html   the rack's entry point
+packages/app/src/rack/   everything behind it: chassis, back panel, cables, faceplates
+packages/app/src/        shared — the hash codec, styles, controls, scenes
 ```
+
+## A separate entry point, not a tab
+
+**The rack is its own page.** `index.html` opens the sequencer and nothing about it changes;
+`rack.html` opens the rack. Two documents, two roots, no shared store and no router. The
+sequencer does not grow a rack tab, and nothing in the rack's flow has to be reachable from a
+step grid.
+
+This is Vite's multi-page build, which costs one extra line of config, and it works with
+`base: './'` exactly as the single page does — the same relative-path reasoning in
+`vite.config.ts` that lets one build serve GitHub Pages at `/driftbox/` and `npx
+@driftbox/app` at the root covers a second page for free.
+
+Why a second page inside `packages/app` rather than a fourth package:
+
+- **The dependency is already the right shape.** `@driftbox/app` has no runtime dependencies
+  at all — `@driftbox/engine` is a *devDependency*, because the published tarball is `bin` plus
+  a bundled `dist`. `@driftbox/rack` goes in the same way, aliased to source in
+  `vite.config.ts` and mapped in `tsconfig.app.json`, and the published package gains a second
+  page rather than a dependency. `npx @driftbox/app` then serves both, which is a better
+  answer than two installs.
+- **Sharing is a relative import.** Extracting a `packages/ui` means designing a component API
+  before either consumer has told us what it needs. Start with both pages in one package,
+  where sharing costs nothing and the boundary can be drawn later against real usage rather
+  than a guess.
+- **It is reversible.** Everything rack-shaped lives under `src/rack/`, so lifting it into its
+  own package later is a directory move plus a package.json.
+
+What is genuinely shared, and worth keeping shared: the hash codec (`src/hash.ts` — already
+done, and already carrying both kinds), the stylesheet and its tokens, the knob and pointer-
+drag primitives, the oscilloscope, the twelve scenes, the audio-start gesture handling, and the
+panel-fold machinery. What is not: the step grid, the pattern chain, the song picker — the rack
+has no patterns, and pretending otherwise is how the two flows end up tangled.
+
+What has to be new is the part with no equivalent in the sequencer, and it is the reason this
+is a separate flow rather than a new panel: **the rack turns around.** Tab flips it to the back
+and you patch cables. That is Reason's one genuinely great interaction and there is nothing in
+a step sequencer to hang it off.
+
+One thing the two pages should eventually share that is not UI at all: **the audio context.**
+The rack and the drum machines sum into the same destination by design, so a patch that filters
+an 808 through a ladder is a later feature and not an architectural change. Two pages cannot
+share a context, though — so if that matters more than the separation does, the decision gets
+revisited, and it is the only thing that would revisit it.
 
 `@driftbox/rack` imports no React and touches no DOM, the same hard boundary
 `@driftbox/engine` has, enforced the same way — by the package split rather than by
@@ -305,10 +390,23 @@ The risk is all in the first item. Do it first and alone.
    `class{...}` — *anonymous*, not merely renamed — so emitting `const ${dep.name} = ...` would
    have produced `const  = class{...}`, an unparseable worklet, in production builds only.
    Dependencies go through a string key for that reason and no other.
-2. **Patch-io.** Encode, decode, repair, round-trip a fully populated patch, and the URL
-   hash. Small, and it unblocks sharing anything built after it. Note that `ParamDef` has no
-   `curve` field: the taper is the faceplate's business until there is a faceplate to have an
-   opinion.
+2. **Patch-io.** ✅ Built — `rack/patch-io.ts`, the kind-aware hash codec in
+   `app/src/hash.ts`, and the patch half of persistence in `app/src/rack/persistence.ts`.
+   Three things worth knowing came out of it:
+
+   - `decodePatch` takes **no registry**, deliberately. Validating against one here would
+     delete exactly what the placeholder rule protects, so param clamping stays in `compile`
+     and per-module migration does too — which is where `ModuleDef.migrate` is finally called,
+     having been declared in step 1 and never invoked.
+   - The song's hash markers (`z`, `r`) are one character and already in the wild, so they
+     could not grow a prefix. A patch is `p` then the same encoding character, and the marker
+     table is read longest-first. `hash.test.ts` pins a literal hash captured from the build
+     *before* kinds existed — if a codec change cannot read it, that change has broken every
+     link anybody has already shared.
+   - A forty-module patch is under 1000 characters in a URL. That is the product claim, tested.
+
+   `ParamDef` still has no `curve` field: the taper is the faceplate's business until there is
+   a faceplate to have an opinion.
 3. **The other twelve modules.** Now cheap, now independent — each is a class, a def and a
    test, and none of them can break another. The registry is already a parameter rather than a
    constant, which `graph.test.ts` leans on by defining modules of its own.
