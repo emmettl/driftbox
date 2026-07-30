@@ -814,7 +814,7 @@ export default function RackApp() {
           which of them are big enough to use with your hands. */}
       {performing && (
         <div className="rk-perform">
-          <PerformPad kaoss={hasKaoss ? kaoss.current : null} />
+          <PerformPad kaoss={hasKaoss ? kaoss.current : null} flipped={flipped} />
         </div>
       )}
 
@@ -856,7 +856,13 @@ export default function RackApp() {
           {patch.modules.length} modules · {patch.cables.length} cables
         </span>
         <span className="rk-hint">
-          {flipped ? 'Drag between jacks to patch · click a cable to unpatch' : 'Drag a knob · Tab for the back'}
+          {performing
+            ? flipped
+              ? 'The creature lives back here · the filter still works'
+              : 'Drag the pad · Tab to see what is behind it'
+            : flipped
+              ? 'Drag between jacks to patch · click a cable to unpatch'
+              : 'Drag a knob · Tab for the back'}
         </span>
         {/* Last, and quiet. It is the answer to "which build is this?" — asked once, when something is
             wrong — so it should be findable rather than prominent. */}

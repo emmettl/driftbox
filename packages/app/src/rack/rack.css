@@ -1022,10 +1022,20 @@ kbd {
     radial-gradient(120% 100% at 0% 100%, rgba(95, 240, 208, 0.16), transparent 60%),
     radial-gradient(120% 100% at 100% 100%, rgba(255, 122, 217, 0.16), transparent 60%),
     var(--panel);
+  transition: border-color 180ms ease, background-color 180ms ease;
   cursor: crosshair;
   /* Without this a drag scrolls the page under the finger instead of sweeping the filter. */
   touch-action: none;
   overflow: hidden;
+}
+.rk-pad[data-side='back'] {
+  border-color: rgba(255, 176, 46, 0.4);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 122, 217, 0.2), transparent 28%),
+    radial-gradient(80% 100% at 15% 100%, rgba(255, 176, 46, 0.18), transparent 62%),
+    radial-gradient(80% 100% at 85% 100%, rgba(95, 240, 208, 0.15), transparent 62%),
+    repeating-linear-gradient(135deg, transparent 0 28px, rgba(255, 255, 255, 0.018) 28px 29px),
+    #10091e;
 }
 .rk-pad[data-held='yes'] {
   border-color: rgba(95, 240, 208, 0.5);
@@ -1040,6 +1050,82 @@ kbd {
   background: var(--nine);
   box-shadow: 0 0 28px 6px rgba(95, 240, 208, 0.45);
   pointer-events: none;
+}
+
+.rk-pad-mascot {
+  position: absolute;
+  inset: 7% 12% 10%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  pointer-events: none;
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+}
+.rk-pad-mascot svg {
+  width: min(42%, 280px);
+  overflow: visible;
+}
+.rk-pad-mascot-dancer {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: rk-pad-vibe 1.05s ease-in-out infinite;
+}
+.rk-pad[data-held='yes'] .rk-pad-mascot-dancer {
+  animation-duration: 0.32s;
+}
+.rk-pad-mascot-body {
+  fill: rgba(7, 4, 15, 0.88);
+  stroke: var(--eight);
+  stroke-width: 5;
+}
+.rk-pad-mascot-wire,
+.rk-pad-mascot-arm,
+.rk-pad-mascot-leg,
+.rk-pad-mascot-mouth {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.rk-pad-mascot-wire {
+  stroke: var(--nine);
+  stroke-width: 6;
+}
+.rk-pad-mascot-arm,
+.rk-pad-mascot-leg {
+  stroke: var(--eight);
+  stroke-width: 7;
+}
+.rk-pad-mascot-mouth {
+  stroke: var(--three);
+  stroke-width: 5;
+}
+.rk-pad-mascot-eye {
+  fill: var(--nine);
+  filter: drop-shadow(0 0 7px rgba(95, 240, 208, 0.8));
+}
+.rk-pad-mascot strong,
+.rk-pad-mascot span {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  text-align: center;
+}
+.rk-pad-mascot strong {
+  margin-top: -2px;
+  font-size: clamp(11px, 1.8vw, 16px);
+  color: var(--three);
+}
+.rk-pad-mascot span {
+  margin-top: 5px;
+  font-size: clamp(8px, 1.2vw, 11px);
+  color: var(--dim);
+}
+
+@keyframes rk-pad-vibe {
+  0%, 100% { transform: translateY(2px) rotate(-3deg); }
+  50% { transform: translateY(-9px) rotate(3deg); }
 }
 
 .rk-pad-axis {
@@ -1071,6 +1157,11 @@ kbd {
   pointer-events: none;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .rk-pad-mascot-dancer {
+    animation: none;
+  }
+}
 
 /* ---- the sampler's own strip ---------------------------------------------------
  *
