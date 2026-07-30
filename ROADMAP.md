@@ -24,7 +24,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Visuals | Four meters, twelve 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
-| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.1.0, with provenance |
+| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
 | Rack | An unpublished work in progress with 23 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere, performance mode and offline export. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## What is deliberate
@@ -509,10 +509,14 @@ it is going well, and something sparse when it is going badly. The chain is plai
 sections take effect at the next bar, so this is `engine.song = {...}` and nothing more.
 That is a better demonstration of a reusable engine than a loop playing underneath.
 
-**Both packages are published**, at 0.1.0, with SLSA provenance naming
-`refs/tags/v0.1.0` on this repo. Verified from the registry rather than from the green
-tick: installed into an empty project and imported (22 voices, 12 songs), and
+**Both packages are published.** 0.1.0 went out with SLSA provenance naming
+`refs/tags/v0.1.0` on this repo, and was verified from the registry rather than from the
+green tick: installed into an empty project and imported (22 voices, 12 songs), and
 `npx @driftbox/app@0.1.0` served its index and its 1.27 MB bundle.
+
+0.2.0 has had no equivalent pass yet — the check above is a record of what was done to
+0.1.0, not a standing claim about whatever is latest. Repeat it against the new version
+before treating the release as finished.
 
 The one thing still worth watching is **`Ladder.toString()` under a consumer's bundler**.
 It holds under this build — verified against both the minified app bundle and the engine's
