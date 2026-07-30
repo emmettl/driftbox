@@ -102,6 +102,130 @@ kbd {
   color: var(--nine);
 }
 
+.rk-open {
+  font: 11px var(--mono);
+  color: var(--nine);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+/* ---- the patch library ------------------------------------------------------- */
+
+.rk-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  padding: 14px 16px 18px;
+  border-bottom: 1px solid var(--edge);
+  background: rgba(14, 10, 30, 0.55);
+}
+.rk-library h2 {
+  font: 10px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  margin: 0 0 8px;
+}
+.rk-library ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rk-library li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.rk-library li > button:first-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.rk-library li > button:first-child:hover {
+  border-color: var(--nine);
+}
+.rk-library li strong {
+  font-weight: 600;
+  font-size: 12px;
+}
+.rk-library li span {
+  font: 10px var(--mono);
+  color: var(--dim);
+}
+.rk-tiny {
+  font: 10px var(--mono);
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.rk-tiny:hover {
+  color: var(--eight);
+  border-color: var(--eight);
+}
+.rk-empty {
+  font: 11px var(--mono);
+  color: var(--dim);
+  margin: 0;
+}
+.rk-rename {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.rk-rename input {
+  flex: 1;
+  font: inherit;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--nine);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.rk-rename button {
+  font: 11px var(--mono);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+.rk-library-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.rk-library-actions button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.rk-library-actions button:hover {
+  border-color: var(--nine);
+}
+
 .rk-palette {
   display: flex;
   gap: 6px;

@@ -5,6 +5,7 @@ import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
+import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
 import { openingPatch, useRack } from './store.js'
 
@@ -27,6 +28,7 @@ export default function RackApp() {
   const load = useRack((s) => s.load)
   const addModule = useRack((s) => s.addModule)
   const setNotes = useRack((s) => s.setNotes)
+  const name = useRack((s) => s.name)
 
   const rack = useRef<Rack | null>(null)
   /**
@@ -43,6 +45,7 @@ export default function RackApp() {
   const [failed, setFailed] = useState(false)
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
 
   const geometry = useMemo(() => layout(patch.modules, sizeFor(MODULES)), [patch.modules])
 
@@ -137,6 +140,7 @@ export default function RackApp() {
         <h1>
           Driftbox <span>Rack</span>
         </h1>
+        {name && <span className="rk-open">{name}</span>}
 
         {!running && !failed && (
           <button type="button" className="rk-primary" onClick={start}>
@@ -149,8 +153,26 @@ export default function RackApp() {
           {flipped ? 'Front' : 'Back'} <kbd>Tab</kbd>
         </button>
 
-        <button type="button" onClick={() => setAdding((open) => !open)} aria-expanded={adding}>
+        <button
+          type="button"
+          onClick={() => {
+            setAdding((open) => !open)
+            setBrowsing(false)
+          }}
+          aria-expanded={adding}
+        >
           Add module
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setBrowsing((open) => !open)
+            setAdding(false)
+          }}
+          aria-expanded={browsing}
+        >
+          Patches
         </button>
 
         <button
@@ -184,6 +206,8 @@ export default function RackApp() {
           ))}
         </div>
       )}
+
+      {browsing && <PatchBrowser onClose={() => setBrowsing(false)} />}
 
       {shared && <p className="rk-shared">{shared}</p>}
 
