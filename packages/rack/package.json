@@ -41,7 +41,7 @@
   "sideEffects": false,
   "//dependencies": "Narrowly, and only for DSP. The ladder module wraps the engine's `Ladder` rather than copying it: the engine's README says two copies of a synthesis engine would diverge, and a rack whose filter has drifted from the drum machines' filter is exactly that. Nothing else is imported, and the engine is sideEffects:false, so a bundler drops the sequencer and the songs.",
   "dependencies": {
-    "@driftbox/engine": "^0.1.0"
+    "@driftbox/engine": "^0.2.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

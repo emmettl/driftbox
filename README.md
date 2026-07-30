@@ -80,7 +80,7 @@ of bars, and it can be rearranged while the thing is playing.
 Your work is saved as you go. **share** puts the whole song in a link, **save** and
 **load** move it to and from a file, and **reset** goes back to the shipped patterns.
 
-The engine and app are published at `0.1.0`. [docs/PUBLISHING.md](docs/PUBLISHING.md) has
+The engine and app are published at `0.2.0`. [docs/PUBLISHING.md](docs/PUBLISHING.md) has
 the release steps; nothing goes to npm without cutting a release on purpose.
 
 **Picking this up?** [ROADMAP.md](ROADMAP.md) has the current state, the decisions worth
