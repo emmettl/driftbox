@@ -751,3 +751,127 @@ kbd {
 .rk-cable:hover .rk-cable-line {
   stroke-width: 5;
 }
+
+/* ---- the on-screen keyboard ---------------------------------------------------
+ *
+ * Stuck to the bottom of the viewport, the counterpart to the sticky header — because a rack is taller
+ * than a screen and a keyboard you have to scroll to find is one nobody plays. This was in normal flow
+ * first, which put it below the fold on every realistic patch; driving the page is what found it, since
+ * the synthetic pointer had nothing to land on.
+ *
+ * The keys themselves are an SVG scaled with `preserveAspectRatio: none` — the same trick the back panel
+ * uses, so the geometry in `keys.ts` is written once in white-key widths and the browser does the fitting.
+ */
+.rk-keys {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 8px max(16px, env(safe-area-inset-left));
+  border-top: 1px solid var(--edge);
+  /* Opaque rather than the translucent panel: the rack scrolls underneath it, and cables sliding about
+     behind the keys makes both hard to read. */
+  background: #0d0920;
+}
+
+.rk-keys-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 11px var(--mono);
+  color: var(--dim);
+}
+.rk-keys-controls button {
+  width: 26px;
+  height: 26px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rk-keys-octave {
+  min-width: 34px;
+  text-align: center;
+  color: var(--ink);
+}
+.rk-keys-vel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rk-keys-vel input {
+  width: 70px;
+}
+
+.rk-keys-board {
+  /* Sized by its own aspect ratio rather than stretched to the bar: an SVG with a viewBox and a fixed
+     height computes its width from the two. Stretching left dead strips inside the element that swallow
+     clicks without playing anything. */
+  flex: 0 1 auto;
+  height: 118px;
+  max-width: 100%;
+  /* Without this a drag across the keys selects the page instead of playing a glissando, and on a phone
+     it scrolls the rack away under the finger. */
+  touch-action: none;
+}
+
+.rk-key {
+  /* Set on the element rather than inherited, because an SVG child does not take the parent's cursor. */
+  cursor: pointer;
+}
+.rk-key-white {
+  fill: #cfc9e8;
+  stroke: #07040f;
+  stroke-width: 0.012;
+}
+.rk-key-black {
+  fill: #191330;
+  stroke: #07040f;
+  stroke-width: 0.012;
+}
+.rk-key-lit {
+  /* The same teal the cables and the running indicator use, rather than a colour invented for this. */
+  fill: var(--nine);
+}
+
+.rk-keys-hint {
+  align-self: center;
+  margin: 0;
+  max-width: 26ch;
+  font: 10px var(--mono);
+  color: var(--dim);
+}
+.rk-keys-tip {
+  display: block;
+  margin-top: 4px;
+}
+.rk-keys-tip kbd {
+  padding: 1px 4px;
+  font: inherit;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+}
+
+@media (max-width: 640px) {
+  /* The controls stack above the keys rather than stealing width from them — a keyboard narrower than a
+     thumb is not playable, and the octave buttons are what make two octaves enough. */
+  .rk-keys {
+    flex-wrap: wrap;
+  }
+  .rk-keys-board {
+    /* Taller, not shorter, on a phone. The aspect ratio is fixed, so height is what sets key WIDTH: at 96px
+       an octave came out 307px wide and a white key 38px, under the ~44px a fingertip needs. 118px gives
+       47px keys. */
+    flex-basis: auto;
+    height: 118px;
+  }
+  .rk-keys {
+    justify-content: center;
+  }
+  .rk-keys-hint {
+    display: none;
+  }
+}

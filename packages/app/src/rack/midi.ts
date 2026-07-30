@@ -57,6 +57,11 @@ export class Keyboard {
     return this.voices
   }
 
+  /** The notes actually sounding right now, for lighting up the keys somebody is playing. */
+  playing(): number[] {
+    return this.sounding.filter((note): note is number => note !== null)
+  }
+
   /** Change the voice count. Everything stops — a chord half-assigned across a changing number of voices is
    *  not worth the code it would take to preserve, and the patch is being recompiled anyway. */
   setVoices(voices: number): VoiceState[] {
@@ -175,6 +180,59 @@ export function midiTargets(
 // The browser half
 // ---------------------------------------------------------------------------------------
 
+/**
+ * The keyboards, one per MIDI channel.
+ *
+ * Hoisted out of `openMidi` so the **on-screen keys can share it**. Two allocators would fight: each would
+ * believe it owned all the voices, so a note played on screen could be silently stolen by one arriving from
+ * hardware, and releasing a key would return a voice the other one thought it still had. One bank means one
+ * answer to "what is sounding", which is also what lets the on-screen keys light up for notes that arrived
+ * from a controller.
+ *
+ * One keyboard *per channel*, so two MIDI modules set to different channels split a controller rather than
+ * both playing everything.
+ */
+export class KeyboardBank {
+  private voiceCount = 1
+  private readonly keyboards = new Map<number, Keyboard>()
+
+  for(channel: number): Keyboard {
+    const existing = this.keyboards.get(channel)
+    if (existing) return existing
+    const fresh = new Keyboard(this.voiceCount)
+    this.keyboards.set(channel, fresh)
+    return fresh
+  }
+
+  get voices(): number {
+    return this.voiceCount
+  }
+
+  /** Every note sounding on any channel, for lighting a key. */
+  sounding(): number[] {
+    const notes: number[] = []
+    for (const keyboard of this.keyboards.values()) notes.push(...keyboard.playing())
+    return notes
+  }
+
+  setVoices(voices: number): { state: VoiceState; channel: number }[] {
+    this.voiceCount = voices
+    const changes: { state: VoiceState; channel: number }[] = []
+    for (const [channel, keyboard] of this.keyboards) {
+      for (const state of keyboard.setVoices(voices)) changes.push({ state, channel })
+    }
+    return changes
+  }
+
+  allOff(): { state: VoiceState; channel: number }[] {
+    const changes: { state: VoiceState; channel: number }[] = []
+    for (const [channel, keyboard] of this.keyboards) {
+      for (const state of keyboard.allOff()) changes.push({ state, channel })
+    }
+    return changes
+  }
+}
+
 export interface MidiEvents {
   onVoice(state: VoiceState, channel: number): void
   onMod(value: number, channel: number): void
@@ -199,7 +257,7 @@ export interface MidiHandle {
  * Devices connected later are picked up: `statechange` re-subscribes rather than requiring a reload, because
  * plugging the keyboard in after opening the page is what everybody actually does.
  */
-export async function openMidi(events: MidiEvents): Promise<MidiHandle | null> {
+export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<MidiHandle | null> {
   const request = (
     navigator as Navigator & {
       requestMIDIAccess?: (options?: { sysex: boolean }) => Promise<MIDIAccess>
@@ -215,24 +273,12 @@ export async function openMidi(events: MidiEvents): Promise<MidiHandle | null> {
     return null
   }
 
-  let voiceCount = 1
-  const keyboards = new Map<number, Keyboard>()
-  const keyboardFor = (channel: number) => {
-    const existing = keyboards.get(channel)
-    if (existing) return existing
-    // One keyboard per channel, so two MIDI modules set to different channels split a controller rather than
-    // both playing everything.
-    const fresh = new Keyboard(voiceCount)
-    keyboards.set(channel, fresh)
-    return fresh
-  }
-
   const onMessage = (event: MIDIMessageEvent) => {
     const data = event.data
     if (!data || data.length < 2) return
     const status = data[0] & 0xf0
     const channel = (data[0] & 0x0f) + 1
-    const keyboard = keyboardFor(channel)
+    const keyboard = bank.for(channel)
     const emit = (states: VoiceState[]) => {
       for (const state of states) events.onVoice(state, channel)
     }
@@ -266,10 +312,7 @@ export async function openMidi(events: MidiEvents): Promise<MidiHandle | null> {
   const handle: MidiHandle = {
     inputs: subscribe(),
     setVoices: (voices) => {
-      voiceCount = voices
-      for (const [channel, keyboard] of keyboards) {
-        for (const state of keyboard.setVoices(voices)) events.onVoice(state, channel)
-      }
+      for (const { state, channel } of bank.setVoices(voices)) events.onVoice(state, channel)
     },
     close: () => {},
   }

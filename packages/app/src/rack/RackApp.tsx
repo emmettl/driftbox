@@ -6,7 +6,8 @@ import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
-import { midiTargets, openMidi, type MidiHandle } from './midi.js'
+import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
+import { RackKeys } from './RackKeys.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
 import { openingPatch, useRack } from './store.js'
@@ -136,6 +137,46 @@ export default function RackApp() {
     [ensureSampler, setTempo, setRunning],
   )
 
+  /**
+   * One allocator for every keyboard, on screen or plugged in.
+   *
+   * Two banks would fight over the voices: each would believe it owned all of them, so an on-screen note
+   * could be silently stolen by one from hardware and a release would hand back a voice the other still
+   * thought it held. Sharing also means the on-screen keys light up for notes arriving from a controller,
+   * which is the cheapest possible way to see that a controller is working.
+   */
+  const bank = useRef(new KeyboardBank())
+  /** Which notes are sounding, for lighting the keys. Session state; it never goes near the patch. */
+  const [sounding, setSounding] = useState<number[]>([])
+
+  /** The one path a note takes to the audio thread, whichever keyboard played it. */
+  const playVoice = useCallback(
+    (state: { voice: number; note: number; gate: 0 | 1; velocity: number }, channel = 1) => {
+      sendMidi(channel, { note: state.note, gate: state.gate, velocity: state.velocity }, state.voice)
+      // Only the note that just sounded reaches the faceplate. A gate-off does not clear it, because on a
+      // chord the last thing released is not interesting and blanking on it would flicker.
+      if (state.gate === 1) setMidi(state.note)
+      setSounding(bank.current.sounding())
+    },
+    [sendMidi, setMidi],
+  )
+
+  const keysDown = useCallback(
+    (note: number, velocity: number) => {
+      for (const state of bank.current.for(1).down(note, velocity)) playVoice(state)
+    },
+    [playVoice],
+  )
+  const keysUp = useCallback(
+    (note: number) => {
+      for (const state of bank.current.for(1).up(note)) playVoice(state)
+    },
+    [playVoice],
+  )
+  const keysAllOff = useCallback(() => {
+    for (const { state, channel } of bank.current.allOff()) playVoice(state, channel)
+  }, [playVoice])
+
   async function toggleMidi() {
     if (midi.current) {
       midi.current.close()
@@ -144,28 +185,19 @@ export default function RackApp() {
       setMidi(null, [])
       return
     }
-    const handle = await openMidi({
-      onVoice: (state, channel) => {
-        sendMidi(
-          channel,
-          { note: state.note, gate: state.gate, velocity: state.velocity },
-          state.voice,
-        )
-        // Only the note that just sounded reaches the faceplate. A gate-off does not clear it, because on a
-        // chord the last thing to be released is not interesting and blanking on it would flicker.
-        if (state.gate === 1) setMidi(state.note)
+    const handle = await openMidi(
+      {
+        onVoice: (state, channel) => playVoice(state, channel),
+        onMod: (value, channel) => sendMidi(channel, { mod: value }),
       },
-      onMod: (value, channel) => sendMidi(channel, { mod: value }),
-    })
+      bank.current,
+    )
     if (!handle) {
       // Web MIDI is Chromium-only, so this is the common case rather than the exceptional one. Absence has
       // to read as absence — the same standard `loadRack` holds itself to when there is no AudioWorklet.
       setMidiState('unavailable')
       return
     }
-    // After the null check, and before anything is played: the keyboards have to agree with the graph about
-    // how many voices exist, or the first note lands on a voice the audio thread does not have.
-    handle.setVoices(useRack.getState().patch.voices ?? 1)
     midi.current = handle
     setMidiState('on')
     setMidi(null, handle.inputs)
@@ -175,6 +207,20 @@ export default function RackApp() {
   useEffect(() => {
     void openingPatch().then(load)
   }, [load])
+
+  /**
+   * Keep the allocator agreeing with the graph about how many voices exist.
+   *
+   * Was done once, when Web MIDI was opened. That was already the wrong place — changing the voice count
+   * afterwards left the keyboards allocating across a number the audio thread no longer had, so a note
+   * could land on a voice that did not exist — and it is doubly wrong now the on-screen keys can play
+   * without Web MIDI ever being opened at all.
+   */
+  useEffect(() => {
+    for (const { state, channel } of bank.current.setVoices(patch.voices ?? 1)) {
+      playVoice(state, channel)
+    }
+  }, [patch.voices, playVoice])
 
   // Tab flips the rack, the way it does in Reason. Kept off inputs so a rename field is still usable.
   useEffect(() => {
@@ -208,7 +254,7 @@ export default function RackApp() {
     setNotes(compile(useRack.getState().patch, MODULES).notes)
   }, [revision, setNotes])
 
-  async function start() {
+  const start = useCallback(async () => {
     if (rack.current) return
     const ctx = new AudioContext()
     const live = new Rack(ctx)
@@ -235,7 +281,33 @@ export default function RackApp() {
     live.setTransport(useRack.getState().patch.tempo ?? 120, true)
     setRunning(true)
     setStarted(true)
-  }
+  }, [setRunning])
+
+  /**
+   * Make the rack able to make a sound, because somebody is about to play one.
+   *
+   * Two ways it can be unable to. It may never have been started, in which case this is the starting
+   * gesture like any other. Or it may be **suspended because the transport is stopped** — Stop suspends the
+   * whole context, which is the honest fix for a Clock that ignores `running`, and it had the side effect
+   * that a keyboard went completely dead the moment somebody pressed Stop. Measured: holding a key with the
+   * transport stopped drew a flat line on the scope.
+   *
+   * That is the wrong trade for an instrument. A sequencer being stopped is exactly when you want to play
+   * something by hand, so a note resumes the context and **leaves the transport stopped** — `running` stays
+   * false, so anything transport-locked stays where it is and only the sound comes back.
+   *
+   * Returns whether the rack had to be started from cold, because a note played into an audio thread that
+   * did not exist yet needs playing again once it does.
+   */
+  const wake = useCallback(async (): Promise<boolean> => {
+    if (!rack.current) {
+      await start()
+      return true
+    }
+    const ctx = rack.current.output?.context as AudioContext | undefined
+    if (ctx?.state === 'suspended') void ctx.resume()
+    return false
+  }, [start])
 
   // Knob moves go straight to the audio thread. Subscribing rather than doing it in the handler keeps
   // the faceplates from needing the Rack at all — they only ever touch the store.
@@ -483,6 +555,14 @@ export default function RackApp() {
           <Oscilloscope analyser={analyser} mode="wave" height={70} />
         </div>
       )}
+
+      <RackKeys
+        wake={wake}
+        down={keysDown}
+        up={keysUp}
+        allOff={keysAllOff}
+        sounding={sounding}
+      />
 
       <footer className="rk-footer">
         <span>

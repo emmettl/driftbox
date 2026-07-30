@@ -211,9 +211,40 @@ One trap, and the contract suite caught it: the first version read module-scope 
 does not exist, so it would have thrown a `ReferenceError` the first time a patch with a tracker loaded. The fix
 derives the lane count from `outlets.length / 3`, which cannot disagree with the def either.
 
-**B3. On-screen keyboard.** Cheap and high value: `app/src/ui/Keys.tsx` exists, and the per-voice param path the
-MIDI module already uses is exactly what it needs. It is also what makes the rack playable on a phone, where
-there is no MIDI at all.
+**B3. On-screen keyboard.** ✅ Built, as `RackKeys`. Cheap as predicted — no new message, no new module, because
+the MIDI module's params already *are* the note, the gate and the velocity, and the host already writes them per
+voice.
+
+It did **not** reuse `app/src/ui/Keys.tsx`, which is coupled to the engine's bass voices and to `useBox`. What it
+reuses is the thing worth reusing: `Keyboard` from `midi.ts`, where last-note priority, legato and voice
+allocation live. Those are the difference between a keyboard and a row of buttons, and a second implementation
+would have drifted from the first.
+
+`Keyboard` was per-channel state hidden inside `openMidi`, so it came out as a **`KeyboardBank` shared by both**.
+Two banks would each have believed they owned all the voices: an on-screen note could be silently stolen by one
+from hardware, and a release would hand back a voice the other still held. Sharing also means the on-screen keys
+light up for notes played on a controller.
+
+The layout is a C-rooted piano, and that is the *opposite* of the conclusion `ui/Keys.tsx` reaches, for the same
+reason. Colours follow pitch: the 303's note 0 is an A, so a C-shaped layout there put C, F and G on black keys.
+The rack's 0 V is MIDI 36, a **C2**, so here a piano starting at C is exactly right.
+
+Three things were wrong and driving the page found all three, none of which any test would have:
+
+- **The keys were below the fold**, so nothing could reach them. Now stuck to the bottom of the viewport, the
+  counterpart to the sticky header. The CSS comment claimed "a fixed bar" before the CSS actually did it.
+- **The keys were nearly square.** Drawn into a `0 0 width 1` viewBox stretched with `preserveAspectRatio: none`,
+  a white key came out 63px wide and 92px tall, which makes the black keys look fat and turns rounded corners
+  into ovals. The viewBox now carries a real aspect ratio and letterboxes instead.
+- **Stop made the keyboard completely dead.** Stop suspends the whole AudioContext — the honest fix for a Clock
+  that ignores `running` — and holding a key with the transport stopped drew a flat line on the scope. A
+  sequencer being stopped is exactly when you want to play by hand, so a note now resumes the context and
+  **leaves the transport stopped**. Pressing a key from cold starts the rack too, and re-strikes the note once
+  the audio thread exists, because otherwise the first press of a session is swallowed.
+
+Pressing a key with no MIDI module patches one in, the same way loading a break ensures a Sampler — and it
+**takes over** the pitch and gate inlets it lands on, because one cable per inlet is the rule everywhere and two
+sources into a pitch inlet would sum into a wrong note.
 
 ### C — the sound
 
