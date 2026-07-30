@@ -474,3 +474,54 @@ describe('learning a MIDI controller', () => {
     expect(encodePatch(useRack.getState().patch)).toBe(encodedBefore)
   })
 })
+
+describe('an edit that changes nothing', () => {
+  // The revision is what makes RackApp recompile, and recompiling rebuilds every processor — resetting
+  // each oscillator's phase and each filter's history, which is audible. Several edits here are
+  // legitimately no-ops, and before this they all rebuilt the graph to achieve nothing.
+  beforeEach(() => {
+    useRack.setState({ patch: STARTER(), revision: 0 })
+  })
+
+  it('does not rebuild the graph when a module is moved off the top', () => {
+    const first = useRack.getState().patch.modules[0].id
+    const before = useRack.getState().revision
+    useRack.getState().moveModule(first, -1)
+    expect(useRack.getState().revision).toBe(before)
+  })
+
+  it('does not rebuild the graph when a module is moved off the bottom', () => {
+    const modules = useRack.getState().patch.modules
+    const before = useRack.getState().revision
+    useRack.getState().moveModule(modules[modules.length - 1].id, 1)
+    expect(useRack.getState().revision).toBe(before)
+  })
+
+  it('does not rebuild the graph when a drag ends where it started', () => {
+    // Read where it is rather than assuming. The first version of this dropped `ladder-1` at index 5,
+    // which is exactly where the starter already has it — so the "now move it" step was itself a no-op
+    // and the test failed for the opposite of the reason it looked like.
+    const at = () => useRack.getState().patch.modules.findIndex((m) => m.id === 'ladder-1')
+    expect(at()).toBeGreaterThan(0)
+
+    const before = useRack.getState().revision
+    // Dropping at its own index, and at the one just after, are both "stay put" — the insertion index is
+    // in the *original* list, so `from + 1` is the gap it already occupies.
+    useRack.getState().dropModule('ladder-1', at())
+    useRack.getState().dropModule('ladder-1', at() + 1)
+    expect(useRack.getState().revision).toBe(before)
+  })
+
+  it('still rebuilds when a drag actually moves something', () => {
+    const before = useRack.getState().revision
+    useRack.getState().dropModule('ladder-1', 0)
+    expect(useRack.getState().revision).toBe(before + 1)
+    expect(useRack.getState().patch.modules[0].id).toBe('ladder-1')
+  })
+
+  it('ignores a drop naming a module that is not there', () => {
+    const before = useRack.getState().revision
+    useRack.getState().dropModule('nobody', 0)
+    expect(useRack.getState().revision).toBe(before)
+  })
+})

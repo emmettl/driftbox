@@ -16,6 +16,7 @@ import {
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takePatchFromUrl } from './persistence.js'
 import { forget, learn, loadBindings, saveBindings, type CcBinding } from './cc.js'
+import { reordered } from './layout.js'
 import { tempoForBars } from './sample.js'
 
 // What is on screen. `@driftbox/rack` owns the sound; this owns the patch as immutable data so React
@@ -91,6 +92,14 @@ interface RackState {
   addChunk: (chunk: Chunk) => Inserted
   removeModule: (moduleId: string) => void
   moveModule: (moduleId: string, by: number) => void
+  /**
+   * Move a module to an insertion index, which is what a drag reports.
+   *
+   * Separate from `moveModule` rather than replacing it. The buttons step by one and are the only way in
+   * for anybody who cannot drag — the same standard the back panel holds itself to, where Enter arms a
+   * jack because "a modular whose whole point is the cables is a poor thing to make mouse-only".
+   */
+  dropModule: (moduleId: string, index: number) => void
 
   connect: (from: [string, string], to: [string, string]) => void
   disconnect: (cable: PatchCable) => void
@@ -268,10 +277,22 @@ export const useRack = create<RackState>((set, get) => {
    */
   const settle = (patch: Patch): Patch => applyModulation(patch, MODULES)
 
-  /** Every structural edit goes through here, so nothing can forget the revision or the autosave. */
+  /**
+   * Every structural edit goes through here, so nothing can forget the revision or the autosave.
+   *
+   * **An edit that changed nothing does not bump the revision.** The revision is what makes `RackApp`
+   * recompile, and recompiling rebuilds every processor — resetting each oscillator's phase and each
+   * filter's history, which is an audible click. Several edits here can legitimately be no-ops: moving the
+   * first module up, dropping a dragged module back where it started, removing an id that is not there.
+   * Before this they all rebuilt the graph to achieve nothing.
+   *
+   * Reference identity is the test, which is why the operations above are careful to hand back the very
+   * same patch when they decline — the same convention `applyModulation` and `reordered` follow.
+   */
   const structural = (change: (patch: Patch) => Patch) => {
     set((state) => {
       const patch = settle(change(state.patch))
+      if (patch === state.patch) return {}
       autosavePatch(patch)
       return { patch, revision: state.revision + 1 }
     })
@@ -412,6 +433,16 @@ export const useRack = create<RackState>((set, get) => {
           cables: patch.cables.filter((c) => c.from[0] !== moduleId && c.to[0] !== moduleId),
           ...(routes.length > 0 ? { modulation: routes } : {}),
         }
+      }),
+
+    dropModule: (moduleId, index) =>
+      structural((patch) => {
+        const from = patch.modules.findIndex((m) => m.id === moduleId)
+        const modules = reordered(patch.modules, from, index)
+        // The same array back means the drop changed nothing. Returning the same *patch* is what tells
+        // `structural` not to bump the revision, which is what stops a drag that ends where it started
+        // from rebuilding every processor in the rack.
+        return modules === patch.modules ? patch : { ...patch, modules: [...modules] }
       }),
 
     moveModule: (moduleId, by) =>

@@ -1,6 +1,6 @@
 import { MODULES } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
-import { COLUMN, JACK, ROW, SNAP, jackAt, jacks, layout, nearestJack, rowsForJacks, type Size } from './layout.js'
+import { COLUMN, JACK, ROW, SNAP, dropIndex, jackAt, jacks, layout, nearestJack, reordered, rowsForJacks, type Size } from './layout.js'
 
 // The front panel, the back panel and the cables are all positioned from these numbers, so if they are
 // wrong nothing lines up — a jack sits behind the wrong module, or a cable ends in mid-air. Being pure
@@ -180,5 +180,75 @@ describe('finding what a cable was dropped on', () => {
     // An outlet sitting right on top of the pointer is skipped entirely when inlets are wanted.
     const near = nearestJack(all, { x: out.x, y: out.y }, SNAP, 'in')
     expect(near === undefined || near.kind === 'in').toBe(true)
+  })
+})
+
+describe('dragging a module to a new place', () => {
+  const stack = (...types: string[]) =>
+    layout(types.map((type, i) => ({ id: `m${i}`, type })), () => ({ span: 2, rows: 1 }))
+
+  describe('where a drop lands', () => {
+    const geometry = stack('vco', 'ladder', 'vca', 'out')
+
+    it('is 0 above the first module, and past the end below the last', () => {
+      // Total by construction: counting midpoints crossed has an answer everywhere, including off both
+      // ends, which hit-testing a box does not.
+      expect(dropIndex(geometry.placements, -500)).toBe(0)
+      expect(dropIndex(geometry.placements, geometry.height + 500)).toBe(geometry.placements.length)
+    })
+
+    it('flips at each module’s midpoint', () => {
+      const second = geometry.placements[1]
+      expect(dropIndex(geometry.placements, second.y + second.height / 2 - 1)).toBe(1)
+      expect(dropIndex(geometry.placements, second.y + second.height / 2 + 1)).toBe(2)
+    })
+
+    it('has an answer in the gap between rows', () => {
+      // There is no gap in this layout, but the rule must not depend on that — a module's own boundary
+      // is exactly where two placements meet, and neither owns it.
+      const edge = geometry.placements[1].y
+      expect(Number.isInteger(dropIndex(geometry.placements, edge))).toBe(true)
+    })
+  })
+
+  describe('reordering', () => {
+    const list = ['a', 'b', 'c', 'd']
+
+    it('moves a module up', () => {
+      expect(reordered(list, 2, 0)).toEqual(['c', 'a', 'b', 'd'])
+    })
+
+    it('moves a module down, accounting for its own removal', () => {
+      // The classic off-by-one: remove from 1, insert at 3, and without the adjustment it lands at the
+      // wrong place. Dragging one step down is the case that silently does nothing when this is wrong.
+      expect(reordered(list, 1, 3)).toEqual(['a', 'c', 'b', 'd'])
+      expect(reordered(list, 0, 4)).toEqual(['b', 'c', 'd', 'a'])
+    })
+
+    it('is the same array when the drop changes nothing', () => {
+      // Identity, because the store bumps a revision on a structural edit and that rebuilds every
+      // processor — a drag that ends where it started must not crackle.
+      expect(reordered(list, 1, 1)).toBe(list)
+      expect(reordered(list, 1, 2)).toBe(list)
+    })
+
+    it('clamps a drop outside the list rather than losing the module', () => {
+      expect(reordered(list, 1, -10)).toEqual(['b', 'a', 'c', 'd'])
+      expect(reordered(list, 1, 99)).toEqual(['a', 'c', 'd', 'b'])
+    })
+
+    it('ignores an index that is not in the list', () => {
+      expect(reordered(list, -1, 2)).toBe(list)
+      expect(reordered(list, 9, 2)).toBe(list)
+    })
+
+    it('never loses or duplicates a module, wherever it is dropped', () => {
+      for (let from = 0; from < list.length; from++) {
+        for (let to = 0; to <= list.length; to++) {
+          const next = reordered(list, from, to)
+          expect([...next].sort()).toEqual([...list].sort())
+        }
+      }
+    })
   })
 })

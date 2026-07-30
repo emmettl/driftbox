@@ -245,6 +245,59 @@ export function nearestJack(
  *  fingertip is wider than a jack. */
 export const SNAP = 30
 
+// ---------------------------------------------------------------------------------------
+// Reordering
+// ---------------------------------------------------------------------------------------
+
+/**
+ * Where a module dragged to `y` would be inserted, as an index into the module list.
+ *
+ * Here rather than in the component for the same reason `nearestJack` is: this is geometry, the whole
+ * point of this file is that the geometry is arithmetic rather than DOM measurement, and a rule that
+ * lives in a pointer handler can only be checked by hand in a browser.
+ *
+ * **Counted by midpoints rather than by hit-testing a box.** Asking which module the pointer is *over*
+ * has no answer in the gaps and no answer past either end, so it needs two special cases that are easy
+ * to get subtly wrong. Counting how many modules the pointer has passed the middle of is total — every
+ * y maps to an index, including above the first module and below the last — and it is the rule that
+ * makes the drop indicator land where the eye expects.
+ *
+ * Two half-width modules share a row, so their midpoints are identical and they are crossed together.
+ * Dropping into the middle of such a pair is therefore ambiguous and resolves to one side of it, which
+ * is the honest outcome: there is no position "between" two modules occupying one row.
+ */
+export function dropIndex(placements: readonly Placement[], y: number): number {
+  let index = 0
+  for (const placement of placements) {
+    if (y > placement.y + placement.height / 2) index++
+  }
+  return index
+}
+
+/**
+ * The module list with `from` moved so that it lands at `to`.
+ *
+ * `to` is an insertion index *in the original list*, which is what `dropIndex` reports — so moving a
+ * module downward has to account for its own removal shifting everything after it up by one. Getting
+ * that wrong is the classic off-by-one in every drag-to-reorder, and the symptom is that dragging one
+ * place down does nothing at all: the item is removed from index 3, re-inserted at index 4, and index 4
+ * of the shortened list is where it already was.
+ *
+ * Returns the same array reference when nothing would move, so a drag that ends where it started does
+ * not bump the revision and rebuild the graph.
+ */
+export function reordered<T>(items: readonly T[], from: number, to: number): readonly T[] {
+  if (from < 0 || from >= items.length) return items
+  const target = Math.max(0, Math.min(items.length, to))
+  // Removing `from` shifts everything after it down one, so an insertion point beyond it means the same
+  // position it already occupies.
+  if (target === from || target === from + 1) return items
+  const next = [...items]
+  const [moved] = next.splice(from, 1)
+  next.splice(target > from ? target - 1 : target, 0, moved)
+  return next
+}
+
 /** Find a jack by module and port. */
 export function jackAt(
   list: readonly Jack[],
