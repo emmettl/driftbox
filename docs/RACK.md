@@ -186,8 +186,10 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
-Deliberate omissions. **No sampler** — no samples anywhere is a project rule and this is not
-the place to break it. **No reverb**: the generated-IR reverb in `effects.ts` is a
+Deliberate omissions. **No sampler** — for as long as this list stood alone. That has since been decided the
+other way for the rack specifically: see [docs/DNB.md](DNB.md), which keeps `ROADMAP.md`'s rule meaning exactly
+what it says about the drum machines while letting the rack — a different instrument, on the "two engines, one
+host" split — have a sampler in it. **No reverb**: the generated-IR reverb in `effects.ts` is a
 convolver, which belongs after the rack's output as an ordinary Web Audio send, not inside
 the worklet. **No polyphony** — see below.
 
