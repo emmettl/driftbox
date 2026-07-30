@@ -395,6 +395,14 @@ button {
   letter-spacing: inherit;
 }
 
+.chain-slot {
+  min-width: 32px;
+  color: var(--dim);
+  font-size: 8px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .chain-bars {
   flex: 1;
   text-align: center;

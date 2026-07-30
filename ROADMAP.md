@@ -13,8 +13,8 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
-| Sequencer | 1–64 steps, off / on / accent, drag paint/erase, add / copy / rename patterns, focused rotate / transpose / randomise / alter, swing per voice |
-| Song | Sections with repeat counts, editable while playing |
+| Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 steps; off / on / accent; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
+| Song | Multi-clip sections with repeat counts, editable while playing |
 | Ships with | Sixteen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro |
 | Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
@@ -37,9 +37,9 @@ than an analogy.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. It also fixes the implementation order:
-independent machine clips before song automation, then section buses/effects, fast pattern
-editing and interchange. `docs/RACK.md` remains the implementation record for the modular
-engine itself.
+independent machine clips (now landed) before song automation, then section buses/effects,
+the remaining fast pattern tools and interchange. `docs/RACK.md` remains the implementation
+record for the modular engine itself.
 
 ## What is deliberate
 
@@ -649,10 +649,9 @@ new machinery.
   topology: they use deterministic 6-bit PCM at roughly 30kHz plus cymbal modes. They
   remain a model rather than a copy of the original ROM, deliberately — shipping the
   recording would break the engine's recording-free and redistributable boundary.
-- **A bassline cannot run at a different length from the drums under it.** Basslines live
-  on the `Pattern` rather than in a sequence of their own, so one entry in the chain is
-  one bar of the whole arrangement. That buys the chain, the pattern buttons and clear
-  working on everything at once, and costs the polymetric trick below on the bass side.
+- **Lanes within one machine share a clip length.** A section independently selects its
+  808, 909 and both 303 clips, so those four machines can loop at different lengths.
+  Individual voices inside an 808 or 909 clip still share that clip's length.
 - **The 303s have no per-note tie separate from slide, and no rests inside a held note.**
   Both are on the real machine. Neither is hard; they need somewhere in the grid to live.
 - **No AudioWorklet means no squelch.** The fallback is a single biquad — two poles,
@@ -661,9 +660,10 @@ new machinery.
 - **There is one delay and one reverb for the whole song, and no way to bypass them.**
   Deliberate — the point of a send is that everything lands in the same room — but it does
   mean you cannot have a short slap on the snare and a long throw on the 303 at once.
-- **A pattern's length is shared by its drums and its basslines.** Polymetry works across
-  the chain — a 12-step pattern next to a 16-step one — but not *within* a bar, so a
-  15-step hat line under a 16-step kick still needs the two as separate patterns.
+- **A pattern is a reusable whole-groove snapshot as well as a clip source.** Its stored
+  length applies to everything inside it. A section can select that pattern independently
+  for the 808, 909 or either 303, but a 15-step hat under a 16-step kick on the same drum
+  machine still needs a future per-lane length feature.
 - **A pattern with no kick in it is the one that clips.** Not the busiest — the busiest
   have transients for the bus compressor to clamp against. `Lift` is hats and a 303 with
   no kick at all, and measured at `1.04` from the drums alone until its two hat machines

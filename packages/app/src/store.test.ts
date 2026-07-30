@@ -85,6 +85,16 @@ describe('the arrangement', () => {
     expect(song().chain[0].repeat).toBe(8)
   })
 
+  it('changes one machine clip without changing the section fallback', () => {
+    const before = song().chain[0]
+    useBox.getState().setChainClip(0, 'tr909', 'neon')
+    expect(song().chain[0]).toEqual({
+      ...before,
+      clips: { ...before.clips, tr909: 'neon' },
+    })
+    expect(song().chain[0].pattern).toBe(before.pattern)
+  })
+
   it('removes by position', () => {
     const before = song().chain.length
     useBox.getState().removeChain(0)
@@ -268,6 +278,22 @@ describe('which pattern is sounding', () => {
   it('falls back to the first pattern when there is no chain', () => {
     const song = { ...defaultSong(), chain: [] }
     expect(soundingPatternAt(song, 7)).toBe(song.patterns[0].id)
+  })
+
+  it('follows the selected machine clip', () => {
+    const song = {
+      ...defaultSong(),
+      chain: [
+        {
+          pattern: 'haze',
+          clips: { tr909: 'neon', '303.a': 'drift' },
+          repeat: 4,
+        },
+      ],
+    }
+    expect(soundingPatternAt(song, 0, 'tr808')).toBe('haze')
+    expect(soundingPatternAt(song, 0, 'tr909')).toBe('neon')
+    expect(soundingPatternAt(song, 0, '303.a')).toBe('drift')
   })
 })
 

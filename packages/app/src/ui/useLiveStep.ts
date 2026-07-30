@@ -1,4 +1,4 @@
-import { chainPositionAt, type Song } from '@driftbox/engine'
+import { patternForBar, patternForClip, type ClipSlot, type Song } from '@driftbox/engine'
 import { useBox } from '../store'
 import { usePlayhead } from './usePlayhead'
 
@@ -25,16 +25,23 @@ import { usePlayhead } from './usePlayhead'
  * union that includes `string` and a `string` is legal, so a `ChainStep` on the left of it
  * type-checks and is simply never equal.
  */
-export function soundingPatternAt(song: Song, bar: number): string | undefined {
-  if (song.chain.length === 0) return song.patterns[0]?.id
-  return chainPositionAt(song, bar)?.step.pattern
+export function soundingPatternAt(
+  song: Song,
+  bar: number,
+  slot?: ClipSlot,
+): string | undefined {
+  if (!slot) return patternForBar(song, bar)?.id
+  return patternForClip(song, bar, slot)?.id
 }
 
 export function useLiveStep(): number | null {
   const song = useBox((s) => s.song)
   const editing = useBox((s) => s.editing)
+  const view = useBox((s) => s.view)
+  const selectedBass = useBox((s) => s.selectedBass)
   const playhead = usePlayhead()
 
   if (!playhead) return null
-  return soundingPatternAt(song, playhead.bar) === editing ? playhead.index : null
+  const slot: ClipSlot = view === 'bass' ? (selectedBass as ClipSlot) : view
+  return soundingPatternAt(song, playhead.bar, slot) === editing ? playhead.index : null
 }

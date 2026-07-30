@@ -10,6 +10,7 @@ import {
   chainAppend,
   chainMove,
   chainRemove,
+  chainSetClip,
   chainSetPattern,
   chainSetRepeat,
   cycleStep,
@@ -33,6 +34,7 @@ import {
   type BassParams,
   type BassStep,
   type ChainStep,
+  type ClipSlot,
   type FxParams,
   type MachineId,
   type Pattern,
@@ -143,6 +145,7 @@ interface State {
   removeChain: (index: number) => void
   setChainRepeat: (index: number, repeat: number) => void
   setChainPattern: (index: number, patternId: string) => void
+  setChainClip: (index: number, slot: ClipSlot, patternId: string) => void
   moveChain: (index: number, delta: number) => void
   setPatternLength: (length: number) => void
 
@@ -517,6 +520,8 @@ export const useBox = create<State>()((set, get) => ({
     set(withChain(get(), (s) => chainSetRepeat(s, index, repeat))),
   setChainPattern: (index, patternId) =>
     set(withChain(get(), (s) => chainSetPattern(s, index, patternId))),
+  setChainClip: (index, slot, patternId) =>
+    set(withChain(get(), (s) => chainSetClip(s, index, slot, patternId))),
   moveChain: (index, delta) => set(withChain(get(), (s) => chainMove(s, index, delta))),
 
   setPatternLength: (length) => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { songSeconds, toWav, voicesUsed } from './stems.js'
 import { acidSong, defaultSong } from './songs/index.js'
 import { planSong, planStep } from './schedule.js'
-import { songBars } from './pattern.js'
+import { songBars, type Pattern } from './pattern.js'
 
 // The parts of stem rendering that do not need an audio context. The rendering itself is
 // verified in the browser — an OfflineAudioContext is not a thing Node has — and what that
@@ -140,5 +140,61 @@ describe('the shared step planner', () => {
     )
     expect(plan.drums).toHaveLength(0)
     expect(plan.bass).toHaveLength(0)
+  })
+
+  it('plays each machine from its independently selected clip', () => {
+    const base = defaultSong()
+    const rest = { note: null, accent: false, slide: false }
+    const primary: Pattern = {
+      id: 'primary',
+      name: 'Primary',
+      length: 4,
+      tracks: {
+        '808.bd': [1, 0, 0, 0],
+        '909.bd': [1, 0, 0, 0],
+      },
+      bass: { '303.a': [{ note: 2, accent: false, slide: false }, rest, rest, rest] },
+    }
+    const alternate: Pattern = {
+      id: 'alternate',
+      name: 'Alternate',
+      length: 4,
+      tracks: {
+        '808.bd': [0, 1, 0, 0],
+        '909.bd': [0, 1, 0, 0],
+      },
+      bass: { '303.a': [rest, { note: 7, accent: true, slide: false }, rest, rest] },
+    }
+    const song = {
+      ...base,
+      patterns: [primary, alternate],
+      chain: [
+        {
+          pattern: 'primary',
+          clips: { tr909: 'alternate', '303.a': 'alternate' },
+          repeat: 1,
+        },
+      ],
+    }
+
+    const first = planStep(song, {
+      absolute: 0,
+      index: 0,
+      bar: 0,
+      time: 0,
+      stepSeconds: 0.1,
+    })
+    expect(first.drums.map((hit) => hit.voiceId)).toEqual(['808.bd'])
+    expect(first.bass).toHaveLength(0)
+
+    const second = planStep(song, {
+      absolute: 1,
+      index: 1,
+      bar: 0,
+      time: 0.1,
+      stepSeconds: 0.1,
+    })
+    expect(second.drums.map((hit) => hit.voiceId)).toEqual(['909.bd'])
+    expect(second.bass.map((hit) => hit.voiceId)).toEqual(['303.a'])
   })
 })

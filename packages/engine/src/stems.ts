@@ -63,21 +63,13 @@ export interface StemOptions {
  */
 export function voicesUsed(song: Song): string[] {
   const seen = new Set<string>()
-  // An empty chain is not an empty song: `patternForBar` falls back to the first pattern,
-  // so that is what plays and that is what needs a stem. Without this line the two
-  // disagree — the transport makes a sound and the stem renderer hands back nothing.
-  const arranged =
-    song.chain.length > 0
-      ? new Set(song.chain.map((step) => step.pattern))
-      : new Set(song.patterns.slice(0, 1).map((p) => p.id))
-  for (const pattern of song.patterns) {
-    if (!arranged.has(pattern.id)) continue
-    for (const id of Object.keys(pattern.tracks)) {
-      if (pattern.tracks[id].some((v) => v !== 0)) seen.add(id)
-    }
-    for (const [id, line] of Object.entries(pattern.bass ?? {})) {
-      if (line.some((s) => s.note !== null)) seen.add(id)
-    }
+  // Derive this from the same plan used by the live engine and renderer. Looking only at
+  // pattern ids is no longer precise once a section can take its 808 and 303 from
+  // different patterns: a source pattern may contain other voices that are not selected.
+  const bars = song.chain.length > 0 ? songBars(song) : 1
+  for (const step of planSong(song, bars)) {
+    for (const hit of step.drums) seen.add(hit.voiceId)
+    for (const hit of step.bass) seen.add(hit.voiceId)
   }
   return [...seen]
 }

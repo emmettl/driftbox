@@ -44,6 +44,17 @@ describe('a round trip', () => {
     expect(step).toEqual({ note: 12, accent: true, slide: true })
   })
 
+  it('keeps independent machine clips', () => {
+    const withClips = song({
+      patterns: [
+        ...song().patterns,
+        { id: 'b', name: 'B', length: 8, tracks: {}, bass: {} },
+      ],
+      chain: [{ pattern: 'a', clips: { tr909: 'b', '303.a': 'b' }, repeat: 4 }],
+    })
+    expect(decodeSong(encodeSong(withClips))!.chain).toEqual(withClips.chain)
+  })
+
   it('keeps per-voice send levels', () => {
     const text = JSON.stringify(
       song({ kit: { params: {}, sends: { '808.bd': { delay: 0.4, reverb: 0.9 } } } }),
@@ -233,6 +244,23 @@ describe('input that is a song but damaged', () => {
     expect(decodeSong(text)!.chain).toEqual([
       { pattern: 'a', repeat: 2 },
       { pattern: 'a', repeat: 1 },
+    ])
+  })
+
+  it('drops only invalid clip overrides and keeps the section', () => {
+    const text = JSON.stringify(
+      song({
+        chain: [
+          {
+            pattern: 'a',
+            clips: { tr808: 'a', tr909: 'ghost' },
+            repeat: 2,
+          },
+        ],
+      }),
+    )
+    expect(decodeSong(text)!.chain).toEqual([
+      { pattern: 'a', clips: { tr808: 'a' }, repeat: 2 },
     ])
   })
 

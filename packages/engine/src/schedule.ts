@@ -1,5 +1,14 @@
 import { DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassNote } from './bass.js'
-import { patternForBar, stepAt, swingFor, type Song } from './pattern.js'
+import {
+  CLIP_SLOTS,
+  barLengthForBar,
+  patternForBar,
+  patternForClip,
+  patternForVoice,
+  stepAt,
+  swingFor,
+  type Song,
+} from './pattern.js'
 import { swingDelay } from './timing.js'
 import type { StepEvent } from './transport.js'
 
@@ -50,16 +59,35 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
   const swung = (voiceId: string) =>
     event.time + swingDelay(event.index, swingFor(song, voiceId), event.stepSeconds)
 
+  // The union tells us which voice ids might exist; `patternForVoice` then reads each
+  // from its selected machine clip. Sets avoid scheduling a voice twice when several
+  // slots fall back to the same whole-groove pattern.
+  const sources = [
+    pattern,
+    ...CLIP_SLOTS.map((slot) => patternForClip(song, event.bar, slot)).filter(
+      (source) => source !== undefined,
+    ),
+  ]
+
+  const drumVoices = new Set(sources.flatMap((source) => Object.keys(source.tracks)))
   const drums: DrumHit[] = []
-  for (const voiceId of Object.keys(pattern.tracks)) {
-    const value = stepAt(pattern, voiceId, event.index)
+  for (const voiceId of drumVoices) {
+    const source = patternForVoice(song, event.bar, voiceId)
+    if (!source) continue
+    const value = stepAt(source, voiceId, event.index)
     if (value === 0) continue
     drums.push({ voiceId, time: swung(voiceId), accent: value === 2 ? 1 : 0.55 })
   }
 
+  const bassVoices = new Set(
+    sources.flatMap((source) => Object.keys(source.bass ?? {})),
+  )
   const bass: BassHit[] = []
-  for (const [voiceId, line] of Object.entries(pattern.bass ?? {})) {
-    const step = line[event.index % pattern.length]
+  for (const voiceId of bassVoices) {
+    const source = patternForVoice(song, event.bar, voiceId)
+    const line = source?.bass?.[voiceId]
+    if (!source || !line) continue
+    const step = line[event.index % source.length]
     if (!step) continue
     // Gate lengths are in seconds, so the line has to know how long a step currently is.
     // Read per step rather than cached, so a tempo change shortens the notes with it
@@ -67,7 +95,7 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
     const note = bassNote(
       song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS,
       step,
-      previousStep(line, event.index, pattern.length),
+      previousStep(line, event.index, source.length),
       event.stepSeconds,
     )
     if (note) bass.push({ voiceId, time: swung(voiceId), note })
@@ -87,8 +115,7 @@ export function planSong(song: Song, bars: number, from = 0): StepPlan[] {
   const out: StepPlan[] = []
   let time = from
   for (let bar = 0; bar < bars; bar++) {
-    const pattern = patternForBar(song, bar)
-    const length = pattern?.length ?? 16
+    const length = barLengthForBar(song, bar)
     for (let index = 0; index < length; index++) {
       const stepSeconds = 60 / song.bpm / 4
       out.push(planStep(song, { absolute: out.length, index, bar, time, stepSeconds }))

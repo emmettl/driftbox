@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  barLengthForBar,
   chainAppend,
   chainMove,
   chainPositionAt,
   chainRemove,
+  chainSetClip,
   chainSetPattern,
   chainSetRepeat,
   defaultKit,
   patternForBar,
+  patternForClip,
+  patternForVoice,
   songBars,
   swingFor,
   type Song,
@@ -101,6 +105,32 @@ describe('which pattern plays', () => {
     expect(patternForBar(s, 0)?.length).toBe(16)
     expect(patternForBar(s, 2)?.length).toBe(8)
   })
+
+  it('selects each machine independently and falls back for the rest', () => {
+    const s = song({
+      chain: [
+        {
+          pattern: 'a',
+          clips: { tr909: 'b', '303.a': 'b' },
+          repeat: 2,
+        },
+      ],
+    })
+    expect(patternForClip(s, 0, 'tr808')?.id).toBe('a')
+    expect(patternForClip(s, 0, 'tr909')?.id).toBe('b')
+    expect(patternForVoice(s, 0, '808.bd')?.id).toBe('a')
+    expect(patternForVoice(s, 0, '909.bd')?.id).toBe('b')
+    expect(patternForVoice(s, 0, '303.a')?.id).toBe('b')
+    expect(patternForVoice(s, 0, '303.b')?.id).toBe('a')
+  })
+
+  it('uses the longest selected clip as the section length', () => {
+    const s = song({
+      chain: [{ pattern: 'b', clips: { tr808: 'a' }, repeat: 1 }],
+    })
+    expect(patternForBar(s, 0)?.length).toBe(8)
+    expect(barLengthForBar(s, 0)).toBe(16)
+  })
 })
 
 describe('editing the arrangement', () => {
@@ -130,6 +160,31 @@ describe('editing the arrangement', () => {
   it('swaps the pattern without losing the repeat', () => {
     const next = chainSetPattern(song(), 0, 'b')
     expect(next[0]).toEqual({ pattern: 'b', repeat: 2 })
+  })
+
+  it('overrides one clip without changing the others', () => {
+    const next = chainSetClip(song(), 0, 'tr909', 'b')
+    expect(next[0]).toEqual({ pattern: 'a', clips: { tr909: 'b' }, repeat: 2 })
+    expect(next[1]).toEqual(song().chain[1])
+  })
+
+  it('removes a redundant clip override when it returns to the fallback', () => {
+    const withClip = song({
+      chain: [{ pattern: 'a', clips: { tr909: 'b', '303.a': 'b' }, repeat: 2 }],
+    })
+    expect(chainSetClip(withClip, 0, 'tr909', 'a')[0]).toEqual({
+      pattern: 'a',
+      clips: { '303.a': 'b' },
+      repeat: 2,
+    })
+    expect(
+      chainSetClip(
+        song({ chain: [{ pattern: 'a', clips: { tr909: 'b' }, repeat: 2 }] }),
+        0,
+        'tr909',
+        'a',
+      )[0],
+    ).toEqual({ pattern: 'a', repeat: 2 })
   })
 
   it('moves an entry up and down', () => {

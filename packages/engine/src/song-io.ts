@@ -1,6 +1,14 @@
 import { DEFAULT_BASS_PARAMS, type BassParams, type BassStep } from './bass.js'
 import { DEFAULT_FX, DEFAULT_SENDS, type SendLevels } from './effects.js'
-import type { ChainStep, Kit, Pattern, Song, StepValue } from './pattern.js'
+import {
+  CLIP_SLOTS,
+  type ChainStep,
+  type ClipSlot,
+  type Kit,
+  type Pattern,
+  type Song,
+  type StepValue,
+} from './pattern.js'
 import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 
 // Turning a Song into text and back.
@@ -24,6 +32,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 /**
  * Bumped when the shape changes in a way a reader cannot infer from the value alone.
  *
+ * 3 — chain entries may independently select an 808, 909 and each 303 clip.
  * 2 — the chain became a list of `{ pattern, repeat }` rather than a list of pattern ids,
  *     so an arrangement can say "eight bars of this" without eight entries.
  * 1 — the original.
@@ -33,7 +42,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
  * rather than against the version number, because a v1 file and a hand-written one with
  * no version at all are the same problem, and only one of them announces itself.
  */
-export const SONG_FORMAT = 2
+export const SONG_FORMAT = 3
 
 interface Envelope {
   v: number
@@ -197,7 +206,19 @@ export function decodeSong(text: string): Song | null {
       // migrates to a repeat of 1 and the song sounds exactly as it did before.
       if (typeof entry === 'string') return { pattern: entry, repeat: 1 }
       if (!isRecord(entry) || typeof entry.pattern !== 'string') return null
-      return { pattern: entry.pattern, repeat: Math.round(clamp(entry.repeat, 1, 64, 1)) }
+      const clips: Partial<Record<ClipSlot, string>> = {}
+      if (isRecord(entry.clips)) {
+        for (const slot of CLIP_SLOTS) {
+          const patternId = entry.clips[slot]
+          if (typeof patternId === 'string' && ids.has(patternId)) clips[slot] = patternId
+        }
+      }
+      const step: ChainStep = {
+        pattern: entry.pattern,
+        repeat: Math.round(clamp(entry.repeat, 1, 64, 1)),
+      }
+      if (Object.keys(clips).length > 0) step.clips = clips
+      return step
     })
     // A chain entry naming a pattern that is not here would play the wrong bar rather
     // than nothing, because `patternForBar` falls back to the first pattern.

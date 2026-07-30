@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { chainPositionAt } from '@driftbox/engine'
+import { patternForClip, type ClipSlot } from '@driftbox/engine'
 import { useBox } from '../store'
 
 /**
@@ -26,16 +26,20 @@ export function useFollowPlayhead(): void {
   useEffect(() => {
     if (!engine || !running) return
     let frame = 0
-    let lastBar = -1
+    let lastTarget = ''
     const poll = () => {
       frame = requestAnimationFrame(poll)
       const { bar } = engine.position
-      if (bar === lastBar) return
-      lastBar = bar
-      const { song, followPlayhead, editing } = useBox.getState()
+      const { song, followPlayhead, editing, view, selectedBass } = useBox.getState()
       if (!followPlayhead) return
-      const at = chainPositionAt(song, bar)
-      if (at && at.step.pattern !== editing) useBox.setState({ editing: at.step.pattern })
+      const slot: ClipSlot = view === 'bass' ? (selectedBass as ClipSlot) : view
+      // The sounding pattern can change because the bar moved OR because the editor
+      // switched from (say) the 808 clip to the 909 clip inside the same section.
+      const target = `${bar}:${slot}`
+      const pattern = patternForClip(song, bar, slot)
+      if (target === lastTarget && pattern?.id === editing) return
+      lastTarget = target
+      if (pattern && pattern.id !== editing) useBox.setState({ editing: pattern.id })
     }
     frame = requestAnimationFrame(poll)
     return () => cancelAnimationFrame(frame)
