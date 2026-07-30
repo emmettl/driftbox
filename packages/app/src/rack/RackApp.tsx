@@ -9,6 +9,7 @@ import { BREAKS, renderBreak } from './breaks.js'
 import { Kaoss, toWav } from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
+import { ccValue, targets as ccTargets } from './cc.js'
 import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
 import { Modulation } from './Modulation.js'
@@ -226,6 +227,36 @@ export default function RackApp() {
     for (const { state, channel } of bank.current.allOff()) playVoice(state, channel)
   }, [playVoice])
 
+  /**
+   * A controller moved. Either teach it a parameter, or move the ones it already drives.
+   *
+   * **Through the store, not straight to the audio thread** — and that is the opposite of what a *note*
+   * does two functions up. The difference is real: a note somebody played is performance and must never
+   * reach the patch, whereas a controller turning a Combinator rotary is the same act as turning that
+   * rotary with a mouse. It has to move the knob on screen, run the Combinator's routing so everything it
+   * drives moves with it, save, and travel in a link. `setParam` already does all of that; going direct
+   * would give a rotary that silently did nothing but change the sound.
+   */
+  const onControl = useCallback((cc: number, raw: number, channel: number) => {
+    const state = useRack.getState()
+    // Learning wins. While a parameter is armed, the next controller message teaches it rather than moving
+    // whatever else that controller happens to be bound to — otherwise arming a knob you had already
+    // mapped would fight itself.
+    if (state.ccLearning) {
+      state.finishCcLearn(cc)
+      return
+    }
+    for (const binding of ccTargets(state.ccBindings, cc, channel)) {
+      const module = state.patch.modules.find((m) => m.id === binding.module)
+      if (!module) continue
+      const param = MODULES[module.type]?.params.find((p) => p.id === binding.param)
+      // A binding whose module has been deleted, or whose param this build does not have. Left in storage
+      // rather than pruned: the patch it was taught against may well be opened again.
+      if (!param || param.hidden) continue
+      state.setParam(binding.module, binding.param, ccValue(raw, param))
+    }
+  }, [])
+
   async function toggleMidi() {
     if (midi.current) {
       midi.current.close()
@@ -238,6 +269,7 @@ export default function RackApp() {
       {
         onVoice: (state, channel) => playVoice(state, channel),
         onMod: (value, channel) => sendMidi(channel, { mod: value }),
+        onControl,
       },
       bank.current,
     )

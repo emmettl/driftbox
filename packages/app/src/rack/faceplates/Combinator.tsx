@@ -1,6 +1,7 @@
 import { COMBI_CONTROLS, COMBI_ROTARY_MAX, MODULES } from '@driftbox/rack'
 import { Knob } from '../../ui/Knob.js'
 import { useRack } from '../store.js'
+import { bindingsFor, describeBinding } from '../cc.js'
 import type { FaceplateProps } from './types.js'
 
 // Reason's Combinator front panel: four rotaries, four buttons, and a way through to what they drive.
@@ -17,6 +18,12 @@ import type { FaceplateProps } from './types.js'
 // **A routed knob elsewhere in the rack is marked, not disabled.** Reason lets you grab one too, and the
 // routing simply takes it back on the next gesture. Disabling would be defensible and is worse: it makes a
 // perfectly good control dead, and it hides the fact that the routing is what moved it.
+//
+// **Each rotary also carries its MIDI learn chip**, and that is what finishes the device. A Combinator is a
+// performance idea — one gesture moving a dozen parameters — and performing it with a mouse is one gesture
+// at a time. The chip is three states in one control because there is only room for one: it says `learn`,
+// then `turn one…` while armed, then the controller it was taught. Shift-click forgets, which needs a way
+// in or a mistaken binding is permanent — re-learning cannot unbind. See `cc.ts`.
 
 export function Combinator({ def, module, value, onChange }: FaceplateProps) {
   const routes = useRack((s) => s.patch.modulation)
@@ -24,9 +31,34 @@ export function Combinator({ def, module, value, onChange }: FaceplateProps) {
   const cables = useRack((s) => s.patch.cables)
   const editing = useRack((s) => s.editingRoutes)
   const editRoutes = useRack((s) => s.editRoutes)
+  // Selected as the array, filtered below. A selector that builds a new object every call hands zustand a
+  // different snapshot each render and loops for ever — this app has had that bug once already.
+  const ccBindings = useRack((s) => s.ccBindings)
+  const ccLearning = useRack((s) => s.ccLearning)
+  const startCcLearn = useRack((s) => s.startCcLearn)
+  const cancelCcLearn = useRack((s) => s.cancelCcLearn)
+  const clearCcBinding = useRack((s) => s.clearCcBinding)
 
   const param = (id: string) => def.params.find((p) => p.id === id)!
   const open = editing === module.id
+
+  const bound = bindingsFor(ccBindings, module.id)
+  const arming = (id: string) => ccLearning?.module === module.id && ccLearning.param === id
+  /**
+   * Arm a control, or disarm it, or forget what it learned.
+   *
+   * One control does all three because there is only room for one, and the states are mutually exclusive:
+   * shift-click forgets, a click on an armed control disarms, anything else arms. Forgetting needs a way in
+   * or a mistaken binding is permanent, and re-learning is not the same thing — it cannot unbind.
+   */
+  const onLearn = (id: string, forget: boolean) => {
+    if (forget) {
+      clearCcBinding(module.id, id)
+      return
+    }
+    if (arming(id)) cancelCcLearn()
+    else startCcLearn(module.id, id)
+  }
 
   const mine = (routes ?? []).filter((route) => route.from[0] === module.id)
 
@@ -93,6 +125,20 @@ export function Combinator({ def, module, value, onChange }: FaceplateProps) {
                 <span className="rk-combi-count" data-wired={live ? 'yes' : 'no'}>
                   {doing(id)}
                 </span>
+                <button
+                  type="button"
+                  className="rk-combi-cc"
+                  data-state={arming(id) ? 'arming' : bound.has(id) ? 'bound' : 'free'}
+                  aria-pressed={arming(id)}
+                  title={
+                    bound.has(id)
+                      ? `${describeBinding(bound.get(id)!)} — click to relearn, shift-click to forget`
+                      : 'Click, then turn a knob on your controller'
+                  }
+                  onClick={(event) => onLearn(id, event.shiftKey)}
+                >
+                  {arming(id) ? 'turn one…' : bound.has(id) ? describeBinding(bound.get(id)!) : 'learn'}
+                </button>
               </div>
             )
           })}

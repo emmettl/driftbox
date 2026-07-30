@@ -15,6 +15,7 @@ import {
 } from '@driftbox/rack'
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takePatchFromUrl } from './persistence.js'
+import { forget, learn, loadBindings, saveBindings, type CcBinding } from './cc.js'
 import { tempoForBars } from './sample.js'
 
 // What is on screen. `@driftbox/rack` owns the sound; this owns the patch as immutable data so React
@@ -114,6 +115,30 @@ interface RackState {
    */
   editingRoutes: string | null
   editRoutes: (moduleId: string | null) => void
+
+  /**
+   * Learned MIDI controller mappings. **Session state kept beside the patch, never in it.**
+   *
+   * A patch travels in a URL; a binding describes the box on somebody's desk. Sharing a patch that
+   * silently re-aimed another person's controller would be wrong, and carrying a mapping for hardware
+   * nobody else owns would be carrying noise. See the note at the top of `cc.ts`.
+   */
+  ccBindings: CcBinding[]
+  /** Which parameter is waiting to be taught a controller, or null. */
+  ccLearning: { module: string; param: string } | null
+  /** Arm a parameter: the next controller message that arrives becomes its binding. */
+  startCcLearn: (moduleId: string, paramId: string) => void
+  cancelCcLearn: () => void
+  /**
+   * Finish a learn. Does nothing if nothing was armed, which is what a stray controller message is.
+   *
+   * Takes no channel on purpose. A binding listens on every channel, because a controller's knobs and its
+   * keys often sit on different ones and somebody who has just turned a knob to teach it should not have
+   * to know which was listening. Per-channel binding is a small change to `CcBinding`, which already
+   * carries the field, on the day two controllers make it worth having.
+   */
+  finishCcLearn: (cc: number) => void
+  clearCcBinding: (moduleId: string, paramId: string) => void
 
   setNotes: (notes: PlanNote[]) => void
   setName: (name: string | null) => void
@@ -334,6 +359,25 @@ export const useRack = create<RackState>((set, get) => {
 
     editingRoutes: null,
     editRoutes: (editingRoutes) => set({ editingRoutes }),
+
+    // Read once, at construction. Bindings change when somebody learns one, which is rare, so there is
+    // nothing to gain from re-reading storage and a stale read would be a mapping that stopped working.
+    ccBindings: loadBindings(),
+    ccLearning: null,
+    startCcLearn: (module, param) => set({ ccLearning: { module, param } }),
+    cancelCcLearn: () => set({ ccLearning: null }),
+    finishCcLearn: (cc) => {
+      const armed = get().ccLearning
+      if (!armed) return
+      const bindings = learn(get().ccBindings, { cc, channel: 0, ...armed })
+      saveBindings(bindings)
+      set({ ccBindings: bindings, ccLearning: null })
+    },
+    clearCcBinding: (module, param) => {
+      const bindings = forget(get().ccBindings, module, param)
+      saveBindings(bindings)
+      set({ ccBindings: bindings })
+    },
 
     addChunk: (chunk) => {
       let result: Inserted | null = null

@@ -10,9 +10,9 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 23 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 25 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
-Combinator routing, performance mode and offline export. `packages/app/src/hash.ts` carries
+Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
 that are expensive to change later — where implementation taught us something different, this
 file says so rather than describing only the plan we started with.
@@ -746,6 +746,36 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
    freshly dropped thing did nothing at all. Measured peaks: reese 0.48, combi 0.56, chop 0.39, sub 0.69,
    hats 0.64, and Break 0.0000 exactly, which is what makes its `needsSample` flag a real distinction
    rather than a precaution.
+
+   **5b⅞. Playing the Combinator from hardware.** ✅ Built — MIDI learn, in `app/src/rack/cc.ts`.
+
+   The Combinator is a **performance** idea: one gesture moving a dozen parameters. Performing it with a
+   mouse is one gesture at a time, so until this it was a macro panel you configured rather than one you
+   played. This is the other half of the feature, and it is why the rotaries run 0..127 in the first place —
+   that is a controller's range, and `modules/combi.ts` said so before anything could send one.
+
+   - **Learn, not fixed controller numbers.** A table — CC 16 is rotary one — is less code and quietly
+     demands everybody reconfigure their hardware to match us. Most cheap controllers cannot be
+     reconfigured at all. Learn is the difference between a feature and a feature with a prerequisite.
+   - **Bindings are not part of the patch.** A patch travels in a URL; a binding describes the box on your
+     desk. Sharing a patch that silently re-aimed somebody else's controller would be wrong, and one
+     carrying a mapping for hardware nobody else owns would be carrying noise. They live in storage, beside
+     the patch, like `SampleInfo` and the fold states.
+   - **A controller goes through the store, not straight to the audio thread** — the opposite of what a
+     *note* does. A note is performance and must never reach the patch; a controller turning a rotary is
+     the same act as turning it with a mouse, so it has to move the knob on screen, run the routing so
+     everything it drives moves too, save, and travel in a link. Going direct would give a rotary that
+     silently changed the sound and nothing else.
+   - **One binding per target, one controller to many targets.** The same shape as the rack itself: an
+     inlet takes one cable, an outlet feeds as many as you like. Two controllers on one rotary is a fault
+     you cannot see, because the old one still moves it.
+
+   All the decision logic is pure and tested in Node, for the reason `midiTargets` already gives: Chrome
+   refuses Web MIDI under automation, so a rule left inside the message handler could not be verified at
+   all. What *had* never been exercised was the wiring between handler, store and audio thread — so that
+   was driven in a browser against a **fake `requestMIDIAccess`**, and it is worth doing again if any of
+   it moves. End to end: arm a rotary, send CC 74, the chip reads `CC 74`; sweep it 0 to 127 and the
+   Combi chunk's filter goes 120Hz to 6000Hz, which is exactly the range that chunk's routing declares.
 
    **5c. A VCV Rack importer, topology only.** ✅ Built. Both predictions held.
 
