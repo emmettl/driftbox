@@ -236,6 +236,19 @@ export class KeyboardBank {
 export interface MidiEvents {
   onVoice(state: VoiceState, channel: number): void
   onMod(value: number, channel: number): void
+  /**
+   * Every control change, raw, including the two handled specially below.
+   *
+   * Raw rather than normalised, because the host has to be able to *learn* the number as well as act on
+   * the value — and a 0..1 that has lost which controller sent it cannot be learned. Turning it into the
+   * target parameter's units is `cc.ts`'s job, where it is pure and tested; Chrome refuses Web MIDI under
+   * automation, so a rule left in here could not be verified at all.
+   *
+   * CC 1 and CC 123 still do what they did. They are also delivered here, so somebody who wants their mod
+   * wheel driving a Combinator rotary can have that too — withholding it would be the handler deciding
+   * what the instrument is for.
+   */
+  onControl(cc: number, value: number, channel: number): void
 }
 
 export interface MidiHandle {
@@ -297,6 +310,10 @@ export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<
       // CC 1 is the mod wheel; CC 123 is all-notes-off, which is what a panic button sends.
       if (data[1] === 1) events.onMod(data[2] / 127, channel)
       if (data[1] === 123) emit(keyboard.allOff())
+      // And every controller reaches the host, so any of them can be learned onto a parameter. Delivered
+      // after the special cases rather than instead of them: the mod wheel keeps working *and* can be
+      // bound, which is a decision the message handler should not be making on somebody's behalf.
+      events.onControl(data[1], data[2], channel)
     }
   }
 

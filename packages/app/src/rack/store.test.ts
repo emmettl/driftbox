@@ -1,4 +1,4 @@
-import { MODULES, compile, patchPresetById, type Patch } from '@driftbox/rack'
+import { MODULES, compile, encodePatch, patchPresetById, type Patch } from '@driftbox/rack'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { STARTER, useRack } from './store.js'
 
@@ -401,5 +401,76 @@ describe('Combinator routing', () => {
     expect(plan.params[plan.slots['ladder-1'].cutoff].value).toBe(
       useRack.getState().paramValue('ladder-1', 'cutoff'),
     )
+  })
+})
+
+describe('learning a MIDI controller', () => {
+  beforeEach(() => {
+    useRack.setState({ ccBindings: [], ccLearning: null })
+  })
+
+  it('arms a parameter and binds the next controller to it', () => {
+    useRack.getState().startCcLearn('combi-1', 'rotary1')
+    expect(useRack.getState().ccLearning).toEqual({ module: 'combi-1', param: 'rotary1' })
+
+    useRack.getState().finishCcLearn(74)
+    expect(useRack.getState().ccLearning).toBeNull()
+    expect(useRack.getState().ccBindings).toEqual([
+      { cc: 74, channel: 0, module: 'combi-1', param: 'rotary1' },
+    ])
+  })
+
+  it('ignores a controller when nothing is armed', () => {
+    // Which is what every stray knob twiddle is. Binding on any incoming message would make the feature
+    // impossible to leave switched on.
+    useRack.getState().finishCcLearn(74)
+    expect(useRack.getState().ccBindings).toEqual([])
+  })
+
+  it('replaces a target’s binding rather than adding a second', () => {
+    // Two controllers driving one rotary is a fault you cannot see: the old one still moves it.
+    useRack.getState().startCcLearn('combi-1', 'rotary1')
+    useRack.getState().finishCcLearn(20)
+    useRack.getState().startCcLearn('combi-1', 'rotary1')
+    useRack.getState().finishCcLearn(21)
+    expect(useRack.getState().ccBindings).toHaveLength(1)
+    expect(useRack.getState().ccBindings[0].cc).toBe(21)
+  })
+
+  it('lets a learn be cancelled', () => {
+    useRack.getState().startCcLearn('combi-1', 'rotary1')
+    useRack.getState().cancelCcLearn()
+    useRack.getState().finishCcLearn(74)
+    expect(useRack.getState().ccBindings).toEqual([])
+  })
+
+  it('forgets one binding and leaves the rest', () => {
+    for (const [param, cc] of [['rotary1', 20], ['rotary2', 21]] as const) {
+      useRack.getState().startCcLearn('combi-1', param)
+      useRack.getState().finishCcLearn(cc)
+    }
+    useRack.getState().clearCcBinding('combi-1', 'rotary1')
+    expect(useRack.getState().ccBindings.map((b) => b.param)).toEqual(['rotary2'])
+  })
+
+  it('binds on every channel, so the knobs need not be on the keys’ channel', () => {
+    useRack.getState().startCcLearn('combi-1', 'rotary1')
+    useRack.getState().finishCcLearn(74)
+    expect(useRack.getState().ccBindings[0].channel).toBe(0)
+  })
+
+  it('never puts a binding in the patch', () => {
+    // The decision `cc.ts` defends: a patch travels in a URL and a binding describes somebody's desk.
+    //
+    // Reference identity is the proof — if the object did not change, nothing was added to it — plus the
+    // encoded form, which is what actually travels. An earlier version of this searched the JSON for the
+    // controller number and failed on the starter patch's `tempo: 174`, which is a good demonstration of
+    // why a substring is not an assertion.
+    const before = useRack.getState().patch
+    const encodedBefore = encodePatch(before)
+    useRack.getState().startCcLearn('combi-1', 'rotary1')
+    useRack.getState().finishCcLearn(74)
+    expect(useRack.getState().patch).toBe(before)
+    expect(encodePatch(useRack.getState().patch)).toBe(encodedBefore)
   })
 })

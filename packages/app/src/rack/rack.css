@@ -1091,6 +1091,48 @@ kbd {
   color: var(--nine);
 }
 
+/* The MIDI learn chip under each rotary. Three states in one control, because there is only room for one:
+   free, armed, and bound. Tiny — it is configuration, and it sits under the thing you actually play. */
+.rk-combi-cc {
+  font: 9px var(--mono);
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-top: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rk-combi-cc:hover {
+  border-color: var(--nine);
+  color: var(--nine);
+}
+.rk-combi-cc[data-state='bound'] {
+  color: var(--nine);
+  border-color: rgba(95, 240, 208, 0.4);
+}
+/* Armed. It pulses, because the instruction is "now go and touch your hardware" and the page is no longer
+   where you are looking — something has to still be saying so when you glance back. */
+.rk-combi-cc[data-state='arming'] {
+  color: var(--bg);
+  background: var(--three);
+  border-color: var(--three);
+  animation: rk-arming 1s ease-in-out infinite;
+}
+@keyframes rk-arming {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The pulse is the only thing saying "armed" once you have looked away, so it does not simply vanish —
+     it stops moving and keeps the colour, which is the same message without the motion. */
+  .rk-combi-cc[data-state='arming'] {
+    animation: none;
+  }
+}
+
 .rk-combi-buttons {
   gap: 8px;
 }
