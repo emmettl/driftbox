@@ -185,9 +185,31 @@ One consequence of transferring rather than copying, worth knowing: `setData` em
 so loading one break into two samplers needs a copy per sampler. The alternative was copying on the audio
 thread's doorstep, which is what transferring exists to avoid.
 
-**B2. Sequencer.** Multi-lane, 16 to 64 steps, transport-locked, patterns written in the engine's notation.
-Lanes emit gates; one lane emits pitch. This is what drives the sampler's slice index, which is where the
-breakbeat mangling comes from.
+**B2. Tracker.** ✅ Built, as `tracker` — four lanes of up to 64 steps, pattern in `PatchModule.data`.
+
+This was planned as "lanes emit gates; one lane emits pitch" and built differently, which is worth recording
+because the difference is the whole module. **Every lane is values, not switches.** A step is a number: zero is
+a rest, anything else opens the gate *and* comes out as a CV. One decision, and it means the same lane can drive
+drums (any non-zero), a bassline (semitones) or a chopped break (slice indices) — which in most racks is three
+modules. A dedicated pitch lane would have made the other three second-class.
+
+Two details that follow from it:
+
+- **The CV holds its last non-zero value across rests.** A rest is a gap in the rhythm, not a lurch to zero in
+  the pitch. Dropping to zero would end every phrase on the same wrong note and lurch anything tracking the CV.
+- **A per-lane `Unit` switch.** Semitones by default, because that is what every other pitch-shaped signal in
+  the rack is; `Unit` divides by 16 instead — a bar of sixteenths, and the Sampler's default slice count — so a
+  lane written 0-15 sweeps exactly one pass through a chopped break. Both wirings are then direct, with no
+  scaler module in between, which is the point.
+
+The existing 8-step `seq` is **kept** rather than replaced. Rewriting its param shape would have broken every
+patch already shared as a URL, and "a short one with knobs" and "a long one with a pattern" are different
+instruments to reach for.
+
+One trap, and the contract suite caught it: the first version read module-scope `LANES`/`UNIT` constants inside
+`process()`. A processor is serialised with `Class.toString()` into an `AudioWorkletGlobalScope` where that scope
+does not exist, so it would have thrown a `ReferenceError` the first time a patch with a tracker loaded. The fix
+derives the lane count from `outlets.length / 3`, which cannot disagree with the def either.
 
 **B3. On-screen keyboard.** Cheap and high value: `app/src/ui/Keys.tsx` exists, and the per-voice param path the
 MIDI module already uses is exactly what it needs. It is also what makes the rack playable on a phone, where

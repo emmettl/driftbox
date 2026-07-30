@@ -1,8 +1,9 @@
 import { MODULES, type PatchCable } from '@driftbox/rack'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { cableMiddle, cablePath, type Point } from './cable.js'
+import { cableMiddle, cablePath, swingAngle, swingSeed, type Point } from './cable.js'
 import { SNAP, type Jack, jackAt, jacks, nearestJack, type Layout } from './layout.js'
 import { useRack } from './store.js'
+import { useSwing } from './useSwing.js'
 
 // The back of the rack. Jacks, and cables hanging between them.
 //
@@ -13,6 +14,11 @@ import { useRack } from './store.js'
 //
 // The cables are an SVG in the same coordinate space as the modules, so nothing has to be measured and
 // a resize is a CSS problem rather than a recalculation.
+//
+// They also SWING when the rack turns, which is not a garnish — it is the single detail that made
+// Reason's back panel feel like an object rather than a diagram, and it is cheap: one pendulum angle per
+// cable, from `swingAngle`, over the second and a half after a flip. Each cable's period comes from its
+// own sag, so they do not move in lockstep. See `cable.ts` for why that is the whole trick.
 
 interface Props {
   layout: Layout
@@ -29,6 +35,10 @@ export function BackPanel({ layout }: Props) {
   const connect = useRack((s) => s.connect)
   const disconnect = useRack((s) => s.disconnect)
   const notes = useRack((s) => s.notes)
+  const flipped = useRack((s) => s.flipped)
+
+  /** How long ago the rack was spun, and which way. Null between flips, and the cables hang still. */
+  const swing = useSwing(flipped)
 
   const all = useMemo(() => jacks(layout.placements, MODULES), [layout])
   const [dragging, setDragging] = useState<Dragging | null>(null)
@@ -172,12 +182,19 @@ export function BackPanel({ layout }: Props) {
           // behaves unlike its picture is worse than one that admits it — the compiler reports these
           // for exactly this purpose.
           const isDelayed = delayed.has(cable.to[0])
-          const grab = cableMiddle(from, to)
+          // Zero between flips, which makes this arithmetically the resting path. The key is the seed, so
+          // this cable's own period and delay are stable across every render rather than jumping.
+          const angle =
+            swing.elapsed === null
+              ? 0
+              : swingAngle(swing.elapsed, from, to, swing.direction, swingSeed(key))
+          const grab = cableMiddle(from, to, angle)
+          const d = cablePath(from, to, angle)
 
           return (
             <g key={key} className={isDelayed ? 'rk-cable rk-cable-delayed' : 'rk-cable'}>
-              <path className="rk-cable-shadow" d={cablePath(from, to)} />
-              <path className="rk-cable-line" d={cablePath(from, to)} />
+              <path className="rk-cable-shadow" d={d} />
+              <path className="rk-cable-line" d={d} />
               <circle
                 className="rk-cable-grab"
                 cx={grab.x}

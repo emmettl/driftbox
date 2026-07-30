@@ -140,7 +140,7 @@ describe('what the compiler says about voices', () => {
     // do it. If a new module appears here, it should be because duplicating it would be wrong rather than
     // because nobody thought about it.
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
-    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'seq', 'transport'])
+    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'seq', 'tracker', 'transport'])
   })
 })
 
