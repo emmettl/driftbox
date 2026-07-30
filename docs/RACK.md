@@ -162,7 +162,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Fifteen modules
+## Sixteen modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -180,7 +180,8 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **S&H** | sample and hold |
 | **Offset** | attenuverter and offset. Unglamorous and load-bearing |
 | **Mixer** | four in, CV levels |
-| **Clock/Seq** | gate and pitch out, driven by the transport |
+| **Clock** | gate, a fixed 1ms trigger, and a phase ramp. Armed at construction, so it ticks the moment it is patched |
+| **Seq** | eight steps of pitch and on/off, advanced by an external clock. No clock inside it |
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
@@ -407,12 +408,40 @@ The risk is all in the first item. Do it first and alone.
 
    `ParamDef` still has no `curve` field: the taper is the faceplate's business until there is
    a faceplate to have an opinion.
-3. **The other twelve modules.** Now cheap, now independent — each is a class, a def and a
-   test, and none of them can break another. The registry is already a parameter rather than a
-   constant, which `graph.test.ts` leans on by defining modules of its own.
-4. **The rack UI.** A list of faceplates first, cables second. This is the largest single
-   piece of work in the project by a wide margin, which is the reason it is fourth: by the
-   time the cables are drawn, everything they represent already works and is measured.
+3. **The other modules.** ✅ Built — sixteen in the registry, and the "cheap and independent"
+   prediction held: each is a class, a def and a test, and none of them broke another. What did
+   not hold was the count and a few of the designs.
+
+   - **Clock and Seq are two modules, not one.** A clock that is not a sequencer can drive four
+     of them at different divisions; a sequencer with no clock in it can be advanced by an
+     envelope, a comparator, or another sequencer's gate. One module doing both would have made
+     every one of those a special case.
+   - **Modules with several responses expose all of them at once.** The SVF has four outlets
+     rather than a mode knob, Noise has white and pink, the LFO has bipolar and unipolar. Each is
+     computed anyway, so a selector would be spending a knob to withhold something already
+     sitting in a register — and the LFO's pair removes the commonest piece of patch furniture
+     in a modular, the offset module whose only job is turning ±1 into 0..1 for a VCA.
+   - **`ProcessorClass` gained a third argument: the module's `id`.** Anything random seeds from
+     it. Seeding from an instance counter — the first attempt — meant a patch containing noise
+     sounded different every time the graph was rebuilt, which quietly makes "the same patch is
+     the same sound" false. An id is stable across sessions and different between two Noise
+     modules, so it gets reproducibility and decorrelation from one change.
+   - **Two DSP claims were wrong until measured.** Asymmetric saturation produces *signal
+     dependent* DC, so Drive's original trick of subtracting `tanh(bias * drive)` left an offset
+     of 0.51 on a 0.6 sine; it has a 5Hz DC blocker now, which is what real distortion circuits
+     do. And Kellet's suggested pink make-up gain of 0.11 leaves pink 9dB below the white outlet
+     next to it — 0.325 is measured to match.
+
+   The most valuable file to come out of this is `modules/modules.test.ts`, which holds every
+   entry in the registry to the structural rules at once: writes every outlet sample, never
+   writes an inlet or a param buffer, stays finite at both ends of every param with hostile
+   inlets, is deterministic, survives `toString()` into a bare scope, and declares every dep it
+   looks up. A new module gets all of it by being added to the list.
+4. **The rack UI.** ← next. A list of faceplates first, cables second, at `rack.html` per the
+   entry-point section above. This is the largest single piece of work in the project by a wide
+   margin, which is the reason it is fourth: by the time the cables are drawn, everything they
+   represent already works and is measured — three integration patches in `graph.test.ts` play a
+   sequenced line, a generative one, and every module in the registry at once.
 5. **Then decide** about polyphony, third-party modules, and whether the VCV importer above is
    a weekend or a rabbit hole. All three are real products in their own right and none should
    be guessed at from here.

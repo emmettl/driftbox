@@ -59,8 +59,17 @@ export interface Processor {
  * `deps` carries the shared DSP classes the module asked for, keyed by the names in its
  * def. It is passed in rather than referenced by identifier on purpose — see the comment
  * in `worklet.ts` about what a minifier does to a stringified class.
+ *
+ * `id` is the module's id from the patch. Almost nothing needs it; what does need it is anything
+ * random, because seeding from an id is what makes a patch containing noise sound the same twice
+ * while still letting two Noise modules decorrelate. See `dsp/random.ts`. A class that ignores it
+ * simply declares a shorter constructor.
  */
-export type ProcessorClass = new (sampleRate: number, deps: Record<string, unknown>) => Processor
+export type ProcessorClass = new (
+  sampleRate: number,
+  deps: Record<string, unknown>,
+  id: string,
+) => Processor
 
 /** A shared DSP class a module can ask for by name. `never[]` rather than `unknown[]` so
  *  that a constructor taking real arguments is still assignable. */

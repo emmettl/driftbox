@@ -172,7 +172,7 @@ export class Graph {
         continue
       }
       this.nodes.push({
-        processor: new Constructor(this.sampleRate, this.deps),
+        processor: new Constructor(this.sampleRate, this.deps, node.id),
         inlets: node.inlets.map(at),
         outlets: node.outlets.map((index) => (index > 0 ? at(index) : this.scratch)),
         params: node.params.map((slot) => this.paramBuffers[slot] ?? this.scratch),

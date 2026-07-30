@@ -3,9 +3,9 @@
 A modular synth rack: modules, cables between any of them, and one graph running at sample
 rate inside a single AudioWorklet.
 
-This is the **spine** — a compiler, three modules and a worklet host. There is no UI, no
-patch file format and no way to drag a cable yet. `../../docs/RACK.md` is the design and the
-build order; this package is step one of it.
+Sixteen modules, a compiler, a worklet host and a patch format. There is no UI and no way to
+drag a cable yet — `../../docs/RACK.md` is the design and the build order, and this package is
+steps one to three of it.
 
 ```js
 import { Rack } from '@driftbox/rack'
@@ -70,11 +70,16 @@ volts-per-octave and 0 V is C2. Nothing enforces which is which.
 
 ## Tests
 
-51 of them, none needing a browser. `compile.test.ts` covers the graph as graph theory,
-`graph.test.ts` runs the whole thing in Node and measures the audio, `modules/vco.test.ts`
-measures alias suppression against an additively-synthesised reference, and
-`worklet.test.ts` evaluates the assembled worklet source in a scope of its own and asserts
-it produces the same samples as the graph running in-process.
+None of them need a browser.
+
+| | |
+|---|---|
+| `modules/modules.test.ts` | Every module in the registry against the structural rules at once — writes every outlet sample, never writes an inlet or a param buffer, stays finite at both ends of every param with hostile inlets, is deterministic, survives `toString()` into a bare scope, declares every dep it looks up. A new module gets all of it by being added to the list |
+| `compile.test.ts` | The graph as graph theory: ordering, cycle breaking, the zero buffer, contested inlets, placeholders, migration |
+| `graph.test.ts` | The whole thing in Node, measuring the audio — including three patches that use most of the rack at once |
+| `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
+| `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
+| per-module | The claims each module's comments make: alias suppression against an additive reference, the pink slope, every ADSR time knob against a stopwatch, the delay's interpolation, the quantizer's octave boundaries |
 
 ```bash
 npm test --workspace @driftbox/rack
