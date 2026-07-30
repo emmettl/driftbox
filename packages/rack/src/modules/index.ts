@@ -24,8 +24,9 @@ import { TRACKER_MODULE } from './tracker.js'
 import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
+import { VOCODER_MODULE } from './vocoder.js'
 
-// Twenty-five modules: enough to make a track, something to play it with, something that knows what a bar
+// Twenty-six modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -63,6 +64,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   SVF_MODULE,
   VCA_MODULE,
   ALLIGATOR_MODULE,
+  VOCODER_MODULE,
   DRIVE_MODULE,
   DELAY_MODULE,
   ADSR_MODULE,
@@ -114,3 +116,10 @@ export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './tracker.js'
 export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
+export {
+  VOCODER_BAND_COUNTS,
+  VOCODER_MAX_BANDS,
+  VOCODER_MODULE,
+  VOCODER_RANGE_HZ,
+  VocoderProcessor,
+} from './vocoder.js'
