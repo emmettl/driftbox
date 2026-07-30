@@ -100,8 +100,10 @@ rotated, randomised or rearranged without changing how much material it contains
 lines can also be transposed. Rotation can expand to the whole machine currently on
 screen.
 
-The **Song** strip along the top is the arrangement — each card is a pattern and a number
-of bars, and it can be rearranged while the thing is playing.
+The **Song** strip along the top is the arrangement. Each card is a number of bars and
+shows the clip for the machine currently on screen: switch between 808, 909, 303 A and
+303 B to give the same section four independent patterns and loop lengths. It can all be
+changed and rearranged while the thing is playing.
 
 Your work is saved as you go. **share** puts the whole song in a link, **save** and
 **load** move it to and from a file, and **reset** goes back to the shipped patterns.

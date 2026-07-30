@@ -23,11 +23,9 @@ export interface Pattern {
    * Bass voice id to its line. Optional, so a pattern written before the 303s existed
    * still loads — which matters now that patterns are saved and shared.
    *
-   * Basslines live on the pattern rather than in a sequence of their own, so one entry
-   * in the chain is one bar of the whole arrangement. It means a bassline cannot run at
-   * a different length from the drums under it, which rules out one trick and buys back
-   * the chain, the pattern buttons and the copy/clear behaviour working on everything
-   * at once instead of on drums only.
+   * A pattern is still a convenient whole-groove snapshot. Chain clips may independently
+   * choose the 808, 909 and each 303 line from different snapshots, so the same pool works
+   * both as the original Driftbox pattern bank and as ReBirth-style machine sequences.
    */
   bass?: Record<string, BassStep[]>
 }
@@ -75,8 +73,16 @@ export function swingFor(song: Song, voiceId: string): number {
  * list of pattern ids means sixteen identical entries to scroll past and re-edit every
  * time you change your mind about the length.
  */
+export const CLIP_SLOTS = ['tr808', 'tr909', '303.a', '303.b'] as const
+export type ClipSlot = (typeof CLIP_SLOTS)[number]
+
 export interface ChainStep {
+  /**
+   * The whole-groove fallback. Old songs only have this field and therefore sound
+   * byte-for-byte as before. A clip override replaces just one machine's material.
+   */
   pattern: string
+  clips?: Partial<Record<ClipSlot, string>>
   /** Bars. At least 1. */
   repeat: number
 }
@@ -190,7 +196,17 @@ export function removePattern(song: Song, id: string): Song {
   return {
     ...song,
     patterns: song.patterns.filter((p) => p.id !== id),
-    chain: song.chain.filter((step) => step.pattern !== id),
+    chain: song.chain
+      .filter((step) => step.pattern !== id)
+      .map((step) => {
+        if (!step.clips || !Object.values(step.clips).includes(id)) return step
+        const clips = Object.fromEntries(
+          Object.entries(step.clips).filter(([, patternId]) => patternId !== id),
+        ) as Partial<Record<ClipSlot, string>>
+        return Object.keys(clips).length > 0
+          ? { ...step, clips }
+          : { pattern: step.pattern, repeat: step.repeat }
+      }),
   }
 }
 
@@ -449,6 +465,40 @@ export function patternForBar(song: Song, bar: number): Pattern | undefined {
   return song.patterns.find((p) => p.id === position.step.pattern) ?? song.patterns[0]
 }
 
+/** The sequencer lane a voice belongs to. Unknown future voices use the whole-pattern
+ * fallback, so an older engine never silently steals them into the wrong machine. */
+export function clipSlotForVoice(voiceId: string): ClipSlot | undefined {
+  if (voiceId === '303.a' || voiceId === '303.b') return voiceId
+  if (voiceId.startsWith('808.')) return 'tr808'
+  if (voiceId.startsWith('909.')) return 'tr909'
+  return undefined
+}
+
+/** Resolve one machine's clip for a bar, falling back to the section's whole pattern. */
+export function patternForClip(song: Song, bar: number, slot: ClipSlot): Pattern | undefined {
+  const fallback = patternForBar(song, bar)
+  if (!fallback || song.chain.length === 0) return fallback
+  const patternId = chainPositionAt(song, bar)?.step.clips?.[slot]
+  return patternId ? song.patterns.find((pattern) => pattern.id === patternId) ?? fallback : fallback
+}
+
+/** Resolve the pattern that supplies one voice on a bar. */
+export function patternForVoice(song: Song, bar: number, voiceId: string): Pattern | undefined {
+  const slot = clipSlotForVoice(voiceId)
+  return slot ? patternForClip(song, bar, slot) : patternForBar(song, bar)
+}
+
+/**
+ * A section lasts as long as its longest selected clip. Shorter clips wrap at their own
+ * length in `planStep`, so an 8-step 909 can loop twice under a 16-step 303.
+ */
+export function barLengthForBar(song: Song, bar: number): number {
+  const fallback = patternForBar(song, bar)
+  if (!fallback) return 16
+  if (song.chain.length === 0) return fallback.length
+  return Math.max(fallback.length, ...CLIP_SLOTS.map((slot) => patternForClip(song, bar, slot)?.length ?? 0))
+}
+
 // ---- editing the arrangement ----
 
 export function chainAppend(song: Song, patternId: string): ChainStep[] {
@@ -466,6 +516,28 @@ export function chainSetRepeat(song: Song, index: number, repeat: number): Chain
 
 export function chainSetPattern(song: Song, index: number, patternId: string): ChainStep[] {
   return song.chain.map((step, i) => (i === index ? { ...step, pattern: patternId } : step))
+}
+
+/** Override one machine in a section. Choosing the fallback again removes the override,
+ * keeping old-style sections compact and exactly backward-compatible. */
+export function chainSetClip(
+  song: Song,
+  index: number,
+  slot: ClipSlot,
+  patternId: string,
+): ChainStep[] {
+  return song.chain.map((step, i) => {
+    if (i !== index) return step
+    const clips = { ...step.clips }
+    if (patternId === step.pattern) delete clips[slot]
+    else clips[slot] = patternId
+    if (Object.keys(clips).length === 0) {
+      const next = { ...step }
+      delete next.clips
+      return next
+    }
+    return { ...step, clips }
+  })
 }
 
 /** Move an entry by `delta` places, clamped. Reordering a song is mostly nudging one

@@ -140,6 +140,19 @@ describe('removing', () => {
     expect(next.chain).toEqual([{ pattern: 'b', repeat: 1 }])
   })
 
+  it('removes a clip reference without dropping a section that uses another fallback', () => {
+    const withClip = song({
+      chain: [
+        {
+          pattern: 'a',
+          clips: { tr909: 'b', '303.a': 'b' },
+          repeat: 2,
+        },
+      ],
+    })
+    expect(removePattern(withClip, 'b').chain).toEqual([{ pattern: 'a', repeat: 2 }])
+  })
+
   it('refuses to remove the last pattern', () => {
     const one = song({ patterns: [emptyPattern('a', 'A')], chain: [] })
     expect(removePattern(one, 'a')).toEqual(one)

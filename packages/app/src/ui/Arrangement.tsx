@@ -1,4 +1,4 @@
-import { chainPositionAt, songBars } from '@driftbox/engine'
+import { chainPositionAt, songBars, type ClipSlot } from '@driftbox/engine'
 import { useBox } from '../store'
 import { Panel } from './Panel'
 import { usePlayhead } from './usePlayhead'
@@ -16,16 +16,21 @@ import { usePlayhead } from './usePlayhead'
 export function Arrangement() {
   const song = useBox((s) => s.song)
   const editing = useBox((s) => s.editing)
+  const view = useBox((s) => s.view)
+  const selectedBass = useBox((s) => s.selectedBass)
   const setEditing = useBox((s) => s.setEditing)
   const appendChain = useBox((s) => s.appendChain)
   const removeChain = useBox((s) => s.removeChain)
   const setChainRepeat = useBox((s) => s.setChainRepeat)
-  const setChainPattern = useBox((s) => s.setChainPattern)
+  const setChainClip = useBox((s) => s.setChainClip)
   const moveChain = useBox((s) => s.moveChain)
 
   const playhead = usePlayhead()
   const playing = playhead ? chainPositionAt(song, playhead.bar) : undefined
   const bars = songBars(song)
+  const slot: ClipSlot = view === 'bass' ? (selectedBass as ClipSlot) : view
+  const slotLabel =
+    slot === 'tr808' ? '808' : slot === 'tr909' ? '909' : slot === '303.a' ? '303 A' : '303 B'
 
   return (
     <Panel
@@ -43,11 +48,12 @@ export function Arrangement() {
       <div className="chain">
         {song.chain.map((step, index) => {
           const live = playing?.index === index
+          const clip = step.clips?.[slot] ?? step.pattern
           return (
             <div
               key={index}
               className={`chain-step${live ? ' live' : ''}${
-                step.pattern === editing ? ' editing' : ''
+                clip === editing ? ' editing' : ''
               }`}
             >
               <div className="chain-head">
@@ -60,11 +66,13 @@ export function Arrangement() {
                   ‹
                 </button>
                 {/* A select rather than a click-to-cycle: an arrangement with six
-                    patterns to choose from is a picker, not a toggle. */}
+                    patterns to choose from is a picker, not a toggle. It controls the
+                    machine currently on screen; the other three clips stay untouched. */}
+                <span className="chain-slot">{slotLabel}</span>
                 <select
-                  value={step.pattern}
-                  onChange={(e) => setChainPattern(index, e.target.value)}
-                  aria-label={`Section ${index + 1} pattern`}
+                  value={clip}
+                  onChange={(e) => setChainClip(index, slot, e.target.value)}
+                  aria-label={`Section ${index + 1} ${slotLabel} pattern`}
                 >
                   {song.patterns.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -113,8 +121,8 @@ export function Arrangement() {
 
               <button
                 className="chain-edit"
-                onClick={() => setEditing(step.pattern)}
-                title="Edit this pattern"
+                onClick={() => setEditing(clip)}
+                title={`Edit this section's ${slotLabel} clip`}
               >
                 edit
               </button>

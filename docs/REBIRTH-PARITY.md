@@ -47,12 +47,12 @@ user could approximate it from oscillators.
 |---|---:|---:|---|
 | Two authored 303 voices | Yes | Approximate patch | First-class dual-303 device or lossless imported devices |
 | Authored 808 and 909 kits | Yes | No | First-class generated drum devices; no ROM samples |
-| Independent machine pattern banks | No | Tracker/Seq primitives | Shared clip-bank model used by both modes |
-| Per-machine pattern length and launch | No | Possible manually | Quantised clip launch with independent loop lengths |
+| Independent machine pattern banks | Yes | Tracker/Seq primitives | Reuse the shared clip-bank model in rack mode |
+| Per-machine pattern length and launch | Arrangement selection | Possible manually | Add live quantised launch to the shared clip model |
 | 303 note/accent/slide/tie editing | Partial | Tracker primitives | One clip editor and equivalent rack lanes |
 | 909 flam | No | Possible manually | Flam step plus width control in both modes |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
-| Song arrangement | Composite pattern chain | Arranger | Multi-lane scenes plus independent clip changes |
+| Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song automation | No | Combinator/MIDI only | Recordable parameter timeline shared by both modes |
 | Section mixer | Per voice | Mixer/Out | Four section buses with mute, pan, level, meter and routes |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
@@ -70,10 +70,10 @@ behaviour; implementation progress belongs in `ROADMAP.md` and `RACK.md`.
 The groovebox does not yet match ReBirth's editor even though its sound set does. The
 work is ordered by dependency:
 
-1. **Independent clips.** Split the current composite pattern into clip banks for 303 A,
-   303 B, 808 and 909. Each clip has its own length. An arrangement scene selects one
-   clip per section. Existing songs migrate one composite pattern into one scene and four
-   clips without changing playback.
+1. **Independent clips — landed.** The pattern pool is now a shared clip bank for 303 A,
+   303 B, 808 and 909. Each section selects the four sources independently and shorter
+   clips wrap under the longest one. Existing composite sections remain the fallback, so
+   old songs migrate without changing playback.
 2. **Song transport and automation.** Add seek, loop start/length, bar-quantised clip
    recording and parameter automation. Pattern changes are discrete events; knobs,
    faders and effect controls are sampled automation.
@@ -86,9 +86,9 @@ work is ordered by dependency:
 5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
    full-mix rendering and put songs and patches in one named library.
 
-The schema work comes first. Automation events need stable section and parameter
-identities, and an arrangement cannot record independent pattern changes while a
-`Pattern` still owns every machine at once.
+The schema foundation is now present. Automation events still need stable section and
+parameter identities, but can record independent clip changes without splitting or
+flattening the original whole-groove pattern pool.
 
 ## Document boundary
 

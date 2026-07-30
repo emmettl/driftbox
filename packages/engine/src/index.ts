@@ -6,7 +6,7 @@ import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
-import { patternForBar, type Song } from './pattern.js'
+import { barLengthForBar, patternForBar, type Song } from './pattern.js'
 import { buildVoice, voiceById } from './kit.js'
 import { planStep } from './schedule.js'
 import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams } from './types.js'
@@ -156,7 +156,7 @@ export class DriftboxEngine {
     this.analyser.connect(this.ctx.destination)
 
     this.transport = new Transport(this.ctx, {
-      barLength: (bar) => patternForBar(this.song, bar)?.length ?? 16,
+      barLength: (bar) => barLengthForBar(this.song, bar),
       onStep: (event) => this.playStep(event),
     })
     this.transport.bpm = song.bpm
