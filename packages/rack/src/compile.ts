@@ -1,4 +1,5 @@
 import type {
+  PlanOutput,
   ModuleDef,
   Patch,
   PatchCable,
@@ -351,14 +352,18 @@ export function compile(patch: Patch, registry: Registry): Plan {
     }
   })
 
-  const outputs: number[] = []
+  const outputs: PlanOutput[] = []
   for (const module of live) {
     const def = registry[module.type]
     if (!def.terminal) continue
     const port = def.outlets[0]
     if (!port) continue
     const buffer = outletBuffer.get(key(module.id, port.id))
-    if (buffer !== undefined) outputs.push(buffer)
+    if (buffer === undefined) continue
+    // A slot, not a value: the Graph reads the pan buffer every sample, so turning the knob while the patch
+    // runs works without recompiling — the same reason `setParam` does not bump the revision.
+    const pan = def.terminalPan ? (slots[module.id]?.[def.terminalPan] ?? null) : null
+    outputs.push({ buffer, pan })
   }
 
   // Delayed cables, worked out from the finished order. A cable is delayed when its source

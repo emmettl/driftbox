@@ -329,11 +329,14 @@ describe('moving a knob', () => {
     // reason for the `ramped` flag in the Graph, and without it a static knob would sound
     // like a sawtooth LFO at the block rate — 344Hz, and very audible.
     const graph = graphFor(probePatch, PROBES)
-    graph.setParam(compile(probePatch, PROBES).slots.p.value, 1)
+    // 0.75, not 1: the master limiter starts working at 0.95, so a probe pinned above it would be measuring
+    // the limiter rather than the ramp. 0.75 rather than 0.8 because this compares for exact equality and
+    // three quarters survives the trip through a Float32Array; 0.8 comes back as 0.800000011920929.
+    graph.setParam(compile(probePatch, PROBES).slots.p.value, 0.75)
     render(graph, 1)
 
     const settled = render(graph, 4)
-    expect(firstBad(settled, (x) => x === 1)).toBe(-1)
+    expect(firstBad(settled, (x) => x === 0.75)).toBe(-1)
   })
 
   it('steps a stepped param immediately', () => {
@@ -401,12 +404,12 @@ describe('replacing a plan', () => {
     // 128 is the render quantum today and the spec reserves the right to change it. The
     // knobs must not jump back to where the patch was saved when it does.
     const graph = graphFor(probePatchFor(), PROBES)
-    graph.setParam(compile(probePatchFor(), PROBES).slots.p.value, 1)
+    graph.setParam(compile(probePatchFor(), PROBES).slots.p.value, 0.75)
     render(graph, 2)
 
     const wide = [new Float32Array(256), new Float32Array(256)]
     graph.process(wide)
-    expect(firstBad(wide[0], (x) => x === 1)).toBe(-1)
+    expect(firstBad(wide[0], (x) => x === 0.75)).toBe(-1)
   })
 })
 
@@ -555,5 +558,161 @@ describe('a patch made of the whole rack', () => {
 
     expect(rms(audio)).toBeGreaterThan(0.001)
     expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
+  })
+})
+
+describe('where the rack ends up in the stereo field', () => {
+  // Cables are mono and staying that way. Stereo goes exactly as far as placing each terminal module, which
+  // is the trade `docs/DNB.md` argues for: two chains hard-panned gives a Reese that actually phases, and it
+  // costs no change to any module.
+
+  /** Render both channels, rather than only the left as `render` does. */
+  const stereo = (patch: Patch, blocks = 3) => {
+    const graph = graphFor(patch)
+    const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+    for (let block = 0; block < blocks; block++) graph.process(channels)
+    return { left: channels[0][FRAMES - 1], right: channels[1][FRAMES - 1] }
+  }
+
+  /** A DC source at a level the limiter leaves alone, through an Out with a given pan. */
+  const panned = (pan: number): Patch => ({
+    modules: [
+      { id: 'o-1', type: 'offset', params: { offset: 0.5 } },
+      { id: 'out-1', type: 'out', params: { level: 1, pan } },
+    ],
+    cables: [{ from: ['o-1', 'out'], to: ['out-1', 'in'] }],
+  })
+
+  it('is centred by default, at exactly the level it was before stereo existed', () => {
+    // The reason the law is balance and not equal-power. Equal-power puts centre at 0.707 on both channels,
+    // which would have made every patch shared before this quietly 3dB quieter — for a format whose whole
+    // selling point is that a patch travels in a URL, that is not a cosmetic difference.
+    const { left, right } = stereo(panned(0))
+    expect(left).toBeCloseTo(0.5, 5)
+    expect(right).toBeCloseTo(0.5, 5)
+  })
+
+  it('sends everything one way when hard panned', () => {
+    const hardLeft = stereo(panned(-1))
+    expect(hardLeft.left).toBeCloseTo(0.5, 5)
+    expect(hardLeft.right).toBeCloseTo(0, 5)
+
+    const hardRight = stereo(panned(1))
+    expect(hardRight.left).toBeCloseTo(0, 5)
+    expect(hardRight.right).toBeCloseTo(0.5, 5)
+  })
+
+  it('keeps the near side at full level while the far side fades', () => {
+    // What a balance control does, and what makes hard-panning two chains give each one its channel at full
+    // level rather than at 0.707 of it.
+    const { left, right } = stereo(panned(-0.5))
+    expect(left).toBeCloseTo(0.5, 5)
+    expect(right).toBeCloseTo(0.25, 5)
+  })
+
+  it('places two Outs independently, which is the whole point', () => {
+    // The Reese: two chains hard apart. One source per side, and neither leaks into the other.
+    const { left, right } = stereo({
+      modules: [
+        { id: 'a', type: 'offset', params: { offset: 0.4 } },
+        { id: 'b', type: 'offset', params: { offset: 0.2 } },
+        { id: 'out-1', type: 'out', params: { level: 1, pan: -1 } },
+        { id: 'out-2', type: 'out', params: { level: 1, pan: 1 } },
+      ],
+      cables: [
+        { from: ['a', 'out'], to: ['out-1', 'in'] },
+        { from: ['b', 'out'], to: ['out-2', 'in'] },
+      ],
+    })
+    expect(left).toBeCloseTo(0.4, 5)
+    expect(right).toBeCloseTo(0.2, 5)
+  })
+
+  it('leaves the Thru outlet mono and pre-pan', () => {
+    // A patch cable in this rack carries one signal. A Thru that quietly carried only the left half would be
+    // a trap, and it would make an Out feeding a Delay feeding another Out behave unlike its picture.
+    const { left, right } = stereo({
+      modules: [
+        { id: 'o-1', type: 'offset', params: { offset: 0.3 } },
+        { id: 'out-1', type: 'out', params: { level: 1, pan: -1 } },
+        { id: 'out-2', type: 'out', params: { level: 1, pan: 1 } },
+      ],
+      cables: [
+        { from: ['o-1', 'out'], to: ['out-1', 'in'] },
+        // Fed from the hard-left Out's Thru. If Thru were post-pan this would be silent on the right.
+        { from: ['out-1', 'out'], to: ['out-2', 'in'] },
+      ],
+    })
+    expect(left).toBeCloseTo(0.3, 5)
+    expect(right).toBeCloseTo(0.3, 5)
+  })
+
+  it('clamps a pan driven past its ends rather than inverting the signal', () => {
+    // The param is declared −1..1, but nothing stops a patch file from carrying something else, and a pan of
+    // 2 through a bare `1 - pan` would come out phase-inverted on the far side.
+    for (const pan of [-4, 4]) {
+      const { left, right } = stereo(panned(pan))
+      expect(left).toBeGreaterThanOrEqual(0)
+      expect(right).toBeGreaterThanOrEqual(0)
+      expect(Math.max(left, right)).toBeCloseTo(0.5, 5)
+      expect(Math.min(left, right)).toBeCloseTo(0, 5)
+    }
+  })
+})
+
+describe('the master limiter', () => {
+  // It replaces a bare clamp at ±4. The clamp is still there behind it, because it is what keeps a feedback
+  // patch from killing the tab — but a loud mix used to meet a brick wall.
+
+  const loud = (offset: number): Patch => ({
+    modules: [
+      { id: 'o-1', type: 'offset', params: { offset } },
+      { id: 'out-1', type: 'out', params: { level: 1 } },
+    ],
+    cables: [{ from: ['o-1', 'out'], to: ['out-1', 'in'] }],
+  })
+
+  it('leaves a signal under the threshold completely alone', () => {
+    // The important half. A limiter that shaved a quiet mix would change the sound of every patch that never
+    // needed it, and the two probe suites above rely on this being exact.
+    const audio = run(loud(0.5), 4)
+    expect(firstBad(audio, (x) => Math.abs(x - 0.5) < 1e-6)).toBe(-1)
+  })
+
+  it('holds a loud mix just under full scale instead of at the old brick wall', () => {
+    const audio = run(loud(3), 8)
+    const settled = audio.slice(audio.length - FRAMES)
+    for (const x of settled) expect(x).toBeLessThanOrEqual(0.96)
+    // And it is still loud: pulled down to the ceiling, not squashed to nothing.
+    expect(settled[settled.length - 1]).toBeGreaterThan(0.9)
+  })
+
+  it('catches a sudden loud passage within a few milliseconds', () => {
+    // A millisecond of attack, so a transient gets through briefly and is then held. What must not happen is
+    // that it stays through — that is the difference between a limiter and a wish.
+    const audio = run(loud(3), 8)
+    const settleBy = Math.round(0.005 * SR)
+    for (let i = settleBy; i < audio.length; i++) expect(audio[i]).toBeLessThanOrEqual(0.96)
+  })
+
+  it('still clamps rather than letting an infinity through', () => {
+    // The limiter cannot save this: an infinite peak makes the gain zero and the arithmetic meaningless. The
+    // clamp behind it is what keeps the tab alive, and a NaN in an AudioNode is permanent.
+    const audio = run({ modules: [{ id: 'x', type: 'hostile' }], cables: [] }, 4, PROBES)
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
+  })
+
+  it('recovers its gain after the loud part stops', () => {
+    // Without a release it would duck once and stay ducked for the rest of the session.
+    const patch = loud(3)
+    const graph = graphFor(patch)
+    const plan = compile(patch, MODULES)
+    const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+    for (let block = 0; block < 8; block++) graph.process(channels)
+
+    graph.setParam(plan.slots['o-1'].offset, 0.5)
+    // Half a second: several release constants, and well short of forever.
+    for (let block = 0; block < Math.ceil((0.5 * SR) / FRAMES); block++) graph.process(channels)
+    expect(channels[0][FRAMES - 1]).toBeCloseTo(0.5, 2)
   })
 })

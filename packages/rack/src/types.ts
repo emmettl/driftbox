@@ -152,6 +152,14 @@ export interface ModuleDef {
   /** A terminal module: its first outlet is summed into the rack's audio output. */
   terminal?: boolean
   /**
+   * Param id carrying this terminal module's pan: −1 hard left, +1 hard right.
+   *
+   * Named here rather than found by convention in the compiler, so a module's stereo placement is a fact
+   * about the module. Absent means centre, which is what every terminal module was before stereo existed —
+   * and is why a patch shared before this sounds identical after it.
+   */
+  terminalPan?: string
+  /**
    * Whether this module is duplicated per voice. Default true.
    *
    * `false` means one instance however many voices the patch has, and every voice arriving at one of its
@@ -243,6 +251,21 @@ export interface PlanNode {
   data?: Record<string, number[]>
 }
 
+/**
+ * One terminal module's contribution to the mix.
+ *
+ * `pan` is a **param slot**, not a value, because a pan knob can be turned while the patch runs and could
+ * one day be modulated — the Graph already holds a per-voice buffer for every slot, so this costs it a
+ * lookup it was doing anyway. Null when the terminal module has no pan param at all, which is what keeps a
+ * module type this build has never seen from needing one.
+ */
+export interface PlanOutput {
+  /** Buffer to sum into the mix. */
+  buffer: number
+  /** Param slot carrying pan: −1 hard left, +1 hard right. */
+  pan: number | null
+}
+
 export interface PlanParam {
   value: number
   stepped: boolean
@@ -284,8 +307,8 @@ export interface Plan {
   poly: boolean[]
   /** In execution order. */
   nodes: PlanNode[]
-  /** Buffer indices to sum into the audio output. */
-  outputs: number[]
+  /** What reaches the speakers, and where in the stereo field. */
+  outputs: PlanOutput[]
   params: PlanParam[]
   /** `moduleId` → `paramId` → slot, so the host can address a knob by name. */
   slots: Record<string, Record<string, number>>

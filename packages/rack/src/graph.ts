@@ -57,7 +57,18 @@ export class Graph {
    *  write into buffer 0 and invent a signal for every unconnected inlet at once. */
   private scratch: Float32Array
   private nodes: Node[] = []
-  private outputs: Float32Array[] = []
+  /**
+   * What reaches the speakers: a signal buffer and, optionally, the pan buffer that places it.
+   *
+   * One entry per voice per terminal module. `pan` is a live Float32Array rather than a number so that
+   * turning the knob works without recompiling, which is the same reason `setParam` does not bump the
+   * revision on the host side.
+   */
+  private outputs: { signal: Float32Array; pan: Float32Array | null }[] = []
+
+  /** Peak follower and smoothed gain for the master limiter. Persist across blocks or it ticks. */
+  private limitEnvelope = 0
+  private limitGain = 1
 
   /** `[slot][voice]`. A knob writes every voice; MIDI writes one — which is the whole reason a param is
    *  per-voice rather than shared, and the one addition polyphony needed to the message ABI. */
@@ -152,8 +163,19 @@ export class Graph {
     this.pushed.set(module, forModule)
   }
 
-  /** Sum the rack into every channel it was handed. Mono for now: a stereo signal path is
-   *  a decision about what a cable is, and this is not the place to take it quietly. */
+  /**
+   * Sum the rack into the channels it was handed, panned and limited.
+   *
+   * **Cables are still mono.** Stereo goes exactly as far as placing each terminal module in the field and
+   * no further, which is the trade `docs/DNB.md` argues for: two chains hard-panned gives a Reese that
+   * actually phases, and it costs no change to any module. Full stereo cables would double every buffer and
+   * make every module answer what it means to filter a stereo signal.
+   *
+   * The pan law is **balance, not equal-power.** Equal-power puts centre at 0.707 on both channels, which
+   * would have made every patch shared before this quietly 3dB quieter. Balance leaves centre at unity, so
+   * the default is a genuine no-op, and hard-panning loses 3dB of total power exactly as a balance control
+   * on a mixer does.
+   */
   process(channels: Float32Array[]): void {
     const mix = channels[0]
     if (!mix) return
@@ -219,18 +241,63 @@ export class Graph {
       for (let c = 0; c < channels.length; c++) channels[c].fill(0)
       return
     }
+
+    const right = channels[1]
+    // A millisecond to catch a transient, a tenth of a second to let go. Recomputed per block rather than
+    // cached because it costs two `exp` calls and removes a field that could go stale after a rate change.
+    const attack = Math.exp(-1 / (0.001 * this.sampleRate))
+    const release = Math.exp(-1 / (0.1 * this.sampleRate))
+
     for (let i = 0; i < frames; i++) {
-      let sum = 0
-      for (let o = 0; o < this.outputs.length; o++) sum += this.outputs[o][i]
+      let left = 0
+      let rightSum = 0
+      for (let o = 0; o < this.outputs.length; o++) {
+        const output = this.outputs[o]
+        const sample = output.signal[i]
+        if (output.pan === null) {
+          left += sample
+          rightSum += sample
+          continue
+        }
+        let pan = output.pan[i]
+        if (pan < -1) pan = -1
+        else if (pan > 1) pan = 1
+        // Balance: unity on both at centre, so no pan is no change.
+        left += pan <= 0 ? sample : sample * (1 - pan)
+        rightSum += pan >= 0 ? sample : sample * (1 + pan)
+      }
+
       // A modular can produce an infinity — patching an output back into its own input is
       // what that is for. A NaN reaching an AudioNode silences that node for the lifetime
       // of the context, so the tab would go quiet for good and a reload would be the only
       // way back. This keeps the rack alive. It does NOT rescue a module that has gone
       // unstable: that patch will sound wrong until it is unpatched, which is the correct
       // outcome and the audible sign that something is.
-      mix[i] = Number.isFinite(sum) ? (sum > 4 ? 4 : sum < -4 ? -4 : sum) : 0
+      if (!Number.isFinite(left)) left = 0
+      if (!Number.isFinite(rightSum)) rightSum = 0
+
+      // The master limiter, linked across the pair so that a peak on one side does not shift the image.
+      //
+      // It replaces a bare clamp at ±4. The clamp is still below, because it is the thing that keeps a
+      // feedback patch from killing the tab and no amount of gain riding substitutes for that — but a loud
+      // mix used to meet a brick wall, and drum and bass is a genre held together by compression.
+      const peak = Math.max(left < 0 ? -left : left, rightSum < 0 ? -rightSum : rightSum)
+      const coefficient = peak > this.limitEnvelope ? attack : release
+      this.limitEnvelope = peak + (this.limitEnvelope - peak) * coefficient
+      // 0.95 rather than 1: it leaves headroom for the inter-sample peaks no sample-domain limiter can see.
+      const wanted = this.limitEnvelope > 0.95 ? 0.95 / this.limitEnvelope : 1
+      // Downward gain changes take effect immediately and upward ones are eased in, which is what stops the
+      // release from pumping. Taking the minimum is what makes the attack instant without a lookahead.
+      this.limitGain = wanted < this.limitGain ? wanted : wanted + (this.limitGain - wanted) * release
+      left *= this.limitGain
+      rightSum *= this.limitGain
+
+      mix[i] = left > 4 ? 4 : left < -4 ? -4 : left
+      if (right) right[i] = rightSum > 4 ? 4 : rightSum < -4 ? -4 : rightSum
     }
-    for (let c = 1; c < channels.length; c++) channels[c].set(mix)
+    // Anything beyond a pair gets the left channel: a rack asked for more channels than it has an opinion
+    // about should still make a sound in all of them.
+    for (let c = 2; c < channels.length; c++) channels[c].set(mix)
   }
 
   /** A live view of one module's bulk data. Pushed wins over seeded; see the note on those fields. */
@@ -355,10 +422,21 @@ export class Graph {
       }
     }
 
-    // Every voice of every terminal outlet. An Out is `poly: false`, so in practice this is one buffer per
-    // Out — but a polyphonic terminal module would still work, and summing all its voices is right.
-    this.outputs = plan.outputs
-      .filter((index) => index > 0)
-      .flatMap((index) => this.buffers[index] ?? [])
+    // Every voice of every terminal outlet. An Out is `poly: false`, so in practice this is one entry per
+    // Out — but a polyphonic terminal module would still work, and summing all its voices is right. Each
+    // voice takes its own pan buffer where the param is polyphonic and voice 0's where it is not, which is
+    // the same rule the nodes use for their params.
+    this.outputs = []
+    for (const output of plan.outputs) {
+      if (output.buffer <= 0) continue
+      const voices = this.buffers[output.buffer] ?? []
+      const pan = output.pan === null ? null : this.paramBuffers[output.pan]
+      for (let voice = 0; voice < voices.length; voice++) {
+        this.outputs.push({
+          signal: voices[voice],
+          pan: pan ? (pan[voice] ?? pan[0] ?? null) : null,
+        })
+      }
+    }
   }
 }
