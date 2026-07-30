@@ -12,7 +12,7 @@ with a performance mode. CI is green; there are 446 unit tests.
 | | |
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
-| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere.** |
+| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere** — this is about the drum machines and the 303s, and it still holds. The rack in `packages/rack` is a separate instrument and [is getting a sampler](docs/DNB.md). |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
 | Ships with | Twelve songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
