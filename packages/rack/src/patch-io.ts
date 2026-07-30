@@ -154,5 +154,12 @@ export function decodePatch(text: string): Patch | null {
     cables.push({ from, to })
   }
 
-  return { modules, cables }
+  const patch: Patch = { modules, cables }
+  // Absent means one, which is what every patch written before polyphony existed means — so this stays
+  // absent rather than being written as 1, and an old patch round-trips byte-identically.
+  const voices = body.voices
+  if (typeof voices === 'number' && Number.isInteger(voices) && voices > 1 && voices <= 8) {
+    patch.voices = voices
+  }
+  return patch
 }

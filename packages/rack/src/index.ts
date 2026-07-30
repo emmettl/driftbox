@@ -120,12 +120,22 @@ export class Rack {
     return notes
   }
 
-  /** Move a knob. Silently does nothing for a module or param the current patch does not
-   *  have, which is what a UI holding a stale reference during a patch change will do. */
-  setParam(moduleId: string, paramId: string, value: number): void {
+  /**
+   * Move a knob. Silently does nothing for a module or param the current patch does not have, which is what
+   * a UI holding a stale reference during a patch change will do.
+   *
+   * `voice` undefined means every voice, which is what a knob means. A specific voice is what a keyboard
+   * means — one MIDI module holding eight different notes, one per voice.
+   */
+  setParam(moduleId: string, paramId: string, value: number, voice?: number): void {
     const slot = this.compiled?.slots[moduleId]?.[paramId]
     if (slot === undefined) return
-    this.node?.port.postMessage({ kind: 'param', slot, value })
+    this.node?.port.postMessage({ kind: 'param', slot, value, voice })
+  }
+
+  /** How many voices the open patch compiled to. */
+  get voices(): number {
+    return this.compiled?.voices ?? 1
   }
 
   /** Disconnect and forget the node. The processor stays registered on the context —

@@ -48,7 +48,7 @@ export const RACK_PROCESSOR = 'driftbox-rack'
 /** How the host talks to the graph. This is the ABI — keep it small. */
 export type RackMessage =
   | { kind: 'plan'; plan: unknown }
-  | { kind: 'param'; slot: number; value: number }
+  | { kind: 'param'; slot: number; value: number; voice?: number }
 
 /**
  * Assemble the processor source for a set of modules.
@@ -103,7 +103,7 @@ class RackProcessor extends AudioWorkletProcessor {
           this.port.postMessage({ kind: 'missing', types: this.graph.missing.slice() })
         }
       } else if (message.kind === 'param') {
-        this.graph.setParam(message.slot, message.value)
+        this.graph.setParam(message.slot, message.value, message.voice)
       }
     }
   }

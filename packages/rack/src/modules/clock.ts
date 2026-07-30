@@ -110,4 +110,6 @@ export const CLOCK_MODULE: ModuleDef = {
     { id: 'width', name: 'Width', min: 0.02, max: 0.98, default: 0.5 },
   ],
   processor: ClockProcessor,
+  // One clock. Eight identical ones would tick together and cost eight times as much to do it.
+  poly: false,
 }
