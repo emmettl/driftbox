@@ -16,6 +16,7 @@ import { Convoy } from './Convoy'
 import { Machine } from './Machine'
 import { GraphicLab } from './GraphicLab'
 import { NightBus } from './NightBus'
+import { Longhand } from './Longhand'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -84,6 +85,8 @@ export const SCENES: SceneInfo[] = [
   // White and ringed because the three editions move between paper, yellow and broadcast
   // blue. It reads as a registration mark in the print systems and a reticle in the ident.
   { id: 'graphic', name: 'Graphic Lab', Component: GraphicLab, accent: '255, 255, 255', trail: { scale: 0.8, ring: true } },
+  // The mark itself persists in the scene, so the pad overlay stays small and quiet.
+  { id: 'longhand', name: 'Longhand', Component: Longhand, accent: '255, 95, 145', trail: { scale: 0.55 } },
 ]
 
 export type SceneId = string

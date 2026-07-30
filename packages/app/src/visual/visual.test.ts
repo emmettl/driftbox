@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetSceneAudio, sceneAudio, setSceneAudio } from './audio.js'
 import { ease, readBands, readLevels } from './levels.js'
 import { dbPosition, decibelBands, measureLevel, smoothMeter, spectrumBands } from './meter.js'
 import { nextScope, SCOPE_MODES } from './scope.js'
+import { endTouch, setTouch, touch, touchSamplesAfter } from './touch.js'
 
 // The visual layer, and the one rule that makes it shareable.
 //
@@ -203,5 +204,32 @@ describe('what the scenes are watching', () => {
     setSceneAudio({ analyser: fakeAnalyser(() => 0), running: true, bpm: 174 })
     resetSceneAudio()
     expect(sceneAudio).toEqual({ analyser: null, running: false, bpm: 120 })
+  })
+})
+
+describe('pointer-rate paths', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('keeps every move and separates consecutive gestures', () => {
+    // The callback must not run here — the sample history is synchronous and the energy
+    // clock is a separate concern.
+    vi.stubGlobal('requestAnimationFrame', () => 1)
+    const before = touch.serial
+
+    setTouch(0.1, 0.2)
+    setTouch(0.3, 0.4)
+    endTouch()
+    setTouch(0.8, 0.7)
+    endTouch()
+
+    const path = touchSamplesAfter(before)
+    expect(path.map(({ x, y }) => [x, y])).toEqual([
+      [0.1, 0.2],
+      [0.3, 0.4],
+      [0.8, 0.7],
+    ])
+    expect(path[0].gesture).toBe(path[1].gesture)
+    expect(path[2].gesture).toBe(path[1].gesture + 1)
+    expect(touchSamplesAfter(touch.serial)).toEqual([])
   })
 })
