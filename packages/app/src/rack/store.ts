@@ -39,6 +39,16 @@ interface RackState {
   /** What the open patch is called in the library, or null for one that has never been saved — imported
    *  from a file, opened from a link, or the shipped patch it started on. */
   name: string | null
+  /**
+   * The last note MIDI sent, and the inputs it came from. **Performance, not document.**
+   *
+   * Deliberately here and not in the patch. A note somebody played is not part of what they built, and
+   * routing it through `setParam` would autosave the last key anybody pressed into the file. The audio
+   * thread gets these straight from `Rack.setParam`; this copy exists only so a faceplate can answer "is my
+   * keyboard connected", which is the first question anybody has.
+   */
+  midiNote: number | null
+  midiInputs: string[]
 
   setParam: (moduleId: string, paramId: string, value: number) => void
   paramValue: (moduleId: string, paramId: string) => number
@@ -52,6 +62,7 @@ interface RackState {
 
   setNotes: (notes: PlanNote[]) => void
   setName: (name: string | null) => void
+  setMidi: (note: number | null, inputs?: string[]) => void
   load: (patch: Patch) => void
   select: (moduleId: string | null) => void
   flip: (flipped?: boolean) => void
@@ -98,6 +109,8 @@ export const useRack = create<RackState>((set, get) => {
     flipped: false,
     notes: [],
     name: null,
+    midiNote: null,
+    midiInputs: [],
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -177,6 +190,8 @@ export const useRack = create<RackState>((set, get) => {
 
     setNotes: (notes) => set({ notes }),
     setName: (name) => set({ name }),
+    setMidi: (midiNote, inputs) =>
+      set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
     load: (patch) => structural(() => patch),
     select: (moduleId) => set({ selected: moduleId }),
     flip: (flipped) => set((state) => ({ flipped: flipped ?? !state.flipped })),

@@ -11,6 +11,11 @@ import type { FaceplateProps } from './types.js'
 // nicer; a generic one should not look broken.
 
 export function Generic({ def, value, onChange }: FaceplateProps) {
+  // Hidden params are written by the host, not turned by anybody — the MIDI module's note and gate. A knob
+  // on the same slot would fight the keyboard for it. `genericRows` counts the same way, or the module's
+  // height would be reserved for controls that are not drawn.
+  const shown = def.params.filter((param) => !param.hidden)
+
   return (
     <>
       <header className="rk-title">
@@ -19,9 +24,9 @@ export function Generic({ def, value, onChange }: FaceplateProps) {
           {def.inlets.length} in · {def.outlets.length} out
         </span>
       </header>
-      {def.params.length > 0 && (
+      {shown.length > 0 && (
         <div className="rk-controls">
-          {def.params.map((param) => (
+          {shown.map((param) => (
             <ParamControl
               key={param.id}
               def={param}

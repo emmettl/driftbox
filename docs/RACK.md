@@ -162,7 +162,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Sixteen modules
+## Seventeen modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -180,6 +180,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **S&H** | sample and hold |
 | **Offset** | attenuverter and offset. Unglamorous and load-bearing |
 | **Mixer** | four in, CV levels |
+| **MIDI** | pitch, gate, velocity and mod from a keyboard. The only module whose input does not arrive on a cable |
 | **Clock** | gate, a fixed 1ms trigger, and a phase ramp. Armed at construction, so it ticks the moment it is patched |
 | **Seq** | eight steps of pitch and on/off, advanced by an external clock. No clock inside it |
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |

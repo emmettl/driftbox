@@ -1,10 +1,11 @@
-import { MODULE_LIST, MODULES, Rack, compile } from '@driftbox/rack'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { MIDI_INPUTS, MODULE_LIST, MODULES, Rack, compile } from '@driftbox/rack'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
+import { midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
 import { openingPatch, useRack } from './store.js'
@@ -29,6 +30,8 @@ export default function RackApp() {
   const addModule = useRack((s) => s.addModule)
   const setNotes = useRack((s) => s.setNotes)
   const name = useRack((s) => s.name)
+  const setMidi = useRack((s) => s.setMidi)
+  const midiInputs = useRack((s) => s.midiInputs)
 
   const rack = useRef<Rack | null>(null)
   /**
@@ -46,8 +49,57 @@ export default function RackApp() {
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
+  const midi = useRef<MidiHandle | null>(null)
+  const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
 
   const geometry = useMemo(() => layout(patch.modules, sizeFor(MODULES)), [patch.modules])
+
+  /**
+   * Send an incoming note to every MIDI module listening on that channel.
+   *
+   * Straight to `rack.setParam` and **never through the store's patch**. A note somebody played is
+   * performance, not document — routing it through the patch would autosave the last key anybody pressed
+   * into the file, and every note would also bump the revision and recompile the graph. The store gets a
+   * copy of the note only so the faceplate can say whether a keyboard is connected.
+   */
+  const sendMidi = useCallback(
+    (channel: number, values: Partial<Record<(typeof MIDI_INPUTS)[number], number>>) => {
+      const live = rack.current
+      if (!live) return
+      // The decision about *which* modules hear this is `midiTargets`, which is pure and tested — Chrome
+      // refuses Web MIDI under automation, so a rule left in here could not be verified at all.
+      for (const id of midiTargets(useRack.getState().patch.modules, channel)) {
+        for (const [param, value] of Object.entries(values)) live.setParam(id, param, value)
+      }
+    },
+    [],
+  )
+
+  async function toggleMidi() {
+    if (midi.current) {
+      midi.current.close()
+      midi.current = null
+      setMidiState('off')
+      setMidi(null, [])
+      return
+    }
+    const handle = await openMidi({
+      onVoice: (voice, channel) => {
+        sendMidi(channel, { note: voice.note, gate: voice.gate, velocity: voice.velocity })
+        setMidi(voice.gate === 1 ? voice.note : null)
+      },
+      onMod: (value, channel) => sendMidi(channel, { mod: value }),
+    })
+    if (!handle) {
+      // Web MIDI is Chromium-only, so this is the common case rather than the exceptional one. Absence has
+      // to read as absence — the same standard `loadRack` holds itself to when there is no AudioWorklet.
+      setMidiState('unavailable')
+      return
+    }
+    midi.current = handle
+    setMidiState('on')
+    setMidi(null, handle.inputs)
+  }
 
   // Whatever we were opened with: a shared link, the last session, or the starter patch.
   useEffect(() => {
@@ -110,6 +162,9 @@ export default function RackApp() {
 
   // Knob moves go straight to the audio thread. Subscribing rather than doing it in the handler keeps
   // the faceplates from needing the Rack at all — they only ever touch the store.
+  // Let go of the devices on the way out, so a reload does not leave handlers on a closed page.
+  useEffect(() => () => midi.current?.close(), [])
+
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
       const live = rack.current
@@ -174,6 +229,22 @@ export default function RackApp() {
         >
           Patches
         </button>
+
+        {midiState !== 'unavailable' ? (
+          <button
+            type="button"
+            onClick={toggleMidi}
+            aria-pressed={midiState === 'on'}
+            disabled={!running}
+            title={running ? undefined : 'Start audio first'}
+          >
+            {/* "MIDI in" rather than "MIDI": the palette has a button for the module itself, and two
+                controls sharing an accessible name is ambiguous to a screen reader and to a test. */}
+            MIDI in{midiState === 'on' && midiInputs.length > 0 ? ` · ${midiInputs.length}` : ''}
+          </button>
+        ) : (
+          <span className="rk-warn">No Web MIDI in this browser.</span>
+        )}
 
         <button
           type="button"

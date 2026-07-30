@@ -5,6 +5,7 @@ import { DELAY_MODULE } from './delay.js'
 import { DRIVE_MODULE } from './drive.js'
 import { LADDER_MODULE } from './ladder.js'
 import { LFO_MODULE } from './lfo.js'
+import { MIDI_MODULE } from './midi.js'
 import { MIXER_MODULE } from './mixer.js'
 import { NOISE_MODULE } from './noise.js'
 import { OFFSET_MODULE } from './offset.js'
@@ -16,12 +17,14 @@ import { SVF_MODULE } from './svf.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 
-// Sixteen modules: enough to make a track, and no more.
+// Seventeen modules: enough to make a track, and now something to play it with.
 //
-// `docs/RACK.md` planned fifteen and listed clock and sequencer as one. Splitting them is the only
+// `docs/RACK.md` planned fifteen and listed clock and sequencer as one. Splitting them was the first
 // departure and the reason is in `clock.ts`: a clock that is not a sequencer can drive several at
-// different divisions, and a sequencer with no clock in it can be advanced by anything that makes
-// an edge.
+// different divisions, and a sequencer with no clock in it can be advanced by anything that makes an edge.
+//
+// MIDI is the second, and it is the only module here whose input does not come from a cable — see the long
+// comment in `midi.ts` for why that needed no change to the message ABI.
 //
 // The omissions are still deliberate. **No sampler** — no samples anywhere is a project rule and
 // this is not the place to break it. **No reverb** — the engine's is a convolver, which belongs
@@ -50,6 +53,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   MIXER_MODULE,
   CLOCK_MODULE,
   SEQ_MODULE,
+  MIDI_MODULE,
   QUANTIZER_MODULE,
   OUT_MODULE,
 ]
@@ -64,6 +68,7 @@ export { DELAY_MODULE, DelayProcessor } from './delay.js'
 export { DRIVE_MODULE, DriveProcessor } from './drive.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
+export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
 export { MIXER_MODULE, MixerProcessor } from './mixer.js'
 export { NOISE_MODULE, NoiseProcessor } from './noise.js'
 export { OFFSET_MODULE, OffsetProcessor } from './offset.js'
