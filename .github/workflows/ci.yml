@@ -15,6 +15,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+
+      # The browser project measures the audio through a real OfflineAudioContext, which is a
+      # thing Node does not have. Chromium only, and only its own dependencies — the full
+      # `playwright install` fetches three engines this repo does not test in.
+      - run: npx playwright install --with-deps chromium
+
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

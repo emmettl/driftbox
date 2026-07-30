@@ -36,3 +36,8 @@ packages/rack/src/**/*.map
 *.sw?
 .claude
 *.tgz
+
+# Vitest browser mode: the screenshot it saves when a browser test fails, and the directory it
+# stages those through. Both are output from a run rather than part of the repo.
+__screenshots__/
+.vitest-attachments/
