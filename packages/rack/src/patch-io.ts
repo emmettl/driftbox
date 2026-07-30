@@ -1,4 +1,4 @@
-import type { Patch, PatchCable, PatchModule } from './types.js'
+import type { ModRoute, Patch, PatchCable, PatchModule } from './types.js'
 
 // Turning a patch into text and back.
 //
@@ -182,7 +182,33 @@ export function decodePatch(text: string): Patch | null {
     cables.push({ from, to })
   }
 
+  // Combinator routings. Both ends have to name a module the file actually contains, on the same reasoning
+  // as a cable: a route to an id nothing here has is corruption with no repair, and keeping it would mean it
+  // accumulated across every save from here on.
+  //
+  // A route naming a *param* this build has never heard of is kept, because that is the same case as a
+  // module type this build does not have — it may belong to a newer version of the module, and
+  // `applyModulation` skips what it cannot resolve rather than deleting it.
+  const modulation: ModRoute[] = []
+  for (const raw of Array.isArray(body.modulation) ? body.modulation : []) {
+    if (!isRecord(raw)) continue
+    const from = endpoint(raw.from)
+    const to = endpoint(raw.to)
+    if (!from || !to) continue
+    if (!ids.has(from[0]) || !ids.has(to[0])) continue
+    // An end that is not a finite number is left absent rather than repaired to zero, which would park the
+    // target at the bottom of its range and look like a routing that works but is aimed wrong. Absent means
+    // the target's own limit, and `applyModulation` is the one place that knows what that is.
+    const route: ModRoute = { from, to }
+    if (typeof raw.min === 'number' && Number.isFinite(raw.min)) route.min = raw.min
+    if (typeof raw.max === 'number' && Number.isFinite(raw.max)) route.max = raw.max
+    modulation.push(route)
+  }
+
   const patch: Patch = { modules, cables }
+  // Absent means none, so a patch written before the Combinator existed round-trips byte-identically —
+  // the same standard `voices` and `tempo` hold themselves to.
+  if (modulation.length > 0) patch.modulation = modulation
   // Absent means one, which is what every patch written before polyphony existed means — so this stays
   // absent rather than being written as 1, and an old patch round-trips byte-identically.
   const voices = body.voices

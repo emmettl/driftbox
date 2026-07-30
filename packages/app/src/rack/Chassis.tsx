@@ -1,7 +1,8 @@
-import { MODULES } from '@driftbox/rack'
+import { MODULES, routedParams } from '@driftbox/rack'
 import { faceplateFor } from './faceplates/index.js'
 import type { Layout } from './layout.js'
 import { useRack } from './store.js'
+import { useMemo } from 'react'
 
 // The front of the rack: a vertical stack of faceplates, positioned from the layout.
 //
@@ -22,6 +23,11 @@ export function Chassis({ layout }: Props) {
   const paramValue = useRack((s) => s.paramValue)
   const removeModule = useRack((s) => s.removeModule)
   const moveModule = useRack((s) => s.moveModule)
+
+  // Which knobs a Combinator is driving. Derived once for the whole rack rather than per faceplate: it is
+  // a fact about the patch, and asking each module to scan the routing list would be quadratic in a rack
+  // that could have forty of them.
+  const routed = useMemo(() => routedParams(patch), [patch])
 
   return (
     <div className="rk-face">
@@ -52,6 +58,7 @@ export function Chassis({ layout }: Props) {
                 module={module}
                 value={(paramId) => paramValue(placement.id, paramId)}
                 onChange={(paramId, value) => setParam(placement.id, paramId, value)}
+                routed={(paramId) => routed.get(placement.id)?.has(paramId) ?? false}
               />
             ) : (
               // A module type this build does not have. The patch keeps it and the compiler keeps it as

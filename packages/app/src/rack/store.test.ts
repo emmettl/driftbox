@@ -289,3 +289,117 @@ describe('making somewhere to put a break', () => {
     expect(plan.outputs.length).toBeGreaterThan(0)
   })
 })
+
+describe('Combinator routing', () => {
+  /** A Combinator, a filter to drive, and one routing across the filter's cutoff. */
+  const wired = (): Patch => ({
+    modules: [
+      { id: 'combi-1', type: 'combi', params: { rotary1: 0 } },
+      { id: 'ladder-1', type: 'ladder' },
+    ],
+    cables: [],
+    modulation: [{ from: ['combi-1', 'rotary1'], to: ['ladder-1', 'cutoff'], min: 200, max: 8000 }],
+  })
+
+  beforeEach(() => {
+    useRack.setState({ patch: wired(), revision: 0, editingRoutes: null })
+  })
+
+  it('moves the target when the rotary moves', () => {
+    // The whole feature in one assertion. And it happens through `setParam`, which means the driven value
+    // reaches the audio thread by the path a knob already takes rather than by anything new.
+    useRack.getState().setParam('combi-1', 'rotary1', 127)
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(8000)
+
+    useRack.getState().setParam('combi-1', 'rotary1', 0)
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(200)
+  })
+
+  it('does not rebuild the graph to do it', () => {
+    // A routing moves knobs and nothing else. Bumping the revision would recompile — resetting every
+    // oscillator's phase and every filter's history — on each frame of a rotary drag.
+    const before = useRack.getState().revision
+    useRack.getState().setParam('combi-1', 'rotary1', 100)
+    expect(useRack.getState().revision).toBe(before)
+  })
+
+  it('settles a patch the moment it is loaded, not on the first knob turn', () => {
+    // A patch arriving from a link or a preset has to sound like its routing says straight away. Otherwise
+    // the rack would sound different depending on whether anybody had touched a rotary yet.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
+    const patch = wired()
+    patch.modules[0].params = { rotary1: 127 }
+    useRack.getState().load(patch)
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(8000)
+  })
+
+  it('adds a routing without rebuilding the graph, and applies it immediately', () => {
+    const before = useRack.getState().revision
+    useRack.getState().setParam('combi-1', 'rotary2', 127)
+    useRack.getState().addRoute(['combi-1', 'rotary2'], ['ladder-1', 'resonance'])
+    expect(useRack.getState().revision).toBe(before)
+    // A fresh routing leaves both ends absent, meaning the target's own limits.
+    expect(useRack.getState().paramValue('ladder-1', 'resonance')).toBe(
+      MODULES.ladder.params.find((p) => p.id === 'resonance')!.max,
+    )
+  })
+
+  it('changes one end of a routing', () => {
+    useRack.getState().setParam('combi-1', 'rotary1', 127)
+    useRack.getState().setRoute(0, { max: 1000 })
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(1000)
+  })
+
+  it('treats an erased end as the target’s own limit rather than as zero', () => {
+    // Zero would aim the routing at the bottom of the range instead of the end of it, which looks like a
+    // routing that works and is wrong.
+    useRack.getState().setParam('combi-1', 'rotary1', 127)
+    useRack.getState().setRoute(0, { max: undefined })
+    expect(useRack.getState().patch.modulation?.[0].max).toBeUndefined()
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(
+      MODULES.ladder.params.find((p) => p.id === 'cutoff')!.max,
+    )
+  })
+
+  it('leaves the patch byte-identical to an unrouted one when the last routing goes', () => {
+    useRack.getState().removeRoute(0)
+    expect('modulation' in useRack.getState().patch).toBe(false)
+  })
+
+  it('leaves the knob where the routing last put it when the routing is removed', () => {
+    // Same as unplugging a cable: what it was doing stops, what it had done stays. Snapping the knob back
+    // to a value nobody chose would be the surprising option.
+    useRack.getState().setParam('combi-1', 'rotary1', 127)
+    useRack.getState().removeRoute(0)
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(8000)
+  })
+
+  it('takes every routing with the Combinator when it is deleted', () => {
+    // A stale routing is quieter than a stale cable — `applyModulation` skips it without a word — so
+    // leaving one behind would resurrect invisible modulation if a module took the same id later.
+    useRack.getState().removeModule('combi-1')
+    expect(useRack.getState().patch.modulation).toBeUndefined()
+  })
+
+  it('takes every routing with the target when the target is deleted', () => {
+    useRack.getState().removeModule('ladder-1')
+    expect(useRack.getState().patch.modulation).toBeUndefined()
+  })
+
+  it('ignores an index that is not there', () => {
+    expect(() => useRack.getState().removeRoute(9)).not.toThrow()
+    expect(() => useRack.getState().setRoute(-1, { min: 0 })).not.toThrow()
+    expect(useRack.getState().patch.modulation).toHaveLength(1)
+  })
+
+  it('agrees with what the compiler will play', () => {
+    // Two callers, one function. The store settles so the knob is seen to move; `compile` settles so a
+    // patch that never went through a store still plays what its routing says. They must not disagree.
+    useRack.getState().setParam('combi-1', 'rotary1', 90)
+    const patch = useRack.getState().patch
+    const plan = compile(patch, MODULES)
+    expect(plan.params[plan.slots['ladder-1'].cutoff].value).toBe(
+      useRack.getState().paramValue('ladder-1', 'cutoff'),
+    )
+  })
+})

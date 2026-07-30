@@ -42,6 +42,40 @@ describe.each(CHUNKS.map((chunk) => [chunk.id, chunk] as const))('the %s chunk',
     }
   })
 
+  it('only routes between its own modules, at params those modules have', () => {
+    // Same standard the cables are held to. A routing that names a param nobody has is silently inert —
+    // `applyModulation` skips what it cannot resolve — so nothing else would ever notice.
+    const typeOf = (local: string) => chunk.modules.find((m) => m.id === local)?.type
+    for (const route of chunk.modulation ?? []) {
+      for (const [end, label] of [
+        [route.from, 'from'],
+        [route.to, 'to'],
+      ] as const) {
+        const def = MODULES[typeOf(end[0])!]
+        expect(def, `${label} ${end[0]}`).toBeDefined()
+        const param = def.params.find((p) => p.id === end[1])
+        expect(param, `${label} ${end.join('.')}`).toBeDefined()
+        // A hidden param is written by the host; routing at one is refused at apply time, which would
+        // make a chunk that looks wired and is not.
+        expect(param!.hidden, `${label} ${end.join('.')}`).toBeFalsy()
+      }
+    }
+  })
+
+  it('routes between ends the target can actually reach', () => {
+    // A limit outside the target's range is not an error — `routeValue` clamps it — but in a *shipped*
+    // chunk it means a rotary with a dead zone at one end, which reads as a broken knob.
+    const typeOf = (local: string) => chunk.modules.find((m) => m.id === local)?.type
+    for (const route of chunk.modulation ?? []) {
+      const param = MODULES[typeOf(route.to[0])!].params.find((p) => p.id === route.to[1])!
+      for (const end of [route.min, route.max]) {
+        if (end === undefined) continue
+        expect(end, route.to.join('.')).toBeGreaterThanOrEqual(param.min)
+        expect(end, route.to.join('.')).toBeLessThanOrEqual(param.max)
+      }
+    }
+  })
+
   it('compiles into an empty rack with nothing dropped and reaches the output', () => {
     // The assertion that matters: dropped into nothing at all, it makes a sound. A chunk that needed
     // something already in the patch would be a chunk that does nothing when you first try it.
@@ -200,5 +234,57 @@ describe('a chunk makes a sound the moment it is dropped', () => {
       const isSource = chunk.modules.find((m) => m.id === source)?.type === 'noise'
       expect(fed.has(source) || isSource, `${chunk.id}: nothing feeds ${source}`).toBe(true)
     }
+  })
+})
+
+describe('inserting a chunk with routings', () => {
+  const COMBI = chunkById('combi')!
+
+  it('rewrites both ends of a routing to the ids it handed out', () => {
+    const { patch, ids } = insert(EMPTY_PATCH, 'combi')
+    expect(patch.modulation).toHaveLength(COMBI.modulation!.length)
+    for (const [index, route] of patch.modulation!.entries()) {
+      const original = COMBI.modulation![index]
+      expect(route.from).toEqual([ids[original.from[0]], original.from[1]])
+      expect(route.to).toEqual([ids[original.to[0]], original.to[1]])
+    }
+  })
+
+  it('gives two copies two independent sets of routings', () => {
+    // The property the whole id-rewriting exists for, one level up from the cables. Without it the second
+    // Combinator's rotaries would drive the first voice and the second voice would have no macros at all.
+    const once = insert(EMPTY_PATCH, 'combi')
+    const twice = insert(once.patch, 'combi')
+    expect(twice.patch.modulation).toHaveLength(COMBI.modulation!.length * 2)
+
+    const combis = new Set(twice.patch.modulation!.map((route) => route.from[0]))
+    const targets = new Set(twice.patch.modulation!.map((route) => route.to[0]))
+    expect(combis.size).toBe(2)
+    // Two Combinators, and between them they reach two separate sets of modules.
+    expect(targets.size).toBe(new Set(COMBI.modulation!.map((r) => r.to[0])).size * 2)
+  })
+
+  it('leaves modulation absent when the chunk has none', () => {
+    // A patch that never had routings must not start carrying an empty array into everybody's saved file.
+    const { patch } = insert(EMPTY_PATCH, 'sub')
+    expect('modulation' in patch).toBe(false)
+  })
+
+  it('keeps routings a patch already had', () => {
+    const first = insert(EMPTY_PATCH, 'combi')
+    const second = insert(first.patch, 'sub')
+    expect(second.patch.modulation).toHaveLength(COMBI.modulation!.length)
+  })
+
+  it('plays what its rotaries say the moment it is dropped in', () => {
+    // The point of shipping a wired Combi rather than an empty Combinator: the compiler applies the
+    // routing, so the first sound is the one the macro positions describe.
+    const { patch, ids } = insert(EMPTY_PATCH, 'combi')
+    const plan = compile(patch, MODULES)
+    const ladder = ids.ladder
+    const cutoff = plan.params[plan.slots[ladder].cutoff].value
+    const route = COMBI.modulation!.find((r) => r.to[1] === 'cutoff')!
+    expect(cutoff).toBeGreaterThanOrEqual(route.min!)
+    expect(cutoff).toBeLessThanOrEqual(route.max!)
   })
 })

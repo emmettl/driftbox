@@ -6,10 +6,10 @@ rate inside a single AudioWorklet.
 It is still a work in progress and is intentionally private and unpublished. Once complete
 and ready to support a public API, it can join the engine and app on npm.
 
-Twenty-two modules, a compiler, a worklet host and a patch format. The app supplies the
+Twenty-three modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
-tracker, sampler, patch library, performance mode and offline export. `../../docs/RACK.md`
-records the design and the decisions the implementation taught us.
+tracker, sampler, patch library, Combinator routing, performance mode and offline export.
+`../../docs/RACK.md` records the design and the decisions the implementation taught us.
 
 ```js
 import { Rack } from '@driftbox/rack'
@@ -72,6 +72,30 @@ This one fails in production only.
 **One signal type.** Audio and CV are the same `Float32Array`; pitch inlets are
 volts-per-octave and 0 V is C2. Nothing enforces which is which.
 
+**A Combinator routing is arithmetic on the patch, not a cable.** Reason's Modulation Routing —
+one rotary moving several devices' parameters at once — is a list of `{from, to, min, max}` in
+the patch, applied by `applyModulation` and by `compile`. It is deliberately *not* in the graph:
+an inlet is a buffer the graph fills at sample rate and a param is a slot the host writes, and
+joining the two would mean either promoting every param to a buffer or giving the audio thread a
+second claim on values the host owns. Control rate is also what Reason's Combinator is. The
+payoff is that the routed value saves, travels in a URL and renders in an offline export with no
+new machinery at all — and a rotary can reach a VCO's *waveform*, which no cable can.
+
+```js
+rack.patch = {
+  modules: [
+    { id: 'macro', type: 'combi', params: { rotary1: 127 } },
+    { id: 'filter', type: 'ladder' },
+    { id: 'out', type: 'out' },
+  ],
+  cables: [{ from: ['filter', 'out'], to: ['out', 'in'] }],
+  modulation: [
+    { from: ['macro', 'rotary1'], to: ['filter', 'cutoff'], min: 200, max: 8000 },
+  ],
+}
+rack.setParam('macro', 'rotary1', 0)   // the host settles the targets; see applyModulation
+```
+
 ## Tests
 
 None of them need a browser.
@@ -83,6 +107,7 @@ None of them need a browser.
 | `graph.test.ts` | The whole thing in Node, measuring the audio — including three patches that use most of the rack at once |
 | `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
 | `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
+| `modulation.test.ts` | Combinator routing: which of two routes onto one target wins, what a route onto a stepped param lands on, that a chain sees the value an earlier route wrote, that a cycle settles rather than oscillating, and that a route this build cannot resolve survives a round trip |
 | per-module | The claims each module's comments make: alias suppression against an additive reference, the pink slope, every ADSR time knob against a stopwatch, the delay's interpolation, the quantizer's octave boundaries |
 
 ```bash

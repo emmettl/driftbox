@@ -237,3 +237,58 @@ describe('repairing a patch', () => {
     expect(back?.modules[0].params).toEqual({ tune: 9999, width: -50 })
   })
 })
+
+describe('Combinator routings', () => {
+  const withRoutes = (modulation: unknown) =>
+    decode({
+      modules: [
+        { id: 'combi', type: 'combi' },
+        { id: 'filter', type: 'ladder' },
+      ],
+      cables: [],
+      modulation,
+    })
+
+  it('round-trips a routing', () => {
+    const route = { from: ['combi', 'rotary1'], to: ['filter', 'cutoff'], min: 200, max: 8000 }
+    expect(withRoutes([route])?.modulation).toEqual([route])
+  })
+
+  it('leaves modulation absent when there is none, so an older patch is byte-identical', () => {
+    const patch: Patch = { modules: [{ id: 'a', type: 'vco' }], cables: [] }
+    const back = decodePatch(encodePatch(patch))
+    expect(back).toEqual(patch)
+    expect('modulation' in (back ?? {})).toBe(false)
+  })
+
+  it('keeps a route to a param it has never heard of', () => {
+    // Same rule as an unknown module type: it may belong to a newer version of that module, and
+    // `applyModulation` skips what it cannot resolve rather than deleting it. This file has no registry
+    // and so could not tell the difference anyway — which is the point.
+    const route = { from: ['combi', 'rotary1'], to: ['filter', 'from-the-future'], min: 0, max: 1 }
+    expect(withRoutes([route])?.modulation).toEqual([route])
+  })
+
+  it('drops a route naming a module the file does not contain', () => {
+    // Unlike an unknown param, an unknown *id* is corruption with no repair — and keeping it would mean
+    // it accumulated across every save from here on. Exactly what happens to a dangling cable.
+    expect(withRoutes([{ from: ['ghost', 'rotary1'], to: ['filter', 'cutoff'], min: 0, max: 1 }])
+      ?.modulation).toBeUndefined()
+    expect(withRoutes([{ from: ['combi', 'rotary1'], to: ['ghost', 'cutoff'], min: 0, max: 1 }])
+      ?.modulation).toBeUndefined()
+  })
+
+  it('leaves an end that is not a number absent rather than repairing it to zero', () => {
+    // Zero would park the target at the bottom of its range and look like a routing that works but is
+    // aimed wrong. Absent means the target's own limit, and only `applyModulation` knows what that is.
+    const back = withRoutes([
+      { from: ['combi', 'rotary1'], to: ['filter', 'cutoff'], min: null, max: 'loud' },
+    ])
+    expect(back?.modulation).toEqual([{ from: ['combi', 'rotary1'], to: ['filter', 'cutoff'] }])
+  })
+
+  it('survives rubbish in the routing list', () => {
+    expect(withRoutes([null, 7, 'x', {}, { from: ['combi', 'rotary1'] }])?.modulation).toBeUndefined()
+    expect(withRoutes('not a list')?.modulation).toBeUndefined()
+  })
+})

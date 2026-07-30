@@ -9,7 +9,7 @@ import type { FaceplateProps } from './types.js'
 // faceplate would give you a knob called "Res" and no hint that the top of it is a different
 // instrument.
 
-export function Ladder({ def, value, onChange }: FaceplateProps) {
+export function Ladder({ def, value, onChange, routed }: FaceplateProps) {
   const param = (id: string) => def.params.find((p) => p.id === id)!
   const resonance = value('resonance')
 
@@ -25,12 +25,14 @@ export function Ladder({ def, value, onChange }: FaceplateProps) {
           value={value('cutoff')}
           onChange={(v) => onChange('cutoff', v)}
           colour="var(--three)"
+          routed={routed?.('cutoff')}
         />
         <ParamControl
           def={param('resonance')}
           value={resonance}
           onChange={(v) => onChange('resonance', v)}
           colour={resonance > 0.75 ? 'var(--eight)' : 'var(--three)'}
+          routed={routed?.('resonance')}
         />
       </div>
     </>

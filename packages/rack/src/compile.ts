@@ -1,3 +1,4 @@
+import { applyModulation } from './modulation.js'
 import type {
   PlanOutput,
   ModuleDef,
@@ -111,8 +112,16 @@ function migrated(
  * going silent with no way back. Anything unusable is dropped or neutralised and recorded
  * in `plan.notes`; the caller always gets a plan it can run.
  */
-export function compile(patch: Patch, registry: Registry): Plan {
+export function compile(rawPatch: Patch, registry: Registry): Plan {
   const notes: PlanNote[] = []
+  // Combinator routings, applied before anything else looks at a param.
+  //
+  // Here rather than only in the host, because a patch does not have to come from a host: a shipped preset,
+  // a link opened by a headless consumer and an offline render all reach this function without a knob ever
+  // having been turned. Applying it here is what makes "what a patch sounds like" a property of the patch
+  // rather than of the page that happened to open it. The app applies it too, so the target knob is seen to
+  // move — same function, so the two cannot disagree. See `modulation.ts`.
+  const patch = applyModulation(rawPatch, registry)
   const modules = Array.isArray(patch?.modules) ? patch.modules : []
   const cables = Array.isArray(patch?.cables) ? patch.cables : []
 

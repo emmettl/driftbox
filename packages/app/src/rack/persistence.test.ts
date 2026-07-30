@@ -50,6 +50,23 @@ describe('a patch in a URL', () => {
     expect(await patchFromHash(hash)).toEqual(big)
   })
 
+  it('carries a Combinator’s routings', async () => {
+    // A routing lives in the patch rather than in the graph precisely so that everything downstream gets
+    // it for free — the link included. Worth one test on the whole path rather than trusting the layering,
+    // because a link that arrived with the macros silently unwired would be the same patch by name only.
+    const wired: Patch = {
+      ...PATCH,
+      modules: [...PATCH.modules, { id: 'macro', type: 'combi', params: { rotary1: 20 } }],
+      modulation: [
+        { from: ['macro', 'rotary1'], to: ['osc', 'tune'], min: -24, max: 24 },
+        // And one with an end left absent, meaning the target's own limit — which is the shape a fresh
+        // routing has, and the one a codec is most likely to repair into a zero on the way past.
+        { from: ['macro', 'button1'], to: ['osc', 'shape'], max: 2 },
+      ],
+    }
+    expect(await patchFromHash(await patchToHash(wired))).toEqual(wired)
+  })
+
   it('is not readable as a song, and a song is not readable as a patch', async () => {
     // Both directions, because the failure is asymmetric otherwise: a song happens to have no
     // `modules` array so it would decode to null anyway, whereas a patch handed to decodeSong

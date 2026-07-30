@@ -219,9 +219,60 @@ export interface PatchCable {
   to: [string, string]
 }
 
+/**
+ * One Combinator control moving one parameter of one module. Reason's Modulation Routing, and the
+ * whole reason the `combi` module exists — see `modulation.ts` for the rules and `modules/combi.ts`
+ * for what it is routing *from*.
+ *
+ * A route is **not a cable**, and the difference is the point. A cable joins an outlet to an inlet and
+ * carries a signal at sample rate; a route joins a knob to a *knob*, and reaches parameters no module
+ * ever thought to expose as an inlet — a VCO's waveform, a Quantizer's scale, a Sampler's slice count.
+ * That is exactly the gap Reason's Combinator filled, and it is why routes live in the patch rather
+ * than in the graph.
+ *
+ * Both ends are `[moduleId, paramId]`, by name and never by index, for the same reason a cable names
+ * its ports: a module that gains a parameter must not silently re-aim every route that used it.
+ */
+export interface ModRoute {
+  /** The Combinator control driving this — a rotary or a button. */
+  from: [string, string]
+  /** The parameter it moves. Any parameter of any module, including another Combinator's. */
+  to: [string, string]
+  /**
+   * Where the target sits when the source is fully down, and where when it is fully up. **In the
+   * target's own units**, which is what makes a route readable: "cutoff 200 to 8000" says what it does,
+   * where a normalised 0..1 pair would not.
+   *
+   * `min > max` is legal and inverts the route, which is how Reason's Min/Max work and is the cheapest
+   * way to have one rotary open one thing while closing another.
+   *
+   * Either may be absent, meaning the target's own limit — so a hand-written route can sweep a parameter
+   * end to end without looking its range up, and a patch does not have to hardcode a number that a later
+   * version of that module might widen. Absence rather than a sentinel because a patch is JSON and JSON
+   * has no NaN: `JSON.stringify(NaN)` is `null`, so a sentinel would decode back as something else.
+   */
+  min?: number
+  max?: number
+}
+
 export interface Patch {
   modules: PatchModule[]
   cables: PatchCable[]
+  /**
+   * Combinator routings. Absent means none, which is what every patch written before this existed means.
+   *
+   * At the top level rather than on the Combinator module, deliberately, and it is the decision that kept
+   * this from touching anything else. A route names both of its ends by module id — the same way a cable
+   * does — so the patch format grows one optional array and nothing gains a notion of containment. Nesting
+   * modules inside a module would have meant a tree in the format, a tree in the layout, a tree in the
+   * compiler and a back panel that had to decide what a cable *out of* a container means. Reason's
+   * Combinator is a container; what makes it a Combinator is the four rotaries, and those need no
+   * containment at all.
+   *
+   * Ordering is load-bearing: routes are applied in list order and a later one wins a contested target.
+   * See `applyModulation`.
+   */
+  modulation?: ModRoute[]
   /**
    * How many voices. Absent means one, which is what every patch written before this existed means.
    *

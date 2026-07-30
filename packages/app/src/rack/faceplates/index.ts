@@ -1,5 +1,6 @@
 import type { ModuleDef } from '@driftbox/rack'
 import { CELL_HEIGHT, PAD, ROW, TITLE, columnsFor, rowsForJacks, type Size, type Span } from '../layout.js'
+import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
 import { Ladder } from './Ladder.js'
 import { Midi } from './Midi.js'
@@ -39,6 +40,10 @@ interface Entry {
 }
 
 const FACEPLATES: Record<string, Entry> = {
+  // Eight outlets, so the back already asks for five rows and the front gets them for nothing. Which is
+  // just as well: a row of four rotaries, a row of four buttons and a way through to the routing list is
+  // about that tall, and a Combinator is a big device in Reason too.
+  combi: { component: Combinator, rows: 5 },
   vco: { component: Vco, rows: 2 },
   ladder: { component: Ladder },
   midi: { component: Midi, rows: 2 },
