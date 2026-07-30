@@ -205,6 +205,46 @@ export function columnsFor(span: Span): number {
   return span === 1 ? 3 : 7
 }
 
+/**
+ * The jack nearest a point, within `radius`, optionally of one kind only.
+ *
+ * This is how a cable finds what it was dropped on, and it replaced asking the DOM. `pointerup`'s target
+ * is not the thing under the pointer on a touchscreen: the browser applies implicit pointer capture, so
+ * every event including the release is delivered to the element the touch *started* on. Patching was
+ * therefore completely broken on touch while working on a mouse, and the source jack was being handed to
+ * itself as the drop target.
+ *
+ * Resolving by position fixes that and is better than fixing it with `elementFromPoint`, for three
+ * reasons: it behaves identically for mouse and touch, it needs no DOM at all so it is testable here, and
+ * it SNAPS — which is not a nicety on a touchscreen where a fingertip is wider than the jack it is
+ * covering.
+ *
+ * Filtering by kind is what makes the snap forgiving rather than merely tolerant: dragging from an outlet,
+ * only inlets are candidates, so the nearest sensible target wins instead of the nearest one of any sort.
+ */
+export function nearestJack(
+  list: readonly Jack[],
+  point: { x: number; y: number },
+  radius: number,
+  kind?: 'in' | 'out',
+): Jack | undefined {
+  let best: Jack | undefined
+  let closest = radius
+  for (const jack of list) {
+    if (kind && jack.kind !== kind) continue
+    const distance = Math.hypot(jack.x - point.x, jack.y - point.y)
+    if (distance <= closest) {
+      closest = distance
+      best = jack
+    }
+  }
+  return best
+}
+
+/** How close a drop has to be to count. Generous, because "nearest" resolves any ambiguity — and a
+ *  fingertip is wider than a jack. */
+export const SNAP = 30
+
 /** Find a jack by module and port. */
 export function jackAt(
   list: readonly Jack[],

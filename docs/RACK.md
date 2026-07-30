@@ -471,7 +471,26 @@ The risk is all in the first item. Do it first and alone.
      precisely so the *generated* faceplate gets them: that is the difference between the fallback
      being a fallback and the fallback being enough.
 
-   Still to do: touch, keyboard patching, module drag-to-reorder, a patch browser, and the visualiser.
+   Then: **touch, keyboard patching and a scope.**
+
+   - **Patching was completely broken on touch** while working perfectly on a mouse. `pointerup`'s
+     target is not the thing under the pointer on a touchscreen — implicit pointer capture delivers the
+     release to the element the touch *started* on, so the source jack was being handed to itself as the
+     drop target. The fix was to stop asking the DOM and resolve the target by position instead, which is
+     better than reaching for `elementFromPoint`: it behaves identically for mouse and touch, it needs no
+     DOM so it is testable, and it **snaps** — which is not a nicety when a fingertip is wider than the
+     jack it is covering. Filtering candidates by kind is what makes the snap forgiving rather than
+     merely tolerant.
+   - **Keyboard patching.** Enter arms a jack, Enter on a compatible one completes the cable, Escape
+     lets go, Delete pulls one out. It shares `connect` with the drag so there is one definition of a
+     legal cable. A modular whose whole point is the cables is a poor thing to make mouse-only.
+   - **The sequencer's oscilloscope, reused.** That took *removing* a dependency rather than adding a
+     fallback: it read its analyser from the sequencer's store, so importing it would have dragged the
+     engine, the songs and the scenes into a 37kB page. It takes the analyser as a prop now and both
+     pages pass their own. Diagnostic rather than decorative here — a VCA left shut reads as a flat
+     line, and a patch clipping into the Out reads as a flattened top.
+
+   Still to do: module drag-to-reorder, a patch browser, and the visualiser.
 5. **Then decide** about polyphony, third-party modules, and whether the VCV importer above is
    a weekend or a rabbit hole. All three are real products in their own right and none should
    be guessed at from here.

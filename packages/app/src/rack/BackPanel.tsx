@@ -1,7 +1,7 @@
 import { MODULES, type PatchCable } from '@driftbox/rack'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { cableMiddle, cablePath, type Point } from './cable.js'
-import { jackAt, jacks, type Layout } from './layout.js'
+import { SNAP, type Jack, jackAt, jacks, nearestJack, type Layout } from './layout.js'
 import { useRack } from './store.js'
 
 // The back of the rack. Jacks, and cables hanging between them.
@@ -20,7 +20,7 @@ interface Props {
 
 /** A cable being dragged, before it lands anywhere. */
 interface Dragging {
-  from: { module: string; port: string; kind: 'in' | 'out' }
+  from: Jack
   at: Point
 }
 
@@ -32,6 +32,15 @@ export function BackPanel({ layout }: Props) {
 
   const all = useMemo(() => jacks(layout.placements, MODULES), [layout])
   const [dragging, setDragging] = useState<Dragging | null>(null)
+  /**
+   * The jack picked with the keyboard, waiting for its other end.
+   *
+   * Patching by dragging is unavailable to anybody who cannot drag, and a modular whose whole point is the
+   * cables is a poor thing to make mouse-only. Two presses instead of one gesture: Enter on a jack arms it,
+   * Enter on a compatible one completes the cable, Escape lets go. Delete on a patched inlet pulls its cable
+   * out. It shares `connect` with the drag, so there is one definition of what a legal cable is.
+   */
+  const [armed, setArmed] = useState<Jack | null>(null)
   const surface = useRef<SVGSVGElement | null>(null)
 
   /** Pointer position in design units rather than screen pixels, so the live cable lines up with the
@@ -46,19 +55,79 @@ export function BackPanel({ layout }: Props) {
     }
   }, [layout.width, layout.height])
 
+  /** `join` is defined below because it needs `connect`; the drag needs it here. A ref rather than
+   *  reordering the file, because the reading order — drag, then keyboard, then the shared join — is the
+   *  order somebody would want to read it in. */
+  const joinRef = useRef<(a: Jack, b: Jack) => boolean>(() => false)
+
+  /** The jack a drop would land on: nearest of the opposite kind, within a snap radius. */
+  const dropTarget = useCallback(
+    (drag: Dragging | null, at: Point) =>
+      drag ? nearestJack(all, at, SNAP, drag.from.kind === 'out' ? 'in' : 'out') : undefined,
+    [all],
+  )
+
   const finish = useCallback(
-    (target?: { module: string; port: string; kind: 'in' | 'out' }) => {
+    (at?: Point) => {
       const drag = dragging
       setDragging(null)
-      if (!drag || !target) return
+      if (!drag || !at) return
+      const target = dropTarget(drag, at)
+      if (!target) return
       // A cable has one end in an outlet and one in an inlet, and it does not matter which was dragged
       // first — pulling from an input to an output is how anybody who has used a real rack does it half
       // the time.
-      if (drag.from.kind === target.kind) return
-      const [out, into] = drag.from.kind === 'out' ? [drag.from, target] : [target, drag.from]
-      connect([out.module, out.port], [into.module, into.port])
+      joinRef.current(drag.from, target)
     },
-    [dragging, connect],
+    [dragging, dropTarget],
+  )
+
+  const over = dragging ? dropTarget(dragging, dragging.at) : undefined
+
+  /** Join two jacks, whichever order they were picked in. Shared by the drag and the keyboard. */
+  const join = useCallback(
+    (a: Jack, b: Jack) => {
+      if (a.kind === b.kind) return false
+      const [out, into] = a.kind === 'out' ? [a, b] : [b, a]
+      connect([out.module, out.port], [into.module, into.port])
+      return true
+    },
+    [connect],
+  )
+
+  joinRef.current = join
+
+  const onJackKey = useCallback(
+    (event: React.KeyboardEvent, jack: Jack) => {
+      if (event.key === 'Escape') {
+        setArmed(null)
+        return
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        const attached = patch.cables.find(
+          (cable) =>
+            (cable.to[0] === jack.module && cable.to[1] === jack.port) ||
+            (cable.from[0] === jack.module && cable.from[1] === jack.port),
+        )
+        if (attached) {
+          event.preventDefault()
+          disconnect(attached)
+        }
+        return
+      }
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      if (!armed) {
+        setArmed(jack)
+        return
+      }
+      if (armed.module === jack.module && armed.port === jack.port) {
+        setArmed(null)
+        return
+      }
+      if (join(armed, jack)) setArmed(null)
+    },
+    [armed, join, patch.cables, disconnect],
   )
 
   const delayed = new Set(
@@ -75,8 +144,10 @@ export function BackPanel({ layout }: Props) {
         onPointerMove={(event) => {
           if (dragging) setDragging({ ...dragging, at: toDesign(event) })
         }}
-        onPointerUp={() => finish()}
-        onPointerLeave={() => finish()}
+        onPointerUp={(event) => finish(toDesign(event))}
+        // Not onPointerLeave: with the pointer captured to this element the cable can be dragged outside
+        // it and back, and cancelling on leave made a drag that strayed over the header die silently.
+        onPointerCancel={() => finish()}
       >
         {/* The panel itself: one rectangle per module, so the back has the same divisions as the front
             and it is obvious which jacks belong to which module. */}
@@ -123,6 +194,10 @@ export function BackPanel({ layout }: Props) {
           )
         })}
 
+        {armed && (
+          <circle className="rk-armed-halo" cx={armed.x} cy={armed.y} r="15" />
+        )}
+
         {dragging && (
           <path
             className="rk-cable-line rk-cable-live"
@@ -136,14 +211,30 @@ export function BackPanel({ layout }: Props) {
         {all.map((jack) => (
           <g
             key={`${jack.module}.${jack.port}`}
-            className={jack.kind === 'in' ? 'rk-jack rk-jack-in' : 'rk-jack rk-jack-out'}
+            className={[
+              'rk-jack',
+              jack.kind === 'in' ? 'rk-jack-in' : 'rk-jack-out',
+              // The jack a release would land on, highlighted. Feedback rather than decoration: with
+              // snapping, where the cable ends is not always exactly where the pointer is, and on a
+              // touchscreen the finger is covering the answer.
+              over && over.module === jack.module && over.port === jack.port ? 'rk-jack-over' : '',
+              armed && armed.module === jack.module && armed.port === jack.port ? 'rk-jack-armed' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            tabIndex={0}
+            role="button"
+            aria-label={`${jack.module} ${jack.name} ${jack.kind === 'in' ? 'input' : 'output'}${
+              armed ? `, press Enter to patch from ${armed.module} ${armed.name}` : ''
+            }`}
+            onKeyDown={(event) => onJackKey(event, jack)}
             onPointerDown={(event) => {
               event.stopPropagation()
+              // Capture to the SVG, not to the jack. Everything after this — every move and the release —
+              // then arrives at one element with usable coordinates, which is what makes the drag behave
+              // the same for a mouse and a finger.
+              surface.current?.setPointerCapture(event.pointerId)
               setDragging({ from: jack, at: { x: jack.x, y: jack.y } })
-            }}
-            onPointerUp={(event) => {
-              event.stopPropagation()
-              finish(jack)
             }}
           >
             {/* An invisible target wider than the jack it sits on. A 10px ring is fine for a mouse and

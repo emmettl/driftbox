@@ -122,6 +122,16 @@ kbd {
   color: var(--dim);
 }
 
+.rk-scope {
+  border-top: 1px solid var(--edge);
+  background: rgba(7, 4, 15, 0.6);
+  line-height: 0;
+}
+.rk-scope canvas {
+  width: 100%;
+  display: block;
+}
+
 .rk-footer {
   display: flex;
   gap: 16px;
@@ -442,6 +452,37 @@ kbd {
 .rk-jack:hover .rk-jack-ring {
   fill: #2a1f4a;
   stroke-width: 2.5;
+}
+/* Where the cable would land if it were released now. */
+.rk-jack-over .rk-jack-ring {
+  fill: var(--ink);
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+/* Picked with the keyboard and waiting for its other end. */
+.rk-jack-armed .rk-jack-ring {
+  stroke: var(--eight);
+  stroke-width: 3;
+}
+.rk-armed-halo {
+  fill: none;
+  stroke: var(--eight);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+
+/* Focus has to be visible on the back panel or keyboard patching is a guessing game. */
+.rk-jack:focus {
+  outline: none;
+}
+.rk-jack:focus-visible .rk-jack-ring {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+.rk-jack:focus-visible .rk-jack-label {
+  fill: var(--ink);
 }
 .rk-jack-hole {
   fill: #05030b;
