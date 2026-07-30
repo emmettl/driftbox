@@ -314,11 +314,13 @@ describe('moving a knob', () => {
     // ladder cutoff, one level up.
     const graph = graphFor(probePatch, PROBES)
     const plan = compile(probePatch, PROBES)
-    graph.setParam(plan.slots.p.value, 1)
+    // 0.75 rather than 1, and below the master's soft ceiling for the same reason these values sit below the
+    // limiter's threshold: a probe pinned where the master is shaping it measures the master, not the ramp.
+    graph.setParam(plan.slots.p.value, 0.75)
 
     const first = render(graph, 1)
-    expect(first[0]).toBeCloseTo(1 / FRAMES, 5)
-    expect(first[FRAMES - 1]).toBeCloseTo(1, 5)
+    expect(first[0]).toBeCloseTo(0.75 / FRAMES, 5)
+    expect(first[FRAMES - 1]).toBeCloseTo(0.75, 5)
     let monotonic = true
     for (let i = 1; i < FRAMES; i++) if (first[i] <= first[i - 1]) monotonic = false
     expect(monotonic).toBe(true)
@@ -344,10 +346,10 @@ describe('moving a knob', () => {
     // sound, and a ramp would make it flicker across the changeover for a block.
     const patch: Patch = { modules: [{ id: 'p', type: 'probe-stepped' }], cables: [] }
     const graph = graphFor(patch, PROBES)
-    graph.setParam(compile(patch, PROBES).slots.p.value, 1)
+    graph.setParam(compile(patch, PROBES).slots.p.value, 0.75)
 
     const first = render(graph, 1)
-    expect(firstBad(first, (x) => x === 1)).toBe(-1)
+    expect(firstBad(first, (x) => x === 0.75)).toBe(-1)
   })
 
   it('ignores a slot or a value that makes no sense', () => {
@@ -786,5 +788,78 @@ describe('muting and soloing channels', () => {
     const { left, right } = level(twoChannels({ solo: 1, pan: -1 }, { pan: 1 }))
     expect(left).toBeCloseTo(0.4, 5)
     expect(right).toBeCloseTo(0, 5)
+  })
+})
+
+describe('the soft ceiling behind the limiter', () => {
+  // The limiter reacts to a peak as it arrives, so it cannot catch the peak itself — the gain is only down a
+  // sample later. Measured on an export of three chunks at once, that let through a peak of 1.17, which is
+  // above full scale and clips audibly. A lookahead would fix it by construction and was tried; it costs
+  // three milliseconds of latency on an instrument somebody plays with a keyboard, which is too much for a
+  // defect this size. So the transients meet a curve.
+
+  const loud = (offset: number): Patch => ({
+    modules: [
+      { id: 'o-1', type: 'offset', params: { offset } },
+      { id: 'out-1', type: 'out', params: { level: 1 } },
+    ],
+    cables: [{ from: ['o-1', 'out'], to: ['out-1', 'in'] }],
+  })
+
+  it('never lets anything past full scale, however hard it is driven', () => {
+    // The property the whole thing exists for. Checked well past anything musical, because a feedback patch
+    // is exactly where this gets tested in practice.
+    for (const offset of [1, 2, 8, 40]) {
+      const audio = run(loud(offset), 8)
+      const peak = Math.max(...[...audio].map(Math.abs))
+      expect(peak, `offset ${offset}`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('leaves everything under the knee arithmetically untouched', () => {
+    // The other half, and the more important one. A ceiling that coloured ordinary signals would change the
+    // sound of every patch that never needed it — and the knee sits at the limiter's own threshold precisely
+    // so that only what the limiter could not catch is bent.
+    const audio = run(loud(0.5), 4)
+    expect(firstBad(audio, (x) => Math.abs(x - 0.5) < 1e-6)).toBe(-1)
+  })
+
+  it('bends rather than clipping flat, so a transient keeps its shape', () => {
+    // Hard clipping would take everything above the ceiling to the same value and turn a transient into a
+    // square edge. Two different overshoots have to come out as two different numbers.
+    const small = Math.max(...[...run(loud(1.05), 6)].map(Math.abs))
+    const large = Math.max(...[...run(loud(1.6), 6)].map(Math.abs))
+    expect(large).toBeGreaterThan(small)
+    expect(large).toBeLessThanOrEqual(1)
+  })
+
+  it('is still monotonic, so louder in is never quieter out', () => {
+    // A curve that folded back would make a loud patch quieter than a moderate one, which is the classic
+    // wavefolder-by-accident bug.
+    let previous = 0
+    for (const offset of [0.2, 0.5, 0.9, 1, 1.5, 3]) {
+      const peak = Math.max(...[...run(loud(offset), 6)].map(Math.abs))
+      expect(peak, `offset ${offset}`).toBeGreaterThanOrEqual(previous - 1e-6)
+      previous = peak
+    }
+  })
+
+  it('keeps the two channels in step, so the image does not shift', () => {
+    // Applied per channel but driven by a gain computed across the pair, so a peak on one side must not
+    // move the other. Two identical sources hard apart come back matched.
+    const graph = graphFor({
+      modules: [
+        { id: 'a', type: 'offset', params: { offset: 1.4 } },
+        { id: 'out-1', type: 'out', params: { level: 1, pan: -1 } },
+        { id: 'out-2', type: 'out', params: { level: 1, pan: 1 } },
+      ],
+      cables: [
+        { from: ['a', 'out'], to: ['out-1', 'in'] },
+        { from: ['a', 'out'], to: ['out-2', 'in'] },
+      ],
+    })
+    const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+    for (let block = 0; block < 6; block++) graph.process(channels)
+    expect(channels[0][FRAMES - 1]).toBeCloseTo(channels[1][FRAMES - 1], 6)
   })
 })

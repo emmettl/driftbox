@@ -313,12 +313,50 @@ export class Graph {
       left *= this.limitGain
       rightSum *= this.limitGain
 
-      mix[i] = left > 4 ? 4 : left < -4 ? -4 : left
-      if (right) right[i] = rightSum > 4 ? 4 : rightSum < -4 ? -4 : rightSum
+      // A soft ceiling, because the limiter alone overshoots.
+      //
+      // Reacting to a peak as it arrives cannot catch the peak itself — the gain is only down a sample
+      // later. Measured on an export of three chunks at once: a peak of 1.17, which is above full scale and
+      // clips audibly on playback, and that is exactly what a master limiter exists to prevent.
+      //
+      // A lookahead would fix it by construction and was tried first: delay the audio, drive the gain from
+      // the undelayed signal. It works, and it costs three milliseconds of latency on a rack somebody plays
+      // with a keyboard, plus it breaks sample alignment for everything downstream. Too much for a defect
+      // this size.
+      //
+      // So the transients meet a curve instead. Below 0.8 this is arithmetically the identity — the limiter
+      // is already holding the sustained level under that — and above it, it bends asymptotically to 1.0.
+      // Only the overshoot is distorted, which is what a mastering chain's clipper does after its limiter
+      // and for the same reason.
+      const outLeft = this.ceiling(left)
+      const outRight = this.ceiling(rightSum)
+
+      mix[i] = outLeft > 4 ? 4 : outLeft < -4 ? -4 : outLeft
+      if (right) right[i] = outRight > 4 ? 4 : outRight < -4 ? -4 : outRight
     }
     // Anything beyond a pair gets the left channel: a rack asked for more channels than it has an opinion
     // about should still make a sound in all of them.
     for (let c = 2; c < channels.length; c++) channels[c].set(mix)
+  }
+
+  /**
+   * Bend anything above the limiter's own threshold towards a ceiling of 1, leaving the rest untouched.
+   *
+   * The knee sits at 0.95 and not lower **because that is where the limiter is already holding things**.
+   * A knee at 0.8 was the first attempt and it was wrong in a way worth recording: the limiter deliberately
+   * parks sustained material just under 0.95, so a knee below that would bend everything loud, continuously,
+   * rather than only the transients the limiter could not catch.
+   *
+   * Below the knee this is arithmetically the identity, which matters — a ceiling that coloured ordinary
+   * signals would change the sound of every patch that never needed it.
+   */
+  private ceiling(x: number): number {
+    const knee = 0.95
+    const magnitude = x < 0 ? -x : x
+    if (magnitude <= knee) return x
+    const over = (magnitude - knee) / (1 - knee)
+    const bent = knee + (1 - knee) * Math.tanh(over)
+    return x < 0 ? -bent : bent
   }
 
   /** A live view of one module's bulk data. Pushed wins over seeded; see the note on those fields. */

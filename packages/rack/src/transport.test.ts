@@ -113,7 +113,10 @@ describe('the transport', () => {
     // one whole beat has gone by reads as broken, and at 60bpm that is a second of nothing.
     const { graph } = build(clocked())
     graph.setTransport(120, true)
-    expect(render(graph, 1)[0]).toBe(1)
+    // Not exactly 1: a gate at full scale arrives at the master, where the soft ceiling bends it to 0.988.
+    // What this test is about is that something fires on the first sample rather than a beat later, so it
+    // asks that rather than asking for a number the master is entitled to shape.
+    expect(render(graph, 1)[0]).toBeGreaterThan(0.9)
   })
 
   it('ticks quarters four times slower than sixteenths', () => {
