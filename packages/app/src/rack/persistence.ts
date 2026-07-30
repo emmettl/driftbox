@@ -100,6 +100,26 @@ export function pickPatchFile(): Promise<Patch | null> {
   })
 }
 
+/**
+ * Open a picker for a VCV Rack patch and hand back its bytes.
+ *
+ * Bytes rather than text, because a `.vcv` is a zip — see `@driftbox/rack`'s `vcv/zip.ts`, which reads one with
+ * `DecompressionStream` and no library, since a zip entry is deflate-raw and this app has been using that for
+ * the URL since patch sharing existed.
+ */
+export function pickVcvFile(): Promise<ArrayBuffer | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.vcv,application/zip'
+    input.onchange = () => {
+      const file = input.files?.[0]
+      resolve(file ? file.arrayBuffer() : null)
+    }
+    input.click()
+  })
+}
+
 // ---- shareable links ----------------------------------------------------------
 
 export function patchToHash(patch: Patch): Promise<string> {

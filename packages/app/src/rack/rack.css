@@ -243,6 +243,38 @@ kbd {
   border-color: var(--nine);
 }
 
+.rk-report {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--edge);
+  padding-top: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.rk-report h2 {
+  color: var(--three);
+  text-transform: none;
+  letter-spacing: 0;
+  font: 11px var(--mono);
+}
+.rk-note {
+  display: flex;
+  gap: 8px;
+  font: 10px var(--mono);
+  color: var(--dim);
+  padding: 1px 0;
+}
+.rk-note span {
+  min-width: 92px;
+  color: var(--nine);
+}
+.rk-note-placeholder span {
+  color: var(--three);
+}
+.rk-note-dropped-cable span,
+.rk-note-refused span {
+  color: var(--eight);
+}
+
 .rk-palette {
   display: flex;
   gap: 6px;

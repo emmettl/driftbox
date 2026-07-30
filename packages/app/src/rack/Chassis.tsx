@@ -58,8 +58,17 @@ export function Chassis({ layout }: Props) {
               // a placeholder that reads as silence — so the faceplate says so rather than pretending
               // the module is missing, because saving over it would destroy somebody's patch.
               <div className="rk-unknown">
-                <span className="rk-name">{module.type}</span>
-                <span className="rk-ports">not in this build — kept, not played</span>
+                {/* A type imported from VCV Rack carries where it came from — `vcv:Bogaudio/Wavefolder` — so it
+                    reads as "a Rack module we do not have" rather than as a corrupt patch. Shown split up,
+                    because the raw slug uppercased by the title style is unreadable. */}
+                <span className="rk-name">
+                  {module.type.startsWith('vcv:') ? module.type.slice(4).split('/').pop() : module.type}
+                </span>
+                <span className="rk-ports">
+                  {module.type.startsWith('vcv:')
+                    ? `${module.type.slice(4).split('/')[0]} · from VCV Rack, not played`
+                    : 'not in this build — kept, not played'}
+                </span>
               </div>
             )}
 

@@ -338,8 +338,9 @@ export default function RackApp() {
 
       {placeholders.length > 0 && (
         <p className="rk-warn">
-          {placeholders.length} module{placeholders.length > 1 ? 's' : ''} in this patch are not in this
-          build. They are kept and will be saved, but they make no sound.
+          {placeholders.length === 1
+            ? '1 module in this patch is not in this build. It is kept and will be saved, but it makes no sound.'
+            : `${placeholders.length} modules in this patch are not in this build. They are kept and will be saved, but they make no sound.`}
         </p>
       )}
 
