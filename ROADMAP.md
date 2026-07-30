@@ -521,6 +521,17 @@ published both packages through npm's trusted-publisher OIDC path, and the regis
 a signed SLSA provenance attestation for each tarball. The OIDC path is proven; a future
 authentication failure is a regression rather than an untested setup.
 
+Two things that pass added to it. The published `Ladder` **still rings 0.45s after a single
+impulse** — peak 0.185 — which is as close as a registry check gets to the bundler risk named
+below, and it is worth repeating at each release for that reason. And both served pages read
+`v0.2.0 · 93d9cf6`, so the build label added in this very release is what confirms the tarball
+came from the released commit: a feature that ended up verifying the release it shipped in.
+
+One warning for whoever repeats the Ladder check. The first attempt fed silence to a filter
+with no state and concluded it did not self-oscillate, which is arithmetically correct and
+tests nothing — a resonator with zero input and zero state stays at zero for ever. Kick it
+once, then measure the tail.
+
 The one thing still worth watching is **`Ladder.toString()` under a consumer's bundler**.
 It holds under this build — verified against both the minified app bundle and the engine's
 own `dist/`, where the class comes out self-contained and still self-oscillates when
@@ -585,6 +596,13 @@ happens again.
 packages without `NODE_AUTH_TOKEN`, signed their provenance statements and registered the
 attestations with npm. 0.1.0 went out on a token and the intervening dry run could not test
 the replacement credential; 0.2.0 is the first complete test of the trusted-publisher path.
+
+**The property worth keeping from that worry outlives the credential.** A dry run could not
+have caught an auth problem, because `--dry-run` never authenticates and the workflow skips
+versions already on the registry. So the first release after *any* change to publishing —
+renaming `publish.yml`, moving it, reconfiguring the trusted publisher — is still the first
+real test of that change, and it will still fail late, at the upload, after everything else
+has gone green. Budget for that rather than for this one credential.
 
 ### 2. ~~Per-voice outputs~~ — done, as stems
 
