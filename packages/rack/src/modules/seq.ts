@@ -141,4 +141,8 @@ export const SEQ_MODULE: ModuleDef = {
     ...Array.from({ length: 8 }, (_, i) => switched(i)),
   ],
   processor: SeqProcessor,
+  // One sequence. Eight copies advanced by the same clock would play the same step, so polyphony has to come
+  // from somewhere that can hold eight different notes — which is the MIDI module, and is why that one stays
+  // polyphonic.
+  poly: false,
 }

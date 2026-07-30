@@ -163,10 +163,19 @@ export function compile(patch: Patch, registry: Registry): Plan {
   // modules whose lifetimes do not overlap is a real optimisation and belongs later.
 
   const outletBuffer = new Map<string, number>()
+  /** Per buffer: is it written per voice? Index 0 is the zero buffer, which belongs to nobody and is read by
+   *  every unconnected inlet of every voice — mono is the only answer that makes sense for it. */
+  const bufferPoly: boolean[] = [false]
   let buffers = 1
   for (const module of live) {
-    for (const port of registry[module.type].outlets) {
-      outletBuffer.set(key(module.id, port.id), buffers++)
+    const def = registry[module.type]
+    // A buffer is polyphonic exactly when the module writing it is. Recorded here rather than worked out on
+    // the audio thread, because a question `process()` has to answer at run time is one it can get wrong.
+    const poly = def.poly !== false
+    for (const port of def.outlets) {
+      outletBuffer.set(key(module.id, port.id), buffers)
+      bufferPoly[buffers] = poly
+      buffers++
     }
   }
 
@@ -334,6 +343,7 @@ export function compile(patch: Patch, registry: Registry): Plan {
       inlets: def.inlets.map((port) => inletSource.get(key(module.id, port.id))?.buffer ?? ZERO),
       outlets: def.outlets.map((port) => outletBuffer.get(key(module.id, port.id)) ?? ZERO),
       params: def.params.map((param) => slots[module.id][param.id]),
+      poly: def.poly !== false,
     }
   })
 
@@ -360,5 +370,9 @@ export function compile(patch: Patch, registry: Registry): Plan {
     })
   }
 
-  return { buffers, nodes, outputs, params, slots, notes }
+  // 1 to 8. Clamped here so that no later stage has to guard against a patch asking for nine hundred, and
+  // rounded because a plan with 2.5 voices is not a thing the Graph should have to have an opinion about.
+  const voices = Math.max(1, Math.min(8, Math.round(clamp(patch?.voices, 1, 8, 1))))
+
+  return { buffers, voices, poly: bufferPoly, nodes, outputs, params, slots, notes }
 }

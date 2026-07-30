@@ -35,4 +35,8 @@ export const OUT_MODULE: ModuleDef = {
   params: [{ id: 'level', name: 'Level', min: 0, max: 1, default: 0.7 }],
   processor: OutProcessor,
   terminal: true,
+  // One master bus. Eight copies would each apply the level knob to their own voice and then be summed,
+  // which is the same arithmetic — but the collapse has to happen somewhere obvious, and the end of the
+  // rack is where anybody would look for it.
+  poly: false,
 }

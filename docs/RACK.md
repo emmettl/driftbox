@@ -556,8 +556,41 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
    Web MIDI is Chromium-only, so absence has to read as absence rather than as breakage — the
    same standard `loadRack` already holds itself to.
 
-   **5b. Polyphony.** N processors per node, per-voice buffers, `poly: false` and summing at the
-   collapse. See the corrected section above: no module code changes.
+   **5b. Polyphony.** 🚧 The graph half is built and tested; nothing drives more than one voice yet.
+   Same discipline as step 1 — the part with the risk in it first, with no UI.
+
+   The corrected section above held: **no module changed to get polyphony.** All of it is in the
+   compiler and the Graph. What the compiler emits is `voices`, a `poly` flag per node, and a
+   `poly[]` map saying which buffers are per-voice — that last one so `process()` never has to work
+   anything out at run time.
+
+   The four cases are decided once at build time and stored, because deciding them per sample would
+   be four branches in the innermost loop in the program:
+
+   | consumer | source | the inlet gets |
+   |---|---|---|
+   | poly | poly | that voice's buffer |
+   | poly | mono | the one buffer, the same for every voice |
+   | mono | poly | a scratch holding every voice summed — **the collapse** |
+   | mono | mono | the one buffer |
+
+   Four modules are `poly: false`: **Out** (one master bus), **Delay** (a shared delay is the point,
+   and eight two-second buffers is not), **Clock** (eight identical ones would tick together) and
+   **Seq** (eight copies on one clock would play the same step — which is why polyphony has to come
+   from somewhere that can hold eight different notes, and why MIDI stays polyphonic).
+
+   Two things needed adding that the plan did not mention:
+
+   - **`setParam` gained an optional voice.** A knob means every voice; a keyboard means one. That is
+     the only thing polyphony added to the message ABI, and it is what lets one MIDI module hold
+     eight different notes.
+   - **Later voices get a suffixed module id.** Anything random seeds from the id, so eight voices of
+     Noise would otherwise be one source 18dB louder rather than eight uncorrelated ones — the same
+     bug as the instance-counter seeding from step 3, one level up. Voice zero keeps the plain id, so
+     a one-voice patch is byte-identical to before polyphony existed. `poly.test.ts` asserts that.
+
+   Still to do for 5b: a voice allocator, wiring MIDI to it, and a voice-count control. Nothing plays
+   a chord from a keyboard yet — only a test does.
 
    **5c. A VCV Rack importer, topology only.** Read `patch.json`, map the Fundamental modules
    that have equivalents here, land the rest as placeholders — which the existing placeholder

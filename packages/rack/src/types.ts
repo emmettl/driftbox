@@ -114,6 +114,19 @@ export interface ModuleDef {
   deps?: Record<string, Dep>
   /** A terminal module: its first outlet is summed into the rack's audio output. */
   terminal?: boolean
+  /**
+   * Whether this module is duplicated per voice. Default true.
+   *
+   * `false` means one instance however many voices the patch has, and every voice arriving at one of its
+   * inlets is **summed** first. That is the collapse, and it is the whole reason the flag exists: a Delay
+   * duplicated eight times is eight delays, and a shared delay is the point. So is one master Out, one
+   * clock, and one sequence.
+   *
+   * Default true rather than false because a module inside a voice is the common case — an oscillator, a
+   * filter, an envelope — and getting the default wrong the other way would silently make polyphony
+   * monophonic.
+   */
+  poly?: boolean
   /** Repair the params of an older saved version. Lives here rather than in a central
    *  table because at forty modules a central table is unmaintainable, and the person
    *  adding a param is the person who knows what the old value meant. */
@@ -145,6 +158,15 @@ export interface PatchCable {
 export interface Patch {
   modules: PatchModule[]
   cables: PatchCable[]
+  /**
+   * How many voices. Absent means one, which is what every patch written before this existed means.
+   *
+   * One count for the whole patch, deliberately. VCV Rack's model is more refined — polyphony originates at
+   * a module and propagates down cables, so each cable carries its own channel count — and it is a great
+   * deal more machinery: per-cable counts, a propagation pass, and a rule for what happens where two
+   * different counts meet. One number is predictable, testable, and enough to play chords with.
+   */
+  voices?: number
 }
 
 // ---------------------------------------------------------------------------------------
@@ -160,6 +182,8 @@ export interface PlanNode {
   outlets: number[]
   /** Slot index per param, in def order. */
   params: number[]
+  /** False for a module that runs once however many voices there are. */
+  poly: boolean
 }
 
 export interface PlanParam {
@@ -191,6 +215,16 @@ export interface PlanNote {
 export interface Plan {
   /** How many buffers to allocate. Index 0 is the zero buffer and is never written. */
   buffers: number
+  /** 1 to 8. Clamped from the patch, so a plan never asks for a voice count the Graph must guard against. */
+  voices: number
+  /**
+   * Which buffers are per-voice, indexed the same way as the buffers themselves.
+   *
+   * A buffer is polyphonic exactly when the module writing it is, so the Graph could work this out from the
+   * nodes — and it is emitted instead so that it does not have to. `process()` walking a list is the whole
+   * design; every question it has to answer at run time is one it can get wrong.
+   */
+  poly: boolean[]
   /** In execution order. */
   nodes: PlanNode[]
   /** Buffer indices to sum into the audio output. */

@@ -108,4 +108,7 @@ export const DELAY_MODULE: ModuleDef = {
     { id: 'feedback', name: 'FB', min: 0, max: 0.98, default: 0.3 },
   ],
   processor: DelayProcessor,
+  // A shared delay is the point. Eight voices into eight separate delay lines is eight delays, which is not
+  // what anybody patches a delay for — and it is also eight two-second buffers.
+  poly: false,
 }
