@@ -16,12 +16,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    // Resolve @driftbox/engine to its SOURCE for type-checking, matching the alias in
+    // Resolve the workspace packages to their SOURCE for type-checking, matching the alias in
     // vite.config.ts and vitest.config.ts. Without it, `tsc -b` on a fresh checkout
     // fails until the engine has been built — which would make the app's type-check
     // depend on build order for no good reason.
     "paths": {
-      "@driftbox/engine": ["../engine/src/index.ts"]
+      "@driftbox/engine": ["../engine/src/index.ts"],
+      "@driftbox/rack": ["../rack/src/index.ts"]
     },
 
     /* Linting */

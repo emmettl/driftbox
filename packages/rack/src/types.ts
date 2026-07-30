@@ -142,7 +142,13 @@ export interface PlanParam {
  * admits it.
  */
 export interface PlanNote {
-  kind: 'placeholder' | 'delayed' | 'dropped-cable' | 'replaced-cable' | 'duplicate-module'
+  kind:
+    | 'placeholder'
+    | 'delayed'
+    | 'dropped-cable'
+    | 'replaced-cable'
+    | 'duplicate-module'
+    | 'migration-failed'
   detail: string
   module?: string
   cable?: PatchCable

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { compile } from './compile.js'
 import { MODULES } from './modules/index.js'
-import type { Patch, PatchCable, Plan, PlanNote } from './types.js'
+import type { ModuleDef, Patch, PatchCable, Plan, PlanNote, Registry } from './types.js'
 
 // The compiler is the part of the rack worth being careful about, and it is pure arithmetic
 // on plain objects — so everything that makes a graph a graph is measurable here, with no
@@ -299,5 +299,102 @@ describe('compiling a patch', () => {
     for (const empty of [{}, { modules: null, cables: 'no' }, null]) {
       expect(() => compile(empty as unknown as Patch, MODULES)).not.toThrow()
     }
+  })
+})
+
+describe('migrating a module', () => {
+  // A module that renamed a knob. This is what per-module versioning is for, and the repair
+  // lives next to the module rather than in a central table — at forty modules a central table
+  // is unmaintainable, and the person renaming the param is the one who knows what the old
+  // value meant.
+  const V2: ModuleDef = {
+    ...MODULES.vco,
+    version: 2,
+    params: [{ id: 'pitch', name: 'Pitch', min: -24, max: 24, default: 0 }],
+    migrate(params, from) {
+      // v1 called it `tune`. Anything older still has to produce a v2 shape.
+      return from < 2 && typeof params.tune === 'number' ? { pitch: params.tune } : params
+    },
+  }
+  const REGISTRY: Registry = { ...MODULES, vco: V2 }
+
+  const at = (plan: Plan, moduleId: string, paramId: string) =>
+    plan.params[plan.slots[moduleId][paramId]]?.value
+
+  it('runs when the patch was saved by an older version', () => {
+    const plan = compile(
+      { modules: [{ id: 'osc', type: 'vco', version: 1, params: { tune: 7 } }], cables: [] },
+      REGISTRY,
+    )
+    expect(at(plan, 'osc', 'pitch')).toBe(7)
+  })
+
+  it('does not run when the version is absent, which means current', () => {
+    // A patch written by hand should not have to declare a version, and guessing "oldest" would
+    // migrate data that was never in the old shape.
+    const plan = compile(
+      { modules: [{ id: 'osc', type: 'vco', params: { pitch: 5 } }], cables: [] },
+      REGISTRY,
+    )
+    expect(at(plan, 'osc', 'pitch')).toBe(5)
+  })
+
+  it('does not migrate a version newer than this build backwards', () => {
+    const plan = compile(
+      { modules: [{ id: 'osc', type: 'vco', version: 9, params: { pitch: 4 } }], cables: [] },
+      REGISTRY,
+    )
+    expect(at(plan, 'osc', 'pitch')).toBe(4)
+  })
+
+  it('clamps what a migration returns, like any other saved value', () => {
+    const plan = compile(
+      { modules: [{ id: 'osc', type: 'vco', version: 1, params: { tune: 9999 } }], cables: [] },
+      REGISTRY,
+    )
+    expect(at(plan, 'osc', 'pitch')).toBe(24)
+  })
+
+  it('does not touch the patch it was handed', () => {
+    // `migrate` gets a copy. It is somebody's hand-written repair function, and one that
+    // mutated its argument would corrupt the patch still held by the host — which is the copy
+    // that gets saved.
+    const patch: Patch = {
+      modules: [{ id: 'osc', type: 'vco', version: 1, params: { tune: 7 } }],
+      cables: [],
+    }
+    compile(patch, {
+      ...MODULES,
+      vco: {
+        ...V2,
+        migrate(params) {
+          delete params.tune
+          params.pitch = 0
+          return params
+        },
+      },
+    })
+    expect(patch.modules[0].params).toEqual({ tune: 7 })
+  })
+
+  it('survives a migration that throws, and says so', () => {
+    // Somebody's repair function running against data from an unknown build: the one input here
+    // that might be wrong other than the patch. It costs that module's knobs and nothing else.
+    const plan = compile(
+      { modules: [{ id: 'osc', type: 'vco', version: 1, params: { tune: 7 } }], cables: [] },
+      {
+        ...MODULES,
+        vco: {
+          ...V2,
+          migrate() {
+            throw new Error('nope')
+          },
+        },
+      },
+    )
+    expect(at(plan, 'osc', 'pitch')).toBe(0)
+    expect(kinds(plan, 'migration-failed')).toHaveLength(1)
+    expect(kinds(plan, 'migration-failed')[0].module).toBe('osc')
+    expect(plan.nodes.map((n) => n.id)).toEqual(['osc'])
   })
 })

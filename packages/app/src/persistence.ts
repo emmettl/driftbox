@@ -1,4 +1,5 @@
 import { decodeSong, encodeSong, type Song } from '@driftbox/engine'
+import { fromHash, linkTo, takeFromUrl, toHash } from './hash.js'
 
 // Where a song is kept. The engine owns the format (`engine/song-io.ts`); this owns the
 // three places a song can live, all of which are browser APIs the engine may not touch:
@@ -7,18 +8,12 @@ import { decodeSong, encodeSong, type Song } from '@driftbox/engine'
 //   a file        the durable copy, and the one you can put in version control
 //   the URL hash  a song you can paste to somebody
 //
-// The URL is the interesting one. A song is repetitive JSON — patterns that share a
-// vocabulary of voice ids and are mostly zeroes — so it compresses hard. Measured on the
-// shipped song: 6020 bytes of JSON becomes 987 characters of base64 after deflate, a
-// sixth of the size. Under a kilobyte is short enough to paste into a chat window, which
-// is the only length that actually matters here.
+// The hash encoding itself now lives in `hash.ts`, because the rack needs the same thing for
+// patches and the two have to be distinguishable. What is left here is the song-shaped half:
+// which key in localStorage, which decoder, and the fact that a patch link arriving on this
+// page is not this page's to open.
 
 const STORAGE_KEY = 'driftbox.song.v1'
-
-/** Marks how the payload in the hash was encoded, so a browser without CompressionStream
- *  can still read a link made by one that had it, and vice versa. */
-const DEFLATED = 'z'
-const PLAIN = 'r'
 
 // ---- the working session ------------------------------------------------------
 
@@ -154,88 +149,28 @@ export function pickSongFile(): Promise<Song | null> {
 
 // ---- shareable links ----------------------------------------------------------
 
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
-function fromBase64Url(text: string): Uint8Array {
-  const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'))
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return bytes
-}
-
-async function through(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
-  const parts: Uint8Array[] = []
-  const reader = stream.getReader()
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    parts.push(value)
-  }
-  const total = parts.reduce((sum, part) => sum + part.length, 0)
-  const out = new Uint8Array(total)
-  let at = 0
-  for (const part of parts) {
-    out.set(part, at)
-    at += part.length
-  }
-  return out
-}
-
 /** The song, compressed and base64url'd, ready to go in a URL hash. */
-export async function songToHash(song: Song): Promise<string> {
-  const bytes = new TextEncoder().encode(encodeSong(song))
-  if (typeof CompressionStream === 'undefined') return PLAIN + toBase64Url(bytes)
-
-  const stream = new Blob([bytes as BufferSource]).stream().pipeThrough(
-    new CompressionStream('deflate-raw'),
-  )
-  return DEFLATED + toBase64Url(await through(stream))
+export function songToHash(song: Song): Promise<string> {
+  return toHash('song', encodeSong(song))
 }
 
 export async function songFromHash(hash: string): Promise<Song | null> {
-  const payload = hash.replace(/^#/, '')
-  const kind = payload[0]
-  const body = payload.slice(1)
-  if (body === '' || (kind !== DEFLATED && kind !== PLAIN)) return null
-
-  try {
-    const bytes = fromBase64Url(body)
-    if (kind === PLAIN) return decodeSong(new TextDecoder().decode(bytes))
-
-    if (typeof DecompressionStream === 'undefined') return null
-    const stream = new Blob([bytes as BufferSource]).stream().pipeThrough(
-      new DecompressionStream('deflate-raw'),
-    )
-    return decodeSong(new TextDecoder().decode(await through(stream)))
-  } catch {
-    // Truncated by a chat client, mangled by an email wrapper, or simply not a song.
-    return null
-  }
+  const found = await fromHash(hash)
+  // A patch link is not a song, and saying so by returning null is the whole reason the kind
+  // travels in the marker rather than being inferred from whether decoding happens to work.
+  return found?.kind === 'song' ? decodeSong(found.text) : null
 }
 
-export async function shareLink(song: Song): Promise<string> {
-  const { origin, pathname } = window.location
-  return `${origin}${pathname}#${await songToHash(song)}`
+export function shareLink(song: Song): Promise<string> {
+  return linkTo('song', encodeSong(song))
 }
 
 /**
  * Take the song out of the current URL, if there is one, and clear the hash.
  *
- * Clearing matters. Leaving it there means the next reload silently throws away
- * everything done since the link was opened and starts again from the shared version,
- * which looks exactly like losing your work.
+ * A patch link left on this page stays in the URL untouched — see `takeFromUrl`.
  */
 export async function takeSongFromUrl(): Promise<Song | null> {
-  const hash = window.location.hash
-  if (hash.length < 2) return null
-
-  const song = await songFromHash(hash)
-  if (song) {
-    window.history.replaceState(null, '', window.location.pathname + window.location.search)
-  }
-  return song
+  const text = await takeFromUrl('song')
+  return text === null ? null : decodeSong(text)
 }
