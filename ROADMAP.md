@@ -25,7 +25,21 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
-| Rack | An unpublished work in progress with 26 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, performance mode and offline export. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 27 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, performance mode and offline export. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+
+## Product direction
+
+**Rack mode is the strict superset.** The original groovebox remains the fastest place to
+author two 303s, an 808 and a 909; rack mode must eventually open that document without
+flattening it and add routing, modulation, sampling and new instruments around it. This
+is the Reason-over-ReBirth relationship, made an explicit compatibility promise rather
+than an analogy.
+
+[docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
+promise and for editor parity with ReBirth. It also fixes the implementation order:
+independent machine clips before song automation, then section buses/effects, fast pattern
+editing and interchange. `docs/RACK.md` remains the implementation record for the modular
+engine itself.
 
 ## What is deliberate
 
