@@ -102,6 +102,23 @@ kbd {
   color: var(--nine);
 }
 
+.rk-voices {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 11px var(--mono);
+  color: var(--dim);
+  text-transform: uppercase;
+}
+.rk-voices select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 5px 6px;
+}
+
 .rk-open {
   font: 11px var(--mono);
   color: var(--nine);

@@ -7,58 +7,144 @@
 // The rack's audio thread cannot do any of this itself: an `AudioWorkletGlobalScope` has no `navigator`. See
 // the comment at the top of `@driftbox/rack`'s `modules/midi.ts` for why that needed no new message anyway.
 
-/** What the MIDI module's hidden params should be set to. */
-export interface Voice {
+/** One voice's worth of what the MIDI module's hidden params should be set to. */
+export interface VoiceState {
+  voice: number
   note: number
   gate: 0 | 1
   velocity: number
 }
 
 /**
- * One voice from a keyboard, with **last-note priority** and legato.
+ * A keyboard, allocated across one or more voices.
  *
- * Holding one key and pressing another moves to the new note without releasing the gate; letting the new one
- * go returns to the one still held. That is what makes a glide knob mean anything, and it is the same
- * behaviour the engine's 303 keyboard has for the same reason — the roadmap over there calls it "the
- * sequencer's slide reached from the other end".
+ * **One implementation for both, and that is the point.** At one voice this is exactly last-note priority
+ * with legato — hold a key, press another, it moves without releasing the gate, and letting the new one go
+ * returns to the one still held. At eight voices it is a polyphonic allocator. They came out the same because
+ * the rule is the same rule: keep a stack of every key physically held, and sound the newest N of them.
  *
- * A stack rather than a single value, because the alternative — gate falls whenever any key is released —
- * makes a legato passage stutter, and it is the thing that reads as a bug to anybody who plays.
+ * That is worth spelling out because the obvious design is two classes, and two classes would have meant the
+ * monophonic feel quietly regressing the day polyphony arrived — a mono synth returning to a held note is
+ * most of what makes a glide knob mean anything, and an allocator that merely steals a voice does not do it.
+ * Written this way, a ninth note on an eight-voice patch steals the oldest and hands it back on release, which
+ * is also what a good polysynth does.
+ *
+ * The assignment is recomputed from the stack rather than mutated in place, and only the voices that actually
+ * changed are returned. Declarative is worth more than clever here: every awkward case — a key pressed twice,
+ * a note stolen and returned, the count changing mid-chord — falls out of "sound the newest N" without a
+ * special case for any of it.
  */
-export class MonoVoice {
+export class Keyboard {
+  private voices: number
   private held: { note: number; velocity: number }[] = []
+  /** The note each voice is sounding, or null. */
+  private sounding: (number | null)[]
+  /** The pitch each voice should hold through its release tail — an envelope decaying should not also slide. */
+  private resting: number[]
+  /** When each voice last fell silent, so the longest-idle one is taken first and a release gets to ring. */
+  private freedAt: number[]
+  private tick = 0
 
-  /** Returns the voice to send, or null when nothing about it changed. */
-  down(note: number, velocity: number): Voice | null {
-    // A repeated note-on for a key already down is a retrigger, not a second entry — some keyboards send
-    // them, and a stack that grew would never empty and the gate would never fall.
-    this.held = this.held.filter((entry) => entry.note !== note)
-    this.held.push({ note, velocity })
-    return this.current()
+  constructor(voices = 1) {
+    this.voices = Math.max(1, Math.min(8, Math.round(voices)))
+    this.sounding = Array.from({ length: this.voices }, () => null)
+    this.resting = Array.from({ length: this.voices }, () => 36)
+    this.freedAt = Array.from({ length: this.voices }, (_, i) => i)
+    this.tick = this.voices
   }
 
-  up(note: number): Voice | null {
+  get count(): number {
+    return this.voices
+  }
+
+  /** Change the voice count. Everything stops — a chord half-assigned across a changing number of voices is
+   *  not worth the code it would take to preserve, and the patch is being recompiled anyway. */
+  setVoices(voices: number): VoiceState[] {
+    const next = Math.max(1, Math.min(8, Math.round(voices)))
+    const silenced = this.allOff()
+    this.voices = next
+    this.sounding = Array.from({ length: next }, () => null)
+    this.resting = Array.from({ length: next }, () => 36)
+    this.freedAt = Array.from({ length: next }, (_, i) => i)
+    this.tick = next
+    return silenced.filter((state) => state.voice < next)
+  }
+
+  down(note: number, velocity: number): VoiceState[] {
+    // A repeated note-on for a key already down is a retrigger, not a second entry — some keyboards send them,
+    // and a stack that grew would never empty and the gate would never fall.
+    this.held = this.held.filter((entry) => entry.note !== note)
+    this.held.push({ note, velocity })
+    // Forced, because a voice already sounding this note is "unchanged" as far as the assignment is concerned
+    // and would emit nothing — so pressing the same key twice would not retrigger the envelope and the new
+    // velocity would be dropped. It looks like a dead key.
+    return this.reassign(note)
+  }
+
+  up(note: number): VoiceState[] {
     const before = this.held.length
     this.held = this.held.filter((entry) => entry.note !== note)
-    if (this.held.length === before) return null
-    return this.current()
+    if (this.held.length === before) return []
+    return this.reassign()
   }
 
   /** Everything off — for a panic, or when the page loses focus mid-note. */
-  allOff(): Voice {
+  allOff(): VoiceState[] {
     this.held = []
-    return { note: this.last, gate: 0, velocity: 0 }
+    return this.reassign()
   }
 
-  private last = 36
+  /**
+   * Work out which voice should sound which note, and report only what changed.
+   *
+   * The newest `voices` keys sound; anything older is held but silent, waiting to be handed back. A voice
+   * already playing a wanted note keeps it, so a chord does not shuffle between voices every time a key
+   * moves — which would retrigger envelopes that should be sustaining.
+   */
+  private reassign(retrigger?: number): VoiceState[] {
+    const wanted = this.held.slice(-this.voices)
+    const changes: VoiceState[] = []
 
-  private current(): Voice {
-    const top = this.held[this.held.length - 1]
-    if (!top) return { note: this.last, gate: 0, velocity: 0 }
-    // The note is remembered through the release, so the gate falling does not also drag the pitch somewhere
-    // — an envelope's release tail should decay at the pitch it was played at.
-    this.last = top.note
-    return { note: top.note, gate: 1, velocity: top.velocity }
+    const keeping = new Set<number>()
+    const placed = new Set<number>()
+    for (const entry of wanted) {
+      const voice = this.sounding.indexOf(entry.note)
+      if (voice !== -1) {
+        keeping.add(voice)
+        placed.add(entry.note)
+        if (entry.note === retrigger) {
+          changes.push({ voice, note: entry.note, gate: 1, velocity: entry.velocity })
+        }
+      }
+    }
+
+    // Free voices, longest-idle first, so a note that has just been released keeps ringing while there is
+    // somewhere else to put the new one.
+    const free = this.sounding
+      .map((note, voice) => ({ voice, note }))
+      .filter(({ voice, note }) => !keeping.has(voice) && (note === null || !placed.has(note)))
+      .sort((a, b) => this.freedAt[a.voice] - this.freedAt[b.voice])
+      .map(({ voice }) => voice)
+
+    for (const entry of wanted) {
+      if (placed.has(entry.note)) continue
+      const voice = free.shift()
+      if (voice === undefined) continue
+      this.sounding[voice] = entry.note
+      this.resting[voice] = entry.note
+      placed.add(entry.note)
+      changes.push({ voice, note: entry.note, gate: 1, velocity: entry.velocity })
+    }
+
+    // Whatever is left over falls silent, at the pitch it was playing.
+    for (const voice of free) {
+      if (this.sounding[voice] === null) continue
+      this.sounding[voice] = null
+      this.freedAt[voice] = this.tick++
+      changes.push({ voice, note: this.resting[voice], gate: 0, velocity: 0 })
+    }
+
+    return changes
   }
 }
 
@@ -90,13 +176,16 @@ export function midiTargets(
 // ---------------------------------------------------------------------------------------
 
 export interface MidiEvents {
-  onVoice(voice: Voice, channel: number): void
+  onVoice(state: VoiceState, channel: number): void
   onMod(value: number, channel: number): void
 }
 
 export interface MidiHandle {
   /** Names of the inputs that were found, for telling somebody whether their keyboard is seen. */
   inputs: string[]
+  /** Tell the keyboards how many voices the patch now has. Everything stops, which is what recompiling the
+   *  graph does anyway. */
+  setVoices(voices: number): void
   close(): void
 }
 
@@ -126,14 +215,15 @@ export async function openMidi(events: MidiEvents): Promise<MidiHandle | null> {
     return null
   }
 
-  const voices = new Map<number, MonoVoice>()
-  const voiceFor = (channel: number) => {
-    const existing = voices.get(channel)
+  let voiceCount = 1
+  const keyboards = new Map<number, Keyboard>()
+  const keyboardFor = (channel: number) => {
+    const existing = keyboards.get(channel)
     if (existing) return existing
-    // One voice per channel, so two MIDI modules set to different channels split a keyboard rather than
+    // One keyboard per channel, so two MIDI modules set to different channels split a controller rather than
     // both playing everything.
-    const fresh = new MonoVoice()
-    voices.set(channel, fresh)
+    const fresh = new Keyboard(voiceCount)
+    keyboards.set(channel, fresh)
     return fresh
   }
 
@@ -142,24 +232,25 @@ export async function openMidi(events: MidiEvents): Promise<MidiHandle | null> {
     if (!data || data.length < 2) return
     const status = data[0] & 0xf0
     const channel = (data[0] & 0x0f) + 1
-    const voice = voiceFor(channel)
+    const keyboard = keyboardFor(channel)
+    const emit = (states: VoiceState[]) => {
+      for (const state of states) events.onVoice(state, channel)
+    }
 
     if (status === 0x90 && data[2] > 0) {
-      const next = voice.down(data[1], data[2] / 127)
-      if (next) events.onVoice(next, channel)
+      emit(keyboard.down(data[1], data[2] / 127))
       return
     }
     // A note-on with velocity zero is a note-off. Older gear sends only that form, and treating it as a
     // note-on leaves the key stuck down forever.
     if (status === 0x80 || (status === 0x90 && data[2] === 0)) {
-      const next = voice.up(data[1])
-      if (next) events.onVoice(next, channel)
+      emit(keyboard.up(data[1]))
       return
     }
     if (status === 0xb0) {
       // CC 1 is the mod wheel; CC 123 is all-notes-off, which is what a panic button sends.
       if (data[1] === 1) events.onMod(data[2] / 127, channel)
-      if (data[1] === 123) events.onVoice(voice.allOff(), channel)
+      if (data[1] === 123) emit(keyboard.allOff())
     }
   }
 
@@ -172,7 +263,16 @@ export async function openMidi(events: MidiEvents): Promise<MidiHandle | null> {
     return names
   }
 
-  const handle: MidiHandle = { inputs: subscribe(), close: () => {} }
+  const handle: MidiHandle = {
+    inputs: subscribe(),
+    setVoices: (voices) => {
+      voiceCount = voices
+      for (const [channel, keyboard] of keyboards) {
+        for (const state of keyboard.setVoices(voices)) events.onVoice(state, channel)
+      }
+    },
+    close: () => {},
+  }
   access.onstatechange = () => {
     handle.inputs = subscribe()
   }

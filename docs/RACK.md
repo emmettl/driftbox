@@ -589,8 +589,29 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
      bug as the instance-counter seeding from step 3, one level up. Voice zero keeps the plain id, so
      a one-voice patch is byte-identical to before polyphony existed. `poly.test.ts` asserts that.
 
-   Still to do for 5b: a voice allocator, wiring MIDI to it, and a voice-count control. Nothing plays
-   a chord from a keyboard yet — only a test does.
+   ✅ Finished. A `Keyboard` allocates a controller across the voices, MIDI writes each voice's note,
+   and a voice-count control sits in the header.
+
+   **One class for one voice and for eight, and that is the point.** At one voice `Keyboard` is exactly
+   last-note priority with legato — hold a key, press another, it moves without releasing the gate, and
+   letting go returns to the one still held. At eight it is a polyphonic allocator. They came out the
+   same because the rule is the same: keep a stack of every key physically held, and sound the newest N.
+   Two classes would have meant the monophonic feel quietly regressing the day polyphony arrived, and a
+   mono synth returning to a held note is most of what makes a glide knob mean anything. Written this
+   way, a ninth note on an eight-voice patch steals the oldest and hands it back on release — which is
+   also what a good polysynth does, and it needed no rule of its own.
+
+   The allocation is recomputed from the stack and only changed voices are reported, which made two of
+   its tests wrong before it: a release that changes nothing correctly says nothing, and a voice that
+   has never sounded counts as idle for longer than one just freed. It also hid one real bug — a
+   re-pressed key emitted nothing, so the envelope never retriggered and the key felt dead.
+
+   **One thing worth knowing before it surprises somebody**, and measured rather than guessed: raising
+   the voice count on a patch with no MIDI module multiplies the output by exactly that number, because
+   every voice plays the same note. On the shipped Acid patch, one voice peaks at 0.49 and eight at 3.93
+   — right against the ±4 clamp. That is the summing being correct; eight voices playing one note *is*
+   eight times as loud. Normalising by 1/N was the tempting fix and is wrong, because it would make a
+   real three-note chord quiet on an eight-voice patch. The rack says so instead.
 
    **5c. A VCV Rack importer, topology only.** Read `patch.json`, map the Fundamental modules
    that have equivalents here, land the rest as placeholders — which the existing placeholder
