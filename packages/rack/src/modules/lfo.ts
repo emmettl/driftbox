@@ -102,6 +102,9 @@ export const LFO_MODULE: ModuleDef = {
   type: 'lfo',
   version: 1,
   name: 'LFO',
+  group: 'Modulation',
+  blurb:
+    'A slow oscillator, bipolar and unipolar at the same time. Wobble on a filter, tremolo on a level, drift on anything.',
   inlets: [
     { id: 'rate', name: 'Rate' },
     { id: 'reset', name: 'Reset' },

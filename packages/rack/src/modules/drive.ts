@@ -86,6 +86,9 @@ export const DRIVE_MODULE: ModuleDef = {
   type: 'drive',
   version: 1,
   name: 'Drive',
+  group: 'Shaping',
+  blurb:
+    'Saturation, level-matched so the knob makes it dirtier rather than louder. Warmth on a bass, teeth on a break.',
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cv', name: 'CV' },

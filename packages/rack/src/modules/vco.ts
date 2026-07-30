@@ -124,6 +124,9 @@ export const VCO_MODULE: ModuleDef = {
   type: 'vco',
   version: 1,
   name: 'VCO',
+  group: 'Sources',
+  blurb:
+    'Band-limited saw, pulse and triangle, with a width knob on the pulse. The thing that makes a note, and where most patches start.',
   inlets: [
     { id: 'pitch', name: 'V/Oct' },
     { id: 'fm', name: 'FM' },

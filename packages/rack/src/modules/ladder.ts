@@ -60,6 +60,9 @@ export const LADDER_MODULE: ModuleDef = {
   type: 'ladder',
   version: 1,
   name: 'Ladder',
+  group: 'Filters',
+  blurb:
+    'The 303\'s filter: four poles, saturating, self-oscillating. Reach for it when the filter is meant to be the sound.',
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cutoff', name: 'Cutoff' },

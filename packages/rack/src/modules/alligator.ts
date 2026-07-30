@@ -163,6 +163,9 @@ export const ALLIGATOR_MODULE: ModuleDef = {
   type: 'alligator',
   version: 1,
   name: 'Alligator',
+  group: 'Filters',
+  blurb:
+    'Three filtered gates chopping one signal at different rhythms. A pad goes in and a rhythm part comes out.',
   inlets: [
     { id: 'in', name: 'In' },
     ...perBand((band) => ({ id: `gate${band + 1}`, name: `${NAMES[band]} Gate` })),

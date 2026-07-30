@@ -143,6 +143,28 @@ export interface ModuleDef {
   /** Bumped when params change in a way `migrate` has to repair. */
   version: number
   name: string
+  /**
+   * What this module is and why you would reach for it. One or two short sentences.
+   *
+   * **On the def rather than in the app**, which is the whole argument for it being here at all. The
+   * registry's promise is that adding a module is a class, a def and a test — and if the copy that makes
+   * it findable lived in the host, adding a module would also mean editing the host, which is exactly the
+   * coupling `faceplates/index.ts` goes to some trouble to avoid. A module that arrives from somewhere
+   * else brings its own description with it, the same way it brings its own name.
+   *
+   * Optional, so a module without one is merely undescribed rather than broken. `modules.test.ts` holds
+   * the shipped ones to having it, which is where that belongs: a rule about this rack's modules, not
+   * about anybody's.
+   */
+  blurb?: string
+  /**
+   * Which shelf of the picker this sits on — "Sources", "Filters" and so on.
+   *
+   * A flat list of twenty-seven names is a list you read rather than a place you look. Grouping is the
+   * cheapest fix and it has to be stated rather than inferred: `MODULE_LIST`'s order has always implied
+   * these groups, but nothing enforced it and nothing could read it.
+   */
+  group?: string
   inlets: Port[]
   outlets: Port[]
   params: ParamDef[]

@@ -190,6 +190,34 @@ describe('the registry', () => {
     for (const def of MODULE_LIST) expect(MODULES[def.type]).toBe(def)
   })
 
+  it('describes every module it ships', () => {
+    // `blurb` and `group` are optional on the type, because a module from somewhere else is merely
+    // undescribed rather than broken without them. The shipped set is held to a higher bar: the picker
+    // is a gallery now, and a module with nothing to say about itself is a blank card in it — which is
+    // worse than the flat list of names it replaced, because the space it takes up promises an answer.
+    for (const def of MODULE_LIST) {
+      expect(def.group, def.type).toBeTruthy()
+      expect(def.blurb, def.type).toBeTruthy()
+      // Two short sentences, not a manual. Anything much longer stops being read.
+      expect(def.blurb!.length, def.type).toBeLessThan(190)
+      expect(def.blurb!.endsWith('.'), def.type).toBe(true)
+    }
+  })
+
+  it('keeps each group together and in one place in the list', () => {
+    // The picker walks the list once and starts a shelf whenever the group changes, so a module out of
+    // group order would silently open a second "Filters" heading further down. Cheaper to hold the list
+    // to the order than to make the picker sort and lose the deliberate order *within* each group.
+    const seen: string[] = []
+    for (const def of MODULE_LIST) {
+      if (seen[seen.length - 1] === def.group) continue
+      expect(seen, `${def.type} reopens the ${def.group} group`).not.toContain(def.group)
+      seen.push(def.group!)
+    }
+    expect(seen[0]).toBe('Sources')
+    expect(seen[seen.length - 1]).toBe('Mixing')
+  })
+
   it('has exactly one terminal module', () => {
     // More than one is legal — `compile` sums them — but more than one in the shipped set would
     // mean two modules both claiming to be the output, which is a design mistake rather than a

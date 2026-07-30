@@ -129,6 +129,9 @@ export const ARRANGER_MODULE: ModuleDef = {
   type: 'arranger',
   version: 1,
   name: 'Arranger',
+  group: 'Sequencing',
+  blurb:
+    'A list of sections, each a pattern and a count of bars. Intro, main, break, drop — a song, driving a Tracker.',
   inlets: [
     { id: 'clock', name: 'Bar' },
     { id: 'reset', name: 'Reset' },

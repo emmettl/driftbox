@@ -200,6 +200,23 @@ export function rowsForJacks(def: ModuleDef): number {
   return Math.max(1, Math.ceil(((most - 1) * JACK + 40) / ROW))
 }
 
+/**
+ * "3 in · 1 out". What a module's jacks add up to, said in words.
+ *
+ * Here rather than in either of the two places that draw it — the generic faceplate's title strip and the
+ * picker's cards — because two of them would eventually disagree, and this is exactly the sort of string
+ * nobody would notice had drifted.
+ *
+ * The "in" half is dropped when there is none. A Transport reading "0 in · 6 out" spends half the line
+ * saying nothing, and "no inlets" is a thing you can see by looking at the module anyway.
+ */
+export function portSummary(def: ModuleDef): string {
+  const parts = []
+  if (def.inlets.length) parts.push(`${def.inlets.length} in`)
+  parts.push(`${def.outlets.length} out`)
+  return parts.join(' · ')
+}
+
 /** How many control cells fit across a module of this span. */
 export function columnsFor(span: Span): number {
   return span === 1 ? 3 : 7

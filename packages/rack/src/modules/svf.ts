@@ -105,6 +105,9 @@ export const SVF_MODULE: ModuleDef = {
   type: 'svf',
   version: 1,
   name: 'SVF',
+  group: 'Filters',
+  blurb:
+    'A clean two-pole filter with low, high, band and notch on separate outlets. For shaping a sound rather than becoming it.',
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cutoff', name: 'Cutoff' },

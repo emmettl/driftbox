@@ -93,6 +93,9 @@ export const QUANTIZER_MODULE: ModuleDef = {
   type: 'quantizer',
   version: 1,
   name: 'Quantizer',
+  group: 'Modulation',
+  blurb:
+    'Snaps a pitch to a scale. Random voltage becomes a melody in A minor for almost no arithmetic.',
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [
     { id: 'out', name: 'Out' },

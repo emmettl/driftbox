@@ -39,6 +39,9 @@ export const OUT_MODULE: ModuleDef = {
   type: 'out',
   version: 1,
   name: 'Out',
+  group: 'Mixing',
+  blurb:
+    'The end of a chain, with level, pan, mute and solo. Two of them is a two-channel mix; none of them is silence.',
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [{ id: 'out', name: 'Thru' }],
   params: [

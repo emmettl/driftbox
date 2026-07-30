@@ -188,6 +188,9 @@ export const VOCODER_MODULE: ModuleDef = {
   type: 'vocoder',
   version: 1,
   name: 'Vocoder',
+  group: 'Filters',
+  blurb:
+    'One sound wearing another\'s shape. Speak into a saw and the saw talks; run a break into a pad and the pad plays the drums.',
   inlets: [
     // Carrier first, because it is the one you patch a synth into and the one whose level you notice.
     { id: 'carrier', name: 'Carrier' },

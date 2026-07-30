@@ -1,3 +1,4 @@
+import { portSummary } from '../layout.js'
 import { ParamControl } from '../ParamControl.js'
 import type { FaceplateProps } from './types.js'
 
@@ -20,9 +21,7 @@ export function Generic({ def, value, onChange, routed }: FaceplateProps) {
     <>
       <header className="rk-title">
         <span className="rk-name">{def.name}</span>
-        <span className="rk-ports">
-          {def.inlets.length} in · {def.outlets.length} out
-        </span>
+        <span className="rk-ports">{portSummary(def)}</span>
       </header>
       {shown.length > 0 && (
         <div className="rk-controls">

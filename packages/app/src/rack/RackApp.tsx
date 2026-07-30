@@ -1,9 +1,10 @@
-import { CHUNKS, MIDI_INPUTS, MODULE_LIST, MODULES, Rack, compile, renderPatch } from '@driftbox/rack'
+import { MIDI_INPUTS, MODULES, Rack, compile, renderPatch } from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
+import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
 import { Kaoss, toWav } from '@driftbox/engine'
@@ -742,47 +743,25 @@ export default function RackApp() {
       </header>
 
       {adding && (
-        <div className="rk-palette">
-          {/* Chunks first, because they are what somebody starting a track wants and a bare VCO is not.
-              Reason offered devices and Combis from the same menu for the same reason. */}
-          <span className="rk-palette-head">Chunks</span>
-          {CHUNKS.map((chunk) => (
-            <button
-              key={chunk.id}
-              type="button"
-              className="rk-palette-chunk"
-              title={chunk.blurb}
-              onClick={() => {
-                const added = addChunk(chunk)
-                setAdding(false)
-                // A Sampler with nothing in it is silent, so a chunk that needs one is offered whatever the
-                // patch is already holding. Same reasoning as `ensureSampler`: a freshly dropped thing has
-                // to make a sound.
-                if (chunk.needsSample && intendedBreak) {
-                  const sampler = Object.entries(added.ids).find(
-                    ([local]) => chunk.modules.find((m) => m.id === local)?.type === 'sampler',
-                  )
-                  if (sampler) void loadBreak(intendedBreak)
-                }
-              }}
-            >
-              {chunk.name}
-            </button>
-          ))}
-          <span className="rk-palette-head">Modules</span>
-          {MODULE_LIST.map((def) => (
-            <button
-              key={def.type}
-              type="button"
-              onClick={() => {
-                addModule(def.type)
-                setAdding(false)
-              }}
-            >
-              {def.name}
-            </button>
-          ))}
-        </div>
+        <Palette
+          onModule={(type) => {
+            addModule(type)
+            setAdding(false)
+          }}
+          onChunk={(chunk) => {
+            const added = addChunk(chunk)
+            setAdding(false)
+            // A Sampler with nothing in it is silent, so a chunk that needs one is offered whatever the
+            // patch is already holding. Same reasoning as `ensureSampler`: a freshly dropped thing has
+            // to make a sound.
+            if (chunk.needsSample && intendedBreak) {
+              const sampler = Object.entries(added.ids).find(
+                ([local]) => chunk.modules.find((m) => m.id === local)?.type === 'sampler',
+              )
+              if (sampler) void loadBreak(intendedBreak)
+            }
+          }}
+        />
       )}
 
       {/* `onLoadBreak` is always passed now, not only once audio has started: `loadBreak` records which
