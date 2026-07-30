@@ -1,4 +1,13 @@
-import { EMPTY_PATCH, MODULES, PATCHES, type Patch, type PatchCable, type PlanNote } from '@driftbox/rack'
+import {
+  EMPTY_PATCH,
+  MODULES,
+  PATCHES,
+  patchPresetById,
+  type Patch,
+  type PatchCable,
+  type PatchPreset,
+  type PlanNote,
+} from '@driftbox/rack'
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takePatchFromUrl } from './persistence.js'
 
@@ -125,7 +134,19 @@ function freshId(patch: Patch, type: string): string {
  * modular with nothing in it does not hint at what it is for, and the first thing anybody needs is to hear
  * that it works and see a cable.
  */
-const STARTER = (): Patch => PATCHES[0].build()
+/**
+ * What a first-time visitor arrives on.
+ *
+ * A beat, not a bleep. `docs/DNB.md` is explicit that the reward for the gesture that starts audio has to be
+ * immediate and has to be the thing this rack is for — and a sequenced acid line, which is what this used to
+ * be, is a demonstration rather than a record.
+ *
+ * Acid is still the second entry in the picker and is still the shortest description of what the rack can
+ * do. It is just no longer the first thing anybody hears.
+ */
+const FIRST_PRESET = patchPresetById('cutup') ?? PATCHES[0]
+
+const STARTER = (): Patch => FIRST_PRESET.build()
 
 export const useRack = create<RackState>((set, get) => {
   /** Every structural edit goes through here, so nothing can forget the revision or the autosave. */
@@ -337,8 +358,27 @@ export const useRack = create<RackState>((set, get) => {
  * anybody needs is to hear that it works and see a cable. So it opens on a small sequenced line, which
  * is also the shortest description of what this rack can do.
  */
-export async function openingPatch(): Promise<Patch> {
-  return (await takePatchFromUrl()) ?? loadStoredPatch() ?? STARTER()
+export async function openingPatch(): Promise<Opening> {
+  const shared = await takePatchFromUrl()
+  if (shared) return { patch: shared, fresh: false }
+  const stored = loadStoredPatch()
+  if (stored) return { patch: stored, fresh: false }
+  return { patch: STARTER(), fresh: true, preset: FIRST_PRESET }
+}
+
+/**
+ * What the rack opened with, and whether this is somebody's first time.
+ *
+ * `fresh` is the whole distinction `docs/DNB.md`'s D2 turns on. Arriving already playing is the most
+ * important thing in that document — but only for a visitor with nothing of their own. A shared link or a
+ * saved session is somebody's work, and replacing it with a demo because it makes a better first impression
+ * would be the worst thing this app could do.
+ */
+export interface Opening {
+  patch: Patch
+  fresh: boolean
+  /** The preset `patch` came from, when it came from one — so the host can render the break it asks for. */
+  preset?: PatchPreset
 }
 
 export { STARTER }

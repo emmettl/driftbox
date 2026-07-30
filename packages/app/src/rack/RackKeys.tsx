@@ -251,10 +251,10 @@ export function RackKeys({ wake, down, up, allOff, sounding }: Props) {
           : !hasMidi
             ? 'Playing a key patches a Keys module in, taking over the pitch and gate it lands on.'
             : null}
+        {/* Real characters rather than `&hairsp;`: the build does not decode that entity and it came out
+            on screen as the literal text "z&hairsp;–&hairsp;m". */}
         <span className="rk-keys-tip">
-          <kbd>z</kbd>&hairsp;&ndash;&hairsp;<kbd>m</kbd> and <kbd>q</kbd>&hairsp;&ndash;&hairsp;<kbd>u</kbd>
-          {' · '}
-          <kbd>,</kbd> <kbd>.</kbd> octave
+          <kbd>z</kbd>–<kbd>m</kbd> and <kbd>q</kbd>–<kbd>u</kbd> · <kbd>,</kbd> <kbd>.</kbd> octave
         </span>
       </p>
     </div>

@@ -1,6 +1,10 @@
-import { MODULES, compile, type Patch } from '@driftbox/rack'
+import { MODULES, compile, patchPresetById, type Patch } from '@driftbox/rack'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { STARTER, useRack } from './store.js'
+
+/** A small, stable fixture for tests that need *a* patch rather than *the* starter — the starter is now a
+ *  three-Out drum-and-bass patch, and tests that assumed its shape broke when it changed. */
+const ACID = () => patchPresetById('acid')!.build()
 
 // The one behaviour here worth protecting with a test is that a knob turn is not a patch change. Everything
 // else in this file is bookkeeping; that one is the difference between a knob that works and a continuous
@@ -109,11 +113,14 @@ describe('editing the rack', () => {
   })
 
   it('refuses to move a module off either end', () => {
+    // The first and last as they actually are, rather than two ids that happened to be first and last in the
+    // patch this fixture used to be. Hardcoding them meant the test moved a middle module and passed for the
+    // wrong reason the day the starter changed.
     const order = () => useRack.getState().patch.modules.map((m) => m.id)
     const start = order()
-    useRack.getState().moveModule('clock-1', -1)
+    useRack.getState().moveModule(start[0], -1)
     expect(order()).toEqual(start)
-    useRack.getState().moveModule('out-1', 1)
+    useRack.getState().moveModule(start[start.length - 1], 1)
     expect(order()).toEqual(start)
   })
 })
@@ -173,7 +180,11 @@ describe('making somewhere to put a break', () => {
 
   it('reuses the transport and out already in the patch', () => {
     // A second Out would sum alongside the first and a second Transport would only agree with it.
-    useRack.setState({ patch: STARTER(), revision: 0 })
+    //
+    // A named preset rather than `STARTER()`. This used to ride on whatever the starter happened to be, and
+    // broke the day it became a patch with three Outs — which says nothing about `ensureSampler` and
+    // everything about the fixture. What this needs is a patch with exactly one of each, so it says so.
+    useRack.setState({ patch: ACID(), revision: 0 })
     useRack.getState().ensureSampler()
     const patch = useRack.getState().patch
     expect(patch.modules.filter((m) => m.type === 'out')).toHaveLength(1)
