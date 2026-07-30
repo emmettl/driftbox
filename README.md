@@ -70,6 +70,7 @@ npm run dev     # the app, with the engine built from source for HMR
 npm run lint    # oxlint
 npm run typecheck
 npm test        # vitest, across all workspaces — both projects
+npm run coverage # the same suite, plus a browsable report in coverage/
 npm run build   # engine to dist/, then the app
 ```
 
@@ -87,6 +88,10 @@ a detail at the edge — it is where the audio is. The measurements below under 
 each caught a real bug and each used to be a page of instructions somebody had to remember to
 re-run; they are now assertions that run on every push. Set `DRIFTBOX_CHROMIUM` to an existing
 Chrome or Chromium binary to use that instead of downloading one.
+
+`npm run coverage` collects V8 line and branch coverage from both projects and includes production
+files that no test imports, so gaps stay visible. It is a diagnostic rather than a quality gate:
+there is intentionally no percentage threshold, and CI retains the HTML report for 14 days.
 
 Space plays and stops · `V` drops into performance mode · `X` switches the scope between
 a waveform and a vectorscope · click a step to cycle it off → on → accented · on the 303

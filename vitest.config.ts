@@ -43,6 +43,19 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify('testsha'),
   },
   test: {
+    // Keep coverage useful as a map of the gaps, not a number to game. Vitest 4 only reports
+    // files loaded by a test unless `include` is explicit; that default would make untouched
+    // app and UI files invisible and the total look healthier than the codebase really is.
+    // There is deliberately no threshold yet: the first report is a baseline, and audio quality
+    // and visual behaviour still need the browser assertions and human verification described
+    // above rather than a line percentage.
+    coverage: {
+      provider: 'v8',
+      include: ['packages/*/src/**/*.{ts,tsx}'],
+      exclude: ['**/*.test.{ts,tsx}'],
+      reporter: ['text-summary', 'html', 'lcov'],
+      reportsDirectory: 'coverage',
+    },
     projects: [
       {
         extends: true,
