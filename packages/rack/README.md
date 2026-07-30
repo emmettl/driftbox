@@ -8,7 +8,7 @@ and ready to support a public API, it can join the engine and app on npm.
 
 Twenty-five modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
-tracker, sampler, patch library, Combinator routing, performance mode and offline export.
+tracker, sampler, patch library, Combinator routing with MIDI learn, drag-to-reorder, performance mode and offline export.
 `../../docs/RACK.md` records the design and the decisions the implementation taught us.
 
 ```js
@@ -96,6 +96,30 @@ rack.patch = {
 rack.setParam('macro', 'rotary1', 0)   // the host settles the targets; see applyModulation
 ```
 
+## What is promised, and what is not
+
+The package exports two tiers, listed explicitly in `index.ts` and pinned by `api.test.ts`.
+
+**Promised** — the rack, the document, the content: `Rack`, `Patch` and its parts,
+`encodePatch`/`decodePatch`/`PATCH_FORMAT`, `MODULES`, the shipped patches and chunks, the
+Combinator's routing helpers, `renderPatch`, the VCV importer.
+
+**Not promised** — exported because something in this repo needs them: `compile` and the `Plan`
+shapes it returns, `Graph`, the worklet loaders, and the individual module defs and processors.
+`Processor`, `ProcessorClass` and `Dep` are the third-party-module question `docs/RACK.md` defers,
+and `Plan` is an implementation detail of the compiler.
+
+**`export * from './types.js'` used to stand where that list is**, which is how the compiler's
+internals became API without anybody deciding they should be. The tiers are not enforceable by the
+type system — TypeScript cannot say "exported but not promised" — so they are enforced by being
+written down and pinned. The pin's job is not to be right about the names; it is to make changing
+them a line in a diff.
+
+**The patch format is the part worth being stable about**, and that is designed in rather than
+hoped for: a version in the envelope, every added field optional, a decoder that never throws and
+preserves what it does not recognise, and a test that a patch written before a field existed still
+round-trips byte-identically. Adding `modulation` for the Combinator exercised all of that.
+
 ## Tests
 
 None of them need a browser.
@@ -107,6 +131,7 @@ None of them need a browser.
 | `graph.test.ts` | The whole thing in Node, measuring the audio — including three patches that use most of the rack at once |
 | `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
 | `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
+| `api.test.ts` | The exported names, in two tiers. Adding an export fails it by name, which is the point |
 | `modulation.test.ts` | Combinator routing: which of two routes onto one target wins, what a route onto a stepped param lands on, that a chain sees the value an earlier route wrote, that a cycle settles rather than oscillating, and that a route this build cannot resolve survives a round trip |
 | per-module | The claims each module's comments make: alias suppression against an additive reference, the pink slope, every ADSR time knob against a stopwatch, the delay's interpolation, the quantizer's octave boundaries |
 
