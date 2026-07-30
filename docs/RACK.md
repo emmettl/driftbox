@@ -190,18 +190,31 @@ the place to break it. **No reverb**: the generated-IR reverb in `effects.ts` is
 convolver, which belongs after the rack's output as an ordinary Web Audio send, not inside
 the worklet. **No polyphony** — see below.
 
-## Monophonic first, but shaped for polyphony
+## Monophonic first — and polyphony is cheaper than this section used to claim
 
-The MVP rack is one voice. Polyphony in a modular is not a feature you bolt on: it is
-either N copies of the whole compiled plan, or a voice dimension on every buffer and every
-piece of module state.
+The rack is one voice today.
 
-Make one concession now, because retrofitting it is a rewrite: **keep per-module state in an
-array indexed by voice**, and have the compiler emit a plan that takes a voice index. The
-`Ladder` already does exactly this, per channel — same shape, and the reason it can is that
-it holds its state in `this.filters[channel]` rather than in fields. Follow that.
+**This section previously gave the wrong instruction and it is worth recording why.** It said
+to make "one concession now, because retrofitting it is a rewrite: keep per-module state in an
+array indexed by voice", and cited the engine's `Ladder` as already doing that. Both halves
+were wrong. The concession was never made — every module holds scalar state, `SvfProcessor`'s
+integrators included — and the `Ladder` does not index state by channel either. It holds
+`s0..s3` as plain scalars; the *worklet wrapper* in `dsp/worklet.ts` does
+`this.filters[channel] = new Ladder(sampleRate)`. It instantiates one filter per channel.
 
-Then polyphony later is a loop count, not a redesign.
+That accident is the better pattern, and it makes polyphony much cheaper than the paragraph it
+replaces: **do not index state by voice, instantiate N processors per module.** The Graph
+already builds one processor per plan node. Polyphony is building N of them and looping.
+
+**No module code changes at all.** All of the work lands in the Graph and the plan:
+
+- N-wide buffers, or a buffer set per voice.
+- One flag, `poly: false`, on modules that must run once — a Delay duplicated eight times is
+  eight delays, and a shared delay is the point.
+- A rule for a polyphonic cable arriving at one of those: **sum the voices**, which is what a
+  mixer bus does and what VCV Rack does.
+
+The one thing that has to come first is somewhere for the notes to come from — see step 5.
 
 ## The patch format
 
@@ -525,9 +538,44 @@ flat line and a patch clipping into the Out reads as a flattened top, and neithe
 
 If the scenes do arrive, the shape is a **dynamic import** behind a switch that is off by default, so the
 600 kB is paid by whoever asks for it. Worth deciding deliberately rather than drifting into.
-5. **Then decide** about polyphony, third-party modules, and whether the VCV importer above is
-   a weekend or a rabbit hole. All three are real products in their own right and none should
-   be guessed at from here.
+5. **Playing it, then polyphony.** Decided rather than guessed at, in this order — and two things
+   fell out of the deciding that make the work smaller than it looked.
+
+   **5a. A MIDI module, monophonic.** Polyphony without a note source is eight copies of the
+   same note, and the rack can currently only be played by its own monophonic Seq. So this comes
+   first, and it is useful on its own.
+
+   It looks like it needs an ABI change and does not. An `AudioWorkletGlobalScope` has no
+   `navigator`, so MIDI cannot arrive on the audio thread — but the message set already carries
+   `param`, and a param already ramps across one block. So the module's pitch, gate and velocity
+   are **params the host writes** from Web MIDI, and its processor only copies them to its
+   outlets. Gate is `stepped` so it steps rather than ramps; pitch ramping over 2.9ms is an
+   inaudible glide. Nothing new in `RackMessage`.
+
+   Web MIDI is Chromium-only, so absence has to read as absence rather than as breakage — the
+   same standard `loadRack` already holds itself to.
+
+   **5b. Polyphony.** N processors per node, per-voice buffers, `poly: false` and summing at the
+   collapse. See the corrected section above: no module code changes.
+
+   **5c. A VCV Rack importer, topology only.** Read `patch.json`, map the Fundamental modules
+   that have equivalents here, land the rest as placeholders — which the existing placeholder
+   rule already draws honestly, having been designed for version skew and turning out to fit
+   this exactly. Running VCV's own modules stays out of scope: that is a C++/Wasm port with
+   GPLv3 attached, and the Wasm section above covers why the boundary has to be crossed once per
+   block rather than once per sample.
+
+   A `.vcv` is a zip, and a zip entry is deflate-raw — which `DecompressionStream` already does,
+   and which `app/src/hash.ts` already uses for the URL. So reading one needs no zip library,
+   only the central directory parsed by hand.
+
+   **Third-party modules: not yet.** `ModuleDef` and `Processor` changed four times in four
+   PRs — `deps`, `terminal`, the `id` constructor argument, `labels` — and opening them turns
+   each into a promise. Worth knowing that the security question is smaller than it looks: a
+   worklet scope has no DOM, no `fetch` and no storage, so a hostile module can ruin your audio
+   and spin a core but cannot exfiltrate anything. The stringify-and-string-key design means
+   opening this later is a small change rather than a rewrite, so there is nothing to pay in
+   advance.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
