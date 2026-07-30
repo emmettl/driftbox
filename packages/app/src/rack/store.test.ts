@@ -525,3 +525,50 @@ describe('an edit that changes nothing', () => {
     expect(useRack.getState().revision).toBe(before)
   })
 })
+
+describe('writing a pattern', () => {
+  beforeEach(() => {
+    useRack.setState({ patch: STARTER(), revision: 0 })
+  })
+
+  it('writes a lane without rebuilding the graph', () => {
+    // The whole reason this is not structural. Pattern data is compiled into the plan, so treating an edit
+    // as structural would rebuild every processor on every cell touched — a click per edit, and a
+    // continuous crackle while dragging a value.
+    const before = useRack.getState().revision
+    useRack.getState().setLane('tracker-1', 1, [1, 0, 2, 0])
+    expect(useRack.getState().revision).toBe(before)
+    expect(useRack.getState().lane('tracker-1', 1)).toEqual([1, 0, 2, 0])
+  })
+
+  it('still produces a new patch object, so React re-renders and it autosaves', () => {
+    const before = useRack.getState().patch
+    useRack.getState().setLane('tracker-1', 0, [5])
+    expect(useRack.getState().patch).not.toBe(before)
+  })
+
+  it('leaves the other lanes alone', () => {
+    const other = useRack.getState().lane('tracker-1', 1)
+    useRack.getState().setLane('tracker-1', 0, [9, 9, 9])
+    expect(useRack.getState().lane('tracker-1', 1)).toEqual(other)
+  })
+
+  it('copies what it is given, so a caller cannot mutate the patch afterwards', () => {
+    // The store is immutable throughout and a shared array would be a hole in that — the editor builds its
+    // next array from the current one, so handing the same reference back would alias the patch.
+    const values = [1, 2, 3]
+    useRack.getState().setLane('tracker-1', 0, values)
+    values[0] = 99
+    expect(useRack.getState().lane('tracker-1', 0)).toEqual([1, 2, 3])
+  })
+
+  it('is an empty array for a lane nothing has written', () => {
+    expect(useRack.getState().lane('tracker-1', 3)).toEqual([])
+    expect(useRack.getState().lane('nobody', 0)).toEqual([])
+  })
+
+  it('survives a patch with no tracker in it', () => {
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
+    expect(() => useRack.getState().setLane('tracker-1', 0, [1])).not.toThrow()
+  })
+})

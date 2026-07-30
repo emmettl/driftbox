@@ -87,6 +87,7 @@ export { FOLLOWER_MODULE, FollowerProcessor } from './modules/follower.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './modules/midi.js'
 export { LADDER_MODULE, LadderProcessor } from './modules/ladder.js'
 export { OUT_MODULE, OutProcessor } from './modules/out.js'
+export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './modules/tracker.js'
 export { VCO_MODULE, VcoProcessor } from './modules/vco.js'
 export {
   VOCODER_BAND_COUNTS,

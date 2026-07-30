@@ -81,6 +81,22 @@ interface RackState {
   setParam: (moduleId: string, paramId: string, value: number) => void
   paramValue: (moduleId: string, paramId: string) => number
 
+  /**
+   * Write one lane of a pattern. **Not structural**, for the same reason a knob is not.
+   *
+   * Pattern data lives in `PatchModule.data`, which `compile` copies into the plan — so treating an edit as
+   * structural would recompile and rebuild every processor on every cell you touched, which is a click per
+   * edit and a continuous crackle while dragging a value. Instead this takes the same two paths `setParam`
+   * takes: the patch is updated so the edit saves and travels in a link, and `RackApp` pushes the array at
+   * the audio thread as a `data` message, which the Graph keeps in `pushed` and which survives a rebuild.
+   *
+   * That `pushed` beats `seeded` is what makes it work at all, and it was already true — it exists so that
+   * recompiling a patch does not throw away a break somebody loaded. A pattern is the same shape of problem.
+   */
+  setLane: (moduleId: string, lane: number, values: readonly number[]) => void
+  /** One lane's steps, or an empty array. The patch is the source of truth; the audio thread has a copy. */
+  lane: (moduleId: string, lane: number) => number[]
+
   addModule: (type: string) => void
   /**
    * Drop a pre-wired group of modules in, on its own channel.
@@ -349,6 +365,25 @@ export const useRack = create<RackState>((set, get) => {
         return { patch }
       })
     },
+
+    setLane: (moduleId, lane, values) => {
+      set((state) => {
+        const slot = `lane${lane + 1}`
+        const patch = {
+          ...state.patch,
+          modules: state.patch.modules.map((module) =>
+            module.id === moduleId
+              ? { ...module, data: { ...module.data, [slot]: [...values] } }
+              : module,
+          ),
+        }
+        autosavePatch(patch)
+        return { patch }
+      })
+    },
+
+    lane: (moduleId, lane) =>
+      get().patch.modules.find((m) => m.id === moduleId)?.data?.[`lane${lane + 1}`] ?? [],
 
     addRoute: (from, to) =>
       // A fresh route sweeps the target end to end, which it says by leaving both limits absent rather
