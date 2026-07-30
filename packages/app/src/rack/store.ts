@@ -1,8 +1,10 @@
 import {
+  applyModulation,
   EMPTY_PATCH,
   insertChunk,
   type Chunk,
   type Inserted,
+  type ModRoute,
   MODULES,
   PATCHES,
   patchPresetById,
@@ -33,6 +35,17 @@ import { tempoForBars } from './sample.js'
 // The counter rather than a deep comparison of the patch, because the comparison would have to
 // deliberately ignore params to be correct, and a comparison with an exception in it is a thing
 // somebody will later "simplify".
+//
+// **Every edit is settled through `applyModulation` before it is stored.** A Combinator routing is
+// arithmetic from one param to another, so turning a rotary has to move the targets *in the patch* — that
+// is what makes the driven knob visibly move, what makes the routed value autosave and travel in a link,
+// and what lets the existing param-push subscription in `RackApp` deliver it to the audio thread with no
+// new machinery at all. Settling in one helper rather than at each call site is deliberate: a route that
+// applied on a rotary turn but not after loading a patch would be a rack that sounded different depending
+// on how you got to it.
+//
+// A routing edit is deliberately **not** structural. It changes no module and no cable, so nothing needs
+// recompiling; it only moves knobs, which is exactly the path `setParam` already owns.
 
 interface RackState {
   patch: Patch
@@ -80,6 +93,27 @@ interface RackState {
 
   connect: (from: [string, string], to: [string, string]) => void
   disconnect: (cable: PatchCable) => void
+
+  /**
+   * Point one Combinator control at one parameter. Reason's Modulation Routing.
+   *
+   * Indexed operations rather than keyed ones, because the routing list's **order is part of the
+   * document**: two routes onto one target resolve last-wins, the same rule two cables into one inlet
+   * follow. A keyed collection would have thrown that away.
+   */
+  addRoute: (from: [string, string], to: [string, string]) => void
+  /** Change one end, or one limit, of an existing routing. */
+  setRoute: (index: number, change: Partial<ModRoute>) => void
+  removeRoute: (index: number) => void
+  /**
+   * Which Combinator's routing panel is open, or null. **Session state, never part of the patch.**
+   *
+   * Here rather than in `RackApp`'s own state because the control that opens it is on the faceplate, and a
+   * faceplate is handed nothing but its def and its params — the same reason the Sampler reaches in here
+   * for what file it is holding.
+   */
+  editingRoutes: string | null
+  editRoutes: (moduleId: string | null) => void
 
   setNotes: (notes: PlanNote[]) => void
   setName: (name: string | null) => void
@@ -200,12 +234,34 @@ export interface SampleInfo {
 }
 
 export const useRack = create<RackState>((set, get) => {
+  /**
+   * Run every Combinator routing over a patch before it is stored.
+   *
+   * One place, so no edit can forget. `applyModulation` returns the very same object when nothing moved,
+   * so this is free on the overwhelming majority of edits — the store diffs by reference and a settled
+   * patch stays reference-equal.
+   */
+  const settle = (patch: Patch): Patch => applyModulation(patch, MODULES)
+
   /** Every structural edit goes through here, so nothing can forget the revision or the autosave. */
   const structural = (change: (patch: Patch) => Patch) => {
     set((state) => {
-      const patch = change(state.patch)
+      const patch = settle(change(state.patch))
       autosavePatch(patch)
       return { patch, revision: state.revision + 1 }
+    })
+  }
+
+  /** A routing edit: the document changes, the graph does not. Same path a knob takes. */
+  const routing = (change: (routes: ModRoute[]) => ModRoute[]) => {
+    set((state) => {
+      const routes = change([...(state.patch.modulation ?? [])])
+      // Absent rather than an empty array, so removing the last routing leaves a patch byte-identical to
+      // one that never had any — the same standard `voices` and `tempo` hold themselves to.
+      const { modulation: _drop, ...rest } = state.patch
+      const patch = settle(routes.length > 0 ? { ...rest, modulation: routes } : rest)
+      autosavePatch(patch)
+      return { patch }
     })
   }
 
@@ -231,18 +287,53 @@ export const useRack = create<RackState>((set, get) => {
     setParam: (moduleId, paramId, value) => {
       // No revision bump. See the note at the top of this file — this is the whole reason it exists.
       set((state) => {
-        const patch = {
+        // Settled, so turning a Combinator rotary moves everything it drives in the same edit. That also
+        // means grabbing a *routed* knob directly is undone the moment its rotary next moves, which is
+        // what Reason does and is the honest behaviour: the routing owns the knob, and the faceplate
+        // marks it so rather than disabling it.
+        const patch = settle({
           ...state.patch,
           modules: state.patch.modules.map((module) =>
             module.id === moduleId
               ? { ...module, params: { ...module.params, [paramId]: value } }
               : module,
           ),
-        }
+        })
         autosavePatch(patch)
         return { patch }
       })
     },
+
+    addRoute: (from, to) =>
+      // A fresh route sweeps the target end to end, which it says by leaving both limits absent rather
+      // than by writing the numbers down. That way the patch does not hardcode a range a later version of
+      // that module might widen, and the panel can show the real limits by looking them up.
+      routing((routes) => [...routes, { from, to }]),
+
+    setRoute: (index, change) =>
+      routing((routes) => {
+        if (index < 0 || index >= routes.length) return routes
+        const next = { ...routes[index], ...change }
+        // An erased number field means "the target's own limit", and is stored as absence. `in` rather
+        // than a comparison to undefined, because clearing the field is done by passing undefined and the
+        // spread above would otherwise leave the key present holding it — which JSON drops anyway, but
+        // only after `applyModulation` has seen it. Zero would be the wrong repair either way: it aims
+        // the route at the bottom of the range rather than at the end of it.
+        if ('min' in change && !Number.isFinite(next.min)) delete next.min
+        if ('max' in change && !Number.isFinite(next.max)) delete next.max
+        routes[index] = next
+        return routes
+      }),
+
+    removeRoute: (index) =>
+      routing((routes) => {
+        if (index < 0 || index >= routes.length) return routes
+        routes.splice(index, 1)
+        return routes
+      }),
+
+    editingRoutes: null,
+    editRoutes: (editingRoutes) => set({ editingRoutes }),
 
     addChunk: (chunk) => {
       let result: Inserted | null = null
@@ -260,13 +351,24 @@ export const useRack = create<RackState>((set, get) => {
       })),
 
     removeModule: (moduleId) =>
-      structural((patch) => ({
-        modules: patch.modules.filter((m) => m.id !== moduleId),
+      structural((patch) => {
         // Every cable touching it goes too. The compiler would drop them anyway, but leaving them in
         // the patch means they come back if the module is re-added under the same id, which looks
         // like a haunting.
-        cables: patch.cables.filter((c) => c.from[0] !== moduleId && c.to[0] !== moduleId),
-      })),
+        const routes = (patch.modulation ?? []).filter(
+          // And every routing touching it, at either end, for exactly the same reason. `applyModulation`
+          // would skip them silently, so a stale route is quieter than a stale cable and therefore worse:
+          // re-adding a Combinator under the same id would resurrect routings nobody could see.
+          (route) => route.from[0] !== moduleId && route.to[0] !== moduleId,
+        )
+        const { modulation: _drop, ...rest } = patch
+        return {
+          ...rest,
+          modules: patch.modules.filter((m) => m.id !== moduleId),
+          cables: patch.cables.filter((c) => c.from[0] !== moduleId && c.to[0] !== moduleId),
+          ...(routes.length > 0 ? { modulation: routes } : {}),
+        }
+      }),
 
     moveModule: (moduleId, by) =>
       structural((patch) => {

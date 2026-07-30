@@ -4,6 +4,10 @@ A modular synth rack, in the browser, patched with cables. Reason's back panel r
 Reason's front: a small set of modules, free routing between all of them, and a patch that
 fits in a URL.
 
+That framing turned out to be half right, and step 5b½ at the bottom says where. The back panel is
+what makes a rack a rack; the **Combinator** is what made a Reason patch playable, and it is here
+too now — four rotaries and four buttons that move any parameter of any module at once.
+
 Steps 1 and 2 of the build order at the bottom are built and tested: `packages/rack` has the
 compiler, the worklet host, three modules and the patch format, and `packages/app/src/hash.ts`
 carries patches in a URL alongside songs. There is no UI yet. Everything below is the shape of
@@ -164,7 +168,9 @@ deliberately does nothing with it.
 
 ## Seventeen modules
 
-Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
+Enough to make a track, and no more. Chosen so that nothing here is a placeholder. (Twenty-three
+now: a Sampler, a Tracker, a Reverb, a Compressor, a Transport and a Combinator have been added
+since, each for a reason recorded where it was decided rather than here.)
 
 | | |
 |---|---|
@@ -630,6 +636,72 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
    — right against the ±4 clamp. That is the summing being correct; eight voices playing one note *is*
    eight times as loud. Normalising by 1/N was the tempting fix and is wrong, because it would make a
    real three-note chord quiet on an eight-voice patch. The rack says so instead.
+
+   **5b½. The Combinator.** ✅ Built. Four rotaries and four buttons that move other modules' knobs.
+
+   This document opens by saying the rack is "Reason's back panel rather than Reason's front", and
+   that was right about where the interesting problem was and wrong about where Reason's value
+   was. The back panel is what makes a rack a rack. The **Combinator** is what made a Reason patch
+   *playable* — one gesture opening a filter, shortening a decay and switching a waveform — and
+   until now nothing here could move a parameter at all except a hand on the knob.
+
+   Four decisions, in descending order of how expensive they would be to change:
+
+   - **It is a panel of macro controls, not a container.** Reason's Combinator holds devices; a
+     routing here names its target by module id, which the patch format already had. Containment
+     was how Reason scoped *which* parameters a rotary could reach, and it cost it a tree in the
+     document, a tree in the rack and a rule for what a cable leaving a container means. So
+     `Patch` grows one optional array, `modulation`, and nothing else in the format changes. The
+     honest cost is that a Combinator and what it drives are grouped by intent rather than by
+     containment — move one away and the routing still works. A rack of chunks is already arranged
+     by intent, and `chunks/index.ts` argues that case at length.
+
+   - **A routing is arithmetic on the patch, not a cable.** It is control rate, host side, and
+     touches neither the graph, the plan nor the message ABI. That is not a compromise: an inlet is
+     a buffer the graph fills at sample rate and a param is a slot the host writes, and joining them
+     means either promoting every param to a buffer — doubling the allocation for something a knob
+     moves twice a minute — or letting the audio thread write params, which is a second claim on
+     values the host believes it owns. `ParamDef.hidden` exists because that fight already happened
+     once, with the MIDI module. Reason's Combinator is control rate too.
+
+     Everything downstream then carries it for free, which is the part worth noticing. The routed
+     value **is** the target's param, so it saves, autosaves, travels in a URL, renders in an
+     offline export, and shows up as the destination knob visibly moving. None of that needed a
+     line of new machinery, and a design that put routings in the graph would have needed all of it.
+
+   - **`compile` applies routings as well as the store does.** Two callers, one function, so they
+     cannot disagree about what a routing means. The store settles the patch so the driven knob is
+     seen to move; the compiler settles it so a patch that never went through a host — a shipped
+     chunk, a link opened headlessly, an offline render — still plays what its rotaries say. Without
+     the second one, "what a patch sounds like" would be a property of the page that opened it.
+
+   - **The controls are CV outlets as well as routing sources**, which Reason's were not. It costs
+     one line in a graph where audio and CV are the same `Float32Array`, and it means one rotary can
+     sweep a filter's *parameter* through a routing and open a VCA through a *cable* at once. The
+     shipped `combi` chunk does exactly that, to make the point in the one place somebody will see it.
+
+   Three smaller things that were decided by building it:
+
+   - **Two routings onto one target: the later wins.** The same rule two cables into one inlet
+     follow. A contested destination is the same problem in both places and having the answer differ
+     by which kind of connection you used would be a trap.
+   - **One pass, over a working copy.** A routing whose source an earlier routing wrote sees the new
+     value, so chaining one Combinator into another works and works in a defined order — and a cycle
+     settles after one pass instead of oscillating, which is the same trade the compiler makes when
+     it breaks a cycle in the cable graph.
+   - **A routing at a stepped param rounds.** A rotary sweeping a VCO's waveform has to land *on* a
+     waveform. It is the same reason `stepped` exists at all, one level up.
+
+   **The routing list is a panel, not the back of the rack**, which is where Reason puts it and was
+   the obvious place. `BackPanel.tsx` is one SVG in design units — that is exactly what lets cables
+   be drawn without measuring the DOM and tested without a browser — and a routing list is selects
+   and number fields. Putting it there means `foreignObject` and a module whose height depends on how
+   many routings it has, which is the height-arithmetic trap step 4 records falling into once already.
+   Two things were also only found by driving the page, as usual: the Combinator's five rows come from
+   its eight jacks and its controls need three, so it opened with a hole in it exactly like the Clock
+   did — filled now with the list of what each control drives, which is the one thing a macro panel
+   cannot otherwise say. And `display: contents` set inline beat the narrow-screen media query, so on a
+   390px viewport the five cells of each routing interleaved with the next one's.
 
    **5c. A VCV Rack importer, topology only.** ✅ Built. Both predictions held.
 

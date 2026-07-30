@@ -10,7 +10,7 @@ import type { FaceplateProps } from './types.js'
 
 const SHAPES = ['Saw', 'Pulse', 'Tri'] as const
 
-export function Vco({ def, value, onChange }: FaceplateProps) {
+export function Vco({ def, value, onChange, routed }: FaceplateProps) {
   const param = (id: string) => def.params.find((p) => p.id === id)!
   const shape = Math.round(value('shape'))
 
@@ -27,6 +27,7 @@ export function Vco({ def, value, onChange }: FaceplateProps) {
             value={value('tune')}
             onChange={(v) => onChange('tune', v)}
             colour="var(--three)"
+            routed={routed?.('tune')}
           />
         </div>
         {/* The shape names live on the def now rather than here, so the generic faceplate shows them
@@ -42,6 +43,7 @@ export function Vco({ def, value, onChange }: FaceplateProps) {
             value={value('width')}
             onChange={(v) => onChange('width', v)}
             colour="var(--three)"
+            routed={routed?.('width')}
           />
         </div>
       </div>

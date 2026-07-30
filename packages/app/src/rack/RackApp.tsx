@@ -11,6 +11,7 @@ import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
+import { Modulation } from './Modulation.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink } from './persistence.js'
 import { openingPatch, useRack, type Opening } from './store.js'
@@ -742,6 +743,11 @@ export default function RackApp() {
       {browsing && (
         <PatchBrowser onClose={() => setBrowsing(false)} onLoadBreak={loadBreak} />
       )}
+
+      {/* Above the rack rather than inside it, and shown on the front and the back alike: a routing is
+          about the whole patch, not about the module whose faceplate opened it. It renders nothing at all
+          unless a Combinator has been opened, so it costs an unrouted rack one null check. */}
+      <Modulation />
 
       {shared && <p className="rk-shared">{shared}</p>}
       {/* `docs/DNB.md` asked for this in as many words: a patch using a loaded sample cannot travel in a URL

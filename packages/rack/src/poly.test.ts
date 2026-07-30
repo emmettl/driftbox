@@ -137,10 +137,14 @@ describe('what the compiler says about voices', () => {
 
   it('marks the shipped modules that must run once, and nothing else', () => {
     // Transport joined this list: eight transports would agree with each other and cost eight times as much to
-    // do it. If a new module appears here, it should be because duplicating it would be wrong rather than
-    // because nobody thought about it.
+    // do it. So did the Combinator, for a sharper version of the same reason — a routing writes a *param*,
+    // and `Rack.setParam` already spreads one of those across every voice, so a per-voice Combinator would
+    // have nothing different to say. If a new module appears here, it should be because duplicating it would
+    // be wrong rather than because nobody thought about it.
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
-    expect(mono.sort()).toEqual(['clock', 'delay', 'out', 'reverb', 'seq', 'tracker', 'transport'])
+    expect(mono.sort()).toEqual([
+      'clock', 'combi', 'delay', 'out', 'reverb', 'seq', 'tracker', 'transport',
+    ])
   })
 })
 

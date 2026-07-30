@@ -1,6 +1,7 @@
 import type { ModuleDef, Registry } from '../types.js'
 import { ADSR_MODULE } from './adsr.js'
 import { CLOCK_MODULE } from './clock.js'
+import { COMBI_MODULE } from './combi.js'
 import { COMPRESSOR_MODULE } from './compressor.js'
 import { DELAY_MODULE } from './delay.js'
 import { DRIVE_MODULE } from './drive.js'
@@ -22,8 +23,9 @@ import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 
-// Twenty-two modules: enough to make a track, something to play it with, something that knows what a bar is,
-// and — as of `docs/DNB.md` — something that can chop a break.
+// Twenty-three modules: enough to make a track, something to play it with, something that knows what a bar
+// is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
+// hand*.
 //
 // `docs/RACK.md` planned fifteen and listed clock and sequencer as one. Splitting them was the first
 // departure and the reason is in `clock.ts`: a clock that is not a sequencer can drive several at
@@ -40,6 +42,12 @@ import { VCO_MODULE } from './vco.js'
 //
 // Still missing on purpose: **no reverb** — the engine's is a convolver, which belongs after the rack's output
 // as an ordinary Web Audio send rather than inside the worklet, and an in-worklet one is phase C of the plan.
+//
+// The Combinator is the third departure and the only one that is not a sound. It makes no signal of its own
+// worth listening to; what it does is move other modules' *parameters*, which is the one thing a cable in
+// this rack cannot do — an inlet is a buffer, a param is a slot, and `modulation.ts` explains at length why
+// joining them would be worse than having both. It is Reason's Modulation Routing and it needed no change
+// to the graph, the plan, or the message ABI.
 //
 // Adding one is a class, a def and a test. Nothing here needs to know about it beyond this list,
 // and `modules.test.ts` holds every entry to the same structural rules, so a new module gets that
@@ -70,6 +78,9 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   TRACKER_MODULE,
   MIDI_MODULE,
   QUANTIZER_MODULE,
+  // Last before the output, because a Combinator is not part of a signal chain at all — it sits over the
+  // top of one. Anywhere in the sources-then-filters-then-control order would have implied otherwise.
+  COMBI_MODULE,
   OUT_MODULE,
 ]
 
@@ -79,6 +90,7 @@ export const MODULES: Registry = Object.fromEntries(
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
+export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
 export { DRIVE_MODULE, DriveProcessor } from './drive.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'

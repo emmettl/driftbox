@@ -1048,3 +1048,281 @@ kbd {
 .rk-palette-chunk {
   border-color: rgba(95, 240, 208, 0.35);
 }
+
+/* -----------------------------------------------------------------------------------------
+   The Combinator: four rotaries, four buttons, and the routing panel they open.
+   ----------------------------------------------------------------------------------------- */
+
+.rk-combi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 12px 10px;
+  /* Fills the module rather than sitting at the top of it: the Combinator's height comes from its eight
+     jacks on the back, which is more than its controls need, and the routing list below takes up the
+     slack. See the note in the component. */
+  height: 100%;
+  box-sizing: border-box;
+}
+.rk-combi-row {
+  display: flex;
+  justify-content: space-around;
+  gap: 4px;
+}
+.rk-combi-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* What this rotary drives, under it. The only thing a macro control can say about itself, and without it
+   a Combinator is four knobs you are afraid to turn. */
+.rk-combi-count {
+  font: 10px var(--mono);
+  color: var(--dim);
+  margin-top: -2px;
+}
+.rk-combi-count[data-wired='yes'] {
+  color: var(--nine);
+}
+
+.rk-combi-buttons {
+  gap: 8px;
+}
+.rk-combi-button {
+  position: relative;
+  flex: 1;
+  min-height: 28px;
+  font: 12px var(--mono);
+  color: var(--dim);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rk-combi-button:hover {
+  border-color: var(--nine);
+}
+.rk-combi-button-on {
+  color: var(--bg);
+  background: var(--nine);
+  border-color: var(--nine);
+}
+/* A button that drives something gets a pip, matching the rotary's count. Same information, and a
+   two-character label has no room for a number. */
+.rk-combi-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--three);
+}
+
+.rk-combi-map {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  font: 10px var(--mono);
+}
+.rk-combi-map li {
+  display: flex;
+  gap: 6px;
+  line-height: 1.55;
+}
+.rk-combi-src {
+  color: var(--three);
+  min-width: 18px;
+}
+.rk-combi-dest {
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rk-combi-empty {
+  color: var(--dim);
+  opacity: 0.75;
+}
+
+.rk-combi-open {
+  font: 11px var(--mono);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.rk-combi-open:hover,
+.rk-combi-open[aria-expanded='true'] {
+  border-color: var(--nine);
+  color: var(--nine);
+}
+
+/* A knob a routing is driving. Marked rather than disabled: it still works, it is just going to be taken
+   back the next time its rotary moves, and a dead control would say less. */
+[data-routed='yes'] {
+  position: relative;
+}
+[data-routed='yes']::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--three);
+  box-shadow: 0 0 6px var(--three);
+}
+
+.rk-mod {
+  margin: 0 16px 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 176, 46, 0.35);
+  border-radius: 10px;
+}
+.rk-mod-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.rk-mod-head strong {
+  font: 12px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--three);
+}
+.rk-mod-head button {
+  margin-left: auto;
+  font: inherit;
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+/* A real grid, so every row's columns line up however wide the module ids are. `display: contents` on the
+   row wrapper is what lets each routing stay one element in the DOM while its cells join the grid. */
+.rk-mod-rows {
+  display: grid;
+  /* The ends get a fixed, modest width. At `1fr` they ate every spare pixel on a wide window, so two
+     four-character numbers sat in two 400px boxes and the panel read as a form rather than as a patch. */
+  grid-template-columns: auto auto minmax(64px, 110px) minmax(64px, 110px) auto;
+  justify-content: start;
+  gap: 6px 10px;
+  align-items: center;
+}
+.rk-mod-label {
+  font: 10px var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.rk-mod-rows select,
+.rk-mod-end {
+  font: 11px var(--mono);
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 3px 6px;
+  min-width: 0;
+}
+.rk-mod-target {
+  display: flex;
+  gap: 4px;
+}
+.rk-mod-end {
+  width: 100%;
+}
+.rk-mod-tail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* What the routing is putting on its target right now. It moves as the rotary turns, which is what makes
+   two numbers in unfamiliar units legible. */
+.rk-mod-now {
+  font: 11px var(--mono);
+  color: var(--three);
+  min-width: 46px;
+  text-align: right;
+}
+.rk-mod-tail button {
+  font: inherit;
+  color: var(--dim);
+  background: none;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.rk-mod-tail button:hover {
+  border-color: var(--eight);
+  color: var(--eight);
+}
+.rk-mod-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.rk-mod-foot button {
+  font: 11px var(--mono);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.rk-mod-foot button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Each routing is one element in the DOM and five cells in the grid, so the columns line up across rows
+   however wide the module ids are. In the stylesheet and not inline, so the media query below can undo it. */
+.rk-mod-row {
+  display: contents;
+}
+
+@media (max-width: 640px) {
+  /* On a phone the five columns become one stacked block per routing: source, target, the two ends side by
+     side, then the readout. Keeping the grid and merely narrowing it does not work — five cells per row do
+     not divide by two, so the rows interleave and one routing's source lands beside the previous one's
+     maximum. Measured, on a 390px viewport. */
+  .rk-mod-rows {
+    display: block;
+  }
+  .rk-mod-label {
+    display: none;
+  }
+  .rk-mod-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 8px 0;
+    border-top: 1px solid var(--edge);
+  }
+  .rk-mod-row > select,
+  .rk-mod-target,
+  .rk-mod-tail {
+    grid-column: 1 / -1;
+  }
+  .rk-mod-tail {
+    justify-content: flex-end;
+  }
+}

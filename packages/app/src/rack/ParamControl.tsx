@@ -24,9 +24,15 @@ interface Props {
   /** Overrides `def.labels`, for a hand-built faceplate that wants different words. Most do not — the
    *  def is the better place for them, because then the generic faceplate gets them too. */
   options?: readonly string[]
+  /** A Combinator rotary is driving this. Marked, never disabled — see `FaceplateProps.routed`. */
+  routed?: boolean
 }
 
-export function ParamControl({ def, value, onChange, colour, options }: Props) {
+export function ParamControl({ def, value, onChange, colour, options, routed }: Props) {
+  const mark = routed
+    ? { 'data-routed': 'yes', title: `${def.name} is driven by a Combinator` }
+    : undefined
+
   if (def.stepped) {
     const count = Math.round(def.max - def.min) + 1
     const names = options ?? def.labels
@@ -39,7 +45,7 @@ export function ParamControl({ def, value, onChange, colour, options }: Props) {
     // So more than three becomes a stepper, which is the same size whether it has four positions or forty.
     if (count <= 3) {
       return (
-        <div className="rk-select">
+        <div className="rk-select" {...mark}>
           <div className="rk-select-options" role="radiogroup" aria-label={def.name}>
             {Array.from({ length: count }, (_, index) => (
               <button
@@ -63,7 +69,7 @@ export function ParamControl({ def, value, onChange, colour, options }: Props) {
       onChange(def.min + Math.max(0, Math.min(count - 1, current + by)))
 
     return (
-      <div className="rk-select">
+      <div className="rk-select" {...mark}>
         {/* The value above the arrows rather than between them. Side by side, "Dorian" is wider than a
             cell and the Quantizer's two steppers overlapped each other — and a control that escapes its
             cell takes the height arithmetic with it. Stacked, the widest label in the rack fits. */}
@@ -86,14 +92,18 @@ export function ParamControl({ def, value, onChange, colour, options }: Props) {
   const span = def.max - def.min
   const normalised = span === 0 ? 0 : (value - def.min) / span
 
+  // Wrapped rather than given to the Knob, because the Knob is shared with the sequencer and a routing is
+  // a rack idea. One div, and the mark is CSS.
   return (
-    <Knob
-      label={def.name}
-      value={Math.max(0, Math.min(1, normalised))}
-      colour={colour}
-      onChange={(next) => onChange(def.min + next * span)}
-      format={() => display(def, value)}
-    />
+    <div className="rk-param" {...mark}>
+      <Knob
+        label={def.name}
+        value={Math.max(0, Math.min(1, normalised))}
+        colour={colour}
+        onChange={(next) => onChange(def.min + next * span)}
+        format={() => display(def, value)}
+      />
+    </div>
   )
 }
 

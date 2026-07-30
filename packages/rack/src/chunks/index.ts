@@ -1,4 +1,4 @@
-import type { Patch, PatchCable, PatchModule } from '../types.js'
+import type { ModRoute, Patch, PatchCable, PatchModule } from '../types.js'
 
 // Pre-wired groups of modules you can drop into a patch.
 //
@@ -29,6 +29,15 @@ export interface Chunk {
   /** Local module ids; rewritten on insert. */
   modules: PatchModule[]
   cables: PatchCable[]
+  /**
+   * Combinator routings between the chunk's own modules. Local ids, rewritten on insert like the cables.
+   *
+   * This is what finally makes a chunk the thing the note above claims it is. A chunk was already Reason's
+   * Combinator in the sense that mattered least — a group of devices dropped in as one — and had none of
+   * what people actually reach a Combi patch for, which is four knobs that play it. A chunk with routings
+   * in it arrives with its macros already wired.
+   */
+  modulation?: ModRoute[]
   /** The `[module, port]` that leaves the chunk, in local ids. Wired to a fresh Out. */
   output: [string, string]
   /** Local ids of modules wanting a sixteenth clock, wired to the patch's Transport. */
@@ -97,6 +106,50 @@ export const CHUNKS: readonly Chunk[] = [
       { from: ['mixer', 'out'], to: ['ladder', 'in'] },
       { from: ['ladder', 'out'], to: ['vca', 'in'] },
       { from: ['adsr', 'out'], to: ['vca', 'cv'] },
+    ],
+    output: ['vca', 'out'],
+    clocked: [['tracker', 'clock']],
+  },
+  {
+    id: 'combi',
+    name: 'Combi',
+    blurb: 'An acid voice with four macro knobs already wired to it',
+    modules: [
+      {
+        id: 'tracker',
+        type: 'tracker',
+        params: { length: 16 },
+        data: { lane1: [0, 12, 0, 10, 0, 0, 15, 0, 12, 0, 3, 0, 0, 10, 0, 12] },
+      },
+      { id: 'vco', type: 'vco', params: { tune: -12 } },
+      { id: 'ladder', type: 'ladder', params: { cutoff: 700, resonance: 0.6 } },
+      { id: 'adsr', type: 'adsr', params: { attack: 0.002, decay: 0.18, sustain: 0.2, release: 0.1 } },
+      { id: 'vca', type: 'vca', params: { gain: 0 } },
+      // The rotaries rest where the voice above was tuned, so dropping this in and playing it sounds like
+      // the patch it says it is — and the first turn of a knob moves away from that rather than jumping
+      // to it. A Combi whose macros snap the sound somewhere else on load is a Combi nobody trusts.
+      { id: 'combi', type: 'combi', params: { rotary1: 40, rotary2: 76, rotary3: 27, rotary4: 0 } },
+    ],
+    cables: [
+      { from: ['tracker', 'cv1'], to: ['vco', 'pitch'] },
+      { from: ['tracker', 'gate1'], to: ['adsr', 'gate'] },
+      { from: ['vco', 'out'], to: ['ladder', 'in'] },
+      { from: ['ladder', 'out'], to: ['vca', 'in'] },
+      { from: ['adsr', 'out'], to: ['vca', 'cv'] },
+      // Rotary 4 leaves as a *cable*, which is the half of this module Reason's Combinator did not have.
+      // The Ladder's cutoff inlet is in octaves and a rotary sends 0..1, so this is an octave of lift over
+      // whatever rotary 1 has set — and it rests at 0, where it is arithmetically nothing. One panel
+      // reaching into the same filter both ways at once, which is the shortest demonstration of why the
+      // controls are outlets as well as routing sources.
+      { from: ['combi', 'rotary4'], to: ['ladder', 'cutoff'] },
+    ],
+    modulation: [
+      // The four every acid line wants, in the order a hand falls on them.
+      { from: ['combi', 'rotary1'], to: ['ladder', 'cutoff'], min: 120, max: 6000 },
+      { from: ['combi', 'rotary2'], to: ['ladder', 'resonance'], min: 0.1, max: 0.95 },
+      { from: ['combi', 'rotary3'], to: ['adsr', 'decay'], min: 0.03, max: 0.6 },
+      // A button, so it is a switch rather than a sweep: saw for the classic line, pulse for the thin one.
+      { from: ['combi', 'button1'], to: ['vco', 'shape'], min: 0, max: 1 },
     ],
     output: ['vca', 'out'],
     clocked: [['tracker', 'clock']],
@@ -230,5 +283,27 @@ export function insertChunk(patch: Patch, chunk: Chunk): Inserted {
   const [fromModule, fromPort] = chunk.output
   if (ids[fromModule]) cables.push({ from: [ids[fromModule], fromPort], to: [out, 'in'] })
 
-  return { patch: { ...patch, modules, cables }, ids, out }
+  // Routings, with the same id rewriting the cables get — so two copies of one chunk have two Combinators
+  // each driving its own voice, rather than both reaching for the first one inserted.
+  const modulation = [...(patch.modulation ?? [])]
+  for (const route of chunk.modulation ?? []) {
+    modulation.push({
+      ...route,
+      from: [ids[route.from[0]] ?? route.from[0], route.from[1]],
+      to: [ids[route.to[0]] ?? route.to[0], route.to[1]],
+    })
+  }
+
+  return {
+    patch: {
+      ...patch,
+      modules,
+      cables,
+      // Absent stays absent: inserting a chunk with no routings into a patch with none must not start
+      // writing an empty array into everybody's saved file.
+      ...(modulation.length > 0 ? { modulation } : {}),
+    },
+    ids,
+    out,
+  }
 }
