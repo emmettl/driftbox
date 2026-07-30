@@ -12,6 +12,13 @@ import type { ModuleDef, Patch, Processor, Registry } from './types.js'
 // This is the same trick `ladder.test.ts` uses in the engine, one level up. What it cannot
 // check is that the browser runs the same code; `worklet.test.ts` is for that.
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 const SR = 44100
 const FRAMES = 128
 const SECOND = Math.ceil(SR / FRAMES)
@@ -286,10 +293,7 @@ describe('running a graph', () => {
     )
     const audio = run(patch, SECOND)
     expect(rms(audio)).toBeGreaterThan(0)
-    for (let i = 0; i < audio.length; i++) {
-      expect(Number.isFinite(audio[i])).toBe(true)
-      expect(Math.abs(audio[i])).toBeLessThanOrEqual(4)
-    }
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
   })
 
   it('keeps a module that has gone bad off the output bus', () => {
@@ -297,10 +301,7 @@ describe('running a graph', () => {
     // point is narrower: the tab must survive it, because a NaN in an AudioNode is
     // permanent and a reload would be the only way back.
     const audio = run({ modules: [{ id: 'x', type: 'hostile' }], cables: [] }, 4, PROBES)
-    for (let i = 0; i < audio.length; i++) {
-      expect(Number.isFinite(audio[i])).toBe(true)
-      expect(Math.abs(audio[i])).toBeLessThanOrEqual(4)
-    }
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
   })
 })
 
@@ -318,7 +319,9 @@ describe('moving a knob', () => {
     const first = render(graph, 1)
     expect(first[0]).toBeCloseTo(1 / FRAMES, 5)
     expect(first[FRAMES - 1]).toBeCloseTo(1, 5)
-    for (let i = 1; i < FRAMES; i++) expect(first[i]).toBeGreaterThan(first[i - 1])
+    let monotonic = true
+    for (let i = 1; i < FRAMES; i++) if (first[i] <= first[i - 1]) monotonic = false
+    expect(monotonic).toBe(true)
   })
 
   it('flattens out once it has arrived', () => {
@@ -330,7 +333,7 @@ describe('moving a knob', () => {
     render(graph, 1)
 
     const settled = render(graph, 4)
-    for (let i = 0; i < settled.length; i++) expect(settled[i]).toBe(1)
+    expect(firstBad(settled, (x) => x === 1)).toBe(-1)
   })
 
   it('steps a stepped param immediately', () => {
@@ -341,7 +344,7 @@ describe('moving a knob', () => {
     graph.setParam(compile(patch, PROBES).slots.p.value, 1)
 
     const first = render(graph, 1)
-    for (let i = 0; i < FRAMES; i++) expect(first[i]).toBe(1)
+    expect(firstBad(first, (x) => x === 1)).toBe(-1)
   })
 
   it('ignores a slot or a value that makes no sense', () => {
@@ -352,7 +355,7 @@ describe('moving a knob', () => {
     graph.setParam(9999, 1)
 
     const audio = render(graph, 2)
-    for (let i = 0; i < audio.length; i++) expect(audio[i]).toBe(0)
+    expect(firstBad(audio, (x) => x === 0)).toBe(-1)
   })
 })
 
@@ -403,7 +406,7 @@ describe('replacing a plan', () => {
 
     const wide = [new Float32Array(256), new Float32Array(256)]
     graph.process(wide)
-    for (let i = 0; i < 256; i++) expect(wide[0][i]).toBe(1)
+    expect(firstBad(wide[0], (x) => x === 1)).toBe(-1)
   })
 })
 
@@ -496,7 +499,7 @@ describe('a patch made of the whole rack', () => {
       SECOND,
     )
     expect(rms(audio)).toBeGreaterThan(0.01)
-    for (let i = 0; i < audio.length; i++) expect(Number.isFinite(audio[i])).toBe(true)
+    expect(firstBad(audio, Number.isFinite)).toBe(-1)
   })
 
   it('runs every module at once without going non-finite', () => {
@@ -551,9 +554,6 @@ describe('a patch made of the whole rack', () => {
     )
 
     expect(rms(audio)).toBeGreaterThan(0.001)
-    for (let i = 0; i < audio.length; i++) {
-      expect(Number.isFinite(audio[i])).toBe(true)
-      expect(Math.abs(audio[i])).toBeLessThanOrEqual(4)
-    }
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
   })
 })

@@ -48,6 +48,20 @@ const SETTLE = Math.floor(SR * 0.1)
 const at = (outs: Float64Array[], which: number, frequency: number) =>
   magnitudeAt(outs[which], frequency, SETTLE)
 
+/**
+ * The first index where `ok` fails, or −1.
+ *
+ * Not an `expect()` per sample. Vitest's `expect` is not free, and half a second of audio across
+ * four outlets at three cutoffs is 264,000 of them — which passed locally in about three seconds and
+ * blew the 5s per-test timeout on CI. That is the worst shape of failure to leave lying around,
+ * because it reads as flakiness and is arithmetic. One assertion per array, and the index comes back
+ * so a real failure still says where.
+ */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 describe('the state-variable filter', () => {
   it('passes what is below the cutoff on LP and what is above it on HP', () => {
     const low = run(sine(100), 1000, 0)
@@ -111,10 +125,10 @@ describe('the state-variable filter', () => {
     for (const cutoff of [12000, 17000, 18000]) {
       const outs = run(sine(1000, 0.9), cutoff, 1, SR / 2)
       for (const which of [LP, HP, BP, NOTCH]) {
-        for (let i = 0; i < outs[which].length; i++) {
-          expect(Number.isFinite(outs[which][i])).toBe(true)
-          expect(Math.abs(outs[which][i])).toBeLessThan(20)
-        }
+        expect(
+          firstBad(outs[which], (x) => Number.isFinite(x) && Math.abs(x) < 20),
+          `outlet ${which} at ${cutoff}Hz`,
+        ).toBe(-1)
       }
     }
   })

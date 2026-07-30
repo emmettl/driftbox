@@ -92,6 +92,13 @@ function magnitudeAt(data: Float64Array, frequency: number): number {
 const mean = (data: Float64Array) => data.reduce((sum, x) => sum + x, 0) / data.length
 const peak = (data: Float64Array) => data.reduce((max, x) => Math.max(max, Math.abs(x)), 0)
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 describe('the oscillator', () => {
   it('suppresses the images a naive saw folds back', () => {
     // Aliasing is measurable exactly rather than approximately. Pick a frequency and a
@@ -250,7 +257,7 @@ describe('the oscillator', () => {
     const out = new Float32Array(samples)
     vco.process([new Float32Array(samples), new Float32Array(samples).fill(-4)], [out], params, samples)
 
-    for (let i = 0; i < samples; i++) expect(Number.isFinite(out[i])).toBe(true)
+    expect(firstBad(out, Number.isFinite)).toBe(-1)
     expect(peak(Float64Array.from(out))).toBeLessThan(1.2)
   })
 

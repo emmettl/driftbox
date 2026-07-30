@@ -39,6 +39,13 @@ function envelope(
 
 const at = (data: Float64Array, seconds: number) => data[Math.floor(seconds * SR)]
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 describe('the envelope', () => {
   it('reaches exactly full scale exactly when the attack says', () => {
     // The reason the attack is linear rather than exponential: an exponential that only covers 99%
@@ -134,14 +141,11 @@ describe('the envelope', () => {
       [0.001, 0.01, 0.5, 0.01].map((v) => new Float32Array(samples).fill(v)),
       samples,
     )
-    for (const x of out) expect(x).toBe(0)
+    expect(firstBad(out, (x) => x === 0)).toBe(-1)
   })
 
   it('never overshoots or goes negative', () => {
     const data = envelope({ attack: 0.0005, decay: 0.0005, sustain: 1, release: 0.0005 }, 0.05, 0.05)
-    for (const x of data) {
-      expect(x).toBeGreaterThanOrEqual(0)
-      expect(x).toBeLessThanOrEqual(1)
-    }
+    expect(firstBad(data, (x) => x >= 0 && x <= 1)).toBe(-1)
   })
 })

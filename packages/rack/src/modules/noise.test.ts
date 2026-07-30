@@ -40,6 +40,13 @@ function amplitudeAt(data: Float64Array, centre: number): number {
   return total / taps
 }
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 describe('noise', () => {
   it('makes white noise with no DC and a sane level', () => {
     // A noise source with DC on it pushes every filter downstream off centre, and a noise source
@@ -69,7 +76,7 @@ describe('noise', () => {
     // headroom of everything downstream before anybody heard it.
     const { pink } = run(SR)
     expect(Math.abs(mean(pink))).toBeLessThan(0.15)
-    for (let i = 0; i < pink.length; i++) expect(Math.abs(pink[i])).toBeLessThan(4)
+    expect(firstBad(pink, (x) => Math.abs(x) < 4)).toBe(-1)
   })
 
   it('rolls pink off at 3dB per octave and leaves white flat', () => {

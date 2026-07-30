@@ -37,6 +37,13 @@ function peakAt(data: Float64Array, from = 0): number {
 
 const click = (at: number) => (i: number) => (i === at ? 1 : 0)
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 describe('the delay', () => {
   it('delays by the time it was asked for', () => {
     for (const time of [0.01, 0.1, 0.5]) {
@@ -71,7 +78,7 @@ describe('the delay', () => {
     // every module has one you cannot tell what a patch does by looking at the cables. So nothing
     // comes out before the first echo.
     const data = run(click(0), 0.1, 0.5, Math.ceil(0.09 * SR))
-    for (const x of data) expect(Math.abs(x)).toBeLessThan(1e-6)
+    expect(firstBad(data, (x) => Math.abs(x) < 1e-6)).toBe(-1)
   })
 
   it('halves the time for one octave of CV', () => {
@@ -117,7 +124,7 @@ describe('the delay', () => {
       samples,
     )
 
-    for (const x of out) expect(Number.isFinite(x)).toBe(true)
+    expect(firstBad(out, Number.isFinite)).toBe(-1)
     // And it is still a delay afterwards, not a silenced one.
     let energy = 0
     for (let i = Math.floor(0.2 * SR); i < samples; i++) energy += out[i] * out[i]

@@ -40,6 +40,13 @@ function pulseStarts(data: Float32Array): number[] {
   return starts
 }
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 describe('the LFO', () => {
   const run = (rate: number, shape: number, samples: number, reset?: Float32Array) => {
     const bi = new Float32Array(samples)
@@ -66,7 +73,9 @@ describe('the LFO', () => {
     // to choose between them — and why the most common piece of patch furniture in a modular, an
     // offset module turning ±1 into 0..1, is not needed here.
     const { bi, uni } = run(3, 0, 4096)
-    for (let i = 0; i < 4096; i++) expect(uni[i]).toBeCloseTo(bi[i] * 0.5 + 0.5, 5)
+    let worst = 0
+    for (let i = 0; i < 4096; i++) worst = Math.max(worst, Math.abs(uni[i] - (bi[i] * 0.5 + 0.5)))
+    expect(worst).toBeLessThan(1e-6)
   })
 
   it('makes each shape the shape it says', () => {
@@ -336,7 +345,7 @@ describe('sample and hold', () => {
     // is a different module and not this one.
     const ramp = (i: number) => i / 1000
     const out = run(ramp, (i) => (i >= 100 && i < 400 ? 1 : 0), 1000)
-    for (let i = 100; i < 400; i++) expect(out[i]).toBeCloseTo(0.1, 5)
+    expect(firstBad(out.slice(100, 400), (x) => Math.abs(x - 0.1) < 1e-5)).toBe(-1)
   })
 })
 

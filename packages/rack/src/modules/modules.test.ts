@@ -68,10 +68,10 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     const { inlets, outlets, params } = buffers(def)
     construct(def).process(inlets, outlets, params, FRAMES)
     for (const [index, outlet] of outlets.entries()) {
-      for (let i = 0; i < FRAMES; i++) {
-        expect(outlet[i], `${def.outlets[index].id}[${i}] was never written`).not.toBe(-999)
-        expect(Number.isFinite(outlet[i])).toBe(true)
-      }
+      expect(
+        firstBad(outlet, (x) => x !== -999 && Number.isFinite(x)),
+        `${def.outlets[index].id} was left unwritten`,
+      ).toBe(-1)
     }
   })
 
@@ -113,12 +113,10 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
           processor.process(inlets, outlets, params, FRAMES)
         }
         for (const outlet of outlets) {
-          for (let i = 0; i < FRAMES; i++) {
-            expect(
-              Number.isFinite(outlet[i]),
-              `${def.type} went non-finite at ${extreme} params with inlets at ${signal}`,
-            ).toBe(true)
-          }
+          expect(
+            firstBad(outlet, Number.isFinite),
+            `${def.type} went non-finite at ${extreme} params with inlets at ${signal}`,
+          ).toBe(-1)
         }
       }
     }
@@ -168,6 +166,13 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     }
   })
 })
+
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
 
 describe('the registry', () => {
   it('is keyed by type with nothing missing or duplicated', () => {
