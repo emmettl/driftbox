@@ -24,7 +24,7 @@
     "access": "public"
   },
   "bin": {
-    "driftbox": "./bin/driftbox.js"
+    "driftbox": "bin/driftbox.js"
   },
   "//engines": "A floor, not a support statement: nothing in either package uses an API newer than this. The engine compiles no further than ??= (ES2021), and the app’s bin uses only node: specifiers, ?? and optional chaining. CI builds and tests on 24.",
   "engines": {

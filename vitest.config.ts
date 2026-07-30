@@ -27,6 +27,6 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify('testsha'),
   },
   test: {
-    include: ['packages/*/src/**/*.test.ts'],
+    include: ['packages/*/src/**/*.test.ts', 'packages/*/*.test.ts'],
   },
 })
