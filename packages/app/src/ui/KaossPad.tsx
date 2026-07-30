@@ -27,6 +27,11 @@ export function KaossPad() {
   const init = useBox((s) => s.init)
   const [point, setPoint] = useState<Point | null>(null)
   const surface = useRef<HTMLDivElement>(null)
+  // Pointer events can arrive again before React has rendered the state written by
+  // pointerdown. Using `point` as the drag gate dropped every move in that interval — a
+  // quick mouse stroke could therefore collapse to its first few samples. The pointer
+  // itself owns whether it is held; state only owns what the interface displays.
+  const held = useRef(false)
   // The trail. Kept in a ref and drawn from an animation frame rather than in state,
   // because a pointer at 120Hz on a ProMotion screen would otherwise be 120 React
   // renders a second competing with the audio scheduler for the main thread.
@@ -73,6 +78,7 @@ export function KaossPad() {
   )
 
   const release = useCallback(() => {
+    held.current = false
     setPoint(null)
     useBox.getState().engine?.kaoss.release()
     endTouch()
@@ -165,11 +171,12 @@ export function KaossPad() {
         // a user gesture. Somebody who opens the visuals and puts a finger down should
         // get sound, not silence with a working filter on top of it.
         init()
+        held.current = true
         event.currentTarget.setPointerCapture(event.pointerId)
         move(event)
       }}
       onPointerMove={(event) => {
-        if (point) move(event)
+        if (held.current) move(event)
       }}
       onPointerUp={(event) => {
         event.currentTarget.releasePointerCapture(event.pointerId)
