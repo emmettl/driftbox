@@ -5,6 +5,7 @@ Reason's front: a small set of modules, free routing between all of them, and a 
 fits in a URL.
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
+Once complete and ready to support a public API, it can join the engine and app on npm.
 `packages/rack` has the compiler, worklet host, patch format and 22 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 performance mode and offline export. `packages/app/src/hash.ts` carries patches in a URL

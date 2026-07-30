@@ -1,8 +1,9 @@
 # Publishing
 
-Two packages go to npm: `@driftbox/engine` and `@driftbox/app`. Both are published at
-`0.1.0`, and **nothing publishes automatically** — the workflow only runs when a GitHub
-Release is published, or when somebody runs it by hand.
+Today, two packages go to npm: `@driftbox/engine` and `@driftbox/app`. Both are published at
+`0.1.0`. The work-in-progress `@driftbox/rack` package will join them when it is complete
+and ready to support a public API. **Nothing publishes automatically** — the workflow only
+runs when a GitHub Release is published, or when somebody runs it by hand.
 
 That is deliberate. `npm unpublish` is heavily restricted after 72 hours, so a bad version
 is effectively permanent: the remedy is a new version with the broken one sitting on the
