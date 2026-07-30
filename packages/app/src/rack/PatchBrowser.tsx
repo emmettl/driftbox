@@ -1,4 +1,4 @@
-import { PATCHES } from '@driftbox/rack'
+import { PATCHES, importVcv, type ImportNote } from '@driftbox/rack'
 import { useState } from 'react'
 import {
   deletePatch,
@@ -9,7 +9,7 @@ import {
   savePatch,
   type SavedPatch,
 } from './library.js'
-import { downloadPatch, pickPatchFile } from './persistence.js'
+import { downloadPatch, pickPatchFile, pickVcvFile } from './persistence.js'
 import { useRack } from './store.js'
 
 // The patch picker: four shipped patches, whatever has been saved, and the file in and out.
@@ -33,6 +33,11 @@ export function PatchBrowser({ onClose }: { onClose: () => void }) {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
+  /** What the VCV importer did, shown in full. The port index table it uses is best effort — `patch.json`
+   *  identifies a port by number and that ordering is not part of any published format — so showing every
+   *  mapping is what turns a wrong index into one obviously wrong line rather than a patch that sounds
+   *  subtly wrong for reasons nobody can find. */
+  const [report, setReport] = useState<ImportNote[] | null>(null)
 
   const refresh = () => setSaved(listPatches())
 
@@ -188,9 +193,49 @@ export function PatchBrowser({ onClose }: { onClose: () => void }) {
         >
           Import file
         </button>
+
+        <button
+          type="button"
+          onClick={async () => {
+            const bytes = await pickVcvFile()
+            if (!bytes) return
+            const result = await importVcv(bytes)
+            if (!result) {
+              setProblem('That is not a VCV Rack patch.')
+              return
+            }
+            setProblem(null)
+            setReport(result.notes)
+            // Only adopt a patch with something in it. An archive with no patch.json comes back with a note
+            // explaining itself and an empty patch, and replacing somebody's work with nothing is not a
+            // reasonable outcome for opening the wrong file.
+            if (result.patch.modules.length > 0) {
+              load(result.patch)
+              setName(null)
+            }
+          }}
+        >
+          Import .vcv
+        </button>
       </section>
 
       {problem && <p className="rk-warn">{problem}</p>}
+
+      {report && (
+        <section className="rk-report">
+          <h2>
+            From VCV Rack — knobs are not carried over, and the port mapping is best effort. Check these.
+          </h2>
+          <ul>
+            {report.map((note, index) => (
+              <li key={index} className={`rk-note rk-note-${note.kind}`}>
+                <span>{note.kind}</span>
+                {note.detail}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

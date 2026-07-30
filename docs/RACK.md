@@ -613,16 +613,42 @@ If the scenes do arrive, the shape is a **dynamic import** behind a switch that 
    eight times as loud. Normalising by 1/N was the tempting fix and is wrong, because it would make a
    real three-note chord quiet on an eight-voice patch. The rack says so instead.
 
-   **5c. A VCV Rack importer, topology only.** Read `patch.json`, map the Fundamental modules
-   that have equivalents here, land the rest as placeholders — which the existing placeholder
-   rule already draws honestly, having been designed for version skew and turning out to fit
-   this exactly. Running VCV's own modules stays out of scope: that is a C++/Wasm port with
-   GPLv3 attached, and the Wasm section above covers why the boundary has to be crossed once per
-   block rather than once per sample.
+   **5c. A VCV Rack importer, topology only.** ✅ Built. Both predictions held.
 
-   A `.vcv` is a zip, and a zip entry is deflate-raw — which `DecompressionStream` already does,
-   and which `app/src/hash.ts` already uses for the URL. So reading one needs no zip library,
-   only the central directory parsed by hand.
+   **A `.vcv` needed no zip library.** A zip entry is deflate-raw, which `DecompressionStream`
+   already does and which `app/src/hash.ts` has used for the URL since patch sharing existed —
+   so `vcv/zip.ts` is sixty lines and no dependency, against what would have been the first
+   runtime dependency anywhere in this repo. It is deliberately not a general zip reader: no CRC
+   check, no zip64, no data descriptors. Sizes come from the central directory rather than the
+   local header, because a local header is allowed to say zero and defer.
+
+   **The placeholder rule fit exactly.** It was built in `compile.ts` for version skew between
+   two builds of *this* rack, and importing somebody else's rack turns out to be the same
+   problem: the parts we understand play, the parts we do not are visibly absent with their
+   cables intact, and saving does not demolish them. A placeholder's type carries where it came
+   from — `vcv:Bogaudio/Wavefolder` — so the faceplate says "a Rack module we do not have"
+   rather than "corrupt".
+
+   **The weak point, and it is worth knowing.** `patch.json` identifies a port by *number*, not
+   by name, so mapping requires knowing the order Fundamental declares its ports in — which is
+   not in the file, is not part of any published format, and has changed between VCV versions.
+   The table is best effort and has **not** been checked against a real `.vcv` written by Rack.
+
+   Two things make that manageable rather than reckless. The importer reports every mapping it
+   made with both endpoints named, and the UI shows all of it — so a wrong index reads as one
+   obviously wrong line rather than as a patch that sounds subtly wrong for reasons nobody can
+   find. And a test fires a cable at every plausible index of every mapped model and asserts the
+   result only ever names ports we actually have, so a wrong index can land on the wrong port but
+   never on a nonexistent one.
+
+   **Knobs are not carried over**, deliberately. A VCV param is a number whose meaning lives in
+   that module's C++, so carrying one across means encoding a guess about somebody else's
+   internals for every param of every model — and a cutoff silently a factor of ten out is worse
+   than a knob at our default.
+
+   Running VCV's own modules stays out of scope: a C++/Wasm port with GPLv3 attached, and the
+   Wasm section above covers why such a bridge has to cross the boundary once per block rather
+   than once per sample.
 
    **Third-party modules: not yet.** `ModuleDef` and `Processor` changed four times in four
    PRs — `deps`, `terminal`, the `id` constructor argument, `labels` — and opening them turns
