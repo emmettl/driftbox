@@ -1059,6 +1059,38 @@ kbd {
    The Combinator: four rotaries, four buttons, and the routing panel they open.
    ----------------------------------------------------------------------------------------- */
 
+/* The drag handle: an invisible strip over each faceplate's title. Invisible because the title already
+   looks like a title bar — adding a visible grip would be decorating something that already reads as one —
+   and because it must not cover any control, which is why it is exactly the title's height. */
+.rk-grip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 26px;
+  cursor: grab;
+  z-index: 2;
+}
+.rk-grip:active {
+  cursor: grabbing;
+}
+/* The module being dragged fades, so the drop line is what you are reading rather than competing with a
+   full-strength faceplate sitting where the module no longer conceptually is. */
+.rk-face[data-dragging]:not([data-dragging='']) .rk-module {
+  transition: opacity 120ms ease;
+}
+.rk-drop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--nine);
+  box-shadow: 0 0 8px var(--nine);
+  pointer-events: none;
+  z-index: 3;
+}
+
 .rk-combi {
   display: flex;
   flex-direction: column;

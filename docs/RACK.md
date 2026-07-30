@@ -551,7 +551,28 @@ The risk is all in the first item. Do it first and alone.
    trade `compile` makes by taking a registry instead of importing one. A library nobody can test is a
    library that quietly loses somebody's patches.
 
-   Still to do: module drag-to-reorder, and a decision about the visualiser — see below.
+   **Module drag-to-reorder** ✅ — by the title bar, with a drop line showing where it lands. Four things
+   decided by building it:
+
+   - **The geometry is in `layout.ts`, not the component.** `dropIndex` counts how many modules the
+     pointer has passed the *midpoint* of. Asking which module it is over has no answer in the gaps or
+     past either end and needs two special cases; counting midpoints is total, and it is what makes the
+     drop line land where the eye expects. Pure, so it is tested without a browser like everything else
+     here.
+   - **The handle is the title bar.** Dragging from anywhere would fight every knob — a knob captures the
+     pointer itself, so the two would race and the winner would be whichever sat deeper in the tree. The
+     handle is a transparent overlay added by the chassis rather than something each faceplate wires up,
+     because requiring one would have quietly broken the generic fallback and with it the registry's
+     promise that a module needs no UI work.
+   - **The arrows stay.** Dragging is unavailable to anybody who cannot drag, and this is the same
+     standard the back panel already holds itself to, where Enter arms a jack.
+   - **A no-op edit no longer rebuilds the graph.** `structural` bumped the revision unconditionally, so
+     a drag that ended where it started — and, it turned out, moving the first module up, which has always
+     been able to decline — recompiled the patch and reset every oscillator's phase and every filter's
+     history for nothing. It now compares by reference and declines to bump. That was a pre-existing
+     defect this feature only made easy to trigger.
+
+   Still to do: a decision about the visualiser — see below.
 
 ## The visualiser, and why it is not on the rack yet
 
