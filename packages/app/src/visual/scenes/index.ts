@@ -12,6 +12,7 @@ import { Stillwater } from './Stillwater'
 import { Trench } from './Trench'
 import { Web } from './Web'
 import { Cubik } from './Cubik'
+import { Convoy } from './Convoy'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -68,6 +69,9 @@ export const SCENES: SceneInfo[] = [
   { id: 'jumpman', name: 'Jump Man', Component: Jumpman, accent: '255, 255, 255', trail: { scale: 0.7 } },
   // The scene itself is paper-white, so the gesture is a charcoal ring like a crop mark.
   { id: 'cubik', name: 'Cübik', Component: Cubik, accent: '24, 24, 24', trail: { scale: 1.2, ring: true } },
+  // Warm white against the cyan machinery and rust-red sun. A small trail keeps the
+  // gesture from obscuring the cargo silhouettes that make this scene itself.
+  { id: 'convoy', name: 'Endless Convoy', Component: Convoy, accent: '255, 250, 220', trail: { scale: 0.75 } },
 ]
 
 export type SceneId = string

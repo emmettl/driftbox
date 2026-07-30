@@ -12,12 +12,13 @@ import { defconSong } from './defcon.js'
 import { saturnSong } from './saturn.js'
 import { transmissionSong } from './transmission.js'
 import { cubikSong } from './cubik.js'
+import { mobiliseSong } from './mobilise.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Thirteen songs demonstrate the range of the same small set of machines.
+// Fourteen songs demonstrate the range of the same small set of machines.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -140,6 +141,13 @@ export const SONGS: SongPreset[] = [
     blurb: 'Manchester rave — 124bpm, distorted square stabs and rippling 808s',
     build: cubikSong,
   },
+  {
+    id: 'mobilise',
+    visual: 'convoy',
+    name: 'Mobilise',
+    blurb: 'Industrial electro — 90bpm, rolling riff, toms for caterpillar tracks',
+    build: mobiliseSong,
+  },
 ]
 
 export function songPresetById(id: string): SongPreset | undefined {
@@ -165,4 +173,5 @@ export {
   saturnSong,
   transmissionSong,
   cubikSong,
+  mobiliseSong,
 }

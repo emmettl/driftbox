@@ -15,13 +15,13 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
-| Ships with | Twelve songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
+| Ships with | Fourteen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro |
 | Vibes mode | A player: now-playing, skip, filter pad, two scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
-| Visuals | Four meters, twelve 3D scenes that warp under a finger, and a full-screen XY filter pad |
+| Visuals | Four meters, fourteen 3D scenes that warp under a finger, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
@@ -623,7 +623,7 @@ interface attached. Not built, and not verifiable here.
 
 ### 3. Somewhere to put your own songs
 
-Twelve shipped songs demonstrate the range. What is missing is anywhere to keep your own. The obvious next
+Fourteen shipped songs demonstrate the range. What is missing is anywhere to keep your own. The obvious next
 step is user songs saved by name rather than one autosave slot and a file dialog — the
 storage layer already round-trips a whole Song, so this is a list and a picker rather than
 new machinery.
