@@ -99,8 +99,10 @@ export const QUANTIZER_MODULE: ModuleDef = {
     { id: 'trig', name: 'Trig' },
   ],
   params: [
-    { id: 'scale', name: 'Scale', min: 0, max: 5, default: 2, stepped: true },
-    { id: 'root', name: 'Root', min: 0, max: 11, default: 0, stepped: true },
+    { id: 'scale', name: 'Scale', min: 0, max: 5, default: 2, stepped: true,
+      labels: ['Chrom', 'Major', 'Minor', 'Pent', 'Dorian', 'Whole'] },
+    { id: 'root', name: 'Root', min: 0, max: 11, default: 0, stepped: true,
+      labels: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] },
   ],
   processor: QuantizerProcessor,
 }

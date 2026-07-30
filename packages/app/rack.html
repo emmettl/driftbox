@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#07040f" />
+
+    <title>Driftbox Rack — a modular synth in the browser</title>
+    <meta
+      name="description"
+      content="A modular synth rack with cables you can actually pull. Sixteen modules, one graph at sample rate, and a patch that fits in a URL."
+    />
+  </head>
+  <body>
+    <!-- Its own root and its own bundle. The sequencer at index.html is untouched by this: two
+         documents, no shared store and no router. `docs/RACK.md` has the reasoning. -->
+    <div id="root"></div>
+    <script type="module" src="/src/rack/main.tsx"></script>
+  </body>
+</html>

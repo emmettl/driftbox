@@ -114,7 +114,8 @@ export const LFO_MODULE: ModuleDef = {
     // A hundred seconds a cycle at the bottom, which is slow enough to be a structure rather than
     // a wobble.
     { id: 'rate', name: 'Rate', min: 0.01, max: 40, default: 2 },
-    { id: 'shape', name: 'Shape', min: 0, max: 4, default: 0, stepped: true },
+    { id: 'shape', name: 'Shape', min: 0, max: 4, default: 0, stepped: true,
+      labels: ['Sine', 'Tri', 'Saw', 'Square', 'Random'] },
   ],
   processor: LfoProcessor,
   deps: { Random },

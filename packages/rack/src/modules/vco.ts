@@ -133,7 +133,7 @@ export const VCO_MODULE: ModuleDef = {
     { id: 'tune', name: 'Tune', min: -24, max: 24, default: 0 },
     // Stepped: a waveform selector two thirds of the way between saw and pulse is not a
     // sound, and a ramping value would make the selector flicker across the changeover.
-    { id: 'shape', name: 'Shape', min: 0, max: 2, default: 0, stepped: true },
+    { id: 'shape', name: 'Shape', min: 0, max: 2, default: 0, stepped: true, labels: ['Saw', 'Pulse', 'Tri'] },
     { id: 'width', name: 'Width', min: 0.05, max: 0.95, default: 0.5 },
   ],
   processor: VcoProcessor,

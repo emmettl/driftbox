@@ -115,6 +115,7 @@ const switched = (index: number) => ({
   // looking broken.
   default: 1,
   stepped: true,
+  labels: ['Off', 'On'],
 })
 
 export const SEQ_MODULE: ModuleDef = {

@@ -22,6 +22,20 @@ export default defineConfig({
   // relative og:image.
   base: './',
 
+  // Two pages, one build. `index.html` is the sequencer and `rack.html` is the modular; they share
+  // this package, its dependencies and about half its components, and share no state at runtime.
+  //
+  // It costs one option because `base: './'` was already relative for the reasons below — a second
+  // entry point needs no second build and no path juggling, and `npx @driftbox/app` serves both.
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        rack: fileURLToPath(new URL('./rack.html', import.meta.url)),
+      },
+    },
+  },
+
   resolve: {
     alias: {
       // Point at the engine's SOURCE, not its built dist.
