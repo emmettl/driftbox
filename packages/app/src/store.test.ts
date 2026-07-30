@@ -151,11 +151,14 @@ describe('the visual a song asks for', () => {
   // songs being updated — is invisible to both packages on their own, and shows up only
   // as a song silently opening on whatever scene happened to be showing. This is the one
   // place both halves are in scope at once, so it is the only place it can be caught.
-  it('names a scene that exists, for every song that names one', () => {
+  it('gives every set-list song its own scene', () => {
     const ids = new Set(SCENES.map((s) => s.id))
+    const claimed = new Set<string>()
     for (const preset of SONGS) {
-      if (preset.visual === undefined) continue
+      expect(preset.visual, `${preset.id} has no visual`).toBeDefined()
       expect(ids, `${preset.id} asks for "${preset.visual}"`).toContain(preset.visual)
+      expect(claimed, `${preset.id} reuses "${preset.visual}"`).not.toContain(preset.visual)
+      claimed.add(preset.visual!)
     }
   })
 

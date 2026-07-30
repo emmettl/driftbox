@@ -13,6 +13,7 @@ import { Trench } from './Trench'
 import { Web } from './Web'
 import { Cubik } from './Cubik'
 import { Convoy } from './Convoy'
+import { Machine } from './Machine'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -64,6 +65,9 @@ export const SCENES: SceneInfo[] = [
   // Magenta, against a stage lit in every other colour, and a small trail: the figures are
   // fine bright lines and a big soft blob buries them.
   { id: 'dancers', name: 'Dancers', Component: Dancers, accent: '255, 90, 190', trail: { scale: 0.75 } },
+  // Cold white against sodium light. Small enough to stay an inspection point rather than
+  // hiding the machinery it is meant to reveal.
+  { id: 'machine', name: 'Machine', Component: Machine, accent: '225, 240, 255', trail: { scale: 0.75 } },
   // White, against a scene that is already every arcade colour there is, and a small trail:
   // this one is drawn on a one-cell grid and a big soft blob swallows whole sprites.
   { id: 'jumpman', name: 'Jump Man', Component: Jumpman, accent: '255, 255, 255', trail: { scale: 0.7 } },
