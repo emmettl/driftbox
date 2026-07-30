@@ -43,6 +43,8 @@ export class Rack {
   /** Module types the worklet could not construct. Empty unless the worklet was assembled
    *  from a different module set than the one that compiled the plan. */
   private absent: string[] = []
+  private tempoValue = 120
+  private runningValue = false
 
   constructor(ctx: BaseAudioContext, registry: Registry = MODULES) {
     this.ctx = ctx
@@ -66,6 +68,13 @@ export class Rack {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [2],
+    })
+    // The transport is not part of the plan, so applying a patch does not carry it — it has to be re-sent
+    // whenever a node appears.
+    node.port.postMessage({
+      kind: 'transport',
+      tempo: this.tempoValue,
+      running: this.runningValue,
     })
     node.port.onmessage = (event: MessageEvent) => {
       const message = event.data as { kind?: string; types?: string[] } | null
@@ -137,6 +146,43 @@ export class Rack {
   /** How many voices the open patch compiled to. */
   get voices(): number {
     return this.compiled?.voices ?? 1
+  }
+
+  /**
+   * Set the tempo and whether the transport is running.
+   *
+   * Held here as well as sent, because a Rack built before `start()` still has to be able to be told — and
+   * because a patch reload has to re-send it, since the audio thread's Graph is not rebuilt but its transport
+   * state is not part of the plan either.
+   */
+  setTransport(tempo: number, running: boolean): void {
+    this.tempoValue = tempo
+    this.runningValue = running
+    this.node?.port.postMessage({ kind: 'transport', tempo, running })
+  }
+
+  get tempo(): number {
+    return this.tempoValue
+  }
+
+  get running(): boolean {
+    return this.runningValue
+  }
+
+  /**
+   * Hand a module some bulk data — a sample buffer.
+   *
+   * **Transferred, not copied.** The second argument to `postMessage` moves the underlying buffer to the audio
+   * thread rather than cloning it, which for a two-second stereo break is the difference between a few hundred
+   * kilobytes of copying on the main thread and none. The consequence is that `data` is unusable here
+   * afterwards — its byteLength becomes 0 — so a caller keeping its own copy has to make one first, and that is
+   * why this takes the array rather than an AudioBuffer it could have copied out of.
+   *
+   * Deliberately *not* part of the patch: a patch stores which break, never several hundred kilobytes of one.
+   * See `PatchModule.data` for the other kind of bulk data, which does belong in the document.
+   */
+  setData(moduleId: string, slot: string, data: Float32Array): void {
+    this.node?.port.postMessage({ kind: 'data', module: moduleId, slot, data }, [data.buffer])
   }
 
   /** Disconnect and forget the node. The processor stays registered on the context —

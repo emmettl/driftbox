@@ -18,8 +18,13 @@ const FRAMES = 128
 
 const deps = (def: ModuleDef): Record<string, unknown> => ({ ...def.deps })
 
+/** No bulk data in the contract suite: every module has to work without any, because a patch can be built before
+ *  a sample is loaded into it. A module that needed data to produce output would fail "writes every sample of
+ *  every outlet" here, which is the right place to find out. */
+const NO_DATA = { get: () => undefined }
+
 function construct(def: ModuleDef, id = 'a-module'): Processor {
-  return new def.processor(SR, deps(def), id)
+  return new def.processor(SR, deps(def), id, NO_DATA)
 }
 
 /** Buffers for one call: inlets holding a recognisable signal, outlets pre-filled with a value no
@@ -152,7 +157,12 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     const original = buffers(def, 0.4)
     const copy = buffers(def, 0.4)
     construct(def).process(original.inlets, original.outlets, original.params, FRAMES)
-    new Rebuilt(SR, deps(def), 'a-module').process(copy.inlets, copy.outlets, copy.params, FRAMES)
+    new Rebuilt(SR, deps(def), 'a-module', NO_DATA).process(
+      copy.inlets,
+      copy.outlets,
+      copy.params,
+      FRAMES,
+    )
 
     expect(copy.outlets.map((o) => [...o])).toEqual(original.outlets.map((o) => [...o]))
   })

@@ -82,6 +82,32 @@ function params(value: unknown): Record<string, number> | undefined {
   return any ? out : undefined
 }
 
+/**
+ * Bulk data belonging to the document — a sequencer's pattern.
+ *
+ * Kept as plain finite numbers and otherwise unexamined. What a run of numbers *means* is the module's business,
+ * and a reader that understood pattern shapes would be a reader that could not carry a module it had never heard
+ * of — which is the property everything else in this file exists to protect.
+ *
+ * A sample buffer deliberately never arrives here. It is pushed straight at the audio thread, because a patch
+ * should store which break rather than several hundred kilobytes of one.
+ */
+function data(value: unknown): Record<string, number[]> | undefined {
+  if (!isRecord(value)) return undefined
+  const out: Record<string, number[]> = {}
+  let any = false
+  for (const [slot, raw] of Object.entries(value)) {
+    if (!Array.isArray(raw)) continue
+    const numbers = raw.filter(
+      (entry): entry is number => typeof entry === 'number' && Number.isFinite(entry),
+    )
+    if (numbers.length !== raw.length) continue
+    out[slot] = numbers
+    any = true
+  }
+  return any ? out : undefined
+}
+
 function module(value: unknown): PatchModule | null {
   if (!isRecord(value)) return null
   if (!isName(value.id) || !isName(value.type)) return null
@@ -94,6 +120,8 @@ function module(value: unknown): PatchModule | null {
   }
   const knobs = params(value.params)
   if (knobs) out.params = knobs
+  const bulk = data(value.data)
+  if (bulk) out.data = bulk
   const pos = position(value.pos)
   if (pos) out.pos = pos
   return out
@@ -160,6 +188,11 @@ export function decodePatch(text: string): Patch | null {
   const voices = body.voices
   if (typeof voices === 'number' && Number.isInteger(voices) && voices > 1 && voices <= 8) {
     patch.voices = voices
+  }
+  // Absent means 120, so a patch written before tempo existed round-trips unchanged.
+  const tempo = body.tempo
+  if (typeof tempo === 'number' && Number.isFinite(tempo) && tempo >= 20 && tempo <= 400) {
+    patch.tempo = tempo
   }
   return patch
 }

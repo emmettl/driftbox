@@ -14,10 +14,11 @@ import { QUANTIZER_MODULE } from './quantizer.js'
 import { SAMPLE_HOLD_MODULE } from './sample-hold.js'
 import { SEQ_MODULE } from './seq.js'
 import { SVF_MODULE } from './svf.js'
+import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 
-// Seventeen modules: enough to make a track, and now something to play it with.
+// Eighteen modules: enough to make a track, something to play it with, and something that knows what a bar is.
 //
 // `docs/RACK.md` planned fifteen and listed clock and sequencer as one. Splitting them was the first
 // departure and the reason is in `clock.ts`: a clock that is not a sequencer can drive several at
@@ -51,6 +52,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   SAMPLE_HOLD_MODULE,
   OFFSET_MODULE,
   MIXER_MODULE,
+  TRANSPORT_MODULE,
   CLOCK_MODULE,
   SEQ_MODULE,
   MIDI_MODULE,
@@ -77,5 +79,6 @@ export { QUANTIZER_MODULE, QuantizerProcessor } from './quantizer.js'
 export { SAMPLE_HOLD_MODULE, SampleHoldProcessor } from './sample-hold.js'
 export { SEQ_MODULE, SeqProcessor } from './seq.js'
 export { SVF_MODULE, SvfProcessor } from './svf.js'
+export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'

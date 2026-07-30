@@ -1,4 +1,4 @@
-import type { Plan, Processor, ProcessorClass } from './types.js'
+import type { ModuleData, Plan, Processor, ProcessorClass, Transport } from './types.js'
 
 // The audio thread. Walks a compiled plan, once per render quantum.
 //
@@ -61,6 +61,26 @@ export class Graph {
 
   /** `[slot][voice]`. A knob writes every voice; MIDI writes one — which is the whole reason a param is
    *  per-voice rather than shared, and the one addition polyphony needed to the message ABI. */
+  /**
+   * Where the transport is. Accumulated per block rather than derived from an absolute frame count, so changing
+   * the tempo mid-bar carries on from where the music was rather than jumping to wherever the new arithmetic
+   * lands.
+   */
+  private tempo = 120
+  private running = false
+  private beat = 0
+
+  /**
+   * Bulk data, in two layers on purpose.
+   *
+   * `pushed` came from `setData` — a sample buffer — and **survives a rebuild**, because it is not part of the
+   * patch and recompiling must not throw away a break somebody loaded. `seeded` came from the plan — a
+   * pattern — and is replaced every build, because there it *is* the document. `pushed` wins where both have a
+   * slot, which is only reachable if a module accepts the same data from either source.
+   */
+  private pushed = new Map<string, Map<string, Float32Array>>()
+  private seeded = new Map<string, Map<string, Float32Array>>()
+
   private paramBuffers: Float32Array[][] = []
   private values: Float32Array[] = []
   private targets: Float32Array[] = []
@@ -112,6 +132,26 @@ export class Graph {
     perVoice[voice] = value
   }
 
+  /** Where the transport is now. Tempo may change while running; position does not jump when it does. */
+  setTransport(tempo: number, running: boolean): void {
+    if (Number.isFinite(tempo) && tempo > 0) this.tempo = Math.max(20, Math.min(400, tempo))
+    // Restarting from a stop rewinds; changing tempo while running does not.
+    if (running && !this.running) this.beat = 0
+    this.running = running
+  }
+
+  /**
+   * Hand a module some bulk data. Survives a patch edit, because it is not part of the patch.
+   *
+   * The array is kept by reference and never copied — the host transferred it across `postMessage`, so this
+   * side owns it and a copy here would undo the point of transferring it.
+   */
+  setData(module: string, slot: string, data: Float32Array): void {
+    const forModule = this.pushed.get(module) ?? new Map<string, Float32Array>()
+    forModule.set(slot, data)
+    this.pushed.set(module, forModule)
+  }
+
   /** Sum the rack into every channel it was handed. Mono for now: a stereo signal path is
    *  a decision about what a cable is, and this is not the place to take it quietly. */
   process(channels: Float32Array[]): void {
@@ -148,6 +188,19 @@ export class Graph {
       }
     }
 
+    // One transport view per block, shared by every module that reads it — which is one of them.
+    const transport: Transport = {
+      tempo: this.tempo,
+      running: this.running,
+      beat: this.beat,
+      // Zero while stopped, because no beats pass in a block during which nothing is playing. Reporting the
+      // running figure regardless was a real bug: a module interpolating position across the block then crept
+      // forward and snapped back every block, so a stopped bar ramp wobbled instead of holding still. `tempo` is
+      // still here for anything that wants a synced time while stopped.
+      beatsPerBlock: this.running ? (frames * this.tempo) / (60 * this.sampleRate) : 0,
+    }
+    this.beat += transport.beatsPerBlock
+
     for (const node of this.nodes) {
       // The collapse: every voice of a polyphonic outlet summed into one buffer before a module that runs
       // once reads it. Done here rather than in the module, because a module has no idea how many voices
@@ -159,7 +212,7 @@ export class Graph {
           for (let i = 0; i < frames; i++) into[i] += other[i]
         }
       }
-      node.processor.process(node.inlets, node.outlets, node.params, frames)
+      node.processor.process(node.inlets, node.outlets, node.params, frames, transport)
     }
 
     if (this.outputs.length === 0) {
@@ -180,6 +233,13 @@ export class Graph {
     for (let c = 1; c < channels.length; c++) channels[c].set(mix)
   }
 
+  /** A live view of one module's bulk data. Pushed wins over seeded; see the note on those fields. */
+  private dataFor(module: string): ModuleData {
+    return {
+      get: (slot) => this.pushed.get(module)?.get(slot) ?? this.seeded.get(module)?.get(slot),
+    }
+  }
+
   /** Allocate everything the plan describes. `keepParams` carries the live knob positions
    *  across a re-allocation, which is what a change of render quantum needs — the plan's
    *  own values are where the patch was saved, not where the user has moved it since. */
@@ -189,6 +249,18 @@ export class Graph {
     this.missing.length = 0
     this.scratch = new Float32Array(this.frames)
     this.voices = Math.max(1, Math.min(8, Math.round(plan.voices || 1)))
+
+    // Patch data is the document, so it is replaced wholesale each build. Pushed data is not, so it is left
+    // alone — recompiling a patch must not throw away a sample somebody loaded into it.
+    this.seeded = new Map()
+    for (const node of plan.nodes) {
+      if (!node.data) continue
+      const forModule = new Map<string, Float32Array>()
+      for (const [slot, values] of Object.entries(node.data)) {
+        if (Array.isArray(values)) forModule.set(slot, Float32Array.from(values))
+      }
+      if (forModule.size > 0) this.seeded.set(node.id, forModule)
+    }
 
     // A polyphonic buffer gets one array per voice; a mono one gets a single array that every voice reads.
     // `plan.poly` says which is which, worked out by the compiler from who writes each buffer.
@@ -267,6 +339,9 @@ export class Graph {
             this.sampleRate,
             this.deps,
             voice === 0 ? node.id : `${node.id}#${voice}`,
+            // A live view rather than a snapshot, because data can arrive long after the graph was built —
+            // somebody loads a break into a patch that is already playing. Every voice of a module shares it.
+            this.dataFor(node.id),
           ),
           inlets,
           outlets: node.outlets.map((index) =>
