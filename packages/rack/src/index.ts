@@ -12,7 +12,67 @@ import { RACK_PROCESSOR, loadRack } from './worklet.js'
 // graph where anything modulates anything at audio rate. Two engines, one host, summing into
 // the same destination.
 
-export * from './types.js'
+// ---------------------------------------------------------------------------------------
+// The public surface, in two tiers.
+//
+// **`export *` used to stand here, and that was the whole problem.** A blanket re-export
+// publishes whatever `types.ts` happens to contain — which is how the compiler's `Plan`
+// shapes and the worklet's `Processor` contract became part of this package's API without
+// anybody deciding they should be. `docs/RACK.md` records `ModuleDef` and `Processor`
+// changing four times in four PRs and concludes that opening them "turns each into a
+// promise"; `export *` had already made that promise on our behalf.
+//
+// So every name is listed. Adding one is now a deliberate line in a diff rather than a
+// side effect of adding a field, and `api.test.ts` pins the list so it shows up in review.
+//
+// The tiers are not enforced by the type system — TypeScript has no way to say "exported
+// but not promised" — so they are enforced by being written down and tested.
+// ---------------------------------------------------------------------------------------
+
+// ---- Tier 1: the document and the host --------------------------------------------------
+//
+// What a consumer of `@driftbox/rack` touches. **A patch is the thing worth being stable
+// about**, because patches are saved, shared as URLs and opened by builds that are not this
+// one — and that stability is already designed in rather than hoped for: `PATCH_FORMAT`
+// carries a version, every added field has been optional, `decodePatch` never throws and
+// preserves what it does not recognise, and `patch-io.test.ts` pins that a patch written
+// before a field existed still round-trips byte-identically. Adding `modulation` for the
+// Combinator was that design working, not a break.
+export type {
+  Patch,
+  PatchModule,
+  PatchCable,
+  ModRoute,
+  Port,
+  ParamDef,
+  ModuleDef,
+} from './types.js'
+
+// ---- Tier 2: still moving ---------------------------------------------------------------
+//
+// Exported because the app in this repo needs them, **not because they are promised.** These
+// are the compiler's output and the audio thread's contract, and both are expected to change:
+// `Plan` is an implementation detail of `compile` that no outside consumer should be reading,
+// and `Processor`/`ProcessorClass`/`Dep` are the third-party-module question `docs/RACK.md`
+// explicitly defers.
+//
+// If this package is published, these are what a major version would be reserved for — or what
+// moves behind a `@driftbox/rack/internal` entry point on the day somebody outside depends on
+// one. Either way the decision is now visible instead of implied.
+export type {
+  Plan,
+  PlanNode,
+  PlanOutput,
+  PlanParam,
+  PlanNote,
+  Processor,
+  ProcessorClass,
+  Registry,
+  Transport,
+  ModuleData,
+  Dep,
+} from './types.js'
+
 export { compile } from './compile.js'
 export { Graph } from './graph.js'
 export { applyModulation, routeValue, routedParams, sourcePosition } from './modulation.js'
