@@ -1,4 +1,5 @@
 import { PATCHES, importVcv, type ImportNote } from '@driftbox/rack'
+import { BREAKS } from './breaks.js'
 import { useState } from 'react'
 import {
   deletePatch,
@@ -23,7 +24,13 @@ import { useRack } from './store.js'
 // work**, so both of them ask. Overwriting a save asks too. Everything else in the rack is either
 // reversible or autosaved, and these are not.
 
-export function PatchBrowser({ onClose }: { onClose: () => void }) {
+interface Props {
+  onClose: () => void
+  /** Absent until audio has started — rendering a break needs a sample rate, and pushing it needs a live Rack. */
+  onLoadBreak?: (id: string) => void
+}
+
+export function PatchBrowser({ onClose, onLoadBreak }: Props) {
   const patch = useRack((s) => s.patch)
   const name = useRack((s) => s.name)
   const load = useRack((s) => s.load)
@@ -141,6 +148,36 @@ export function PatchBrowser({ onClose }: { onClose: () => void }) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section>
+        <h2>Breaks</h2>
+        {!onLoadBreak && <p className="rk-empty">Start audio first.</p>}
+        {onLoadBreak && !patch.modules.some((m) => m.type === 'sampler') && (
+          <p className="rk-empty">Add a Sampler to load one into.</p>
+        )}
+        <ul>
+          {BREAKS.map((entry) => (
+            <li key={entry.id}>
+              <button
+                type="button"
+                disabled={!onLoadBreak}
+                onClick={() => {
+                  onLoadBreak?.(entry.id)
+                  onClose()
+                }}
+              >
+                <strong>{entry.name}</strong>
+                <span>
+                  {entry.blurb} · {entry.tempo}bpm
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {/* Said here rather than buried in a doc, because it is the one thing about these that is not obvious:
+            they are synthesised from the 909 when you click, not shipped as audio. */}
+        <p className="rk-empty">Synthesised from the 909 on load — no samples shipped.</p>
       </section>
 
       <section className="rk-library-actions">

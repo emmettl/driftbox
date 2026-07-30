@@ -316,3 +316,114 @@ describe('bulk data into a module', () => {
     expect(back?.modules[0].data).toEqual({ good: [1, 2] })
   })
 })
+
+describe('a chopped break, end to end', () => {
+  // Transport, module data and the sampler together — the three things phase A and B exist to make possible.
+  // Everything here has its own tests; what this checks is that they agree with each other, which is where the
+  // conventions between modules actually get exercised.
+
+  /** A stand-in break: sixteen slices, each a short burst at its own amplitude, so a slice is identifiable. */
+  function fakeBreak(perSlice: number): Float32Array {
+    const out = new Float32Array(perSlice * 16)
+    for (let slice = 0; slice < 16; slice++) {
+      // A decaying burst at the top of each slice, amplitude rising with the index.
+      const level = (slice + 1) / 16
+      for (let i = 0; i < Math.floor(perSlice / 4); i++) {
+        out[slice * perSlice + i] = level * Math.exp(-i / (perSlice / 16)) * (i % 2 ? 1 : -1)
+      }
+    }
+    return out
+  }
+
+  const patch: Patch = {
+    tempo: 174,
+    modules: [
+      { id: 't', type: 'transport' },
+      { id: 's', type: 'sampler', params: { slices: 16, slice: 0 } },
+      { id: 'out', type: 'out', params: { level: 1 } },
+    ],
+    cables: [
+      // A sixteenth trigger into the sampler is the chop: one slice per sixteenth, which only lines up because
+      // the break was rendered at this tempo.
+      { from: ['t', 'sixteenth'], to: ['s', 'trig'] },
+      { from: ['s', 'out'], to: ['out', 'in'] },
+    ],
+  }
+
+  it('is silent until a break is loaded, then plays', () => {
+    const { graph } = build(patch, MODULES)
+    graph.setTransport(174, true)
+
+    let sum = 0
+    for (const x of render(graph, 40)) sum += Math.abs(x)
+    expect(sum).toBe(0)
+
+    graph.setData('s', 'sample', fakeBreak(Math.round((44100 * 60 * 4) / 174 / 16)))
+    let after = 0
+    for (const x of render(graph, 40)) after += Math.abs(x)
+    expect(after).toBeGreaterThan(0)
+  })
+
+  it('advances one slice per sixteenth when the slice CV comes from the transport bar', () => {
+    // The bar ramp runs 0 to 1 across the bar and the slice inlet takes 0..1 across the whole set, so patching
+    // one into the other steps through the break in order — which is what "play the break normally" is, built
+    // out of two modules that know nothing about each other.
+    const stepping: Patch = {
+      ...patch,
+      cables: [...patch.cables, { from: ['t', 'bar'], to: ['s', 'slice'] }],
+    }
+    const perSlice = Math.round((44100 * 60 * 4) / 174 / 16)
+    const { graph } = build(stepping, MODULES)
+    graph.setData('s', 'sample', fakeBreak(perSlice))
+    graph.setTransport(174, true)
+
+    // A bar's worth. Each slice's burst has a distinct amplitude, so the peak of each sixteenth says which slice
+    // played — and they should climb, because the fake break's slices do.
+    const audio = render(graph, Math.ceil((perSlice * 16) / FRAMES))
+    const peakOf = (slice: number) => {
+      let peak = 0
+      for (let i = slice * perSlice; i < (slice + 1) * perSlice && i < audio.length; i++) {
+        peak = Math.max(peak, Math.abs(audio[i]))
+      }
+      return peak
+    }
+    // Later slices are louder in the fake break, so the sequence has to be increasing rather than all the same —
+    // all the same would mean the slice CV was being ignored and slice 0 played sixteen times.
+    expect(peakOf(12)).toBeGreaterThan(peakOf(2))
+    expect(peakOf(8)).toBeGreaterThan(peakOf(1))
+  })
+
+  it('keeps the break through a patch edit', () => {
+    // The two-layer data split, exercised the way it will actually be hit: somebody loads a break and then moves
+    // a cable. Losing it there would be indefensible.
+    const perSlice = Math.round((44100 * 60 * 4) / 174 / 16)
+    const { graph } = build(patch, MODULES)
+    graph.setData('s', 'sample', fakeBreak(perSlice))
+    graph.setTransport(174, true)
+    render(graph, 20)
+
+    graph.setPlan(
+      compile({ ...patch, modules: [...patch.modules, { id: 'extra', type: 'vco' }] }, MODULES),
+    )
+    let after = 0
+    for (const x of render(graph, 40)) after += Math.abs(x)
+    expect(after).toBeGreaterThan(0)
+  })
+
+  it('stays finite with the break pitched down and looping', () => {
+    // The sound of the genre, and the setting most likely to walk the read pointer off the end of the buffer.
+    const perSlice = Math.round((44100 * 60 * 4) / 174 / 16)
+    const pitched: Patch = {
+      ...patch,
+      modules: patch.modules.map((m) =>
+        m.id === 's' ? { ...m, params: { slices: 16, slice: 0, loop: 1 } } : m,
+      ),
+      cables: [...patch.cables, { from: ['t', 'run'], to: ['s', 'pitch'] }],
+    }
+    const { graph } = build(pitched, MODULES)
+    graph.setData('s', 'sample', fakeBreak(perSlice))
+    graph.setTransport(174, true)
+    const audio = render(graph, 200)
+    for (let i = 0; i < audio.length; i++) expect(Number.isFinite(audio[i])).toBe(true)
+  })
+})

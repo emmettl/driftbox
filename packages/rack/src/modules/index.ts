@@ -12,13 +12,15 @@ import { OFFSET_MODULE } from './offset.js'
 import { OUT_MODULE } from './out.js'
 import { QUANTIZER_MODULE } from './quantizer.js'
 import { SAMPLE_HOLD_MODULE } from './sample-hold.js'
+import { SAMPLER_MODULE } from './sampler.js'
 import { SEQ_MODULE } from './seq.js'
 import { SVF_MODULE } from './svf.js'
 import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 
-// Eighteen modules: enough to make a track, something to play it with, and something that knows what a bar is.
+// Nineteen modules: enough to make a track, something to play it with, something that knows what a bar is,
+// and — as of `docs/DNB.md` — something that can chop a break.
 //
 // `docs/RACK.md` planned fifteen and listed clock and sequencer as one. Splitting them was the first
 // departure and the reason is in `clock.ts`: a clock that is not a sequencer can drive several at
@@ -27,10 +29,14 @@ import { VCO_MODULE } from './vco.js'
 // MIDI is the second, and it is the only module here whose input does not come from a cable — see the long
 // comment in `midi.ts` for why that needed no change to the message ABI.
 //
-// The omissions are still deliberate. **No sampler** — no samples anywhere is a project rule and
-// this is not the place to break it. **No reverb** — the engine's is a convolver, which belongs
-// after the rack's output as an ordinary Web Audio send rather than inside the worklet. **No
-// polyphony**, which is a decision rather than a gap; see the roadmap.
+// Two of the original omissions have since been decided the other way, and this list is the wrong place to
+// find out. **There is a sampler**: drum and bass is built on chopped breaks, and `docs/DNB.md` settles where
+// that line sits — the engine's drum machines stay fully synthesised and `ROADMAP.md`'s rule keeps meaning
+// exactly what it says about them, while the rack is a different instrument. **There is polyphony**, which was
+// always a decision rather than a gap.
+//
+// Still missing on purpose: **no reverb** — the engine's is a convolver, which belongs after the rack's output
+// as an ordinary Web Audio send rather than inside the worklet, and an in-worklet one is phase C of the plan.
 //
 // Adding one is a class, a def and a test. Nothing here needs to know about it beyond this list,
 // and `modules.test.ts` holds every entry to the same structural rules, so a new module gets that
@@ -42,6 +48,7 @@ import { VCO_MODULE } from './vco.js'
 export const MODULE_LIST: readonly ModuleDef[] = [
   VCO_MODULE,
   NOISE_MODULE,
+  SAMPLER_MODULE,
   LADDER_MODULE,
   SVF_MODULE,
   VCA_MODULE,
@@ -77,6 +84,7 @@ export { OFFSET_MODULE, OffsetProcessor } from './offset.js'
 export { OUT_MODULE, OutProcessor } from './out.js'
 export { QUANTIZER_MODULE, QuantizerProcessor } from './quantizer.js'
 export { SAMPLE_HOLD_MODULE, SampleHoldProcessor } from './sample-hold.js'
+export { SAMPLER_MODULE, SamplerProcessor } from './sampler.js'
 export { SEQ_MODULE, SeqProcessor } from './seq.js'
 export { SVF_MODULE, SvfProcessor } from './svf.js'
 export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
