@@ -12,6 +12,13 @@ import type { ModuleDef, Patch, Processor, Registry } from './types.js'
 // This is the same trick `ladder.test.ts` uses in the engine, one level up. What it cannot
 // check is that the browser runs the same code; `worklet.test.ts` is for that.
 
+/** The first index where `ok` fails, or −1. One assertion per array rather than one per sample —
+ *  see the comment on the same helper in `modules/svf.test.ts`. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
 const SR = 44100
 const FRAMES = 128
 const SECOND = Math.ceil(SR / FRAMES)
@@ -286,10 +293,7 @@ describe('running a graph', () => {
     )
     const audio = run(patch, SECOND)
     expect(rms(audio)).toBeGreaterThan(0)
-    for (let i = 0; i < audio.length; i++) {
-      expect(Number.isFinite(audio[i])).toBe(true)
-      expect(Math.abs(audio[i])).toBeLessThanOrEqual(4)
-    }
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
   })
 
   it('keeps a module that has gone bad off the output bus', () => {
@@ -297,10 +301,7 @@ describe('running a graph', () => {
     // point is narrower: the tab must survive it, because a NaN in an AudioNode is
     // permanent and a reload would be the only way back.
     const audio = run({ modules: [{ id: 'x', type: 'hostile' }], cables: [] }, 4, PROBES)
-    for (let i = 0; i < audio.length; i++) {
-      expect(Number.isFinite(audio[i])).toBe(true)
-      expect(Math.abs(audio[i])).toBeLessThanOrEqual(4)
-    }
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
   })
 })
 
@@ -318,7 +319,9 @@ describe('moving a knob', () => {
     const first = render(graph, 1)
     expect(first[0]).toBeCloseTo(1 / FRAMES, 5)
     expect(first[FRAMES - 1]).toBeCloseTo(1, 5)
-    for (let i = 1; i < FRAMES; i++) expect(first[i]).toBeGreaterThan(first[i - 1])
+    let monotonic = true
+    for (let i = 1; i < FRAMES; i++) if (first[i] <= first[i - 1]) monotonic = false
+    expect(monotonic).toBe(true)
   })
 
   it('flattens out once it has arrived', () => {
@@ -330,7 +333,7 @@ describe('moving a knob', () => {
     render(graph, 1)
 
     const settled = render(graph, 4)
-    for (let i = 0; i < settled.length; i++) expect(settled[i]).toBe(1)
+    expect(firstBad(settled, (x) => x === 1)).toBe(-1)
   })
 
   it('steps a stepped param immediately', () => {
@@ -341,7 +344,7 @@ describe('moving a knob', () => {
     graph.setParam(compile(patch, PROBES).slots.p.value, 1)
 
     const first = render(graph, 1)
-    for (let i = 0; i < FRAMES; i++) expect(first[i]).toBe(1)
+    expect(firstBad(first, (x) => x === 1)).toBe(-1)
   })
 
   it('ignores a slot or a value that makes no sense', () => {
@@ -352,7 +355,7 @@ describe('moving a knob', () => {
     graph.setParam(9999, 1)
 
     const audio = render(graph, 2)
-    for (let i = 0; i < audio.length; i++) expect(audio[i]).toBe(0)
+    expect(firstBad(audio, (x) => x === 0)).toBe(-1)
   })
 })
 
@@ -403,10 +406,154 @@ describe('replacing a plan', () => {
 
     const wide = [new Float32Array(256), new Float32Array(256)]
     graph.process(wide)
-    for (let i = 0; i < 256; i++) expect(wide[0][i]).toBe(1)
+    expect(firstBad(wide[0], (x) => x === 1)).toBe(-1)
   })
 })
 
 function probePatchFor(): Patch {
   return { modules: [{ id: 'p', type: 'probe' }], cables: [] }
 }
+
+describe('a patch made of the whole rack', () => {
+  // The point of step 3 is not sixteen modules; it is sixteen modules that work together. Each has
+  // its own tests and every one of them passes with the module in isolation — this is the part that
+  // would catch a convention nobody quite shares, a gate that is 0..1 at one end of a cable and ±1
+  // at the other, or a pitch in semitones meeting an inlet expecting octaves.
+
+  const patch = (
+    modules: [string, string, Record<string, number>?][],
+    cables: [string, string, string, string][],
+  ): Patch => ({
+    modules: modules.map(([id, type, params]) => ({ id, type, params })),
+    cables: cables.map(([a, b, c, d]) => ({ from: [a, b], to: [c, d] })),
+  })
+
+  it('plays a sequence: clock into sequencer into envelope, oscillator through a filter', () => {
+    const audio = run(
+      patch(
+        [
+          ['clock', 'clock', { rate: 8, width: 0.4 }],
+          ['seq', 'seq', { pitch1: 0, pitch2: 7, pitch3: 12, pitch4: 5, length: 4 }],
+          ['env', 'adsr', { attack: 0.002, decay: 0.06, sustain: 0.2, release: 0.05 }],
+          ['osc', 'vco', { tune: -12, shape: 0 }],
+          ['filter', 'svf', { cutoff: 900, resonance: 0.5 }],
+          ['amp', 'vca', { gain: 0 }],
+          ['out', 'out', { level: 0.8 }],
+        ],
+        [
+          ['clock', 'gate', 'seq', 'clock'],
+          ['seq', 'pitch', 'osc', 'pitch'],
+          ['seq', 'gate', 'env', 'gate'],
+          ['osc', 'out', 'filter', 'in'],
+          ['filter', 'lp', 'amp', 'in'],
+          ['env', 'out', 'amp', 'cv'],
+          ['amp', 'out', 'out', 'in'],
+        ],
+      ),
+      SECOND,
+    )
+
+    // It makes a sound.
+    expect(rms(audio)).toBeGreaterThan(0.02)
+
+    // And it is a sequence rather than a drone: the envelope closes the VCA between notes, so the
+    // level has to come back down eight times a second. Anything that broke the gate convention
+    // between the sequencer and the envelope would show up as a continuous tone instead.
+    const window = Math.floor(SR / 64)
+    const levels: number[] = []
+    for (let start = 0; start + window < audio.length; start += window) {
+      levels.push(rms(audio.slice(start, start + window)))
+    }
+    const loud = Math.max(...levels)
+    const quiet = Math.min(...levels)
+    expect(loud / (quiet + 1e-9)).toBeGreaterThan(20)
+  })
+
+  it('plays a generative line: noise sampled on a clock, quantized to a scale', () => {
+    // Four modules, none of which is a sequencer, making a melody. The clearest demonstration of one
+    // signal type being worth having: what gets sampled is audio and what it becomes is pitch, and
+    // nothing had to be told about the change.
+    const audio = run(
+      patch(
+        [
+          ['noise', 'noise'],
+          ['clock', 'clock', { rate: 6 }],
+          ['sh', 'sample-hold'],
+          ['quant', 'quantizer', { scale: 3, root: 0 }],
+          ['osc', 'vco', { tune: 0 }],
+          ['env', 'adsr', { attack: 0.002, decay: 0.1, sustain: 0, release: 0.05 }],
+          ['amp', 'vca', { gain: 0 }],
+          ['out', 'out', { level: 0.7 }],
+        ],
+        [
+          ['noise', 'white', 'sh', 'in'],
+          ['clock', 'trig', 'sh', 'trig'],
+          ['sh', 'out', 'quant', 'in'],
+          ['quant', 'out', 'osc', 'pitch'],
+          ['quant', 'trig', 'env', 'trig'],
+          ['osc', 'out', 'amp', 'in'],
+          ['env', 'out', 'amp', 'cv'],
+          ['amp', 'out', 'out', 'in'],
+        ],
+      ),
+      SECOND,
+    )
+    expect(rms(audio)).toBeGreaterThan(0.01)
+    expect(firstBad(audio, Number.isFinite)).toBe(-1)
+  })
+
+  it('runs every module at once without going non-finite', () => {
+    // Everything in the registry, patched into a chain, with the modulation sources wired to real
+    // destinations. Not musical — a smoke test for the whole set together, including the two that
+    // have somewhere to feed back to.
+    const audio = run(
+      patch(
+        [
+          ['lfo', 'lfo', { rate: 5, shape: 1 }],
+          ['clock', 'clock', { rate: 4 }],
+          ['seq', 'seq', {}],
+          ['noise', 'noise'],
+          ['sh', 'sample-hold'],
+          ['quant', 'quantizer'],
+          ['osc', 'vco'],
+          ['ladder', 'ladder', { cutoff: 1200, resonance: 0.7 }],
+          ['svf', 'svf', { cutoff: 2000, resonance: 0.6 }],
+          ['drive', 'drive', { drive: 12, bias: 0.2 }],
+          ['delay', 'delay', { time: 0.12, feedback: 0.6 }],
+          ['env', 'adsr', {}],
+          ['off', 'offset', { gain: 0.5, offset: 0.1 }],
+          ['mix', 'mixer', { level1: 0.4, level2: 0.4, level3: 0.4, level4: 0.4 }],
+          ['amp', 'vca', { gain: 0.5, curve: 1 }],
+          ['out', 'out'],
+        ],
+        [
+          ['clock', 'gate', 'seq', 'clock'],
+          ['clock', 'trig', 'sh', 'trig'],
+          ['noise', 'pink', 'sh', 'in'],
+          ['sh', 'out', 'quant', 'in'],
+          ['quant', 'out', 'osc', 'pitch'],
+          ['seq', 'gate', 'env', 'gate'],
+          ['lfo', 'bi', 'off', 'in'],
+          ['off', 'out', 'osc', 'fm'],
+          ['osc', 'out', 'ladder', 'in'],
+          ['env', 'out', 'ladder', 'cutoff'],
+          ['ladder', 'out', 'svf', 'in'],
+          ['svf', 'lp', 'drive', 'in'],
+          ['drive', 'out', 'delay', 'in'],
+          ['drive', 'out', 'mix', 'in1'],
+          ['delay', 'out', 'mix', 'in2'],
+          ['noise', 'white', 'mix', 'in3'],
+          ['svf', 'bp', 'mix', 'in4'],
+          ['lfo', 'uni', 'mix', 'cv3'],
+          ['mix', 'out', 'amp', 'in'],
+          ['env', 'out', 'amp', 'cv'],
+          ['amp', 'out', 'out', 'in'],
+        ],
+      ),
+      SECOND,
+    )
+
+    expect(rms(audio)).toBeGreaterThan(0.001)
+    expect(firstBad(audio, (x) => Number.isFinite(x) && Math.abs(x) <= 4)).toBe(-1)
+  })
+})
