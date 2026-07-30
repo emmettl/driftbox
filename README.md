@@ -177,9 +177,9 @@ The toms play from it too — they are pitched percussion, and each tunes across
 under an octave. Past that the keys dim: the way further up is the next tom, which is what
 the machine's three of them are for. Select one in the grid and it appears as a target.
 
-## Three songs, one pair of 303s
+## Fourteen songs, one pair of 303s
 
-It ships with twelve, and they share nothing — different tempos, different halves of the
+It ships with fourteen, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -199,13 +199,15 @@ scene used twice:
 | **1UP** | Chiptune, for the platformer. 162bpm, and the 303 arpeggiates because a machine with one voice cannot play a chord. | *Jump Man* |
 | **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
 | **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
+| **Cübik Olympic** | Manchester rave. 124bpm, distorted square stabs and rippling 808s. | *Cübik* |
+| **Mobilise** | Industrial electro. 90bpm, a rolling square-wave riff with toms for caterpillar tracks. | *Endless Convoy* |
 
 The order is a listening sequence rather than the order they were written: gentle, hard,
 dark, machine, abstract, dread, bright, building, breaking, fast. Acieed and Ascend used
 to sit next to each other and open with literally the same four bars at different tempos,
 so the set sounded like one track restarting.
 
-The part worth noticing is that the two 303s are the same synth in all twelve and do not
+The part worth noticing is that the two 303s are the same synth in all fourteen and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -272,14 +274,15 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are twelve — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are fourteen — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
 *Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*;
-*Defcon*; *Clouds*; *Dancers*; and *Jump Man*.
+*Defcon*; *Clouds*; *Dancers*; *Jump Man*; *Cübik*, a paper-white field of coloured
+towers; and *Endless Convoy*, a column of impossible cargo under a rust-red sun.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
