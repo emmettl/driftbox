@@ -20,13 +20,40 @@ biquad now fail a test rather than waiting for somebody to remember.
 
 Two notes on the automated versions, because they differ from the recipes below:
 
-- **Twenty-five renders per voice, not seven.** Seven is enough for a human reading one
-  number; it is not enough to divide the loudest voice by the quietest and compare against a
-  fixed threshold. Averaging seven leaves the spread wobbling between 1.06 and 1.19 across
-  full passes, so a 1.2 threshold would fail about one run in five for no reason. Twenty-five
-  holds it to 1.07–1.11.
+- **`Math.random` is seeded for the duration of the measurement.** A voice's peak is a random
+  variable — `render.ts` starts each analogue-style noise source at a random offset — so an
+  assertion on the worst of N samples is a lottery. The first version of the test was not
+  seeded, passed 550 renders locally at a high-water mark of 0.916, and failed its first CI
+  run at 1.069. Seeded, every figure is identical in CI, on a laptop, and next year.
 - **Decay is only asserted for voices that do not vary** — the kicks, the closed hats and the
   crash. The claps swing by 70ms between renders and would be a coin toss.
+
+## The 808 clap goes over full scale
+
+**Found by that first CI run, and not yet fixed.** Over 120 independent noise offsets the 808
+clap ranges from **0.580 to 1.095**, mean about 0.78. Its trim is set from the mean and is
+correct on that basis, which is why nothing had noticed: the voice is right on average and
+over full scale at the top of its own distribution. The 909 clap is built the same way and
+tops out at 0.954.
+
+The cause is structural. A clap is several noise bursts a few milliseconds apart, each
+starting at its own random offset into the shared buffer; when the offsets happen to line up
+the bursts stop cancelling and start summing.
+
+It is left alone because the fix is a judgement rather than an edit:
+
+- Trimming the worst case under 1.0 means scaling by about 0.87, which drops the clap's mean
+  to 0.69 and puts it below every other voice in the kit — quieter all the time, to protect
+  against an offset that comes up rarely.
+- Every trim was measured against every other, so moving one is a recalibration of all
+  twenty-two rather than a one-line change.
+- In the app the voice is not alone: it goes through the bus at 0.9, the compressor, and the
+  master at 0.7. A peak of 1.09 on a voice in isolation is not a clipped output. What it does
+  mean is that the per-voice normalisation this page describes has a case it does not cover.
+
+`render.browser.test.ts` pins the current behaviour from both sides — it fails if the clap
+gets louder, and it fails if it stops reaching past 1.0, which is how a test like this would
+otherwise rot into a test of nothing. Fixing the voice means updating that test on purpose.
 
 Everything below still matters. Recipes 3 and 4 are not automated — a mix measurement needs
 judgement about which pattern and which stage of the bus, and the spread of shipped songs is
