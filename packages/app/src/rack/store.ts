@@ -97,6 +97,18 @@ interface RackState {
   /** One lane's steps, or an empty array. The patch is the source of truth; the audio thread has a copy. */
   lane: (moduleId: string, lane: number) => number[]
 
+  /**
+   * Write one data slot by name — what `setLane` is the Tracker-shaped case of.
+   *
+   * The Arranger's sections are not lanes, but they are the same kind of thing: an array a module reads at
+   * audio rate, edited while it plays, which must not rebuild the graph. Rather than give each module its
+   * own store action, the general one is the primitive and `setLane` keeps its name because `lane3` reads
+   * better at the call site than the string does.
+   */
+  setData: (moduleId: string, slot: string, values: readonly number[]) => void
+  /** One data slot, or an empty array. */
+  data: (moduleId: string, slot: string) => number[]
+
   addModule: (type: string) => void
   /**
    * Drop a pre-wired group of modules in, on its own channel.
@@ -366,9 +378,12 @@ export const useRack = create<RackState>((set, get) => {
       })
     },
 
-    setLane: (moduleId, lane, values) => {
+    setLane: (moduleId, lane, values) => get().setData(moduleId, `lane${lane + 1}`, values),
+
+    lane: (moduleId, lane) => get().data(moduleId, `lane${lane + 1}`),
+
+    setData: (moduleId, slot, values) => {
       set((state) => {
-        const slot = `lane${lane + 1}`
         const patch = {
           ...state.patch,
           modules: state.patch.modules.map((module) =>
@@ -382,8 +397,8 @@ export const useRack = create<RackState>((set, get) => {
       })
     },
 
-    lane: (moduleId, lane) =>
-      get().patch.modules.find((m) => m.id === moduleId)?.data?.[`lane${lane + 1}`] ?? [],
+    data: (moduleId, slot) =>
+      get().patch.modules.find((m) => m.id === moduleId)?.data?.[slot] ?? [],
 
     addRoute: (from, to) =>
       // A fresh route sweeps the target end to end, which it says by leaving both limits absent rather

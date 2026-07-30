@@ -1,5 +1,6 @@
 import type { ModuleDef, Registry } from '../types.js'
 import { ADSR_MODULE } from './adsr.js'
+import { ARRANGER_MODULE } from './arranger.js'
 import { ALLIGATOR_MODULE } from './alligator.js'
 import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
@@ -26,7 +27,7 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 
-// Twenty-six modules: enough to make a track, something to play it with, something that knows what a bar
+// Twenty-seven modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -79,6 +80,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   SEQ_MODULE,
   REVERB_MODULE,
   TRACKER_MODULE,
+  ARRANGER_MODULE,
   MIDI_MODULE,
   QUANTIZER_MODULE,
   // Last before the output, because a Combinator is not part of a signal chain at all — it sits over the
@@ -92,6 +94,7 @@ export const MODULES: Registry = Object.fromEntries(
 )
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
+export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'

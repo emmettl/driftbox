@@ -593,10 +593,37 @@ The risk is all in the first item. Do it first and alone.
    - **Past the end of the data is a rest, not a wrap.** An empty bank slot is what an unfinished song
      looks like; wrapping would make it secretly repeat bar one and be very hard to debug.
 
-   Still to do: the arrangement UI over that mechanism, shipped songs, a module picker that explains
-   itself, and a player mode. **The visualiser question below is settled by that last one** — the objection
-   was that a moving scene competes with a back panel you are trying to *read*, and in a player you are not
-   reading anything. Scenes belong behind the player, not the patcher.
+   Still to do: shipped songs, a module picker that explains itself, and a player mode. **The visualiser
+   question below is settled by that last one** — the objection was that a moving scene competes with a
+   back panel you are trying to *read*, and in a player you are not reading anything. Scenes belong behind
+   the player, not the patcher.
+
+   **The Arranger** ✅ — a list of sections, each a pattern and a count of bars, driving a Tracker's pattern
+   inlet. The mechanism was already there; this is the thing that made a song something you can *see*.
+
+   - **A module, not a layer over the patch.** A pattern index over time *is* a signal, and making it one
+     buys three things a host-side arrangement would not: one Arranger drives several Trackers from one
+     cable each; the patch format needs no change at all, unlike `modulation`, which had to be added for
+     the Combinator because a routing genuinely is not a signal; and being CV it composes — a song can be
+     offset, quantised or driven by something else. The cost is that a song lives in a module rather than
+     somewhere obviously "above" the patch, which only reads wrong if you were expecting a DAW.
+   - **Clocked by the bar.** Its clock inlet takes the Transport's `bar` outlet, because a section is
+     measured in bars and counting sixteenths to find them would put the same arithmetic in two modules.
+   - **`elapsed` counts bars started, not bars finished.** The first edge is the start of bar one rather
+     than the end of it. Getting that backwards makes every section one bar short — the same off-by-one
+     the Tracker sidesteps by starting its step counter at −1 — and it is what the module's tests are
+     mostly about.
+   - **All sixteen sections on the panel at once**, in two columns of eight, with the ones past the song's
+     length dimmed rather than removed. A scrolling list would hide the shape of the song, which is the
+     one thing the panel exists to show; and shortening a song must be as reversible as turning the knob
+     back, which is the same promise the Tracker makes about a shortened pattern.
+   - **A general `setData` under the Tracker's `setLane`.** Sections are not lanes but they are the same
+     kind of thing — an array read at audio rate and edited while it plays — so the named accessor became
+     the special case of a general one rather than every module getting its own store action.
+   - **The panel reads `module.data`, not the store.** The Chassis looks the module up out of the live
+     patch on every render, so the prop is exactly as current and costs no subscription. It also makes the
+     panel renderable in a test, which the Tracker's is not: zustand answers a server render from the
+     state the store was *created* with, so a component that subscribes draws an empty patch.
 
 ## The visualiser, and why it is not on the rack yet
 

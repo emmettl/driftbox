@@ -571,4 +571,21 @@ describe('writing a pattern', () => {
     useRack.setState({ patch: { modules: [], cables: [] }, revision: 0 })
     expect(() => useRack.getState().setLane('tracker-1', 0, [1])).not.toThrow()
   })
+
+  it('writes a slot that is not a lane, on the same terms', () => {
+    // The Arranger's sections are the case: not lanes, but the same kind of thing — an array a module reads
+    // at audio rate and edits while it plays. If this ever became structural, editing a song would rebuild
+    // every processor in the rack, which is a click on every section you touch.
+    const before = useRack.getState().revision
+    useRack.getState().setData('tracker-1', 'patterns', [0, 1, 0, 2])
+    expect(useRack.getState().revision).toBe(before)
+    expect(useRack.getState().data('tracker-1', 'patterns')).toEqual([0, 1, 0, 2])
+  })
+
+  it('leaves a lane alone when a named slot is written, and the other way round', () => {
+    useRack.getState().setLane('tracker-1', 0, [3, 3])
+    useRack.getState().setData('tracker-1', 'repeats', [4, 4])
+    expect(useRack.getState().lane('tracker-1', 0)).toEqual([3, 3])
+    expect(useRack.getState().data('tracker-1', 'repeats')).toEqual([4, 4])
+  })
 })
