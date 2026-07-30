@@ -1,0 +1,507 @@
+/* The rack's own stylesheet.
+ *
+ * It borrows the sequencer's tokens — the same background, ink and accent colours — so the two pages
+ * look like one product, and defines nothing the sequencer needs. `../styles.css` is not imported: the
+ * rack has no step grid, no transport and no panels to fold, and pulling in a stylesheet built for
+ * those would mean every rule here fighting one of them. Shared tokens, separate rules.
+ */
+
+:root {
+  --bg: #07040f;
+  --ink: #e8e4ff;
+  --dim: #9d95c8;
+  --eight: #ff7ad9;
+  --nine: #5ff0d0;
+  --three: #ffb02e;
+  --panel: rgba(14, 10, 30, 0.72);
+  --edge: rgba(255, 255, 255, 0.09);
+  --mono: 'SFMono-Regular', ui-monospace, 'Menlo', monospace;
+
+  /* How long the rack takes to turn around. Long enough to read as a rotation rather than a cut,
+   * short enough that Tab still feels like a shortcut. Reason snapped instantly; this is the one
+   * place worth spending 520ms. */
+  --spin: 520ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(120% 80% at 50% -10%, #16102c 0%, var(--bg) 60%);
+  color: var(--ink);
+  font: 13px/1.4 system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* ---- chrome ------------------------------------------------------------------ */
+
+.rk-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--edge);
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: rgba(7, 4, 15, 0.86);
+  backdrop-filter: blur(12px);
+}
+
+.rk-header h1 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 8px 0 0;
+  letter-spacing: 0.02em;
+}
+.rk-header h1 span {
+  color: var(--nine);
+}
+
+.rk-header button,
+.rk-palette button,
+.rk-module-tools button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.rk-header button:hover,
+.rk-palette button:hover {
+  border-color: var(--nine);
+}
+.rk-header button[aria-pressed='true'] {
+  border-color: var(--nine);
+  color: var(--nine);
+}
+.rk-primary {
+  border-color: var(--nine) !important;
+  color: var(--nine) !important;
+}
+
+kbd {
+  font: 11px var(--mono);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 0 4px;
+  color: var(--dim);
+}
+
+.rk-away {
+  margin-left: auto;
+  color: var(--dim);
+  text-decoration: none;
+}
+.rk-away:hover {
+  color: var(--nine);
+}
+
+.rk-palette {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--edge);
+}
+
+.rk-warn,
+.rk-shared {
+  margin: 0;
+  padding: 8px 16px;
+  font: 11px var(--mono);
+  color: var(--three);
+  word-break: break-all;
+}
+.rk-shared {
+  color: var(--dim);
+}
+
+.rk-footer {
+  display: flex;
+  gap: 16px;
+  padding: 10px max(16px, env(safe-area-inset-left));
+  border-top: 1px solid var(--edge);
+  color: var(--dim);
+  font: 11px var(--mono);
+}
+.rk-hint {
+  margin-left: auto;
+}
+
+/* ---- the rack, and the turn ---------------------------------------------------
+ *
+ * `perspective` on the stage, `preserve-3d` on the thing that rotates, and each side hidden when it
+ * faces away. That is the whole flip. Rotating real DOM rather than a canvas means every knob keeps
+ * its own pointer events, its focus ring and its ARIA role through the animation.
+ */
+
+.rk-stage {
+  perspective: 2400px;
+  padding: 32px 16px 48px;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.rk-rack {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform var(--spin) cubic-bezier(0.6, 0.05, 0.3, 1);
+}
+
+.rk-rack-flipped {
+  transform: rotateY(180deg);
+}
+
+.rk-side {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 14px;
+}
+
+.rk-side-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(#120c22, #0b0716);
+  border: 1px solid var(--edge);
+}
+
+/* A rack with nothing in it still needs a size, or the stage collapses and there is nothing to click. */
+.rk-rack:empty {
+  min-height: 200px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-rack {
+    transition: none;
+  }
+}
+
+/* ---- front ------------------------------------------------------------------- */
+
+.rk-face {
+  position: absolute;
+  inset: 0;
+}
+
+.rk-module {
+  position: absolute;
+  padding: 10px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: linear-gradient(rgba(30, 22, 56, 0.9), rgba(16, 11, 33, 0.9));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.rk-module-on {
+  border-color: var(--nine);
+  box-shadow: 0 0 0 1px rgba(95, 240, 208, 0.25);
+}
+
+.rk-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-bottom: 1px solid var(--edge);
+  padding-bottom: 6px;
+}
+
+.rk-name {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.rk-ports {
+  font: 10px var(--mono);
+  color: var(--dim);
+  margin-left: auto;
+}
+
+/* A real grid with a fixed column count and a fixed cell, so `genericRows` can compute a module's height
+ * by arithmetic rather than by measuring. The numbers here are the ones in `layout.ts`: CELL_WIDTH 58,
+ * CELL_HEIGHT 62, seven columns for a full-width module and three for a half. Two copies of a number that
+ * must agree is one too many, and this is the copy the browser reads. */
+.rk-controls {
+  display: grid;
+  grid-template-columns: repeat(7, 58px);
+  grid-auto-rows: 62px;
+  align-items: start;
+  justify-content: start;
+}
+
+.rk-module[data-span='1'] .rk-controls {
+  grid-template-columns: repeat(3, 58px);
+}
+
+/* Emphasis without a transform. `scale()` moved the label out of its own grid cell and into the next
+ * one, where it collided with the shape selector — the grid is what keeps the height arithmetic honest,
+ * so nothing on a faceplate may escape its cell. */
+.rk-controls-vco .rk-big .knob-dial {
+  width: 46px;
+  height: 46px;
+}
+
+/* A knob whose value cannot currently do anything. Dimmed rather than hidden — it still holds a value
+ * that will matter again the moment the shape changes back, and a control that vanishes is worse than
+ * one that says it is asleep. */
+.rk-inactive {
+  opacity: 0.35;
+}
+
+.rk-id {
+  margin-top: auto;
+  font: 9px var(--mono);
+  color: rgba(157, 149, 200, 0.5);
+}
+
+.rk-unknown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px dashed var(--edge);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.rk-module-tools {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+.rk-module-tools button {
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+/* ---- knobs (the sequencer's component, restyled for a faceplate) -------------- */
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 58px;
+  height: 62px;
+  justify-content: center;
+}
+.knob-dial {
+  width: 34px;
+  height: 34px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.knob-dial svg {
+  width: 100%;
+  height: 100%;
+}
+.knob-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.knob-value {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.knob-pointer {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.knob-label {
+  font: 9px var(--mono);
+  color: var(--dim);
+  text-transform: uppercase;
+}
+.knob-readout {
+  font: 9px var(--mono);
+  color: var(--ink);
+}
+
+.rk-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 58px;
+  height: 62px;
+}
+.rk-cell-label {
+  font: 9px var(--mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  text-align: center;
+  max-width: 56px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.rk-select-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rk-option {
+  font: 9px var(--mono);
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 1px 5px;
+  cursor: pointer;
+  min-width: 40px;
+}
+
+/* The same size whether it has four positions or forty, which is the whole reason it exists. */
+.rk-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 54px;
+}
+.rk-stepper-arrows {
+  display: flex;
+  gap: 2px;
+}
+.rk-stepper button {
+  font: 11px var(--mono);
+  line-height: 1;
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 1px 7px;
+  cursor: pointer;
+}
+.rk-stepper button:hover {
+  color: var(--nine);
+  border-color: var(--nine);
+}
+.rk-stepper-value {
+  font: 10px var(--mono);
+  color: var(--three);
+  width: 54px;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.rk-option-on {
+  color: var(--bg);
+  background: var(--three);
+  border-color: var(--three);
+}
+
+/* ---- back ------------------------------------------------------------------- */
+
+.rk-back {
+  position: absolute;
+  inset: 0;
+}
+
+.rk-wires {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.rk-bay {
+  fill: rgba(255, 255, 255, 0.02);
+  stroke: var(--edge);
+}
+
+.rk-jack {
+  cursor: crosshair;
+}
+.rk-jack-ring {
+  fill: #1b1430;
+  stroke: var(--dim);
+  stroke-width: 1.5;
+}
+.rk-jack-in .rk-jack-ring {
+  stroke: var(--nine);
+}
+.rk-jack-out .rk-jack-ring {
+  stroke: var(--three);
+}
+.rk-jack:hover .rk-jack-ring {
+  fill: #2a1f4a;
+  stroke-width: 2.5;
+}
+.rk-jack-hole {
+  fill: #05030b;
+  pointer-events: none;
+}
+.rk-jack-hit {
+  fill: transparent;
+}
+.rk-jack-label {
+  font: 9px var(--mono);
+  fill: var(--dim);
+  pointer-events: none;
+  /* A dark outline painted under the glyphs. Cables are drawn beneath the jacks but still crossed the
+   * labels and struck them through; this is what keeps "Cutoff" readable with a cable over it. */
+  paint-order: stroke;
+  stroke: #0b0716;
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+}
+
+/* Cables. Two paths per cable: a dark one offset by nothing but blurred, and the bright one on top —
+ * which is what stops a cable crossing another from dissolving into it. */
+.rk-cable-shadow {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.rk-cable-line {
+  fill: none;
+  stroke: var(--nine);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+.rk-cable:nth-of-type(3n) .rk-cable-line {
+  stroke: var(--eight);
+}
+.rk-cable:nth-of-type(3n + 1) .rk-cable-line {
+  stroke: var(--three);
+}
+
+/* A cable the compiler had to delay by a block to break a cycle. Dashed, because a feedback patch that
+ * silently behaves unlike its picture is worse than one that admits it. */
+.rk-cable-delayed .rk-cable-line {
+  stroke-dasharray: 9 6;
+}
+
+.rk-cable-live {
+  stroke: var(--ink);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.rk-cable-grab {
+  fill: transparent;
+  cursor: pointer;
+}
+.rk-cable:hover .rk-cable-grab {
+  fill: rgba(255, 255, 255, 0.14);
+}
+.rk-cable:hover .rk-cable-line {
+  stroke-width: 5;
+}

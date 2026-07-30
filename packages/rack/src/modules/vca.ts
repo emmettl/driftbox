@@ -65,7 +65,7 @@ export const VCA_MODULE: ModuleDef = {
   params: [
     { id: 'gain', name: 'Gain', min: 0, max: 1, default: 1 },
     // Stepped: the curve is a choice between two behaviours, not a blend of them.
-    { id: 'curve', name: 'Curve', min: 0, max: 1, default: 0, stepped: true },
+    { id: 'curve', name: 'Curve', min: 0, max: 1, default: 0, stepped: true, labels: ['Lin', 'Sq'] },
   ],
   processor: VcaProcessor,
 }

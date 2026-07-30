@@ -437,11 +437,41 @@ The risk is all in the first item. Do it first and alone.
    writes an inlet or a param buffer, stays finite at both ends of every param with hostile
    inlets, is deterministic, survives `toString()` into a bare scope, and declares every dep it
    looks up. A new module gets all of it by being added to the list.
-4. **The rack UI.** ← next. A list of faceplates first, cables second, at `rack.html` per the
-   entry-point section above. This is the largest single piece of work in the project by a wide
-   margin, which is the reason it is fourth: by the time the cables are drawn, everything they
-   represent already works and is measured — three integration patches in `graph.test.ts` play a
-   sequenced line, a generative one, and every module in the registry at once.
+4. **The rack UI.** 🚧 First slice built and playable at `rack.html`: a vertical stack of
+   faceplates, knobs that reach the audio thread, the 3D flip on Tab, a back panel with jacks, cables
+   that hang, drag-to-patch and click-to-unpatch, and a patch that survives a reload or a link.
+
+   Decisions taken, and what they cost:
+
+   - **Fixed width, half or full.** Two adjacent half-width modules share a row; anything else gets a
+     row to itself. Order-preserving — in a rack the arrangement *is* the document, so a packer that
+     shuffled modules to close gaps would move what somebody had placed.
+   - **One coordinate system, no DOM measuring.** Front panel, back panel and cables are all laid out
+     by `layout.ts` into a fixed design space that the cable SVG uses as its `viewBox`. Nothing has to
+     agree with anything at runtime because there is only one set of numbers, and the geometry is
+     testable without a browser.
+   - **Every control is one fixed cell, and the grid is real CSS grid.** The first version predicted
+     module heights with a formula while the controls flowed with `flex-wrap`, and the two disagreed by
+     250px — the sequencer rendered with a hole in it. A control that escapes its cell takes the height
+     arithmetic with it, which is why a stepped param with more than three positions becomes a stepper
+     rather than a row of buttons.
+   - **CSS 3D for the flip, not three.js.** `@react-three/fiber` was already available and is the
+     wrong tool: rotating real DOM keeps every knob a real element with its own pointer events, focus
+     ring and ARIA role. `perspective`, `preserve-3d` and `backface-visibility` are the whole
+     mechanism, and it honours `prefers-reduced-motion`.
+   - **Cables sag much less than it feels like they should.** 0.10 of the span, down from 0.22 — at
+     0.22 the back panel read as bunting rather than as patch leads.
+   - **Faceplates: a sparse registry with a generic fallback.** Hand-built for the VCO, the Ladder and
+     Out; derived from the def for everything else. Same principle as the compiler's placeholder rule —
+     degrade sensibly rather than fail — so adding a module stays a class, a def and a test with no UI
+     work, and a module type this build has never seen still arrives with something you can turn. The
+     back panel is *never* hand-built, which is what makes cables work universally.
+   - **`ParamDef` gained an optional `labels`.** The fallback could otherwise only show numbers, and a
+     gate switch labelled "0" and "1" looks like a bug. Names belong on the def rather than in the UI
+     precisely so the *generated* faceplate gets them: that is the difference between the fallback
+     being a fallback and the fallback being enough.
+
+   Still to do: touch, keyboard patching, module drag-to-reorder, a patch browser, and the visualiser.
 5. **Then decide** about polyphony, third-party modules, and whether the VCV importer above is
    a weekend or a rabbit hole. All three are real products in their own right and none should
    be guessed at from here.

@@ -24,6 +24,18 @@ export interface ParamDef {
    * block every time it changed.
    */
   stepped?: boolean
+  /**
+   * What each position of a stepped param is called, from `min` upward.
+   *
+   * Nothing on the audio thread reads this. It exists because a faceplate generated from a def can
+   * otherwise only offer the numbers, and a gate switch labelled "0" and "1" is worse than useless —
+   * it looks like a bug. Declaring the names here rather than in the UI is what lets a module get a
+   * *good* generic faceplate rather than merely a working one, which is the difference between the
+   * fallback being a fallback and the fallback being enough.
+   *
+   * Omit it when the numbers are the meaning: a sequencer's length really is 1 to 8.
+   */
+  labels?: readonly string[]
 }
 
 /**
