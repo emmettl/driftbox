@@ -7,7 +7,7 @@ import { STARTER, useRack } from './store.js'
 // crackle while somebody drags it.
 
 beforeEach(() => {
-  useRack.setState({ patch: STARTER, revision: 0, selected: null, flipped: false, notes: [] })
+  useRack.setState({ patch: STARTER(), revision: 0, selected: null, flipped: false, notes: [], name: null })
 })
 
 describe('turning a knob', () => {
@@ -122,13 +122,18 @@ describe('the starter patch', () => {
   it('makes a sound rather than being an empty rack', () => {
     // An empty rack is a correct empty state and a terrible first impression: a modular with nothing in it
     // does not hint at what it is for. This is the shortest description of what the rack can do.
-    expect(STARTER.modules.length).toBeGreaterThan(4)
-    expect(STARTER.cables.length).toBeGreaterThan(4)
-    expect(STARTER.modules.some((m) => m.type === 'out')).toBe(true)
+    expect(STARTER().modules.length).toBeGreaterThan(4)
+    expect(STARTER().cables.length).toBeGreaterThan(4)
+    expect(STARTER().modules.some((m) => m.type === 'out')).toBe(true)
+  })
+
+  it('is a fresh object each time, so editing it cannot corrupt the shipped patch', () => {
+    expect(STARTER()).not.toBe(STARTER())
+    expect(STARTER()).toEqual(STARTER())
   })
 
   it('only uses modules and ports this build actually has', () => {
-    for (const module of STARTER.modules) {
+    for (const module of STARTER().modules) {
       expect(MODULES[module.type], module.type).toBeDefined()
       for (const id of Object.keys(module.params ?? {})) {
         expect(
@@ -137,9 +142,10 @@ describe('the starter patch', () => {
         ).toBe(true)
       }
     }
-    for (const cable of STARTER.cables) {
-      const from = STARTER.modules.find((m) => m.id === cable.from[0])!
-      const to = STARTER.modules.find((m) => m.id === cable.to[0])!
+    const starter = STARTER()
+    for (const cable of starter.cables) {
+      const from = starter.modules.find((m) => m.id === cable.from[0])!
+      const to = starter.modules.find((m) => m.id === cable.to[0])!
       expect(MODULES[from.type].outlets.some((p) => p.id === cable.from[1]), cable.from.join('.')).toBe(true)
       expect(MODULES[to.type].inlets.some((p) => p.id === cable.to[1]), cable.to.join('.')).toBe(true)
     }

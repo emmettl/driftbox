@@ -1,4 +1,4 @@
-import { EMPTY_PATCH, MODULES, type Patch, type PatchCable, type PlanNote } from '@driftbox/rack'
+import { EMPTY_PATCH, MODULES, PATCHES, type Patch, type PatchCable, type PlanNote } from '@driftbox/rack'
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takePatchFromUrl } from './persistence.js'
 
@@ -36,6 +36,9 @@ interface RackState {
    * the patch, which is the argument `compile.ts` makes for producing them at all.
    */
   notes: PlanNote[]
+  /** What the open patch is called in the library, or null for one that has never been saved — imported
+   *  from a file, opened from a link, or the shipped patch it started on. */
+  name: string | null
 
   setParam: (moduleId: string, paramId: string, value: number) => void
   paramValue: (moduleId: string, paramId: string) => number
@@ -48,6 +51,7 @@ interface RackState {
   disconnect: (cable: PatchCable) => void
 
   setNotes: (notes: PlanNote[]) => void
+  setName: (name: string | null) => void
   load: (patch: Patch) => void
   select: (moduleId: string | null) => void
   flip: (flipped?: boolean) => void
@@ -64,27 +68,18 @@ function freshId(patch: Patch, type: string): string {
   }
 }
 
-const STARTER: Patch = {
-  modules: [
-    { id: 'clock-1', type: 'clock', params: { rate: 4, width: 0.35 } },
-    { id: 'seq-1', type: 'seq', params: { pitch1: 0, pitch2: 7, pitch3: 12, pitch4: 3, length: 4 } },
-    { id: 'vco-1', type: 'vco', params: { tune: -12 } },
-    { id: 'adsr-1', type: 'adsr', params: { attack: 0.003, decay: 0.12, sustain: 0.15, release: 0.1 } },
-    { id: 'ladder-1', type: 'ladder', params: { cutoff: 700, resonance: 0.72 } },
-    { id: 'vca-1', type: 'vca', params: { gain: 0 } },
-    { id: 'out-1', type: 'out', params: { level: 0.7 } },
-  ],
-  cables: [
-    { from: ['clock-1', 'gate'], to: ['seq-1', 'clock'] },
-    { from: ['seq-1', 'pitch'], to: ['vco-1', 'pitch'] },
-    { from: ['seq-1', 'gate'], to: ['adsr-1', 'gate'] },
-    { from: ['vco-1', 'out'], to: ['ladder-1', 'in'] },
-    { from: ['adsr-1', 'out'], to: ['ladder-1', 'cutoff'] },
-    { from: ['ladder-1', 'out'], to: ['vca-1', 'in'] },
-    { from: ['adsr-1', 'out'], to: ['vca-1', 'cv'] },
-    { from: ['vca-1', 'out'], to: ['out-1', 'in'] },
-  ],
-}
+/**
+ * What an empty rack opens on.
+ *
+ * The shipped Acid patch rather than a second copy of it — it was written out longhand here first, and two
+ * definitions of the same patch is one too many. `@driftbox/rack` owns them now for the same reason the
+ * engine owns its songs: they are data about the rack, not about the page showing it.
+ *
+ * It matters more than it looks. An empty rack is a correct empty state and a terrible first impression: a
+ * modular with nothing in it does not hint at what it is for, and the first thing anybody needs is to hear
+ * that it works and see a cable.
+ */
+const STARTER = (): Patch => PATCHES[0].build()
 
 export const useRack = create<RackState>((set, get) => {
   /** Every structural edit goes through here, so nothing can forget the revision or the autosave. */
@@ -102,6 +97,7 @@ export const useRack = create<RackState>((set, get) => {
     selected: null,
     flipped: false,
     notes: [],
+    name: null,
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -180,6 +176,7 @@ export const useRack = create<RackState>((set, get) => {
       })),
 
     setNotes: (notes) => set({ notes }),
+    setName: (name) => set({ name }),
     load: (patch) => structural(() => patch),
     select: (moduleId) => set({ selected: moduleId }),
     flip: (flipped) => set((state) => ({ flipped: flipped ?? !state.flipped })),
@@ -195,7 +192,7 @@ export const useRack = create<RackState>((set, get) => {
  * is also the shortest description of what this rack can do.
  */
 export async function openingPatch(): Promise<Patch> {
-  return (await takePatchFromUrl()) ?? loadStoredPatch() ?? STARTER
+  return (await takePatchFromUrl()) ?? loadStoredPatch() ?? STARTER()
 }
 
 export { STARTER }

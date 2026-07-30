@@ -490,7 +490,41 @@ The risk is all in the first item. Do it first and alone.
      pages pass their own. Diagnostic rather than decorative here — a VCA left shut reads as a flat
      line, and a patch clipping into the Out reads as a flattened top.
 
-   Still to do: module drag-to-reorder, a patch browser, and the visualiser.
+   Then: **a patch library.**
+
+   Four shipped patches live in `@driftbox/rack`, not in the app — the same reasoning that puts the songs
+   in the engine: they are data about the rack rather than about the page showing it, so a headless
+   consumer gets them too. Built rather than stored, so loading one twice cannot hand back an object
+   somebody has already edited. They deliberately share almost nothing, because four sequenced acid lines
+   would demonstrate the opposite of what a modular is: one has no sequencer, one has no oscillator, and
+   `patches.test.ts` asserts that rather than trusting it.
+
+   Named slots on top, in `app/src/rack/library.ts`. Storage is a **parameter** defaulting to
+   `localStorage`, which is what makes the whole thing testable in Node against a plain Map — the same
+   trade `compile` makes by taking a registry instead of importing one. A library nobody can test is a
+   library that quietly loses somebody's patches.
+
+   Still to do: module drag-to-reorder, and a decision about the visualiser — see below.
+
+## The visualiser, and why it is not on the rack yet
+
+The sequencer has twelve 3D scenes and the obvious next move is to put one behind the rack. Measured
+rather than assumed, that costs more than it looks:
+
+| | |
+|---|---|
+| rack page today | **39 kB** |
+| `three` + `@react-three/fiber` | ~600 kB |
+
+Fifteen times the page, for something decorative. It is also the wrong decoration: the back panel is a
+picture you are trying to *read* — which cable goes where, which one is dashed — and a moving scene behind
+it competes with exactly the thing it would be sitting behind.
+
+The oscilloscope was worth it and cost nothing extra, because it is diagnostic: a VCA left shut reads as a
+flat line and a patch clipping into the Out reads as a flattened top, and neither is visible any other way.
+
+If the scenes do arrive, the shape is a **dynamic import** behind a switch that is off by default, so the
+600 kB is paid by whoever asks for it. Worth deciding deliberately rather than drifting into.
 5. **Then decide** about polyphony, third-party modules, and whether the VCV importer above is
    a weekend or a rabbit hole. All three are real products in their own right and none should
    be guessed at from here.
