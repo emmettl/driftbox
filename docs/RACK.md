@@ -573,7 +573,30 @@ The risk is all in the first item. Do it first and alone.
      history for nothing. It now compares by reference and declines to bump. That was a pre-existing
      defect this feature only made easy to trigger.
 
-   Still to do: a decision about the visualiser — see below.
+   **Patterns, and then a bank of them** ✅ — because until this the rack had no way to enter a note at
+   all. The Tracker had no faceplate, so it fell back to the generic one, which draws params; a pattern is
+   `PatchModule.data`, and `setData` was only ever called for samplers. Every pattern came from a shipped
+   chunk and was invisible and immutable. That is a strange gap in an instrument and a fatal one for
+   shipping songs people can start from — a song you cannot edit is a recording.
+
+   - **An edit is not structural.** Pattern data compiles into the plan, so treating a cell as a patch
+     change would rebuild every processor on every cell touched. It takes the two paths `setParam` takes
+     instead, which works because `pushed` already beats `seeded` in the Graph — a rule that exists so
+     recompiling cannot discard a loaded break, and a pattern turns out to be the same shape of problem.
+   - **A bank is the same array, longer.** Patterns sit end to end, so pattern *p* is
+     `[p * length, (p + 1) * length)`. A lane of sixteen values at a length of sixteen is exactly pattern
+     0 — which is every patch written before banks existed, byte for byte. The alternative, a slot per
+     pattern, would have meant a naming scheme in the data, a migration, and a reader that knew about banks.
+   - **The pattern inlet is scaled by sixteen so a Unit lane drives it one for one.** One Tracker clocked
+     by the bar, chaining another's patterns, *is* an arrangement — so the song mechanism needed no new
+     module, only an inlet.
+   - **Past the end of the data is a rest, not a wrap.** An empty bank slot is what an unfinished song
+     looks like; wrapping would make it secretly repeat bar one and be very hard to debug.
+
+   Still to do: the arrangement UI over that mechanism, shipped songs, a module picker that explains
+   itself, and a player mode. **The visualiser question below is settled by that last one** — the objection
+   was that a moving scene competes with a back panel you are trying to *read*, and in a player you are not
+   reading anything. Scenes belong behind the player, not the patcher.
 
 ## The visualiser, and why it is not on the rack yet
 

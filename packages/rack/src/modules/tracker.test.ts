@@ -10,6 +10,13 @@ import { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './tracker.js'
 // would silently mute a lane or transpose a pattern, and a test that names the order fails loudly instead.
 
 const SR = 44100
+
+/** Inlets sized from the def, with the clock in place. Everything else reads zero. */
+const inletsFor = (clock: Float32Array, frames: number): Float32Array[] => {
+  const inlets: Float32Array[] = TRACKER_MODULE.inlets.map(() => new Float32Array(frames))
+  inlets[0] = clock
+  return inlets
+}
 const LANES = TRACKER_LANES
 
 /**
@@ -28,6 +35,10 @@ interface Options {
   length?: number
   mute?: number[]
   unit?: number[]
+  /** Pattern chosen by CV, in whole patterns — scaled by the helper the way a Unit lane would. */
+  pattern?: number
+  /** Pattern chosen by the knob. */
+  patternKnob?: number
   /** Which samples the clock is high for. Default: half-duty at `STEP`. */
   clock?: (i: number) => boolean
   reset?: (i: number) => boolean
@@ -47,11 +58,18 @@ function run(frames: number, options: Options = {}) {
 
   const params = TRACKER_MODULE.params.map((def) => new Float32Array(frames).fill(def.default))
   if (options.length !== undefined) params[0].fill(options.length)
+  if (options.patternKnob !== undefined) params[params.length - 1].fill(options.patternKnob)
   for (const [lane, value] of (options.mute ?? []).entries()) params[1 + lane].fill(value)
   for (const [lane, value] of (options.unit ?? []).entries()) params[1 + LANES + lane].fill(value)
 
   const outlets = TRACKER_MODULE.outlets.map(() => new Float32Array(frames))
-  processor.process([clock, reset], outlets, params, frames)
+  // Built from the def rather than by hand. Writing `[clock, reset]` meant every one of these broke the
+  // day the Tracker grew a third inlet, which is a poor way to find out about an addition.
+  const inlets: Float32Array[] = TRACKER_MODULE.inlets.map(() => new Float32Array(frames))
+  inlets[0] = clock
+  inlets[1] = reset
+  if (options.pattern !== undefined) inlets[2].fill(options.pattern / 16)
+  processor.process(inlets, outlets, params, frames)
 
   const lane = (n: number) => ({
     cv: outlets[n * 3],
@@ -263,7 +281,7 @@ describe('the tracker', () => {
     params[0].fill(4)
     const outlets = TRACKER_MODULE.outlets.map(() => new Float32Array(frames))
 
-    processor.process([clock, new Float32Array(frames)], outlets, params, frames)
+    processor.process(inletsFor(clock, frames), outlets, params, frames)
     // Two clock edges in this block, so two hits — not one per sample the data was readable.
     expect(pulses(outlets[2])).toBe(2)
   })
@@ -278,12 +296,12 @@ describe('the tracker', () => {
     const params = TRACKER_MODULE.params.map((def) => new Float32Array(frames).fill(def.default))
     params[0].fill(1)
     const first = TRACKER_MODULE.outlets.map(() => new Float32Array(frames))
-    processor.process([clock, new Float32Array(frames)], first, params, frames)
+    processor.process(inletsFor(clock, frames), first, params, frames)
     expect(Math.round(first[0][frames - 1] * 12)).toBe(1)
 
     store.set('lane1', Float32Array.from([11]))
     const second = TRACKER_MODULE.outlets.map(() => new Float32Array(frames))
-    processor.process([clock, new Float32Array(frames)], second, params, frames)
+    processor.process(inletsFor(clock, frames), second, params, frames)
     expect(Math.round(second[0][frames - 1] * 12)).toBe(11)
   })
 
@@ -310,6 +328,7 @@ describe('the tracker’s shape', () => {
       'unit2',
       'unit3',
       'unit4',
+      'pattern',
     ])
   })
 
@@ -344,7 +363,7 @@ describe('the tracker’s shape', () => {
       ...Array.from({ length: 6 }, () => new Float32Array(frames)),
     ]
     const outlets = Array.from({ length: 9 }, () => new Float32Array(frames))
-    processor.process([clock, new Float32Array(frames)], outlets, params, frames)
+    processor.process(inletsFor(clock, frames), outlets, params, frames)
     expect(Math.round(outlets[0][7] * 12)).toBe(4)
     expect(Math.round(outlets[6][7] * 12)).toBe(6)
   })
@@ -357,5 +376,54 @@ describe('the tracker’s shape', () => {
     // Unit mode divides by 16 and the sampler defaults to 16 slices. If either moved on its own, a lane
     // of slice indices would stop lining up with the break it was written against.
     expect(TRACKER_MODULE.params.find((p) => p.id === 'length')!.default).toBe(16)
+  })
+})
+
+describe('the pattern bank', () => {
+  // Patterns live end to end in the one lane array: pattern p is `[p * length, (p + 1) * length)`. That
+  // layout is the whole reason this cost nothing in the patch format, and the compatibility test below is
+  // the one that matters most.
+
+  /** Two bars of four steps, so the two patterns are unmistakable. */
+  const TWO = [1, 0, 2, 0, /* pattern 1 */ 5, 0, 6, 0]
+  const notes = (lane: { cv: Float32Array; trig: Float32Array }) => played(lane).map((h) => h.value)
+
+  it('plays pattern zero by default, which is every patch written before banks existed', () => {
+    // The compatibility claim, stated as a test: a lane of N values at a length of N is exactly pattern 0,
+    // byte for byte, and nothing about an old patch changes.
+    const { lane } = run(STEP * 4, { lanes: [[3, 0, 9, 0]], length: 4 })
+    expect(notes(lane(0))).toEqual([3, 9])
+  })
+
+  it('reads the second block when the knob selects pattern one', () => {
+    const { lane } = run(STEP * 4, { lanes: [TWO], length: 4, patternKnob: 1 })
+    expect(notes(lane(0))).toEqual([5, 6])
+  })
+
+  it('reads the second block when CV selects it', () => {
+    // The inlet is scaled by sixteen so a Unit lane drives it one for one — writing 1 into a Unit lane
+    // emits 1/16, which lands on pattern 1. That scaling is the whole song mechanism.
+    const { lane } = run(STEP * 4, { lanes: [TWO], length: 4, pattern: 1 })
+    expect(notes(lane(0))).toEqual([5, 6])
+  })
+
+  it('adds the knob and the inlet, like every other CV-able control here', () => {
+    const { lane } = run(STEP * 4, { lanes: [TWO], length: 4, patternKnob: 1, pattern: 0 })
+    expect(notes(lane(0))).toEqual([5, 6])
+  })
+
+  it('is silent on a pattern the data does not reach', () => {
+    // Past the end of the array reads as rest rather than wrapping to the start. A bank shorter than the
+    // selector is a bank with empty slots, which is what an unfinished song looks like — wrapping would
+    // make an empty slot secretly repeat the first bar and be very confusing to debug.
+    const { lane } = run(STEP * 4, { lanes: [[1, 0, 2, 0]], length: 4, patternKnob: 3 })
+    expect(notes(lane(0))).toEqual([])
+  })
+
+  it('clamps a selector outside the bank rather than reading somewhere wild', () => {
+    for (const pattern of [-4, 99]) {
+      const { lane } = run(STEP * 4, { lanes: [TWO], length: 4, pattern })
+      for (const value of lane(0).cv) expect(Number.isFinite(value)).toBe(true)
+    }
   })
 })

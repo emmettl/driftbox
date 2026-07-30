@@ -41,17 +41,29 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
 
   const param = (id: string) => def.params.find((p) => p.id === id)!
   const length = Math.round(value('length'))
+  // Which pattern is being edited — the same knob the audio thread reads, so what you see is what plays.
+  // A separate "editing" selection would let you write into a bar nobody could hear, which is the sort of
+  // thing you only notice twenty minutes later.
+  const bank = Math.round(value('pattern'))
   const pages = Math.max(1, Math.ceil(length / PAGE))
   const at = Math.min(page, pages - 1)
 
   const data = patch.modules.find((m) => m.id === module.id)?.data
   const lane = (index: number): number[] => data?.[`lane${index + 1}`] ?? []
+  /** Patterns sit end to end in the one array, so the selected bar starts here. */
+  const base = bank * length
 
-  /** Write one step, padding the lane out to the pattern's length so a short array does not swallow it. */
+  /**
+   * Write one step of the selected pattern.
+   *
+   * Padded out to the end of that pattern, so writing into bar three of an array that only holds bar one
+   * grows it rather than dropping the note on the floor — which is what makes an empty bank slot fillable
+   * rather than something you have to prepare first.
+   */
   const write = (index: number, step: number, next: number) => {
     const values = [...lane(index)]
-    while (values.length < length) values.push(0)
-    values[step] = next
+    while (values.length < base + length) values.push(0)
+    values[base + step] = next
     setLane(module.id, index, values)
   }
 
@@ -62,7 +74,7 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
       <header className="rk-title">
         <span className="rk-name">Tracker</span>
         <span className="rk-ports">
-          {length} steps{pages > 1 ? ` · bar ${at + 1}/${pages}` : ''}
+          P{bank + 1} · {length} steps{pages > 1 ? ` · bar ${at + 1}/${pages}` : ''}
         </span>
       </header>
 
@@ -72,6 +84,12 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
           value={value('length')}
           onChange={(v) => onChange('length', v)}
           routed={routed?.('length')}
+        />
+        <ParamControl
+          def={param('pattern')}
+          value={value('pattern')}
+          onChange={(v) => onChange('pattern', v)}
+          routed={routed?.('pattern')}
         />
         {Array.from({ length: TRACKER_LANES }, (_, i) => (
           <ParamControl
@@ -110,7 +128,7 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
             <div key={index} className={muted ? 'rk-lane rk-lane-muted' : 'rk-lane'}>
               <span className="rk-lane-tag">{unit ? 'U' : 'S'}{index + 1}</span>
               {steps.map((step) => {
-                const held = values[step] ?? 0
+                const held = values[base + step] ?? 0
                 return (
                   <button
                     key={step}
@@ -131,7 +149,7 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
                       const moved = Math.round((d.y - event.clientY) / 4)
                       if (moved === 0) return
                       const next = Math.max(0, Math.min(48, d.from + moved))
-                      if (next !== (values[step] ?? 0)) write(index, step, next)
+                      if (next !== (values[base + step] ?? 0)) write(index, step, next)
                     }}
                     onPointerUp={(event) => {
                       const d = drag.current
