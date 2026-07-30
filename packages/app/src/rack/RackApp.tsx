@@ -32,6 +32,9 @@ export default function RackApp() {
   const name = useRack((s) => s.name)
   const setMidi = useRack((s) => s.setMidi)
   const midiInputs = useRack((s) => s.midiInputs)
+  const setVoices = useRack((s) => s.setVoices)
+  const voices = useRack((s) => s.patch.voices ?? 1)
+  const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
 
   const rack = useRef<Rack | null>(null)
   /**
@@ -63,13 +66,19 @@ export default function RackApp() {
    * copy of the note only so the faceplate can say whether a keyboard is connected.
    */
   const sendMidi = useCallback(
-    (channel: number, values: Partial<Record<(typeof MIDI_INPUTS)[number], number>>) => {
+    (
+      channel: number,
+      values: Partial<Record<(typeof MIDI_INPUTS)[number], number>>,
+      voice?: number,
+    ) => {
       const live = rack.current
       if (!live) return
       // The decision about *which* modules hear this is `midiTargets`, which is pure and tested — Chrome
       // refuses Web MIDI under automation, so a rule left in here could not be verified at all.
       for (const id of midiTargets(useRack.getState().patch.modules, channel)) {
-        for (const [param, value] of Object.entries(values)) live.setParam(id, param, value)
+        // `voice` undefined means every voice, which is right for the mod wheel — one wheel, all the notes.
+        // A note names its voice, which is how one MIDI module holds a chord.
+        for (const [param, value] of Object.entries(values)) live.setParam(id, param, value, voice)
       }
     },
     [],
@@ -84,9 +93,15 @@ export default function RackApp() {
       return
     }
     const handle = await openMidi({
-      onVoice: (voice, channel) => {
-        sendMidi(channel, { note: voice.note, gate: voice.gate, velocity: voice.velocity })
-        setMidi(voice.gate === 1 ? voice.note : null)
+      onVoice: (state, channel) => {
+        sendMidi(
+          channel,
+          { note: state.note, gate: state.gate, velocity: state.velocity },
+          state.voice,
+        )
+        // Only the note that just sounded reaches the faceplate. A gate-off does not clear it, because on a
+        // chord the last thing to be released is not interesting and blanking on it would flicker.
+        if (state.gate === 1) setMidi(state.note)
       },
       onMod: (value, channel) => sendMidi(channel, { mod: value }),
     })
@@ -96,6 +111,9 @@ export default function RackApp() {
       setMidiState('unavailable')
       return
     }
+    // After the null check, and before anything is played: the keyboards have to agree with the graph about
+    // how many voices exist, or the first note lands on a voice the audio thread does not have.
+    handle.setVoices(useRack.getState().patch.voices ?? 1)
     midi.current = handle
     setMidiState('on')
     setMidi(null, handle.inputs)
@@ -165,6 +183,12 @@ export default function RackApp() {
   // Let go of the devices on the way out, so a reload does not leave handlers on a closed page.
   useEffect(() => () => midi.current?.close(), [])
 
+  // The keyboards have to agree with the graph about how many voices there are, or a note lands on a voice
+  // the audio thread does not have. `setVoices` silences everything, which is what recompiling does anyway.
+  useEffect(() => {
+    midi.current?.setVoices(voices)
+  }, [voices])
+
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
       const live = rack.current
@@ -230,6 +254,28 @@ export default function RackApp() {
           Patches
         </button>
 
+        <label
+          className="rk-voices"
+          title={
+            voices > 1 && !hasMidi
+              ? 'Nothing here plays different notes on different voices, so every voice plays the same one — and the output is that many times louder. Add a MIDI module.'
+              : undefined
+          }
+        >
+          Voices
+          <select
+            value={voices}
+            onChange={(event) => setVoices(Number(event.target.value))}
+            aria-label="Voices"
+          >
+            {[1, 2, 3, 4, 5, 6, 8].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {midiState !== 'unavailable' ? (
           <button
             type="button"
@@ -281,6 +327,14 @@ export default function RackApp() {
       {browsing && <PatchBrowser onClose={() => setBrowsing(false)} />}
 
       {shared && <p className="rk-shared">{shared}</p>}
+
+      {voices > 1 && !hasMidi && (
+        <p className="rk-warn">
+          {voices} voices, and no MIDI module to play different notes on them — so every voice plays the same
+          note and the output is {voices}× louder. That is the summing being correct rather than a bug; add a
+          MIDI module to hear it as a chord.
+        </p>
+      )}
 
       {placeholders.length > 0 && (
         <p className="rk-warn">

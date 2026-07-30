@@ -63,6 +63,8 @@ interface RackState {
   setNotes: (notes: PlanNote[]) => void
   setName: (name: string | null) => void
   setMidi: (note: number | null, inputs?: string[]) => void
+  /** Structural: the graph is rebuilt with a different number of processors per module. */
+  setVoices: (voices: number) => void
   load: (patch: Patch) => void
   select: (moduleId: string | null) => void
   flip: (flipped?: boolean) => void
@@ -192,6 +194,18 @@ export const useRack = create<RackState>((set, get) => {
     setName: (name) => set({ name }),
     setMidi: (midiNote, inputs) =>
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
+
+    setVoices: (voices) =>
+      structural((patch) => {
+        const wanted = Math.max(1, Math.min(8, Math.round(voices)))
+        // One stays absent rather than being written, so a monophonic patch round-trips exactly as it did
+        // before polyphony existed — and a shared link from before this is byte-identical to one made now.
+        if (wanted === 1) {
+          const { voices: _drop, ...rest } = patch
+          return rest
+        }
+        return { ...patch, voices: wanted }
+      }),
     load: (patch) => structural(() => patch),
     select: (moduleId) => set({ selected: moduleId }),
     flip: (flipped) => set((state) => ({ flipped: flipped ?? !state.flipped })),
