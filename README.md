@@ -183,9 +183,9 @@ The toms play from it too — they are pitched percussion, and each tunes across
 under an octave. Past that the keys dim: the way further up is the next tom, which is what
 the machine's three of them are for. Select one in the grid and it appears as a target.
 
-## Fifteen songs, one pair of 303s
+## Sixteen songs, one pair of 303s
 
-It ships with fifteen, and they share nothing — different tempos, different halves of the
+It ships with sixteen, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -202,6 +202,7 @@ scene used twice:
 | **Cumulus** | Ambient house, after the Orb. 116bpm, the heaviest swing here by a distance, and the only cheerful thing in the set. | *Clouds* |
 | **Pump** | Hip house, aimed at the Technotronic record. 124bpm, and the only 303 here playing stabs rather than a line. | *Dancers* |
 | **Assembly** | Minimal techno. 132bpm, with the drum rack working as an interlocked production line and the 303s reduced to relay pulses and electrical hum. | *Machine* |
+| **Last Bus** | UK garage. 134bpm, with the kick and clap held straight while hats, maracas and rimshots lean late around a sub that answers in the gaps. | *Night Bus* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
 | **1UP** | Chiptune, for the platformer. 162bpm, and the 303 arpeggiates because a machine with one voice cannot play a chord. | *Jump Man* |
 | **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
@@ -214,7 +215,7 @@ dark, machine, abstract, dread, bright, building, breaking, fast. Acieed and Asc
 to sit next to each other and open with literally the same four bars at different tempos,
 so the set sounded like one track restarting.
 
-The part worth noticing is that the two 303s are the same synth in all fifteen and do not
+The part worth noticing is that the two 303s are the same synth in all sixteen and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -281,15 +282,16 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are fifteen — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are seventeen — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
 a sixteen-lane Tempest web where **each lane is its own band of the spectrum**, so a kick
 lights one lane and a hat lights another and the shape of the mix is the picture;
 *Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*;
-*Defcon*; *Clouds*; *Dancers*; *Machine*; *Jump Man*; *Cübik*, a paper-white field
-of coloured towers; and *Endless Convoy*, a column of impossible cargo under a rust-red sun.
+*Defcon*; *Clouds*; *Dancers*; *Machine*; *Night Bus*; *Jump Man*; *Cübik*, a paper-white field
+of coloured towers; *Endless Convoy*, a column of impossible cargo under a rust-red sun;
+and *Graphic Lab*, a living print-and-broadcast design system.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while
@@ -367,6 +369,12 @@ isolated object. A solid steel production line runs under sodium light: the kick
 press, low mids turn an exposed flywheel and interlocked gears, hats spin the rollers, and
 each stamped billet continues down the belt after the hit that made it. Repetition advances
 something, which is the visual argument of the minimal-techno track paired with it.
+
+*Night Bus* puts the camera behind wet glass on the upper deck after midnight. Three city
+layers pass at different speeds, bass blooms each sodium lamp against the pane, and hats
+pull two depths of rain down it. The window frame matters: without it this is a city
+wallpaper, with it the viewer is sitting somewhere and travelling. Dragging wipes an
+aspect-correct clear patch through the condensation rather than steering the vehicle.
 
 *Cübik* is a paper-white room made from the four inks on the Cübik/Olympic sleeve. A field
 of solid cubes is divided into logarithmic frequency rings, so a synth note lifts one

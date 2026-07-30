@@ -15,6 +15,7 @@ import { Cubik } from './Cubik'
 import { Convoy } from './Convoy'
 import { Machine } from './Machine'
 import { GraphicLab } from './GraphicLab'
+import { NightBus } from './NightBus'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -69,6 +70,9 @@ export const SCENES: SceneInfo[] = [
   // Cold white against sodium light. Small enough to stay an inspection point rather than
   // hiding the machinery it is meant to reveal.
   { id: 'machine', name: 'Machine', Component: Machine, accent: '225, 240, 255', trail: { scale: 0.75 } },
+  // Warm white over blue-black glass. The trail is broad enough to read as a wiped patch
+  // in condensation rather than another point of light outside the bus.
+  { id: 'nightbus', name: 'Night Bus', Component: NightBus, accent: '255, 232, 190', trail: { scale: 1.35 } },
   // White, against a scene that is already every arcade colour there is, and a small trail:
   // this one is drawn on a one-cell grid and a big soft blob swallows whole sprites.
   { id: 'jumpman', name: 'Jump Man', Component: Jumpman, accent: '255, 255, 255', trail: { scale: 0.7 } },

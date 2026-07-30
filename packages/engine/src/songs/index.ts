@@ -15,12 +15,13 @@ import { cubikSong } from './cubik.js'
 import { mobiliseSong } from './mobilise.js'
 import { driftlingsSong } from './driftlings.js'
 import { assemblySong } from './assembly.js'
+import { garageSong } from './garage.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Fifteen songs demonstrate the range of the same small set of machines.
+// Sixteen songs demonstrate the range of the same small set of machines.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -116,6 +117,13 @@ export const SONGS: SongPreset[] = [
     build: assemblySong,
   },
   {
+    id: 'garage',
+    visual: 'nightbus',
+    name: 'Last Bus',
+    blurb: 'UK garage — 134bpm, two-step drums, swung hats and a sub in the gaps',
+    build: garageSong,
+  },
+  {
     id: 'ascend',
     visual: 'wireframe',
     name: 'Ascend',
@@ -185,4 +193,5 @@ export {
   mobiliseSong,
   driftlingsSong,
   assemblySong,
+  garageSong,
 }
