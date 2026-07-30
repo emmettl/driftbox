@@ -11,6 +11,7 @@ import { Saturn } from './Saturn'
 import { Stillwater } from './Stillwater'
 import { Trench } from './Trench'
 import { Web } from './Web'
+import { Cubik } from './Cubik'
 
 // The registry. Its own module because it is data rather than a component, and exporting
 // both from one file breaks fast refresh.
@@ -65,6 +66,8 @@ export const SCENES: SceneInfo[] = [
   // White, against a scene that is already every arcade colour there is, and a small trail:
   // this one is drawn on a one-cell grid and a big soft blob swallows whole sprites.
   { id: 'jumpman', name: 'Jump Man', Component: Jumpman, accent: '255, 255, 255', trail: { scale: 0.7 } },
+  // The scene itself is paper-white, so the gesture is a charcoal ring like a crop mark.
+  { id: 'cubik', name: 'Cübik', Component: Cubik, accent: '24, 24, 24', trail: { scale: 1.2, ring: true } },
 ]
 
 export type SceneId = string
