@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SONGS, defaultSong, songPresetById } from './index.js'
+import { SONGS, defaultSong, driftlingsSong, songPresetById } from './index.js'
 import { encodeSong, decodeSong } from '../song-io.js'
 import { songBars, patternForBar } from '../pattern.js'
 import { ALL_VOICES } from '../index.js'
@@ -118,6 +118,11 @@ describe('the set of them', () => {
   it('looks up by id, and says so when there is nothing', () => {
     expect(songPresetById('acid')?.name).toBe('Acieed')
     expect(songPresetById('nope')).toBeUndefined()
+  })
+
+  it('exports host soundtracks without putting them in the visual set list', () => {
+    expect(driftlingsSong().patterns).not.toHaveLength(0)
+    expect(songPresetById('driftlings')).toBeUndefined()
   })
 
   it('opens on the first one', () => {

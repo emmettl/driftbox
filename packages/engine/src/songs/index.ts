@@ -13,12 +13,14 @@ import { saturnSong } from './saturn.js'
 import { transmissionSong } from './transmission.js'
 import { cubikSong } from './cubik.js'
 import { mobiliseSong } from './mobilise.js'
+import { driftlingsSong } from './driftlings.js'
+import { assemblySong } from './assembly.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Fourteen songs demonstrate the range of the same small set of machines.
+// Fifteen songs demonstrate the range of the same small set of machines.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -107,6 +109,13 @@ export const SONGS: SongPreset[] = [
     build: pumpSong,
   },
   {
+    id: 'assembly',
+    visual: 'machine',
+    name: 'Assembly',
+    blurb: 'Minimal techno — 132bpm, a production line driven by the drum rack',
+    build: assemblySong,
+  },
+  {
     id: 'ascend',
     visual: 'wireframe',
     name: 'Ascend',
@@ -174,4 +183,6 @@ export {
   transmissionSong,
   cubikSong,
   mobiliseSong,
+  driftlingsSong,
+  assemblySong,
 }
