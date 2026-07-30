@@ -38,6 +38,9 @@ export default function App() {
   const view = useBox((s) => s.view)
   const adoptSharedSong = useBox((s) => s.adoptSharedSong)
   const scope = useBox((s) => s.scope)
+  // The scope reads its analyser from a prop now rather than reaching into this store itself, so that the
+  // rack's page can use the same component with its own graph. See the comment on `Oscilloscope`.
+  const engine = useBox((s) => s.engine)
   const setScope = useBox((s) => s.setScope)
   // Lives in the store now, because loading a song changes it — each shipped song names
   // the visual it was written to be seen with.
@@ -140,7 +143,7 @@ export default function App() {
           <KaossPad />
 
           <div className="stage-scope">
-            <Oscilloscope mode={scope} height={260} persistence={0.42} transparent />
+            <Oscilloscope analyser={engine?.analyser} mode={scope} height={260} persistence={0.42} transparent />
             <NowPlaying />
             <p className="stage-hint">drag anywhere to filter</p>
           </div>
@@ -223,7 +226,7 @@ export default function App() {
                   </button>
                 }
               >
-                <Oscilloscope mode={scope} />
+                <Oscilloscope analyser={engine?.analyser} mode={scope} />
               </Panel>
             </aside>
           </main>

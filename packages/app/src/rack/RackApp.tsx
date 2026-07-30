@@ -4,6 +4,7 @@ import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
+import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { patchShareLink } from './persistence.js'
 import { openingPatch, useRack } from './store.js'
 
@@ -28,6 +29,16 @@ export default function RackApp() {
   const setNotes = useRack((s) => s.setNotes)
 
   const rack = useRef<Rack | null>(null)
+  /**
+   * The rack's own analyser.
+   *
+   * State rather than a ref, because the scope has to re-render once it exists. It is the sequencer's
+   * `Oscilloscope` component reading it — the same trace, the same phosphor persistence — which took
+   * removing that component's dependency on the sequencer's store. It is genuinely diagnostic here rather
+   * than decorative: a VCA left shut reads as a flat line, and a patch clipping into the Out reads as a
+   * flattened top, and both are otherwise invisible.
+   */
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
   const [running, setRunning] = useState(false)
   const [failed, setFailed] = useState(false)
   const [shared, setShared] = useState<string | null>(null)
@@ -82,7 +93,13 @@ export default function RackApp() {
       setFailed(true)
       return
     }
+    const scope = ctx.createAnalyser()
+    scope.fftSize = 2048
+    scope.smoothingTimeConstant = 0.75
+    live.output?.connect(scope)
     live.output?.connect(ctx.destination)
+    setAnalyser(scope)
+
     live.patch = useRack.getState().patch
     rack.current = live
     setRunning(true)
@@ -193,6 +210,14 @@ export default function RackApp() {
           </div>
         </div>
       </div>
+
+      {running && (
+        <div className="rk-scope">
+          {/* No `colour`: it becomes a canvas strokeStyle, which cannot read a CSS custom property — it
+              would silently keep whatever was set last. The default is already --nine's value. */}
+          <Oscilloscope analyser={analyser} mode="wave" height={70} />
+        </div>
+      )}
 
       <footer className="rk-footer">
         <span>

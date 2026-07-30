@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { useBox } from '../store'
 import type { ScopeMode } from './scope'
 
 // The oscilloscope. Two modes, both drawn straight from the analyser's time-domain
@@ -11,6 +10,16 @@ import type { ScopeMode } from './scope'
 // resonance shows as a tail that will not sit down.
 
 interface Props {
+  /**
+   * The analyser to read.
+   *
+   * Passed in rather than pulled from the sequencer's store, which is where it used to come from. That
+   * coupling made this component unusable anywhere else: the rack has its own graph and its own analyser,
+   * and importing the store to reach one would have dragged the whole sequencer — the engine, the songs,
+   * the scenes — into a 37kB page. Removing the dependency is what made it shared, rather than adding a
+   * fallback to it.
+   */
+  analyser: AnalyserNode | null | undefined
   mode?: ScopeMode
   /** Drawn behind the trace, and used for the glow. */
   colour?: string
@@ -24,6 +33,7 @@ interface Props {
 }
 
 export function Oscilloscope({
+  analyser,
   mode = 'wave',
   colour = '#5ff0d0',
   height = 132,
@@ -32,7 +42,6 @@ export function Oscilloscope({
   className,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const engine = useBox((s) => s.engine)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -40,7 +49,6 @@ export function Oscilloscope({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const analyser = engine?.analyser
     const samples = analyser ? new Uint8Array(analyser.fftSize) : new Uint8Array(1024)
     // Bars read the spectrum rather than the waveform, so they need their own buffer.
     const spectrum = new Uint8Array(analyser ? analyser.frequencyBinCount : 1024)
@@ -173,7 +181,7 @@ export function Oscilloscope({
       cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [engine, mode, colour, persistence, transparent])
+  }, [analyser, mode, colour, persistence, transparent])
 
   return <canvas ref={canvasRef} className={className} style={{ width: '100%', height }} />
 }

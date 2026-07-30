@@ -1,6 +1,6 @@
 import { MODULES } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
-import { COLUMN, JACK, ROW, jackAt, jacks, layout, rowsForJacks, type Size } from './layout.js'
+import { COLUMN, JACK, ROW, SNAP, jackAt, jacks, layout, nearestJack, rowsForJacks, type Size } from './layout.js'
 
 // The front panel, the back panel and the cables are all positioned from these numbers, so if they are
 // wrong nothing lines up — a jack sits behind the wrong module, or a cable ends in mid-air. Being pure
@@ -138,5 +138,47 @@ describe('jacks', () => {
     expect(placements.map((p) => p.id)).toEqual(['x', 'a'])
     expect(all.some((j) => j.module === 'x')).toBe(false)
     expect(all.some((j) => j.module === 'a')).toBe(true)
+  })
+})
+
+describe('finding what a cable was dropped on', () => {
+  // This replaced asking the DOM, and the reason is in `layout.ts`: `pointerup`'s target is not the thing
+  // under the pointer on a touchscreen, because implicit pointer capture delivers the release to the
+  // element the touch STARTED on. Patching was completely broken on touch while working on a mouse.
+  const { placements } = layout([module('a', 'vco'), module('f', 'ladder')], sizes({ vco: { rows: 2 }, ladder: { rows: 2 } }))
+  const all = jacks(placements, MODULES)
+  const pitch = jackAt(all, 'a', 'pitch')!
+  const out = jackAt(all, 'a', 'out')!
+
+  it('finds a jack the pointer is exactly on', () => {
+    expect(nearestJack(all, pitch, SNAP)).toMatchObject({ module: 'a', port: 'pitch' })
+  })
+
+  it('snaps from nearby, because a fingertip is wider than a jack', () => {
+    expect(nearestJack(all, { x: pitch.x + 11, y: pitch.y + 9 }, SNAP)).toMatchObject({ port: 'pitch' })
+  })
+
+  it('finds nothing when the pointer is nowhere near', () => {
+    expect(nearestJack(all, { x: pitch.x + 400, y: pitch.y + 400 }, SNAP)).toBeUndefined()
+  })
+
+  it('takes the nearest when two are in range', () => {
+    // Jacks are 30 apart and the snap radius is 30, so a point between two is inside both — "nearest"
+    // is what makes a generous radius safe rather than ambiguous.
+    const fm = jackAt(all, 'a', 'fm')!
+    const between = { x: pitch.x, y: (pitch.y + fm.y) / 2 - 4 }
+    expect(nearestJack(all, between, SNAP)).toMatchObject({ port: 'pitch' })
+    const lower = { x: pitch.x, y: (pitch.y + fm.y) / 2 + 4 }
+    expect(nearestJack(all, lower, SNAP)).toMatchObject({ port: 'fm' })
+  })
+
+  it('only offers the kind that was asked for', () => {
+    // What makes the snap forgiving rather than merely tolerant: dragging from an outlet, only inlets are
+    // candidates, so the nearest sensible target wins instead of the nearest one of any sort.
+    expect(nearestJack(all, out, SNAP, 'in')).not.toMatchObject({ port: 'out' })
+    expect(nearestJack(all, out, SNAP, 'out')).toMatchObject({ module: 'a', port: 'out' })
+    // An outlet sitting right on top of the pointer is skipped entirely when inlets are wanted.
+    const near = nearestJack(all, { x: out.x, y: out.y }, SNAP, 'in')
+    expect(near === undefined || near.kind === 'in').toBe(true)
   })
 })
