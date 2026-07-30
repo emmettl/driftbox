@@ -1,0 +1,55 @@
+{
+  "name": "@driftbox/rack",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A modular synth rack: modules, cables between any of them, one graph at sample rate in a single AudioWorklet.",
+  "keywords": [
+    "web-audio",
+    "modular-synth",
+    "audioworklet",
+    "polyblep",
+    "dsp",
+    "patch"
+  ],
+  "license": "MIT",
+  "author": "Louis Emmett",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emmettl/driftbox.git",
+    "directory": "packages/rack"
+  },
+  "homepage": "https://emmettl.github.io/driftbox/",
+  "type": "module",
+  "//private": "Not published yet. This is the spine — a compiler, three modules and a worklet host — and a version on npm is a promise about an API that has not been used by a UI even once. Drop this and add publishConfig.access when the rack can be patched.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "//dependencies": "Narrowly, and only for DSP. The ladder module wraps the engine's `Ladder` rather than copying it: the engine's README says two copies of a synthesis engine would diverge, and a rack whose filter has drifted from the drum machines' filter is exactly that. Nothing else is imported, and the engine is sideEffects:false, so a bundler drops the sequencer and the songs.",
+  "dependencies": {
+    "@driftbox/engine": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "~7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

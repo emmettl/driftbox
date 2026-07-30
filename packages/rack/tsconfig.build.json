@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+
+    // ES2023 matters here for the same reason it matters in the engine, and for more
+    // classes. `Graph` and every module processor are serialised into an AudioWorklet with
+    // toString(), so they have to compile to classes that reference nothing outside
+    // themselves — and a lower target makes TypeScript reach for downlevel helpers defined
+    // at module scope. Those helpers would not exist in the worklet's global scope, and the
+    // failure would be a ReferenceError the first time somebody loaded a patch.
+    // `worklet.test.ts` guards the source; this guards the build.
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+
+    // The BUILD resolves @driftbox/engine the ordinary way — through the workspace symlink
+    // to its `exports`, which is dist/. So the engine has to be built first, which is a
+    // genuine build dependency and is what `npm run build --workspaces` orders for us.
+    //
+    // It deliberately does NOT map the engine to its source the way tsconfig.json and the
+    // app do. This config emits declarations under `rootDir: ./src`, and pulling another
+    // package's source into that program is a rootDir violation on every file it touches —
+    // 40-odd errors, none of them about the rack.
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}

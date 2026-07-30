@@ -7,7 +7,7 @@ anything in `packages/engine/`.
 
 **Working end to end.** Two drum machines, two 303s, a step sequencer with an arrangement,
 a per-voice channel strip, two send effects, an oscilloscope and a chillwave visualiser
-with a performance mode. CI is green; there are 395 unit tests.
+with a performance mode. CI is green; there are 446 unit tests.
 
 | | |
 |---|---|
@@ -25,6 +25,7 @@ with a performance mode. CI is green; there are 395 unit tests.
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.1.0, with provenance |
+| Rack | The spine of a modular in `packages/rack` — compiler, worklet host, three modules. Not published, no UI yet: see [docs/RACK.md](docs/RACK.md) |
 
 ## What is deliberate
 
@@ -519,6 +520,14 @@ own `dist/`, where the class comes out self-contained and still self-oscillates 
 evaluated in isolation. A consumer minifying differently is the one genuine risk in
 shipping this, and `ladder.test.ts` can only guard our own build. If it ever breaks, the
 symptom is silence on the first bass note, not a build error.
+
+One new data point on that, from building the rack: under rolldown with minify on, the class
+comes out **anonymous** — `class{s0=0;s1=0;...}`, with no name at all. The engine is
+untouched by that, because both halves of its reference are literal text inside the template
+in `dsp/worklet.ts` (`const Ladder = ` and `new Ladder(sampleRate)`), which a bundler never
+sees. What it rules out is any scheme that derives an identifier from `Class.name` at
+assembly time. `packages/rack/src/worklet.ts` has the long version and passes its
+dependencies by string key for this reason.
 
 ## Releasing
 

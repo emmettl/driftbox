@@ -1,0 +1,30 @@
+{
+  // Type-checking config: the same as the build, but it also covers the tests, which the
+  // published output must not contain.
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vitest/globals"],
+
+    // Resolve @driftbox/engine to its SOURCE, the same way `packages/app/tsconfig.app.json`
+    // does and for the same reason: the workspace symlink resolves the package through its
+    // `exports`, which points at dist/. Without this, `npm run typecheck` fails on a fresh
+    // checkout until the engine has been built — which is exactly how CI found it, after it
+    // had passed locally against a dist/ that happened to be lying around.
+    //
+    // This belongs here and not in tsconfig.build.json. Emitting is what makes the engine's
+    // source a problem: `rootDir: ./src` cannot contain it, so the build resolves the engine
+    // through dist/ and depends on build order instead. Nothing is emitted from this config,
+    // so rootDir has no say in it — but it is turned off explicitly rather than left to be
+    // inferred, because the failure it causes names forty files in the other package and
+    // none in this one.
+    "declaration": false,
+    "declarationMap": false,
+    "rootDir": "../..",
+    "paths": {
+      "@driftbox/engine": ["../engine/src/index.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": []
+}
