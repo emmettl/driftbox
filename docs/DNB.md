@@ -278,6 +278,24 @@ what keeps a feedback patch from killing the tab and no amount of gain riding su
 across the pair so a peak on one side does not shift the image; downward gain immediate and upward eased, which
 is what makes the attack instant without a lookahead and stops the release pumping.
 
+**And it overshot, which took a while to notice.** Reacting to a peak as it arrives cannot catch the peak
+itself: the gain is only down a sample later. Measured on an export of three chunks at once, a peak of **1.17**
+got through — above full scale, so it clips on playback, which is the one thing a master limiter exists to
+prevent.
+
+A **lookahead** fixes that by construction and was tried: delay the audio, drive the gain from the undelayed
+signal. It works, and it costs three milliseconds of latency on a rack somebody plays with a keyboard, plus it
+breaks sample alignment for everything downstream. Too much for a defect this size.
+
+So there is a **soft ceiling** after the limiter instead, with its knee at the limiter's own threshold of 0.95
+— which is the load-bearing detail. A knee at 0.8 was the first attempt and was wrong: the limiter deliberately
+parks sustained material just under 0.95, so anything lower would bend everything loud, continuously, rather
+than only the transients the limiter could not catch. Below the knee it is arithmetically the identity.
+
+Measured after: the same stack peaks at exactly **1.0000** with its RMS unchanged at 0.1955, so the loudness
+survives and only the tips are bent. This is what a mastering chain's clipper does after its limiter, for the
+same reason.
+
 Seven existing tests asserted master levels of 1, 1.5 and 2, which a limiter at 0.95 can no longer produce.
 Those were updated by **scaling the probe signals** rather than by baking 0.95 into them: their subject is voice
 routing, and a sum that trips the limiter is measuring the limiter. One of them — the noise-seeding test —
