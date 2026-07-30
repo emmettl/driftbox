@@ -90,11 +90,29 @@ ${entries(Object.values(registry).map((def) => [def.type, def.processor]))}
 const Graph = ${Graph.toString()}
 
 class RackProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super()
     // 128 is the render quantum. The Graph reallocates if it is ever handed a different
     // one, so this is a starting size rather than an assumption.
     this.graph = new Graph(sampleRate, 128, MODULES, DEPS)
+
+    // Everything the node was constructed with, applied before a single sample is asked for.
+    //
+    // This exists because of OFFLINE rendering. A message posted to a port is delivered on the audio
+    // thread, and an OfflineAudioContext does not run that thread until \`startRendering\`. So a plan sent
+    // by \`postMessage\` and a render started immediately afterwards is a race, and it is one that loses
+    // silently: the file comes out the right length and completely empty. Measured — five exports in a
+    // row, all silent, from code that had produced audio minutes earlier.
+    //
+    // \`processorOptions\` is structured-cloned into this constructor synchronously when the node is built,
+    // so there is no thread and no ordering to get wrong. The live path takes the same route and is a
+    // little safer for it.
+    const seed = options && options.processorOptions
+    if (seed) {
+      if (seed.plan) this.graph.setPlan(seed.plan)
+      if (seed.transport) this.graph.setTransport(seed.transport.tempo, seed.transport.running)
+      for (const entry of seed.data || []) this.graph.setData(entry.module, entry.slot, entry.data)
+    }
     this.port.onmessage = (event) => {
       const message = event.data
       if (!message) return

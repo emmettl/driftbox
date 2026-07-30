@@ -24,6 +24,7 @@ export { LADDER_MODULE, LadderProcessor } from './modules/ladder.js'
 export { OUT_MODULE, OutProcessor } from './modules/out.js'
 export { VCO_MODULE, VcoProcessor } from './modules/vco.js'
 export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './worklet.js'
+export { renderLength, renderPatch, type RenderOptions } from './render.js'
 
 export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
 
@@ -45,6 +46,8 @@ export class Rack {
   private absent: string[] = []
   private tempoValue = 120
   private runningValue = false
+  /** Data set before there was a node to send it to. Handed over in `processorOptions` at construction. */
+  private pending: { module: string; slot: string; data: Float32Array }[] = []
 
   constructor(ctx: BaseAudioContext, registry: Registry = MODULES) {
     this.ctx = ctx
@@ -68,14 +71,17 @@ export class Rack {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [2],
+      // Handed over at construction rather than posted afterwards. A port message is delivered on the audio
+      // thread, and an OfflineAudioContext does not run that thread until `startRendering` — so posting a
+      // plan and rendering immediately is a race that loses silently, producing a file of the right length
+      // and no sound. See the note in the processor's constructor.
+      processorOptions: {
+        plan: this.compiled,
+        transport: { tempo: this.tempoValue, running: this.runningValue },
+        data: this.pending,
+      },
     })
-    // The transport is not part of the plan, so applying a patch does not carry it — it has to be re-sent
-    // whenever a node appears.
-    node.port.postMessage({
-      kind: 'transport',
-      tempo: this.tempoValue,
-      running: this.runningValue,
-    })
+    this.pending = []
     node.port.onmessage = (event: MessageEvent) => {
       const message = event.data as { kind?: string; types?: string[] } | null
       if (message?.kind === 'missing' && Array.isArray(message.types)) this.absent = message.types
@@ -182,7 +188,13 @@ export class Rack {
    * See `PatchModule.data` for the other kind of bulk data, which does belong in the document.
    */
   setData(moduleId: string, slot: string, data: Float32Array): void {
-    this.node?.port.postMessage({ kind: 'data', module: moduleId, slot, data }, [data.buffer])
+    if (!this.node) {
+      // Held until the node exists, and then handed over at construction rather than posted. A break
+      // pushed before `start()` used to be dropped on the floor without a word.
+      this.pending.push({ module: moduleId, slot, data })
+      return
+    }
+    this.node.port.postMessage({ kind: 'data', module: moduleId, slot, data }, [data.buffer])
   }
 
   /** Disconnect and forget the node. The processor stays registered on the context —

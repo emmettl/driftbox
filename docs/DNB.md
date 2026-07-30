@@ -337,7 +337,20 @@ and the host resolves it; that package deliberately does not know what the strin
 ## Not in this plan
 
 Third-party modules — still deferred, for the reason in `docs/RACK.md`. Full stereo cables. Module
-drag-to-reorder. Recording the rack's output to a file, though `engine/stems.ts` shows how.
+drag-to-reorder.
+
+**Recording the rack's output to a file** was on this list and is now built, as `renderPatch` — offline
+rather than a tap on the live output. That reproduces the *patch*: exact, faster than real time, and the
+same thing anybody opening the shared link hears. A performance is not captured, which is the honest cost;
+a patch is the artefact this rack makes and a take is not, yet.
+
+It also found a real bug in the rack's own message path. A port message is delivered on the audio thread,
+and an `OfflineAudioContext` does not run that thread until `startRendering` — so posting a plan and
+rendering immediately is a race, and it loses **silently**: the file comes out exactly the right length and
+completely empty. Five consecutive exports were silent from code that had produced audio minutes before.
+The fix is `processorOptions`, which is structured-cloned into the processor's constructor synchronously
+when the node is built, so there is no thread and no ordering to get wrong. The plan, the transport and any
+bulk data all take that route now, and the live path is a little safer for it.
 
 ## The risk worth naming up front
 
