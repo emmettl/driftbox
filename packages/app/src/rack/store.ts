@@ -1,5 +1,8 @@
 import {
   EMPTY_PATCH,
+  insertChunk,
+  type Chunk,
+  type Inserted,
   MODULES,
   PATCHES,
   patchPresetById,
@@ -64,6 +67,14 @@ interface RackState {
   paramValue: (moduleId: string, paramId: string) => number
 
   addModule: (type: string) => void
+  /**
+   * Drop a pre-wired group of modules in, on its own channel.
+   *
+   * Reason's Combinator, and the reason there is one rack rather than several — see the note at the top of
+   * `chunks/index.ts`. Returns the ids it handed out so the host can address what it just added, which is
+   * how a chunk containing a Sampler gets a break loaded into the right one.
+   */
+  addChunk: (chunk: Chunk) => Inserted
   removeModule: (moduleId: string) => void
   moveModule: (moduleId: string, by: number) => void
 
@@ -231,6 +242,15 @@ export const useRack = create<RackState>((set, get) => {
         autosavePatch(patch)
         return { patch }
       })
+    },
+
+    addChunk: (chunk) => {
+      let result: Inserted | null = null
+      structural((patch) => {
+        result = insertChunk(patch, chunk)
+        return result.patch
+      })
+      return result!
     },
 
     addModule: (type) =>

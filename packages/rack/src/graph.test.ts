@@ -716,3 +716,75 @@ describe('the master limiter', () => {
     expect(channels[0][FRAMES - 1]).toBeCloseTo(0.5, 2)
   })
 })
+
+describe('muting and soloing channels', () => {
+  // The Out is a channel strip, and these two are the reason the mix rules live in the Graph rather than in
+  // the module. Pan could arguably have gone either way; solo could not, because soloing one channel
+  // silences the OTHERS and a module has no idea the others exist.
+
+  const level = (patch: Patch) => {
+    const graph = graphFor(patch)
+    const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+    for (let block = 0; block < 3; block++) graph.process(channels)
+    return { left: channels[0][FRAMES - 1], right: channels[1][FRAMES - 1] }
+  }
+
+  /** Two sources at different levels, each with its own Out, so they can be told apart in the mix. */
+  const twoChannels = (a: Record<string, number>, b: Record<string, number>): Patch => ({
+    modules: [
+      { id: 'a', type: 'offset', params: { offset: 0.4 } },
+      { id: 'b', type: 'offset', params: { offset: 0.2 } },
+      { id: 'out-1', type: 'out', params: { level: 1, ...a } },
+      { id: 'out-2', type: 'out', params: { level: 1, ...b } },
+    ],
+    cables: [
+      { from: ['a', 'out'], to: ['out-1', 'in'] },
+      { from: ['b', 'out'], to: ['out-2', 'in'] },
+    ],
+  })
+
+  it('sums both channels when neither is touched', () => {
+    expect(level(twoChannels({}, {})).left).toBeCloseTo(0.6, 5)
+  })
+
+  it('drops a muted channel out of the mix', () => {
+    expect(level(twoChannels({ mute: 1 }, {})).left).toBeCloseTo(0.2, 5)
+    expect(level(twoChannels({}, { mute: 1 })).left).toBeCloseTo(0.4, 5)
+  })
+
+  it('silences everything when every channel is muted', () => {
+    expect(level(twoChannels({ mute: 1 }, { mute: 1 })).left).toBeCloseTo(0, 5)
+  })
+
+  it('silences the others when one is soloed', () => {
+    // The whole point, and the thing that cannot be a property of a module.
+    expect(level(twoChannels({ solo: 1 }, {})).left).toBeCloseTo(0.4, 5)
+    expect(level(twoChannels({}, { solo: 1 })).left).toBeCloseTo(0.2, 5)
+  })
+
+  it('plays every soloed channel when more than one is', () => {
+    // Solo is not radio-button exclusive. Soloing two channels means "these two", which is what every mixer
+    // does and what anybody pressing a second solo expects.
+    expect(level(twoChannels({ solo: 1 }, { solo: 1 })).left).toBeCloseTo(0.6, 5)
+  })
+
+  it('keeps a muted channel silent even when it is soloed', () => {
+    // Contradictory, and mute has to win: mute is the deliberate one and solo is the temporary one, so
+    // resolving it the other way would make a muted channel come back the moment anything was soloed.
+    expect(level(twoChannels({ mute: 1, solo: 1 }, {})).left).toBeCloseTo(0, 5)
+  })
+
+  it('is neutral by default, so a patch from before this sounds the same', () => {
+    // Both default to zero, which is why adding two params to the Out changes no existing patch.
+    const out = MODULES.out.params
+    expect(out.find((p) => p.id === 'mute')!.default).toBe(0)
+    expect(out.find((p) => p.id === 'solo')!.default).toBe(0)
+  })
+
+  it('still pans what survives the mute and solo', () => {
+    // The two rules compose: solo picks the channels, pan places them.
+    const { left, right } = level(twoChannels({ solo: 1, pan: -1 }, { pan: 1 }))
+    expect(left).toBeCloseTo(0.4, 5)
+    expect(right).toBeCloseTo(0, 5)
+  })
+})

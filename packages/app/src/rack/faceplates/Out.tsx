@@ -1,17 +1,23 @@
 import { ParamControl } from '../ParamControl.js'
 import type { FaceplateProps } from './types.js'
 
-// The end of the rack. Half-width, because it has two knobs and taking a whole row for them would be
-// the clearest possible argument against fixed-width modules.
+// The end of the rack, and by now a channel strip: level, pan, mute and solo.
+//
+// That is what makes a rack of chunks a mixer. Each chunk inserted gets its own Out, so each gets its own
+// fader — which is the arrangement Reason got by auto-connecting every new device to the next free mixer
+// channel, and the reason multiple *racks* were never needed.
+//
+// Half-width, because taking a whole row for four small controls would be the clearest possible argument
+// against fixed-width modules.
 //
 // It is also the proof that the half-width path works: `layout.ts` pairs two adjacent half-width
 // modules into one row, so two Outs sit side by side and a lone one leaves the other half empty.
 //
 // **A hand-built faceplate does not follow its def.** Pan was added to `OUT_MODULE` and did not appear
 // here, because this file names its params rather than walking them — which is the whole point of the
-// escape hatch and also its one hazard. `faceplates.test.ts` now checks that every param a hand-built
-// faceplate's module declares is actually reachable, so the next one fails a test instead of going
-// missing.
+// escape hatch and also its one hazard. `faceplates.test.ts` checks that every param a hand-built
+// faceplate's module declares is actually reachable, and it did its job again when mute and solo were
+// added: the test failed before the controls existed rather than after somebody noticed they were missing.
 
 export function Out({ def, value, onChange }: FaceplateProps) {
   return (
@@ -33,6 +39,18 @@ export function Out({ def, value, onChange }: FaceplateProps) {
           value={value('pan')}
           onChange={(v) => onChange('pan', v)}
           colour="var(--eight)"
+        />
+        {/* Applied by the Graph as well, and solo could not be anywhere else: soloing one channel silences
+            the others, which is a fact about the set of channels rather than about this one. */}
+        <ParamControl
+          def={def.params[2]}
+          value={value('mute')}
+          onChange={(v) => onChange('mute', v)}
+        />
+        <ParamControl
+          def={def.params[3]}
+          value={value('solo')}
+          onChange={(v) => onChange('solo', v)}
         />
       </div>
     </>
