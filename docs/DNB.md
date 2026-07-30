@@ -7,7 +7,9 @@ harder and the more important:
 2. **The instant-DJ feeling** — it should be fun within about four seconds of the page loading, for somebody
    who has never seen a modular and does not want to learn one.
 
-Nothing here is built. `docs/RACK.md` is the design of what exists; this is what to do next and why.
+The plan through phases A–D is built. `docs/RACK.md` describes the rack itself; this file
+keeps the product argument, build order and the decisions discovered while turning it into
+the drum-and-bass instrument that now ships.
 
 ## The reframe, which changes the order of everything
 
@@ -28,7 +30,7 @@ performance layer over a rack that cannot hold a beat is nothing.
 
 Measured against what the rack has, not against a vibe:
 
-| Needed | Where we are |
+| Needed | Before this plan |
 |---|---|
 | 170bpm, bars, a half-time feel | **nothing in the rack knows what a bar is** |
 | A break, chopped and re-triggered | **no sampler, and no route for audio to get in** |
@@ -156,7 +158,7 @@ crude, so nothing has to subscribe to anything.
 Proved with a test-only probe module rather than a real consumer, the way `poly.test.ts` does. The sampler and
 the sequencer are phase B, and both were waiting on exactly this.
 
-### B — the instruments
+### B — the instruments ✅
 
 **B1. Sampler.** ✅ Built, with the breaks to feed it.
 

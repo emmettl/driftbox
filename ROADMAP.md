@@ -7,12 +7,12 @@ anything in `packages/engine/`.
 
 **Working end to end.** Two drum machines, two 303s, a step sequencer with an arrangement,
 a per-voice channel strip, two send effects, an oscilloscope and a chillwave visualiser
-with a performance mode. CI is green; there are 446 unit tests.
+with a performance mode. CI is green; the unit suite covers all three workspaces.
 
 | | |
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
-| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples anywhere** — this is about the drum machines and the 303s, and it still holds. The rack in `packages/rack` is a separate instrument and [is getting a sampler](docs/DNB.md). |
+| Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
 | Sequencer | 1–64 steps, off / on / accent, add / copy / rename patterns, swing per voice |
 | Song | Sections with repeat counts, editable while playing |
 | Ships with | Twelve songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, trance, breakbeat, upbeat |
@@ -25,7 +25,7 @@ with a performance mode. CI is green; there are 446 unit tests.
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.1.0, with provenance |
-| Rack | The spine of a modular in `packages/rack` — compiler, worklet host, three modules. Not published, no UI yet: see [docs/RACK.md](docs/RACK.md) |
+| Rack | A private modular engine with 22 modules, patching UI, keyboard/MIDI, tracker, sampler, performance mode and offline export: see [docs/RACK.md](docs/RACK.md) |
 
 ## What is deliberate
 

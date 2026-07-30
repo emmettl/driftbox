@@ -32,14 +32,11 @@ import { VCO_MODULE } from './vco.js'
 // MIDI is the second, and it is the only module here whose input does not come from a cable — see the long
 // comment in `midi.ts` for why that needed no change to the message ABI.
 //
-// Two of the original omissions have since been decided the other way, and this list is the wrong place to
-// find out. **There is a sampler**: drum and bass is built on chopped breaks, and `docs/DNB.md` settles where
-// that line sits — the engine's drum machines stay fully synthesised and `ROADMAP.md`'s rule keeps meaning
-// exactly what it says about them, while the rack is a different instrument. **There is polyphony**, which was
-// always a decision rather than a gap.
-//
-// Still missing on purpose: **no reverb** — the engine's is a convolver, which belongs after the rack's output
-// as an ordinary Web Audio send rather than inside the worklet, and an in-worklet one is phase C of the plan.
+// Three of the original omissions were later decided the other way. **There is a sampler**: drum and bass is
+// built on chopped breaks, and `docs/DNB.md` settles where that line sits — the engine's drum machines stay
+// fully synthesised while the rack is a different instrument. **There is polyphony**, which was always a
+// decision rather than a gap. **There is reverb**, implemented as an FDN because the engine's convolver is not
+// available inside an AudioWorklet.
 //
 // Adding one is a class, a def and a test. Nothing here needs to know about it beyond this list,
 // and `modules.test.ts` holds every entry to the same structural rules, so a new module gets that
