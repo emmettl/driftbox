@@ -104,14 +104,57 @@ it needs that params do not have:
 
 Each phase is shippable on its own, and each is useless without the one before it.
 
-### A — foundations
+### A — foundations ✅
 
-**A1. Transport.** Tempo, bar and beat position, play/stop, all sample-accurate off `currentFrame`. The
-`transport` message that `docs/RACK.md` reserved and never sent. Clock and Seq gain synced modes so a division
-means a sixteenth rather than a number of Hz. Everything rhythmic depends on this and nothing rhythmic is
-possible without it.
+**A1. Transport.** ✅ Built. The `transport` message `docs/RACK.md` reserved and never sent.
 
-**A2. Module data.** The mechanism above. Sampler and sequencer both wait on it.
+One choice is worth recording. Teaching every module about tempo would have widened the `Processor` contract
+eighteen times; instead **one Transport module reads it and everything else syncs by patching to its outlets**,
+which is how a real rack does it. So the contract widened once — a fifth argument to `process`, which every
+existing module ignores because this is JavaScript — and will not need to again.
+
+A useful consequence: Clock and Seq did **not** need the synced modes this plan asked for. Patch `sixteenth`
+into a Seq's clock and it is a sixteenth.
+
+Outlets are `run`, `bar`, `beat`, `quarter`, `eighth`, `sixteenth` — all of them rather than a division knob, for
+the reason the SVF gives about its four responses.
+
+Three things came out of building it, all found by tests:
+
+- **Position is accumulated per block, not derived from an absolute frame count.** Deriving it makes a mid-bar
+  tempo change jump to wherever the new arithmetic lands, which is a stumble. Accumulating carries on from
+  where the music was.
+- **`beatsPerBlock` is zero while stopped.** Getting that wrong was a real bug: a module interpolating position
+  across the block crept forward and snapped back every block, so a *stopped* bar ramp wobbled instead of
+  holding still.
+- **It fires the downbeat when play is pressed**, the same decision the Clock makes by arming itself at
+  construction. A transport silent until a whole beat has gone by reads as broken, and at 60bpm that is a
+  second of nothing.
+
+Tempo lives in the patch, like the engine's `Song.bpm`, because a drum-and-bass patch *is* 174 and one shared at
+the wrong tempo is not the patch that was shared. Absent means 120, so a patch written before this round-trips
+unchanged. Whether it is *running* is session state and is not in the patch.
+
+And **the gesture that starts audio now starts the music** — D2 in miniature, and the cheapest possible down
+payment on it.
+
+**A2. Module data.** ✅ Built. A `data` message, plus `PatchModule.data` for the kind that belongs in the
+document.
+
+The two-layer split turned out to be the whole design. Data pushed with `Rack.setData` **survives a rebuild**,
+because a sample is not part of the patch and every structural edit recompiles — losing a break somebody loaded
+because they moved a cable would be indefensible. Data from the patch is replaced every build, because there it
+*is* the document. A push wins where both have a slot.
+
+Transferred rather than copied: `postMessage`'s second argument moves the buffer, so a two-second stereo break
+costs no main-thread copying. The consequence is that the array is unusable on the host afterwards, which is why
+`setData` takes a `Float32Array` rather than an `AudioBuffer` it could have quietly copied out of.
+
+Change detection is identity — read it every block, and a different array means new data. Deliberately that
+crude, so nothing has to subscribe to anything.
+
+Proved with a test-only probe module rather than a real consumer, the way `poly.test.ts` does. The sampler and
+the sequencer are phase B, and both were waiting on exactly this.
 
 ### B — the instruments
 
