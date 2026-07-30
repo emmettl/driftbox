@@ -2,6 +2,7 @@ import { useState, type RefObject } from 'react'
 import { SONGS } from '@driftbox/engine'
 import { useBox } from '../store'
 import { PatternBar } from './PatternBar'
+import { buildLabel, buildTitle } from '../version'
 
 /** Confirmation that lives for a moment and then goes away. Sharing and saving both
  *  succeed silently otherwise, and a button that appears to do nothing gets pressed
@@ -241,6 +242,12 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
           reset
         </button>
         {flash && <span className="flash">{flash}</span>}
+        {/* At the end of the row you are already in when something has gone wrong — share, save, load,
+            reset — rather than in a corner of its own. There is no footer on this page to put it in,
+            and inventing one for eleven characters would cost the grid a row. */}
+        <span className="build" title={buildTitle()}>
+          {buildLabel()}
+        </span>
       </div>
       </div>
     </header>
