@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "preview": "npm run preview --workspace @driftbox/app",
     "start": "npm run start --workspace @driftbox/app",
-    "typecheck": "tsc -b packages/engine packages/rack packages/app"
+    "typecheck": "tsc -b packages/engine packages/rack packages/app",
+    "bench": "vitest bench --run"
   },
   "devDependencies": {
     "oxlint": "^1.71.0",
