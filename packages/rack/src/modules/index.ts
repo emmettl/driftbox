@@ -1,10 +1,12 @@
 import type { ModuleDef, Registry } from '../types.js'
 import { ADSR_MODULE } from './adsr.js'
+import { ALLIGATOR_MODULE } from './alligator.js'
 import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
 import { COMPRESSOR_MODULE } from './compressor.js'
 import { DELAY_MODULE } from './delay.js'
 import { DRIVE_MODULE } from './drive.js'
+import { FOLLOWER_MODULE } from './follower.js'
 import { LADDER_MODULE } from './ladder.js'
 import { LFO_MODULE } from './lfo.js'
 import { MIDI_MODULE } from './midi.js'
@@ -23,7 +25,7 @@ import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 
-// Twenty-three modules: enough to make a track, something to play it with, something that knows what a bar
+// Twenty-five modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -60,9 +62,11 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   LADDER_MODULE,
   SVF_MODULE,
   VCA_MODULE,
+  ALLIGATOR_MODULE,
   DRIVE_MODULE,
   DELAY_MODULE,
   ADSR_MODULE,
+  FOLLOWER_MODULE,
   LFO_MODULE,
   SAMPLE_HOLD_MODULE,
   OFFSET_MODULE,
@@ -86,10 +90,12 @@ export const MODULES: Registry = Object.fromEntries(
 )
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
+export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
 export { DRIVE_MODULE, DriveProcessor } from './drive.js'
+export { FOLLOWER_MODULE, FollowerProcessor } from './follower.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'

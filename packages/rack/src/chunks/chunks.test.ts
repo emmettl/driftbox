@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compile } from '../compile.js'
+import { Graph } from '../graph.js'
 import { MODULES } from '../modules/index.js'
 import { EMPTY_PATCH } from '../index.js'
 import type { Patch } from '../types.js'
@@ -286,5 +287,52 @@ describe('inserting a chunk with routings', () => {
     const route = COMBI.modulation!.find((r) => r.to[1] === 'cutoff')!
     expect(cutoff).toBeGreaterThanOrEqual(route.min!)
     expect(cutoff).toBeLessThanOrEqual(route.max!)
+  })
+})
+
+describe('a chunk actually makes a sound', () => {
+  // "Compiles with nothing dropped" is not the same claim as "you hear something", and this codebase has
+  // fixed the gap between those twice — `ensureSampler` and `ensureMidi` both exist because a freshly
+  // dropped thing did nothing at all. So this runs the graph in Node and measures the output, the same
+  // trick `graph.test.ts` uses: a Graph is arithmetic over Float32Arrays, no browser required.
+  const SR = 44100
+  const FRAMES = 128
+
+  /** Peak of the mix over `blocks` blocks, with the transport running. */
+  function peak(patch: Patch, blocks: number): number {
+    const modules: Record<string, (typeof MODULES)[string]['processor']> = {}
+    const deps: Record<string, unknown> = {}
+    for (const def of Object.values(MODULES)) {
+      modules[def.type] = def.processor
+      for (const [key, dep] of Object.entries(def.deps ?? {})) deps[key] = dep
+    }
+    const graph = new Graph(SR, FRAMES, modules, deps)
+    graph.setPlan(compile(patch, MODULES))
+    graph.setTransport(174, true)
+
+    let loudest = 0
+    for (let b = 0; b < blocks; b++) {
+      const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+      graph.process(channels)
+      for (const value of channels[0]) {
+        const magnitude = value < 0 ? -value : value
+        if (magnitude > loudest) loudest = magnitude
+      }
+    }
+    return loudest
+  }
+
+  it.each(
+    // Only the chunks that can make a sound unaided. The Break chunk is a Sampler with nothing loaded,
+    // which is silent by construction — `needsSample` is exactly that fact, declared.
+    CHUNKS.filter((chunk) => !chunk.needsSample).map((chunk) => [chunk.id] as const),
+  )('%s', (id) => {
+    // A second and a bit, so a 16-step pattern at 174bpm has been all the way round.
+    //
+    // The threshold is 0.01 against measured peaks of reese 0.48, combi 0.56, chop 0.39, sub 0.69 and
+    // hats 0.64 — two orders of magnitude of headroom, so this is not a test that passes by a whisker.
+    // And the excluded Break chunk measures 0.0000 exactly, which is what makes the `needsSample`
+    // filter above a real distinction rather than a precaution.
+    expect(peak(insert(EMPTY_PATCH, id).patch, 400)).toBeGreaterThan(0.01)
   })
 })
