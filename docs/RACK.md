@@ -10,12 +10,26 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 26 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 27 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
 that are expensive to change later — where implementation taught us something different, this
 file says so rather than describing only the plan we started with.
+
+## The product boundary: Reason contains ReBirth
+
+The rack engine is separate from `@driftbox/engine`; the rack product is not separate from
+the groovebox. Rack mode is intended to become a strict functional superset: every
+303/808/909 song should open, play and stay editable here, with patching and rack-only
+devices added around it. This does not mean exploding a song into anonymous primitive
+modules. First-class groovebox devices and an additive document bridge preserve the
+authored patterns, arrangement and compatibility boundary.
+
+[REBIRTH-PARITY.md](REBIRTH-PARITY.md) holds the capability ledger, document states and
+render-equivalence completion test. This file continues to describe how the persistent
+graph works. The distinction matters: two execution engines can serve one product without
+duplicating their DSP or making interchange lossy.
 
 ## What this is not
 
@@ -169,7 +183,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Twenty-six modules
+## Twenty-seven modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 

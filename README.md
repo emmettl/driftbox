@@ -30,6 +30,12 @@ built it.
 | [`@driftbox/app`](https://www.npmjs.com/package/@driftbox/app) | This sequencer, as a runnable app. |
 | `@driftbox/rack` | The unpublished, work-in-progress modular engine behind [`rack.html`](packages/app/rack.html); it will join the npm packages when complete. |
 
+The rack is intended to be a **strict superset** of the groovebox, in the same sense that
+Reason contained and extended ReBirth: anything authored in the 303/808/909 editor should
+open, play and remain editable in rack mode. That is a destination rather than a claim
+about the current build. [The parity contract and capability ledger](docs/REBIRTH-PARITY.md)
+say exactly what “superset” means and order the work needed to get there.
+
 To build something with the engine:
 
 ```bash
