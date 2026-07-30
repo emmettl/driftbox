@@ -64,7 +64,12 @@ export class Graph {
    * turning the knob works without recompiling, which is the same reason `setParam` does not bump the
    * revision on the host side.
    */
-  private outputs: { signal: Float32Array; pan: Float32Array | null }[] = []
+  private outputs: {
+    signal: Float32Array
+    pan: Float32Array | null
+    mute: Float32Array | null
+    solo: Float32Array | null
+  }[] = []
 
   /** Peak follower and smoothed gain for the master limiter. Persist across blocks or it ticks. */
   private limitEnvelope = 0
@@ -249,10 +254,26 @@ export class Graph {
     const release = Math.exp(-1 / (0.1 * this.sampleRate))
 
     for (let i = 0; i < frames; i++) {
+      // Whether anything is soloed, asked once per sample across every channel. Solo is the one mix control
+      // that cannot be a property of a module: soloing one channel silences the OTHERS, and a module has no
+      // idea the others exist. This is the only place that sees them all.
+      let soloed = false
+      for (let o = 0; o < this.outputs.length; o++) {
+        const solo = this.outputs[o].solo
+        if (solo !== null && solo[i] >= 0.5) {
+          soloed = true
+          break
+        }
+      }
+
       let left = 0
       let rightSum = 0
       for (let o = 0; o < this.outputs.length; o++) {
         const output = this.outputs[o]
+        // Muted, or not the one being soloed. Skipped before the pan arithmetic rather than multiplied by
+        // zero afterwards, which is the same answer and less work.
+        if (output.mute !== null && output.mute[i] >= 0.5) continue
+        if (soloed && !(output.solo !== null && output.solo[i] >= 0.5)) continue
         const sample = output.signal[i]
         if (output.pan === null) {
           left += sample
@@ -431,10 +452,16 @@ export class Graph {
       if (output.buffer <= 0) continue
       const voices = this.buffers[output.buffer] ?? []
       const pan = output.pan === null ? null : this.paramBuffers[output.pan]
+      const mute = output.mute === null ? null : this.paramBuffers[output.mute]
+      const solo = output.solo === null ? null : this.paramBuffers[output.solo]
+      const at = (buffers: Float32Array[] | null | undefined, voice: number) =>
+        buffers ? (buffers[voice] ?? buffers[0] ?? null) : null
       for (let voice = 0; voice < voices.length; voice++) {
         this.outputs.push({
           signal: voices[voice],
-          pan: pan ? (pan[voice] ?? pan[0] ?? null) : null,
+          pan: at(pan, voice),
+          mute: at(mute, voice),
+          solo: at(solo, voice),
         })
       }
     }

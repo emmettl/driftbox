@@ -76,11 +76,17 @@ const pulses = (signal: Float32Array) => {
   return count
 }
 
-/** Every gate edge on a lane, with the CV that was standing at it — the pattern as it was played back. */
-const played = (lane: { cv: Float32Array; gate: Float32Array }, scale = 12) => {
+/**
+ * Every step the lane played, with the CV standing at it — the pattern as it came back out.
+ *
+ * Read from the TRIGGER rather than the gate. The gate now lasts the whole step, so two consecutive notes
+ * hold it high and produce one edge between them; the trigger still fires per step, which is exactly the
+ * distinction between the two outlets and why both exist.
+ */
+const played = (lane: { cv: Float32Array; trig: Float32Array }, scale = 12) => {
   const hits: { at: number; value: number }[] = []
-  for (let i = 0; i < lane.gate.length; i++) {
-    if (lane.gate[i] >= 0.5 && (i === 0 || lane.gate[i - 1] < 0.5)) {
+  for (let i = 0; i < lane.trig.length; i++) {
+    if (lane.trig[i] >= 0.5 && (i === 0 || lane.trig[i - 1] < 0.5)) {
       hits.push({ at: i, value: Math.round(lane.cv[i] * scale) })
     }
   }
@@ -165,7 +171,9 @@ describe('the tracker', () => {
     // A length of sixteen over four written steps is twelve rests, not twelve reads of undefined. This is
     // the state a freshly dropped tracker is in, so it has to be silence rather than NaN.
     const { lane } = run(STEP * 8, { lanes: [[3, 3]], length: 8 })
-    expect(pulses(lane(0).gate)).toBe(2)
+    // Counted on the trigger: the two notes are consecutive, so the gate holds across them and shows one
+    // edge rather than two.
+    expect(pulses(lane(0).trig)).toBe(2)
     for (const x of lane(0).cv) expect(Number.isFinite(x)).toBe(true)
   })
 
@@ -203,31 +211,44 @@ describe('the tracker', () => {
     expect(after[0].at).toBeGreaterThanOrEqual(STEP * 3)
   })
 
-  it('follows the clock width for its gate and fires a short trigger regardless', () => {
-    // Two different jobs. The gate holds an envelope open for as long as the step lasts, so one knob on
-    // the Clock shortens every step at once; the trigger is a blip that strikes something, and a drum
-    // does not want a gate the length of a sixteenth.
+  it('holds its gate for the whole step, whatever the clock is doing', () => {
+    // This followed the clock's high time at first, so that one knob on the Clock shortened every step at
+    // once. That reads well and was measured to be wrong: the Transport's `sixteenth` is a trigger, high for
+    // 1.2% of its period, so a Tracker locked to the transport made gates 1.2% wide and every envelope
+    // driven from one barely opened — the basslines in every shipped drum-and-bass patch came out about
+    // sixteen times quieter than the break beside them.
+    //
+    // So the gate means "this step is sounding" and lasts as long as the step does. Asserted against a
+    // deliberately narrow clock, because that is the case that was broken.
     const frames = STEP * 4
-    const wide = run(frames, { lanes: [[1, 1, 1, 1]], length: 4, clock: (i) => i % STEP < STEP * 0.75 })
+    const narrow = run(frames, { lanes: [[1, 1, 1, 1]], length: 4, clock: (i) => i % STEP < 4 })
     let held = 0
-    for (const x of wide.lane(0).gate) if (x >= 0.5) held++
-    // Three quarters of every step, following the clock and nothing else.
-    expect(held).toBe(frames * 0.75)
+    for (const x of narrow.lane(0).gate) if (x >= 0.5) held++
+    // Every sample from the first edge onwards: four steps of notes with no rests between them.
+    expect(held).toBe(frames)
 
+    // The trigger is unaffected and still a blip — a drum does not want a gate the length of a sixteenth.
     let struck = 0
-    for (const x of wide.lane(0).trig) if (x >= 0.5) struck++
-    // A millisecond at 44.1kHz is 45 samples, over four hits: 180, well short of the 384 the gate held.
+    for (const x of narrow.lane(0).trig) if (x >= 0.5) struck++
     expect(struck).toBe(4 * Math.ceil(SR * 0.001))
     expect(struck).toBeLessThan(held)
+  })
 
-    // Narrowing the clock narrows the gate and leaves the trigger alone, which is the whole distinction.
-    const narrow = run(frames, { lanes: [[1, 1, 1, 1]], length: 4, clock: (i) => i % STEP < STEP * 0.25 })
-    let short = 0
-    for (const x of narrow.lane(0).gate) if (x >= 0.5) short++
-    expect(short).toBe(frames * 0.25)
-    let same = 0
-    for (const x of narrow.lane(0).trig) if (x >= 0.5) same++
-    expect(same).toBe(struck)
+  it('closes its gate on a rest, so a phrase still breathes', () => {
+    // The other half: a gate that lasted the step but never closed would be a drone. It closes exactly when
+    // the pattern rests.
+    const { lane } = run(STEP * 4, { lanes: [[5, 0, 5, 0]], length: 4 })
+    let held = 0
+    for (const x of lane(0).gate) if (x >= 0.5) held++
+    expect(held).toBe(STEP * 2)
+  })
+
+  it('stays open across two notes in a row, which is legato', () => {
+    // Consecutive notes hold the gate rather than retriggering. That is what `trig` is for when it is not
+    // what you want, and it is how a tracker has always behaved.
+    const { lane } = run(STEP * 2, { lanes: [[3, 5]], length: 2 })
+    expect(pulses(lane(0).gate)).toBe(1)
+    expect(pulses(lane(0).trig)).toBe(2)
   })
 
   it('reads its pattern on the clock edge only', () => {

@@ -46,10 +46,17 @@ export const OUT_MODULE: ModuleDef = {
     // Centre by default, which is what every Out was before stereo existed — so a patch shared before this
     // is byte-identical and sounds identical after it.
     { id: 'pan', name: 'Pan', min: -1, max: 1, default: 0 },
+    // Mute and solo are applied by the Graph, like pan, because they are facts about the mix. Solo could
+    // not live in this processor even in principle: one channel soloed silences the OTHERS, and a module
+    // has no idea the others exist.
+    { id: 'mute', name: 'Mute', min: 0, max: 1, default: 0, stepped: true, labels: ['On', 'Mute'] },
+    { id: 'solo', name: 'Solo', min: 0, max: 1, default: 0, stepped: true, labels: ['—', 'Solo'] },
   ],
   processor: OutProcessor,
   terminal: true,
   terminalPan: 'pan',
+  terminalMute: 'mute',
+  terminalSolo: 'solo',
   // One master bus. Eight copies would each apply the level knob to their own voice and then be summed,
   // which is the same arithmetic — but the collapse has to happen somewhere obvious, and the end of the
   // rack is where anybody would look for it.

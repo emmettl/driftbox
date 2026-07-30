@@ -1,4 +1,4 @@
-import { MIDI_INPUTS, MODULE_LIST, MODULES, Rack, compile, renderPatch } from '@driftbox/rack'
+import { CHUNKS, MIDI_INPUTS, MODULE_LIST, MODULES, Rack, compile, renderPatch } from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
@@ -33,6 +33,7 @@ export default function RackApp() {
   const flip = useRack((s) => s.flip)
   const load = useRack((s) => s.load)
   const addModule = useRack((s) => s.addModule)
+  const addChunk = useRack((s) => s.addChunk)
   const setNotes = useRack((s) => s.setNotes)
   const name = useRack((s) => s.name)
   const setMidi = useRack((s) => s.setMidi)
@@ -694,6 +695,33 @@ export default function RackApp() {
 
       {adding && (
         <div className="rk-palette">
+          {/* Chunks first, because they are what somebody starting a track wants and a bare VCO is not.
+              Reason offered devices and Combis from the same menu for the same reason. */}
+          <span className="rk-palette-head">Chunks</span>
+          {CHUNKS.map((chunk) => (
+            <button
+              key={chunk.id}
+              type="button"
+              className="rk-palette-chunk"
+              title={chunk.blurb}
+              onClick={() => {
+                const added = addChunk(chunk)
+                setAdding(false)
+                // A Sampler with nothing in it is silent, so a chunk that needs one is offered whatever the
+                // patch is already holding. Same reasoning as `ensureSampler`: a freshly dropped thing has
+                // to make a sound.
+                if (chunk.needsSample && intendedBreak) {
+                  const sampler = Object.entries(added.ids).find(
+                    ([local]) => chunk.modules.find((m) => m.id === local)?.type === 'sampler',
+                  )
+                  if (sampler) void loadBreak(intendedBreak)
+                }
+              }}
+            >
+              {chunk.name}
+            </button>
+          ))}
+          <span className="rk-palette-head">Modules</span>
           {MODULE_LIST.map((def) => (
             <button
               key={def.type}

@@ -108,7 +108,18 @@ export class TrackerProcessor implements Processor {
         outlets[lane * 3][i] = this.held[lane] / (unit ? 16 : 12)
         // The gate follows the clock's own high time, so one knob on the Clock or the Transport shortens every
         // step at once — the same decision `seq` makes and for the same reason.
-        outlets[lane * 3 + 1][i] = this.open[lane] && clock === 1 ? 1 : 0
+        // High for the whole STEP, not for the clock's high time.
+        //
+        // It followed the clock at first, so that one knob on the Clock shortened every step at once. That
+        // reads well and was measured to be wrong: the Transport's `sixteenth` is a trigger, high for 1.2%
+        // of its period, so a Tracker locked to the transport produced gates 1.2% wide and every envelope
+        // driven from one barely opened. It made the basslines in every shipped drum-and-bass patch roughly
+        // sixteen times quieter than the break next to them, which is what finally gave it away.
+        //
+        // A step's gate meaning "this step is sounding" is also just what a tracker's gate is. Strikes have
+        // their own outlet, and two consecutive notes now hold the gate rather than retriggering — which is
+        // legato, and is what `trig` is there for when it is not what you want.
+        outlets[lane * 3 + 1][i] = this.open[lane] ? 1 : 0
         if (this.trigLeft[lane] > 0) {
           this.trigLeft[lane]--
           outlets[lane * 3 + 2][i] = 1

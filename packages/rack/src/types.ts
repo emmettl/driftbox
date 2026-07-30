@@ -160,6 +160,15 @@ export interface ModuleDef {
    */
   terminalPan?: string
   /**
+   * Param ids for this terminal module's mute and solo, both treated as 0 or 1.
+   *
+   * Here for the same reason `terminalPan` is: these are properties of the **mix**, not of the module. Solo
+   * especially — one channel soloed silences the others, which is a fact about the set of channels and
+   * something no module can know about itself. The Graph is the only place that sees them all.
+   */
+  terminalMute?: string
+  terminalSolo?: string
+  /**
    * Whether this module is duplicated per voice. Default true.
    *
    * `false` means one instance however many voices the patch has, and every voice arriving at one of its
@@ -264,6 +273,9 @@ export interface PlanOutput {
   buffer: number
   /** Param slot carrying pan: −1 hard left, +1 hard right. */
   pan: number | null
+  /** Param slot carrying mute, and one carrying solo. Both read as "above a half means yes". */
+  mute: number | null
+  solo: number | null
 }
 
 export interface PlanParam {

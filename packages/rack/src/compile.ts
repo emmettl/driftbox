@@ -362,8 +362,13 @@ export function compile(patch: Patch, registry: Registry): Plan {
     if (buffer === undefined) continue
     // A slot, not a value: the Graph reads the pan buffer every sample, so turning the knob while the patch
     // runs works without recompiling — the same reason `setParam` does not bump the revision.
-    const pan = def.terminalPan ? (slots[module.id]?.[def.terminalPan] ?? null) : null
-    outputs.push({ buffer, pan })
+    const slot = (id: string | undefined) => (id ? (slots[module.id]?.[id] ?? null) : null)
+    outputs.push({
+      buffer,
+      pan: slot(def.terminalPan),
+      mute: slot(def.terminalMute),
+      solo: slot(def.terminalSolo),
+    })
   }
 
   // Delayed cables, worked out from the finished order. A cable is delayed when its source
