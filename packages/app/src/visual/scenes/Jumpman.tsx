@@ -119,8 +119,8 @@ const PALETTE: Record<string, string> = {
   E: '#161022', // monster eye
   F: '#3f8f26', // monster foot
   P: '#ffe14d', // pick-up
-  K: '#8b5a2b', // brick
-  k: '#6b4420', // brick shadow
+  K: '#c97b38', // brick
+  k: '#925025', // brick shadow
   C: '#cfe8ff', // cloud
   L: '#2a5f8f', // far hills
 }
