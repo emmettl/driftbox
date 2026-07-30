@@ -514,9 +514,12 @@ That is a better demonstration of a reusable engine than a loop playing undernea
 green tick: installed into an empty project and imported (22 voices, 12 songs), and
 `npx @driftbox/app@0.1.0` served its index and its 1.27 MB bundle.
 
-0.2.0 has had no equivalent pass yet — the check above is a record of what was done to
-0.1.0, not a standing claim about whatever is latest. Repeat it against the new version
-before treating the release as finished.
+0.2.0 had the same registry-first pass on 30 July 2026. A fresh empty project imported
+`@driftbox/engine@0.2.0` with 22 voices and 12 songs, and
+`npx @driftbox/app@0.2.0` served both the sequencer and `rack.html`. The release workflow
+published both packages through npm's trusted-publisher OIDC path, and the registry exposes
+a signed SLSA provenance attestation for each tarball. The OIDC path is proven; a future
+authentication failure is a regression rather than an untested setup.
 
 The one thing still worth watching is **`Ladder.toString()` under a consumer's bundler**.
 It holds under this build — verified against both the minified app bundle and the engine's
@@ -578,9 +581,10 @@ happens again.
   trusted publisher is configured on a package's settings page and there is no way to
   pre-register a name.
 
-**The OIDC path is not yet proven.** 0.1.0 went out on a token; the dry run since cannot
-test the credential, because both versions already exist and the workflow skips them — and
-`--dry-run` never authenticates in any case. The next real publish is the first test of it.
+**The OIDC path was proven by 0.2.0.** The release-triggered workflow published both
+packages without `NODE_AUTH_TOKEN`, signed their provenance statements and registered the
+attestations with npm. 0.1.0 went out on a token and the intervening dry run could not test
+the replacement credential; 0.2.0 is the first complete test of the trusted-publisher path.
 
 ### 2. ~~Per-voice outputs~~ — done, as stems
 
