@@ -1595,7 +1595,8 @@ kbd {
 .rk-groovebox-bass button,
 .rk-groovebox-live button,
 .rk-groovebox-transport button,
-.rk-groovebox-tools button {
+.rk-groovebox-tools button,
+.rk-groovebox-automation button {
   min-width: 24px;
   height: 24px;
   padding: 0 5px;
@@ -1686,6 +1687,51 @@ kbd {
 
 .rk-groovebox-tools input {
   width: 100px;
+}
+
+.rk-groovebox-automation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-automation button[aria-pressed='true'] {
+  color: #21070b;
+  background: #ff6678;
+  border-color: #ffc3ca;
+  box-shadow: 0 0 7px rgba(255, 102, 120, 0.5);
+}
+
+.rk-groovebox-automation button[aria-pressed='true'] span {
+  color: #fff;
+}
+
+.rk-groovebox-automation label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: uppercase;
+}
+
+.rk-groovebox-automation input {
+  width: 92px;
+}
+
+.rk-groovebox-automation b {
+  min-width: 18px;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: right;
+}
+
+.rk-groovebox-automation > span {
+  margin-left: auto;
+  color: rgba(255, 209, 102, 0.72);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .rk-groovebox-bass {

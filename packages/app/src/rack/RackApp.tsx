@@ -131,6 +131,9 @@ export default function RackApp() {
     const state = useRack.getState()
     state.clearGrooveboxLaunches()
     state.setGrooveboxLoop(null)
+    state.setGrooveboxAutomationPosition(
+      hosted ? () => (hosted.running ? hosted.position : null) : null,
+    )
     state.setGrooveboxLauncher(
       hosted
         ? (section, patternId) => hosted.queueClip(section, patternId)

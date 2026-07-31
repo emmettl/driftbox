@@ -111,6 +111,13 @@ lanes can randomise or material-preserving alter; and either 303 can transpose. 
 flam marks and shared flam width remain authored song data. Each button gesture is its own
 undo step, while direct step painting continues to coalesce as one edit.
 
+Automation recording is armed on the Groovebox device but clocked by the hosted audio
+engine. Moving rack tempo, global song swing, or any visible drum/303 instrument control
+while the song runs writes a point at the engine's exact bar and step. Arming and the clock
+provider are session state; recorded lanes remain versioned retained song data, so the patch
+stays Groovebox-compatible and returns to the sequencer without loss. Clearing all lanes is
+an ordinary non-structural rack edit and can be undone.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a

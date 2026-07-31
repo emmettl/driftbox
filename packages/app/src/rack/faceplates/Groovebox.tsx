@@ -105,6 +105,11 @@ export function GrooveboxPatternEditor({
   setVoiceParam,
   setBassParam,
   setFlamWidth,
+  setSwing,
+  automationRecording = false,
+  running = false,
+  toggleAutomationRecording,
+  clearAutomation,
   launch,
   launches,
   transport,
@@ -125,6 +130,11 @@ export function GrooveboxPatternEditor({
     value: number,
   ) => void
   setFlamWidth: (value: number) => void
+  setSwing: (value: number) => void
+  automationRecording?: boolean
+  running?: boolean
+  toggleAutomationRecording: () => void
+  clearAutomation: () => void
   launch?: (
     machine: GrooveboxSection,
     patternId: string | null,
@@ -190,6 +200,9 @@ export function GrooveboxPatternEditor({
   const totalBars = Math.max(1, songBars(song))
   const sectionLooping =
     loop?.start === sectionStart && loop.bars === Math.max(1, chainStep.repeat)
+  const automationLanes = song.automation?.length ?? 0
+  const automationPoints =
+    song.automation?.reduce((total, lane) => total + lane.points.length, 0) ?? 0
   const clipPattern = chainStep.clips?.[section] ?? chainStep.pattern
   const live = launches?.[section]
   const livePattern =
@@ -438,6 +451,54 @@ export function GrooveboxPatternEditor({
         )}
       </div>
 
+      <div className="rk-groovebox-automation" aria-label="Groovebox automation recorder">
+        <button
+          type="button"
+          aria-pressed={automationRecording}
+          aria-label={
+            automationRecording
+              ? 'Disarm Groovebox automation recording'
+              : 'Arm Groovebox automation recording'
+          }
+          title={
+            automationRecording
+              ? running
+                ? 'Recording supported controls at the hosted song playhead'
+                : 'Automation armed — start playback, then move a supported control'
+              : 'Record tempo, swing and instrument controls into the retained song'
+          }
+          onClick={toggleAutomationRecording}
+        >
+          <span aria-hidden="true">●</span> auto
+        </button>
+        <label>
+          Swing
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={song.swing}
+            onChange={(event) => setSwing(Number(event.target.value))}
+            aria-label="Groovebox swing"
+          />
+          <b>{Math.round(song.swing * 100)}</b>
+        </label>
+        <span aria-live="polite">
+          {automationRecording ? (running ? 'recording' : 'armed') : `${automationLanes} lanes`}
+          {automationPoints > 0 ? ` · ${automationPoints} points` : ''}
+        </span>
+        <button
+          type="button"
+          disabled={automationLanes === 0}
+          onClick={clearAutomation}
+          aria-label="Clear Groovebox automation"
+          title="Clear all retained automation lanes; rack undo can restore them"
+        >
+          clear
+        </button>
+      </div>
+
       <div className="rk-groovebox-clip" aria-label="Groovebox clip arrangement">
         <label>
           Section
@@ -679,6 +740,13 @@ function PatternEditor() {
   const setVoiceParam = useRack((state) => state.setGrooveboxVoiceParam)
   const setBassParam = useRack((state) => state.setGrooveboxBassParam)
   const setFlamWidth = useRack((state) => state.setGrooveboxFlamWidth)
+  const setSwing = useRack((state) => state.setGrooveboxSwing)
+  const automationRecording = useRack((state) => state.grooveboxAutomationRecording)
+  const running = useRack((state) => state.running)
+  const toggleAutomationRecording = useRack(
+    (state) => state.toggleGrooveboxAutomationRecording,
+  )
+  const clearAutomation = useRack((state) => state.clearGrooveboxAutomation)
   const launch = useRack((state) => state.grooveboxLauncher)
   const launches = useRack((state) => state.grooveboxLaunches)
   const transport = useRack((state) => state.grooveboxTransport)
@@ -691,6 +759,11 @@ function PatternEditor() {
       setVoiceParam={setVoiceParam}
       setBassParam={setBassParam}
       setFlamWidth={setFlamWidth}
+      setSwing={setSwing}
+      automationRecording={automationRecording}
+      running={running}
+      toggleAutomationRecording={toggleAutomationRecording}
+      clearAutomation={clearAutomation}
       launch={launch ?? undefined}
       launches={launches}
       transport={transport ?? undefined}

@@ -156,6 +156,9 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
       setVoiceParam: () => {},
       setBassParam: () => {},
       setFlamWidth: () => {},
+      setSwing: () => {},
+      toggleAutomationRecording: () => {},
+      clearAutomation: () => {},
     }),
   )
 
@@ -173,6 +176,10 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Groovebox loop start bar"')
   expect(markup).toContain('aria-label="Groovebox loop length in bars"')
   expect(markup).toContain('aria-label="Groovebox pattern transforms"')
+  expect(markup).toContain('aria-label="Groovebox automation recorder"')
+  expect(markup).toContain('aria-label="Arm Groovebox automation recording"')
+  expect(markup).toContain('aria-label="Groovebox swing"')
+  expect(markup).toContain('aria-label="Clear Groovebox automation"')
   expect(markup).toContain('aria-label="Rotate Bass Drum left"')
   expect(markup).toContain('aria-label="Rotate Bass Drum right"')
   expect(markup).toContain('random')
@@ -182,7 +189,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(11)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(12)
 })
 
 it('shows every retained 303 instrument control', () => {
@@ -195,6 +202,9 @@ it('shows every retained 303 instrument control', () => {
       setVoiceParam: () => {},
       setBassParam: () => {},
       setFlamWidth: () => {},
+      setSwing: () => {},
+      toggleAutomationRecording: () => {},
+      clearAutomation: () => {},
       initialSection: '303.a',
     }),
   )
@@ -226,6 +236,9 @@ it('shows retained 909 flam programming controls', () => {
       setVoiceParam: () => {},
       setBassParam: () => {},
       setFlamWidth: () => {},
+      setSwing: () => {},
+      toggleAutomationRecording: () => {},
+      clearAutomation: () => {},
       initialSection: 'tr909',
     }),
   )

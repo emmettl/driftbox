@@ -1,4 +1,4 @@
-import { SONGS, cycleStep, rotateTrack } from '@driftbox/engine'
+import { AUTOMATION_TARGET, SONGS, cycleStep, rotateTrack } from '@driftbox/engine'
 import { NO_HISTORY } from './history.js'
 import {
   MODULES,
@@ -35,6 +35,8 @@ beforeEach(() => {
     grooveboxLaunches: {},
     grooveboxTransport: null,
     grooveboxLoop: null,
+    grooveboxAutomationRecording: false,
+    grooveboxAutomationPosition: null,
   })
 })
 
@@ -704,6 +706,79 @@ describe('editing a retained Groovebox pattern', () => {
 
     useRack.getState().setGrooveboxFlamWidth(2)
     expect(grooveboxSong(useRack.getState().patch)?.kit.flam).toBe(1)
+  })
+
+  it('records tempo, swing and instrument controls at the hosted audio playhead', () => {
+    useRack.getState().setGrooveboxAutomationPosition(() => ({ bar: 2, index: 3 }))
+    useRack.getState().toggleGrooveboxAutomationRecording()
+
+    useRack.getState().setTempo(138)
+    useRack.getState().setGrooveboxSwing(0.42)
+    useRack.getState().setGrooveboxVoiceParam('808.bd', 'decay', 0.23)
+    useRack.getState().setGrooveboxBassParam('303.a', 'cutoff', 0.81)
+
+    const patch = useRack.getState().patch
+    const song = grooveboxSong(patch)!
+    const lanes = new Map(song.automation?.map((lane) => [lane.target, lane.points]))
+    expect(lanes.get(AUTOMATION_TARGET.bpm)).toEqual([
+      { bar: 2, index: 3, value: 138 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.swing)).toEqual([
+      { bar: 2, index: 3, value: 0.42 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.voice('808.bd', 'decay'))).toEqual([
+      { bar: 2, index: 3, value: 0.23 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.bass('303.a', 'cutoff'))).toEqual([
+      { bar: 2, index: 3, value: 0.81 },
+    ])
+    expect(patch.tempo).toBeUndefined()
+    expect(patchCompatibility(patch)).toBe('groovebox-compatible')
+    expect(useRack.getState().revision).toBe(0)
+  })
+
+  it('changes base values without recording while the hosted song is stopped', () => {
+    useRack.getState().setGrooveboxAutomationPosition(() => null)
+    useRack.getState().toggleGrooveboxAutomationRecording()
+    useRack.getState().setTempo(132)
+    useRack.getState().setGrooveboxSwing(0.37)
+    useRack.getState().setGrooveboxVoiceParam('909.sd', 'tone', 0.64)
+
+    const song = grooveboxSong(useRack.getState().patch)!
+    expect(song.bpm).toBe(132)
+    expect(song.swing).toBe(0.37)
+    expect(song.kit.params['909.sd'].tone).toBe(0.64)
+    expect(song.automation).toBeUndefined()
+    expect(useRack.getState().patch.tempo).toBeUndefined()
+  })
+
+  it('clears retained automation as one undoable non-structural edit', () => {
+    useRack.getState().setGrooveboxAutomationPosition(() => ({ bar: 1, index: 2 }))
+    useRack.getState().toggleGrooveboxAutomationRecording()
+    useRack.getState().setGrooveboxSwing(0.61)
+    const recorded = useRack.getState().patch
+    const beforeRevision = useRack.getState().revision
+
+    useRack.getState().clearGrooveboxAutomation()
+    expect(grooveboxSong(useRack.getState().patch)?.automation).toBeUndefined()
+    expect(useRack.getState().revision).toBe(beforeRevision)
+
+    useRack.getState().undo()
+    expect(useRack.getState().patch).toEqual(recorded)
+  })
+
+  it('keeps the automation arm and clock provider out of the document', () => {
+    const patch = useRack.getState().patch
+    const history = useRack.getState().history
+    const position = () => ({ bar: 4, index: 7 })
+
+    useRack.getState().setGrooveboxAutomationPosition(position)
+    useRack.getState().toggleGrooveboxAutomationRecording()
+
+    expect(useRack.getState().grooveboxAutomationPosition).toBe(position)
+    expect(useRack.getState().grooveboxAutomationRecording).toBe(true)
+    expect(useRack.getState().patch).toBe(patch)
+    expect(useRack.getState().history).toBe(history)
   })
 
   it('clamps instrument controls and ignores them without a retained song', () => {

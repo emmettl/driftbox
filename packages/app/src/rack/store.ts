@@ -1,4 +1,5 @@
 import {
+  AUTOMATION_TARGET,
   DEFAULT_BASS_PARAMS,
   DEFAULT_PARAMS,
   chainSetClip,
@@ -10,6 +11,7 @@ import {
   type GrooveboxSection,
   type VoiceParams,
   encodeSong,
+  setAutomationPoint,
 } from '@driftbox/engine'
 import {
   applyModulation,
@@ -278,6 +280,10 @@ interface RackState {
   ) => void
   /** Edit the shared 909 flam spacing without rebuilding the hosted engine. */
   setGrooveboxFlamWidth: (value: number) => void
+  /** Edit the retained song's global swing and record it when automation is active. */
+  setGrooveboxSwing: (value: number) => void
+  /** Remove every retained automation lane as one undoable document edit. */
+  clearGrooveboxAutomation: () => void
   /** Assign one retained machine clip to one arrangement section. */
   setGrooveboxClip: (
     section: number,
@@ -312,6 +318,13 @@ interface RackState {
   setGrooveboxTransport: (transport: RackState['grooveboxTransport']) => void
   grooveboxLoop: { start: number; bars: number } | null
   setGrooveboxLoop: (loop: RackState['grooveboxLoop']) => void
+  /** Armed state and the engine-owned playhead are session facts, not rack document data. */
+  grooveboxAutomationRecording: boolean
+  toggleGrooveboxAutomationRecording: () => void
+  grooveboxAutomationPosition: (() => { bar: number; index: number } | null) | null
+  setGrooveboxAutomationPosition: (
+    position: RackState['grooveboxAutomationPosition'],
+  ) => void
   /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
@@ -477,6 +490,21 @@ export const useRack = create<RackState>((set, get) => {
     })
   }
 
+  /** Add one point at the hosted audio clock when armed. No timer and no guessed UI playhead. */
+  const recordGrooveboxPoint = (
+    song: Song,
+    target: string,
+    value: number,
+    interpolation: 'hold' | 'linear' = 'linear',
+  ): Song => {
+    const state = get()
+    if (!state.grooveboxAutomationRecording) return song
+    const position = state.grooveboxAutomationPosition?.()
+    return position
+      ? setAutomationPoint(song, target, position.bar, position.index, value, interpolation)
+      : song
+  }
+
   return {
     patch: EMPTY_PATCH,
     revision: 0,
@@ -492,6 +520,8 @@ export const useRack = create<RackState>((set, get) => {
     grooveboxLaunches: {},
     grooveboxTransport: null,
     grooveboxLoop: null,
+    grooveboxAutomationRecording: false,
+    grooveboxAutomationPosition: null,
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -744,6 +774,25 @@ export const useRack = create<RackState>((set, get) => {
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
 
     setTempo: (tempo) => {
+      const state = get()
+      const retained = grooveboxSong(state.patch)
+      if (retained && state.grooveboxAutomationRecording) {
+        write(`groovebox:automation:${AUTOMATION_TARGET.bpm}`, false, (patch) => {
+          const song = grooveboxSong(patch)
+          if (!song) return patch
+          const bpm = Math.max(20, Math.min(300, tempo))
+          const edited = song.bpm === bpm ? song : { ...song, bpm }
+          const next = recordGrooveboxPoint(
+            edited,
+            AUTOMATION_TARGET.bpm,
+            bpm,
+            'hold',
+          )
+          const { tempo: _drop, ...rest } = patch
+          return { ...rest, groovebox: encodeSong(next) }
+        })
+        return
+      }
       // One key for the whole control: a tempo field is dragged or typed into, and either way the
       // gesture is "set the tempo" rather than one edit per intermediate number.
       write('tempo', false, (patch) => {
@@ -791,23 +840,56 @@ export const useRack = create<RackState>((set, get) => {
         }
       }),
 
+    setGrooveboxSwing: (value) =>
+      write(`groovebox:automation:${AUTOMATION_TARGET.swing}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const swing = Math.max(0, Math.min(1, value))
+        const edited = song.swing === swing ? song : { ...song, swing }
+        const next = recordGrooveboxPoint(
+          edited,
+          AUTOMATION_TARGET.swing,
+          swing,
+        )
+        if (next === song) return patch
+        return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    clearGrooveboxAutomation: () =>
+      write(null, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song?.automation?.length) return patch
+        return {
+          ...patch,
+          groovebox: encodeSong({ ...song, automation: undefined }),
+        }
+      }),
+
     setGrooveboxVoiceParam: (voiceId, key, value) =>
       write(`groovebox:voice:${voiceId}:${key}`, false, (patch) => {
         const song = grooveboxSong(patch)
         if (!song) return patch
         const current = song.kit.params[voiceId] ?? DEFAULT_PARAMS
         const nextValue = Math.max(0, Math.min(1, value))
-        if (current[key] === nextValue) return patch
-        const next: Song = {
-          ...song,
-          kit: {
-            ...song.kit,
-            params: {
-              ...song.kit.params,
-              [voiceId]: { ...current, [key]: nextValue },
-            },
-          },
-        }
+        const edited: Song =
+          current[key] === nextValue
+            ? song
+            : {
+                ...song,
+                kit: {
+                  ...song.kit,
+                  params: {
+                    ...song.kit.params,
+                    [voiceId]: { ...current, [key]: nextValue },
+                  },
+                },
+              }
+        const next = recordGrooveboxPoint(
+          edited,
+          AUTOMATION_TARGET.voice(voiceId, key),
+          nextValue,
+        )
+        if (next === song) return patch
         return { ...patch, groovebox: encodeSong(next) }
       }),
 
@@ -817,17 +899,25 @@ export const useRack = create<RackState>((set, get) => {
         if (!song) return patch
         const current = song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
         const nextValue = Math.max(0, Math.min(1, value))
-        if (current[key] === nextValue) return patch
-        const next: Song = {
-          ...song,
-          kit: {
-            ...song.kit,
-            bass: {
-              ...song.kit.bass,
-              [voiceId]: { ...current, [key]: nextValue },
-            },
-          },
-        }
+        const edited: Song =
+          current[key] === nextValue
+            ? song
+            : {
+                ...song,
+                kit: {
+                  ...song.kit,
+                  bass: {
+                    ...song.kit.bass,
+                    [voiceId]: { ...current, [key]: nextValue },
+                  },
+                },
+              }
+        const next = recordGrooveboxPoint(
+          edited,
+          AUTOMATION_TARGET.bass(voiceId, key),
+          nextValue,
+        )
+        if (next === song) return patch
         return { ...patch, groovebox: encodeSong(next) }
       }),
 
@@ -865,6 +955,12 @@ export const useRack = create<RackState>((set, get) => {
     clearGrooveboxLaunches: () => set({ grooveboxLaunches: {} }),
     setGrooveboxTransport: (grooveboxTransport) => set({ grooveboxTransport }),
     setGrooveboxLoop: (grooveboxLoop) => set({ grooveboxLoop }),
+    toggleGrooveboxAutomationRecording: () =>
+      set((state) => ({
+        grooveboxAutomationRecording: !state.grooveboxAutomationRecording,
+      })),
+    setGrooveboxAutomationPosition: (grooveboxAutomationPosition) =>
+      set({ grooveboxAutomationPosition }),
 
     setRunning: (running) => set({ running }),
 
