@@ -94,8 +94,11 @@ export class Bassline {
    *
    * If a bassline ever sounds tame, check `usingLadder` before blaming the patch.
    */
-  static async create(ctx: BaseAudioContext): Promise<{ bassline: Bassline; usingLadder: boolean }> {
-    const usingLadder = await loadLadder(ctx)
+  static async create(
+    ctx: BaseAudioContext,
+    options: { useLadder?: boolean } = {},
+  ): Promise<{ bassline: Bassline; usingLadder: boolean }> {
+    const usingLadder = options.useLadder !== false && await loadLadder(ctx)
 
     if (usingLadder) {
       const node = new AudioWorkletNode(ctx, LADDER_PROCESSOR)

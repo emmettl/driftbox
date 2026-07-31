@@ -14,6 +14,8 @@ const BAR_OPTIONS = [1, 2, 4, 8] as const
 export function Sampler({ def, module, value, onChange, routed }: FaceplateProps) {
   const info = useRack((state) => state.samples[module.id])
   const loadSampleInto = useRack((state) => state.loadSampleInto)
+  const previewSample = useRack((state) => state.previewSample)
+  const previewing = useRack((state) => state.previewingSample === module.id)
   const setBars = useRack((state) => state.setSampleBars)
   const file = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -124,6 +126,19 @@ export function Sampler({ def, module, value, onChange, routed }: FaceplateProps
 
       <div className="rk-sampler-info">
         <div className="rk-sampler-file">
+          {info && (
+            <button
+              type="button"
+              className={previewing ? 'rk-sampler-preview rk-sampler-preview-on' : 'rk-sampler-preview'}
+              disabled={!previewSample}
+              aria-label={previewing ? `Stop previewing ${info.name}` : `Preview ${info.name}`}
+              aria-pressed={previewing}
+              onClick={() => void previewSample?.(module.id)}
+              title={previewing ? 'Stop sample preview' : 'Preview the loaded sample'}
+            >
+              {previewing ? '■' : '▶'}
+            </button>
+          )}
           <button
             type="button"
             className="rk-sampler-load"

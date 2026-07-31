@@ -241,6 +241,16 @@ interface RackState {
    */
   loadSampleInto: ((moduleId: string, file: File) => Promise<void>) | null
   setSampleLoader: (load: RackState['loadSampleInto']) => void
+  /**
+   * Audition the decoded sample without requiring a trigger cable or a running transport.
+   *
+   * Installed by `RackApp` beside the loader because it owns the retained PCM and the AudioContext. Calling
+   * it again for the playing sampler stops the preview, so every faceplate shares one honest transport.
+   */
+  previewSample: ((moduleId: string) => Promise<void>) | null
+  setSamplePreviewer: (preview: RackState['previewSample']) => void
+  previewingSample: string | null
+  setPreviewingSample: (moduleId: string | null) => void
   /** Session state, not part of the patch. */
   running: boolean
   setRunning: (running: boolean) => void
@@ -570,6 +580,10 @@ export const useRack = create<RackState>((set, get) => {
     },
     loadSampleInto: null,
     setSampleLoader: (loadSampleInto) => set({ loadSampleInto }),
+    previewSample: null,
+    setSamplePreviewer: (previewSample) => set({ previewSample }),
+    previewingSample: null,
+    setPreviewingSample: (previewingSample) => set({ previewingSample }),
 
     setMidi: (midiNote, inputs) =>
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),

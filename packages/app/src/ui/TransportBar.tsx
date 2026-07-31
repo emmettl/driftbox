@@ -5,6 +5,7 @@ import { PatternBar } from './PatternBar'
 import { PatternTools } from './PatternTools'
 import { buildLabel, buildTitle } from '../version'
 import { rackLink } from '../persistence'
+import { StemTray } from './StemTray'
 
 /** Confirmation that lives for a moment and then goes away. Sharing and saving both
  *  succeed silently otherwise, and a button that appears to do nothing gets pressed
@@ -47,7 +48,6 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const resetSong = useBox((s) => s.resetSong)
   const setPatternLength = useBox((s) => s.setPatternLength)
   const loadPreset = useBox((s) => s.loadPreset)
-  const exportStems = useBox((s) => s.exportStems)
   const rendering = useBox((s) => s.rendering)
   const metronome = useBox((s) => s.metronome)
   const countIn = useBox((s) => s.countIn)
@@ -55,6 +55,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const toggleCountIn = useBox((s) => s.toggleCountIn)
   const [flash, showFlash] = useFlash()
   const [more, setMore] = useState(false)
+  const [stems, setStems] = useState(false)
 
   const pattern = song.patterns.find((p) => p.id === editing)
   const automationLanes = song.automation?.length ?? 0
@@ -273,11 +274,8 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
         <button
           className="ghost"
           disabled={rendering !== null}
-          onClick={async () => {
-            const written = await exportStems()
-            showFlash(written ? `saved ${written} stems` : 'nothing to render')
-          }}
-          title="Render one WAV per voice — pre-master, for a DAW"
+          onClick={() => setStems(true)}
+          title="Preview or export one pre-master WAV per voice"
         >
           {rendering ? `rendering ${rendering}…` : 'stems'}
         </button>
@@ -304,6 +302,15 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
         </span>
       </div>
       </div>
+      {stems && (
+        <StemTray
+          onClose={() => setStems(false)}
+          onExported={(written) => {
+            setStems(false)
+            showFlash(written ? `saved ${written} stems` : 'nothing to render')
+          }}
+        />
+      )}
     </header>
   )
 }

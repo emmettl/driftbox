@@ -319,6 +319,21 @@ describe('making somewhere to put a break', () => {
   })
 })
 
+describe('previewing a loaded sample', () => {
+  it('bridges the host preview function and its playing state into the faceplate store', () => {
+    const preview = async () => {}
+
+    useRack.getState().setSamplePreviewer(preview)
+    useRack.getState().setPreviewingSample('sampler-1')
+
+    expect(useRack.getState().previewSample).toBe(preview)
+    expect(useRack.getState().previewingSample).toBe('sampler-1')
+
+    useRack.getState().setPreviewingSample(null)
+    useRack.getState().setSamplePreviewer(null)
+  })
+})
+
 describe('Combinator routing', () => {
   /** A Combinator, a filter to drive, and one routing across the filter's cutoff. */
   const wired = (): Patch => ({

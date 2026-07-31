@@ -2073,6 +2073,32 @@ kbd {
   cursor: pointer;
 }
 
+.rk-sampler-preview {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0;
+  color: var(--nine);
+  border: 1px solid rgba(95, 240, 208, 0.35);
+  border-radius: 50%;
+  background: rgba(95, 240, 208, 0.06);
+  font: 9px/1 var(--mono);
+  cursor: pointer;
+}
+
+.rk-sampler-preview:hover:not(:disabled),
+.rk-sampler-preview-on {
+  color: #071511;
+  border-color: var(--nine);
+  background: var(--nine);
+  box-shadow: 0 0 10px rgba(95, 240, 208, 0.45);
+}
+
+.rk-sampler-preview:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .rk-sampler-load:hover:not(:disabled) {
   color: var(--nine);
   border-color: rgba(95, 240, 208, 0.5);
