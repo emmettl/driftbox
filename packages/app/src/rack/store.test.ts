@@ -1,4 +1,15 @@
-import { MODULES, compile, decodePatch, encodePatch, patchPresetById, type Patch } from '@driftbox/rack'
+import { SONGS, cycleStep } from '@driftbox/engine'
+import {
+  MODULES,
+  compile,
+  decodePatch,
+  embedGrooveboxSong,
+  encodePatch,
+  grooveboxSong,
+  patchCompatibility,
+  patchPresetById,
+  type Patch,
+} from '@driftbox/rack'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { matchingPreset, STARTER, useRack } from './store.js'
 
@@ -606,5 +617,46 @@ describe('writing a pattern', () => {
     useRack.getState().setData('tracker-1', 'repeats', [4, 4])
     expect(useRack.getState().lane('tracker-1', 0)).toEqual([3, 3])
     expect(useRack.getState().data('tracker-1', 'repeats')).toEqual([4, 4])
+  })
+})
+
+describe('editing a retained Groovebox pattern', () => {
+  beforeEach(() => {
+    useRack.setState({ patch: embedGrooveboxSong(SONGS[0].build()), revision: 0 })
+  })
+
+  it('updates the encoded song without rebuilding the rack graph', () => {
+    const before = useRack.getState().revision
+    const song = grooveboxSong(useRack.getState().patch)!
+    const pattern = cycleStep(song.patterns[0], '808.bd', 3)
+
+    useRack.getState().setGrooveboxPattern(pattern)
+
+    expect(useRack.getState().revision).toBe(before)
+    expect(grooveboxSong(useRack.getState().patch)?.patterns[0].tracks['808.bd']?.[3]).toBe(1)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+  })
+
+  it('leaves every other pattern and rack field intact', () => {
+    const before = useRack.getState().patch
+    const song = grooveboxSong(before)!
+    const pattern = cycleStep(song.patterns[0], '909.sd', 7)
+
+    useRack.getState().setGrooveboxPattern(pattern)
+
+    const after = useRack.getState().patch
+    expect(after.modules).toEqual(before.modules)
+    expect(after.cables).toEqual(before.cables)
+    expect(grooveboxSong(after)?.patterns.slice(1)).toEqual(song.patterns.slice(1))
+  })
+
+  it('ignores an unknown pattern and a patch with no retained song', () => {
+    const before = useRack.getState().patch
+    const pattern = { ...grooveboxSong(before)!.patterns[0], id: 'not-in-this-song' }
+    useRack.getState().setGrooveboxPattern(pattern)
+    expect(useRack.getState().patch).toBe(before)
+
+    useRack.setState({ patch: { modules: [], cables: [] } })
+    expect(() => useRack.getState().setGrooveboxPattern(pattern)).not.toThrow()
   })
 })

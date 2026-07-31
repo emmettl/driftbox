@@ -1018,13 +1018,12 @@ kbd {
   grid-template-columns: repeat(3, 58px);
 }
 
-/* Four authored machines, visually kept as four channel strips rather than twelve anonymous knobs.
- * Their height stays inside the five rows the Groovebox device's eight outlets already require. */
+/* Four authored machines, visually kept as four channel strips rather than twelve anonymous knobs. */
 .rk-groovebox-strips {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  flex: 1;
-  min-height: 0;
+  height: 226px;
+  flex: 0 0 auto;
 }
 
 .rk-groovebox-strip {
@@ -1079,6 +1078,134 @@ kbd {
   .rk-groovebox-meter i {
     transition: none;
   }
+}
+
+.rk-groovebox-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--edge);
+}
+
+.rk-groovebox-editor-bar {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rk-groovebox-editor-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--dim);
+  font: 8px var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rk-groovebox-editor-bar select {
+  max-width: 130px;
+  height: 24px;
+  color: var(--ink);
+  background: rgba(7, 4, 15, 0.75);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  font: 9px var(--mono);
+}
+
+.rk-groovebox-page {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-page button,
+.rk-groovebox-bass button {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  color: var(--ink);
+  background: rgba(7, 4, 15, 0.7);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  font: 9px var(--mono);
+}
+
+.rk-groovebox-steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 3px;
+}
+
+.rk-groovebox-steps button {
+  height: 29px;
+  min-width: 0;
+  padding: 0;
+  color: rgba(232, 228, 255, 0.48);
+  background: rgba(7, 4, 15, 0.72);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-steps button:nth-child(4n + 1) {
+  border-left-color: rgba(95, 240, 208, 0.48);
+}
+
+.rk-groovebox-steps button[data-state='hit'] {
+  color: #07120f;
+  background: var(--nine);
+  border-color: #cffff2;
+  box-shadow: 0 0 6px rgba(95, 240, 208, 0.38);
+}
+
+.rk-groovebox-steps button[data-state='accent'] {
+  color: #1b0715;
+  background: var(--eight);
+  border-color: #ffe0f6;
+  box-shadow: 0 0 6px rgba(255, 122, 217, 0.42);
+}
+
+.rk-groovebox-steps button[aria-pressed='true'] {
+  outline: 2px solid var(--three);
+  outline-offset: 1px;
+}
+
+.rk-groovebox-bass {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  color: var(--dim);
+  font: 9px var(--mono);
+}
+
+.rk-groovebox-bass strong {
+  min-width: 45px;
+  color: var(--three);
+}
+
+.rk-groovebox-bass button[aria-pressed='true'] {
+  color: #07120f;
+  background: var(--nine);
+  border-color: #cffff2;
+}
+
+.rk-groovebox-note {
+  min-width: 22px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.rk-groovebox-editor-empty {
+  margin: 8px 0;
+  color: var(--dim);
+  font: 9px var(--mono);
 }
 
 /* Emphasis without a transform. `scale()` moved the label out of its own grid cell and into the next

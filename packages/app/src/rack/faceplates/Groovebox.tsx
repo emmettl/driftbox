@@ -1,7 +1,20 @@
-import { GROOVEBOX_SECTIONS } from '@driftbox/engine'
+import {
+  ALL_VOICES,
+  GROOVEBOX_SECTIONS,
+  REST,
+  bassStepAt,
+  cycleStep,
+  decodeSong,
+  setBassStep,
+  stepAt,
+  type GrooveboxSection,
+  type Pattern,
+} from '@driftbox/engine'
 import { GROOVEBOX_PORTS } from '@driftbox/rack'
+import { useState } from 'react'
 import { ParamControl } from '../ParamControl.js'
 import { useMeter } from '../meter.js'
+import { useRack } from '../store.js'
 import { meterLabel, meterPosition } from './meter-display.js'
 import type { FaceplateProps } from './types.js'
 
@@ -35,6 +48,255 @@ function SectionMeter({ id, name }: { id: string; name: string }) {
       <i style={{ width: `${position * 100}%` }} />
     </div>
   )
+}
+
+const PAGE = 16
+
+const stepState = (value: number): string =>
+  value === 2 ? 'accent' : value === 1 ? 'hit' : 'rest'
+
+export function GrooveboxPatternEditor({
+  encoded,
+  setPattern,
+}: {
+  encoded?: string
+  setPattern: (pattern: Pattern) => void
+}) {
+  const song = encoded ? decodeSong(encoded) : null
+  const [wantedPattern, setWantedPattern] = useState('')
+  const [section, setSection] = useState<GrooveboxSection>('tr808')
+  const [wantedVoice, setWantedVoice] = useState('')
+  const [page, setPage] = useState(0)
+  const [selectedStep, setSelectedStep] = useState(0)
+
+  if (!song || song.patterns.length === 0) {
+    return <p className="rk-groovebox-editor-empty">Retained song unavailable.</p>
+  }
+
+  const pattern =
+    song.patterns.find((candidate) => candidate.id === wantedPattern) ?? song.patterns[0]
+  const pages = Math.max(1, Math.ceil(pattern.length / PAGE))
+  const shownPage = Math.min(page, pages - 1)
+  const firstStep = shownPage * PAGE
+  const steps = Array.from(
+    { length: Math.min(PAGE, pattern.length - firstStep) },
+    (_, index) => firstStep + index,
+  )
+  const voices = ALL_VOICES.filter((voice) => voice.machine === section)
+  const voice =
+    voices.find((candidate) => candidate.id === wantedVoice) ?? voices[0]
+  const bass = section === '303.a' || section === '303.b'
+  const selected = Math.min(pattern.length - 1, Math.max(0, selectedStep))
+  const bassStep = bass ? bassStepAt(pattern, section, selected) : REST
+
+  const save = (next: Pattern) => setPattern(next)
+
+  return (
+    <section className="rk-groovebox-editor" aria-label="Groovebox pattern editor">
+      <div className="rk-groovebox-editor-bar">
+        <label>
+          Pattern
+          <select
+            aria-label="Pattern to edit"
+            value={pattern.id}
+            onChange={(event) => {
+              setWantedPattern(event.target.value)
+              setPage(0)
+              setSelectedStep(0)
+            }}
+          >
+            {song.patterns.map((candidate) => (
+              <option value={candidate.id} key={candidate.id}>
+                {candidate.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Machine
+          <select
+            aria-label="Machine to edit"
+            value={section}
+            onChange={(event) => {
+              setSection(event.target.value as GrooveboxSection)
+              setWantedVoice('')
+            }}
+          >
+            {GROOVEBOX_SECTIONS.map((candidate) => (
+              <option value={candidate} key={candidate}>
+                {sectionName(candidate)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!bass && voice && (
+          <label>
+            Voice
+            <select
+              aria-label="Drum voice to edit"
+              value={voice.id}
+              onChange={(event) => setWantedVoice(event.target.value)}
+            >
+              {voices.map((candidate) => (
+                <option value={candidate.id} key={candidate.id}>
+                  {candidate.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <span className="rk-groovebox-page">
+          <button
+            type="button"
+            disabled={shownPage === 0}
+            onClick={() => setPage(Math.max(0, shownPage - 1))}
+            aria-label="Previous 16 steps"
+          >
+            ←
+          </button>
+          {firstStep + 1}–{firstStep + steps.length}
+          <button
+            type="button"
+            disabled={shownPage >= pages - 1}
+            onClick={() => setPage(Math.min(pages - 1, shownPage + 1))}
+            aria-label="Next 16 steps"
+          >
+            →
+          </button>
+        </span>
+      </div>
+
+      <div className="rk-groovebox-steps">
+        {steps.map((step) => {
+          if (bass) {
+            const value = bassStepAt(pattern, section, step)
+            const label =
+              value.note === null
+                ? 'rest'
+                : `note ${value.note}${value.accent ? ', accent' : ''}${value.slide ? ', slide' : ''}`
+            return (
+              <button
+                type="button"
+                key={step}
+                data-state={value.note === null ? 'rest' : value.accent ? 'accent' : 'hit'}
+                aria-pressed={selected === step}
+                aria-label={`${sectionName(section)} step ${step + 1}: ${label}`}
+                onClick={() => setSelectedStep(step)}
+              >
+                {step + 1}
+              </button>
+            )
+          }
+
+          const value = voice ? stepAt(pattern, voice.id, step) : 0
+          return (
+            <button
+              type="button"
+              key={step}
+              data-state={stepState(value)}
+              aria-label={`${voice?.name ?? 'Drum'} step ${step + 1}: ${stepState(value)}`}
+              onClick={() => {
+                if (voice) save(cycleStep(pattern, voice.id, step))
+              }}
+            >
+              {step + 1}
+            </button>
+          )
+        })}
+      </div>
+
+      {bass && (
+        <div className="rk-groovebox-bass" aria-label={`${sectionName(section)} selected step`}>
+          <strong>Step {selected + 1}</strong>
+          <button
+            type="button"
+            aria-pressed={bassStep.note !== null}
+            onClick={() =>
+              save(
+                setBassStep(
+                  pattern,
+                  section,
+                  selected,
+                  bassStep.note === null ? { note: 0, accent: false, slide: false } : { ...REST },
+                ),
+              )
+            }
+          >
+            {bassStep.note === null ? 'Add note' : 'Rest'}
+          </button>
+          <button
+            type="button"
+            disabled={bassStep.note === null || bassStep.note <= 0}
+            aria-label="Lower selected note"
+            onClick={() =>
+              save(
+                setBassStep(pattern, section, selected, {
+                  ...bassStep,
+                  note: Math.max(0, (bassStep.note ?? 0) - 1),
+                }),
+              )
+            }
+          >
+            −
+          </button>
+          <span className="rk-groovebox-note">
+            {bassStep.note === null ? '—' : bassStep.note}
+          </span>
+          <button
+            type="button"
+            disabled={bassStep.note === null || bassStep.note >= 24}
+            aria-label="Raise selected note"
+            onClick={() =>
+              save(
+                setBassStep(pattern, section, selected, {
+                  ...bassStep,
+                  note: Math.min(24, (bassStep.note ?? 0) + 1),
+                }),
+              )
+            }
+          >
+            +
+          </button>
+          <button
+            type="button"
+            disabled={bassStep.note === null}
+            aria-pressed={bassStep.accent}
+            onClick={() =>
+              save(
+                setBassStep(pattern, section, selected, {
+                  ...bassStep,
+                  accent: !bassStep.accent,
+                }),
+              )
+            }
+          >
+            Accent
+          </button>
+          <button
+            type="button"
+            disabled={bassStep.note === null}
+            aria-pressed={bassStep.slide}
+            onClick={() =>
+              save(
+                setBassStep(pattern, section, selected, {
+                  ...bassStep,
+                  slide: !bassStep.slide,
+                }),
+              )
+            }
+          >
+            Slide
+          </button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function PatternEditor() {
+  const encoded = useRack((state) => state.patch.groovebox)
+  const setPattern = useRack((state) => state.setGrooveboxPattern)
+  return <GrooveboxPatternEditor encoded={encoded} setPattern={setPattern} />
 }
 
 /**
@@ -89,6 +351,7 @@ export function Groovebox({ def, module, value, onChange, routed }: FaceplatePro
           )
         })}
       </div>
+      <PatternEditor />
     </>
   )
 }
