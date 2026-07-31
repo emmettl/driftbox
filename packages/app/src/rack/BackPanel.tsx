@@ -1,6 +1,13 @@
 import { MODULES, type PatchCable } from '@driftbox/rack'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { cableMiddle, cablePath, swingAngle, swingSeed, type Point } from './cable.js'
+import {
+  cableMiddle,
+  cablePath,
+  cablePoint,
+  swingAngle,
+  swingSeed,
+  type Point,
+} from './cable.js'
 import { sizeFor } from './faceplates/index.js'
 import {
   SNAP,
@@ -172,6 +179,85 @@ export function CableUnplugs({ all, cables, disconnect }: CableUnplugsProps) {
   })
 }
 
+interface SmokeParticle extends Point {
+  delay: number
+  drift: number
+  rise: number
+  radius: number
+}
+
+interface CableEvaporation {
+  id: number
+  key: string
+  d: string
+  smoke: SmokeParticle[]
+}
+
+interface CableEvaporationsProps {
+  items: CableEvaporation[]
+  finished: (id: number) => void
+}
+
+/**
+ * The visual afterlife of a cable that has already left the patch.
+ *
+ * This layer owns no document state: each item is a snapshot of the old curve, retained just long
+ * enough for CSS to fray it and lift smoke from it. The group animation is the clock; its end removes
+ * the snapshot from React state.
+ */
+export function CableEvaporations({ items, finished }: CableEvaporationsProps) {
+  return items.map((item) => (
+    <g
+      key={item.id}
+      className="rk-cable-evaporation"
+      aria-hidden="true"
+      onAnimationEnd={(event) => {
+        if (event.target === event.currentTarget) finished(item.id)
+      }}
+    >
+      <path className="rk-cable-evaporation-glow" d={item.d} />
+      <path className="rk-cable-evaporation-line" d={item.d} />
+      {item.smoke.map((particle, index) => (
+        <circle
+          key={index}
+          className="rk-cable-smoke"
+          cx={particle.x}
+          cy={particle.y}
+          r={particle.radius}
+          style={
+            {
+              '--rk-smoke-delay': `${particle.delay}ms`,
+              '--rk-smoke-drift': `${particle.drift}px`,
+              '--rk-smoke-rise': `${particle.rise}px`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </g>
+  ))
+}
+
+function evaporation(cable: PatchCable, all: Jack[], id: number): CableEvaporation | null {
+  const from = jackAt(all, cable.from[0], cable.from[1])
+  const to = jackAt(all, cable.to[0], cable.to[1])
+  if (!from || !to) return null
+
+  const key = `${cable.from.join('.')}>${cable.to.join('.')}`
+  const smoke = Array.from({ length: 9 }, (_, index): SmokeParticle => {
+    const point = cablePoint(from, to, 0.08 + index * 0.105)
+    const seed = swingSeed(`${key}:smoke:${index}`)
+    return {
+      ...point,
+      delay: index * 16 + seed * 35,
+      drift: (seed - 0.5) * 26,
+      rise: -20 - seed * 28,
+      radius: 1.7 + seed * 1.8,
+    }
+  })
+
+  return { id, key, d: cablePath(from, to), smoke }
+}
+
 /** A cable being dragged, before it lands anywhere. */
 interface CableDragging {
   from: Jack
@@ -195,6 +281,20 @@ export function BackPanel({ layout }: Props) {
   const swing = useSwing(flipped)
 
   const all = useMemo(() => jacks(layout.placements, MODULES), [layout])
+  const nextEvaporation = useRef(0)
+  const [evaporations, setEvaporations] = useState<CableEvaporation[]>([])
+  const unplug = useCallback(
+    (cable: PatchCable) => {
+      const item = evaporation(cable, all, ++nextEvaporation.current)
+      if (item) {
+        // A repeated keyboard event should restart one disappearance, not manufacture a smoke stack.
+        setEvaporations((current) => [...current.filter((entry) => entry.key !== item.key), item])
+      }
+      // Audio and history change now. The animation above is only the old geometry saying goodbye.
+      disconnect(cable)
+    },
+    [all, disconnect],
+  )
   const [cableDrag, setCableDrag] = useState<CableDragging | null>(null)
   const [moduleDrag, setModuleDrag] = useState<ModuleDragging | null>(null)
   /** Latest pointer position outside React's continuous-event batching, so every jiggle kick is a delta. */
@@ -279,7 +379,7 @@ export function BackPanel({ layout }: Props) {
         )
         if (attached) {
           event.preventDefault()
-          disconnect(attached)
+          unplug(attached)
         }
         return
       }
@@ -295,7 +395,7 @@ export function BackPanel({ layout }: Props) {
       }
       if (join(armed, jack)) setArmed(null)
     },
-    [armed, join, patch.cables, disconnect],
+    [armed, join, patch.cables, unplug],
   )
 
   /**
@@ -476,7 +576,14 @@ export function BackPanel({ layout }: Props) {
           folded={folded}
           swing={swing}
           jiggle={moduleDrag ? { module: moduleDrag.id, angle: jiggle.angle } : undefined}
-          disconnect={disconnect}
+          disconnect={unplug}
+        />
+
+        <CableEvaporations
+          items={evaporations}
+          finished={(id) =>
+            setEvaporations((current) => current.filter((item) => item.id !== id))
+          }
         />
 
         {visibleArmed && (
@@ -545,7 +652,7 @@ export function BackPanel({ layout }: Props) {
           </g>
         ))}
 
-        <CableUnplugs all={visibleJacks} cables={patch.cables} disconnect={disconnect} />
+        <CableUnplugs all={visibleJacks} cables={patch.cables} disconnect={unplug} />
       </svg>
     </div>
   )
