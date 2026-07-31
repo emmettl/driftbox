@@ -52,8 +52,9 @@ through the existing groovebox engine on the rack's shared performance output, e
 their 808, 909 and two 303s as metered patchable stereo sources with level, pan and mute
 strips, edit retained drum and 303 patterns, assign machine clips per arrangement section
 without restarting playback, launch each machine's selected clip on the next bar without
-mutating the arrangement, and return to the sequencer without losing that document. Next,
-add instrument controls over the retained song; do not
+mutating the arrangement, edit the full retained control set for every drum voice and 303,
+and return to the sequencer without losing that document. Next, expose the hosted transport
+and remaining fast pattern tools; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

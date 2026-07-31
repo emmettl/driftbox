@@ -153,6 +153,8 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
       encoded: encodeSong(song),
       setPattern: () => {},
       setClip: () => {},
+      setVoiceParam: () => {},
+      setBassParam: () => {},
     }),
   )
 
@@ -164,6 +166,38 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="808 live clip"')
   expect(markup).toContain('Launch ')
   expect(markup).toContain('Follow song')
+  expect(markup).toContain('aria-label="Bass Drum instrument controls"')
+  for (const control of ['Level', 'Tune', 'Decay', 'Tone', 'Colour', 'Pan']) {
+    expect(markup).toContain(`aria-label="${control}"`)
+  }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(8)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(9)
+})
+
+it('shows every retained 303 instrument control', () => {
+  const song = SONGS[0].build()
+  const markup = renderToStaticMarkup(
+    createElement(GrooveboxPatternEditor, {
+      encoded: encodeSong(song),
+      setPattern: () => {},
+      setClip: () => {},
+      setVoiceParam: () => {},
+      setBassParam: () => {},
+      initialSection: '303.a',
+    }),
+  )
+
+  expect(markup).toContain('aria-label="303 A instrument controls"')
+  for (const control of [
+    'Tune',
+    'Wave',
+    'Cutoff',
+    'Reso',
+    'Env Mod',
+    'Decay',
+    'Accent',
+    'Level',
+  ]) {
+    expect(markup).toContain(`aria-label="${control}"`)
+  }
 })

@@ -1,5 +1,7 @@
 import {
   ALL_VOICES,
+  DEFAULT_BASS_PARAMS,
+  DEFAULT_PARAMS,
   GROOVEBOX_SECTIONS,
   REST,
   bassStepAt,
@@ -7,12 +9,15 @@ import {
   decodeSong,
   setBassStep,
   stepAt,
+  type BassParams,
   type GrooveboxSection,
   type Pattern,
+  type VoiceParams,
 } from '@driftbox/engine'
 import { GROOVEBOX_PORTS } from '@driftbox/rack'
 import { useState } from 'react'
 import { ParamControl } from '../ParamControl.js'
+import { Knob } from '../../ui/Knob.js'
 import { useMeter } from '../meter.js'
 import { useRack } from '../store.js'
 import { meterLabel, meterPosition } from './meter-display.js'
@@ -55,16 +60,56 @@ const PAGE = 16
 const stepState = (value: number): string =>
   value === 2 ? 'accent' : value === 1 ? 'hit' : 'rest'
 
+const DRUM_KNOBS: readonly { key: keyof VoiceParams; label: string }[] = [
+  { key: 'level', label: 'Level' },
+  { key: 'tune', label: 'Tune' },
+  { key: 'decay', label: 'Decay' },
+  { key: 'tone', label: 'Tone' },
+  { key: 'colour', label: 'Colour' },
+  { key: 'pan', label: 'Pan' },
+]
+
+const BASS_KNOBS: readonly { key: keyof BassParams; label: string }[] = [
+  { key: 'tune', label: 'Tune' },
+  { key: 'wave', label: 'Wave' },
+  { key: 'cutoff', label: 'Cutoff' },
+  { key: 'resonance', label: 'Reso' },
+  { key: 'envMod', label: 'Env Mod' },
+  { key: 'decay', label: 'Decay' },
+  { key: 'accent', label: 'Accent' },
+  { key: 'level', label: 'Level' },
+]
+
+const percent = (value: number): string => `${Math.round(value * 100)}`
+const pan = (value: number): string => {
+  const amount = Math.round((value - 0.5) * 200)
+  return amount === 0 ? 'C' : amount < 0 ? `L${-amount}` : `R${amount}`
+}
+const wave = (value: number): string => (value < 0.5 ? 'saw' : 'sqr')
+
 export function GrooveboxPatternEditor({
   encoded,
   setPattern,
   setClip,
+  setVoiceParam,
+  setBassParam,
   launch,
   launches,
+  initialSection = 'tr808',
 }: {
   encoded?: string
   setPattern: (pattern: Pattern) => void
   setClip: (section: number, machine: GrooveboxSection, patternId: string) => void
+  setVoiceParam: (
+    voiceId: string,
+    key: keyof VoiceParams,
+    value: number,
+  ) => void
+  setBassParam: (
+    voiceId: '303.a' | '303.b',
+    key: keyof BassParams,
+    value: number,
+  ) => void
   launch?: (
     machine: GrooveboxSection,
     patternId: string | null,
@@ -75,10 +120,12 @@ export function GrooveboxPatternEditor({
       { patternId: string | null; phase: 'queued' | 'active' }
     >
   >
+  /** Initial machine for static hosts and focused tests; the live faceplate starts on 808. */
+  initialSection?: GrooveboxSection
 }) {
   const song = encoded ? decodeSong(encoded) : null
   const [wantedPattern, setWantedPattern] = useState('')
-  const [section, setSection] = useState<GrooveboxSection>('tr808')
+  const [section, setSection] = useState<GrooveboxSection>(initialSection)
   const [wantedVoice, setWantedVoice] = useState('')
   const [page, setPage] = useState(0)
   const [selectedStep, setSelectedStep] = useState(0)
@@ -116,6 +163,12 @@ export function GrooveboxPatternEditor({
       ? 'song'
       : song.patterns.find((candidate) => candidate.id === live?.patternId)?.name ??
         live?.patternId
+  const drumParams = voice
+    ? song.kit.params[voice.id] ?? DEFAULT_PARAMS
+    : DEFAULT_PARAMS
+  const bassParams = bass
+    ? song.kit.bass?.[section] ?? DEFAULT_BASS_PARAMS
+    : DEFAULT_BASS_PARAMS
 
   const save = (next: Pattern) => setPattern(next)
 
@@ -289,6 +342,36 @@ export function GrooveboxPatternEditor({
         </span>
       </div>
 
+      <div
+        className="rk-groovebox-instrument"
+        aria-label={`${bass ? sectionName(section) : voice?.name ?? sectionName(section)} instrument controls`}
+      >
+        {bass
+          ? BASS_KNOBS.map(({ key, label }) => (
+              <Knob
+                key={key}
+                label={label}
+                value={bassParams[key]}
+                colour="#ffb02e"
+                format={key === 'wave' ? wave : percent}
+                onChange={(value) =>
+                  setBassParam(section as '303.a' | '303.b', key, value)
+                }
+              />
+            ))
+          : voice &&
+            DRUM_KNOBS.map(({ key, label }) => (
+              <Knob
+                key={key}
+                label={label}
+                value={drumParams[key]}
+                colour={section === 'tr909' ? '#5ff0d0' : '#ff7ad9'}
+                format={key === 'pan' ? pan : percent}
+                onChange={(value) => setVoiceParam(voice.id, key, value)}
+              />
+            ))}
+      </div>
+
       {bass && (
         <div className="rk-groovebox-bass" aria-label={`${sectionName(section)} selected step`}>
           <strong>Step {selected + 1}</strong>
@@ -381,6 +464,8 @@ function PatternEditor() {
   const encoded = useRack((state) => state.patch.groovebox)
   const setPattern = useRack((state) => state.setGrooveboxPattern)
   const setClip = useRack((state) => state.setGrooveboxClip)
+  const setVoiceParam = useRack((state) => state.setGrooveboxVoiceParam)
+  const setBassParam = useRack((state) => state.setGrooveboxBassParam)
   const launch = useRack((state) => state.grooveboxLauncher)
   const launches = useRack((state) => state.grooveboxLaunches)
   return (
@@ -388,6 +473,8 @@ function PatternEditor() {
       encoded={encoded}
       setPattern={setPattern}
       setClip={setClip}
+      setVoiceParam={setVoiceParam}
+      setBassParam={setBassParam}
       launch={launch ?? undefined}
       launches={launches}
     />

@@ -663,6 +663,37 @@ describe('editing a retained Groovebox pattern', () => {
     expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
   })
 
+  it('edits authored drum and bass controls without rebuilding or extending the rack', () => {
+    const before = useRack.getState().revision
+    const song = grooveboxSong(useRack.getState().patch)!
+    const sends = song.kit.sends
+
+    useRack.getState().setGrooveboxVoiceParam('808.bd', 'decay', 0.23)
+    useRack.getState().setGrooveboxBassParam('303.a', 'cutoff', 0.81)
+
+    const next = grooveboxSong(useRack.getState().patch)!
+    expect(next.kit.params['808.bd'].decay).toBe(0.23)
+    expect(next.kit.bass?.['303.a'].cutoff).toBe(0.81)
+    expect(next.kit.sends).toEqual(sends)
+    expect(useRack.getState().revision).toBe(before)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+  })
+
+  it('clamps instrument controls and ignores them without a retained song', () => {
+    useRack.getState().setGrooveboxVoiceParam('909.sd', 'tone', 2)
+    useRack.getState().setGrooveboxBassParam('303.b', 'resonance', -1)
+    expect(grooveboxSong(useRack.getState().patch)?.kit.params['909.sd'].tone).toBe(1)
+    expect(grooveboxSong(useRack.getState().patch)?.kit.bass?.['303.b'].resonance).toBe(0)
+
+    useRack.setState({ patch: { modules: [], cables: [] } })
+    expect(() =>
+      useRack.getState().setGrooveboxVoiceParam('808.bd', 'level', 0.5),
+    ).not.toThrow()
+    expect(() =>
+      useRack.getState().setGrooveboxBassParam('303.a', 'level', 0.5),
+    ).not.toThrow()
+  })
+
   it('leaves every other pattern and rack field intact', () => {
     const before = useRack.getState().patch
     const song = grooveboxSong(before)!
@@ -860,6 +891,23 @@ describe('undo', () => {
     expect(grooveboxSong(state().patch)?.patterns[0]).toEqual(song.patterns[0])
     expect(state().revision).toBe(revision)
     expect(patchCompatibility(state().patch)).toBe('groovebox-compatible')
+  })
+
+  it('undoes retained instrument controls without rebuilding', () => {
+    useRack.setState({ patch: embedGrooveboxSong(SONGS[0].build()), history: NO_HISTORY })
+    const song = grooveboxSong(state().patch)!
+    const drum = song.kit.params['808.bd'].tone
+    const bass = song.kit.bass?.['303.a'].resonance
+    const revision = state().revision
+
+    state().setGrooveboxVoiceParam('808.bd', 'tone', 0.12)
+    state().setGrooveboxBassParam('303.a', 'resonance', 0.34)
+    state().undo()
+    state().undo()
+
+    expect(grooveboxSong(state().patch)?.kit.params['808.bd'].tone).toBe(drum)
+    expect(grooveboxSong(state().patch)?.kit.bass?.['303.a'].resonance).toBe(bass)
+    expect(state().revision).toBe(revision)
   })
 
   it('undoes a retained machine clip assignment without rebuilding', () => {

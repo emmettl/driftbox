@@ -51,9 +51,9 @@ const FACEPLATES: Record<string, Entry> = {
   // just as well: a row of four rotaries, a row of four buttons and a way through to the routing list is
   // about that tall, and a Combinator is a big device in Reason too.
   combi: { component: Combinator, rows: 5 },
-  // The four source strips stay above a 16-step retained-song editor. Seven rows keep
-  // both the mixer and the pattern legible without a modal hiding the rack around it.
-  groovebox: { component: Groovebox, rows: 8 },
+  // The four source strips stay above the retained pattern and instrument editors. Nine
+  // rows keep every authored control on the device without a modal hiding the rack.
+  groovebox: { component: Groovebox, rows: 9 },
   // These hand-built panels still fit the same three-control half-width grid as a small generic panel.
   // Declared here because custom panels opt out of the automatic generic sizing below.
   vco: { component: Vco, span: 1, rows: 2 },
