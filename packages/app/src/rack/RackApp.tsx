@@ -1436,18 +1436,23 @@ export default function RackApp() {
         )}
 
         <div className="rk-stage" hidden={rackView === 'pad'}>
+          {/* Keep the view-transition capture outside the element that turns in 3D. Chromium flattens a
+              named transition participant; naming rk-rack itself left its rear face unpaintable after a
+              Pad → Rack hand-off even though its transform and opacity were correct. */}
           <div
-            className={flipped ? 'rk-rack rk-rack-flipped' : 'rk-rack'}
+            className="rk-rack-snapshot"
             style={{
               width: geometry.width,
               height: geometry.height,
             }}
           >
-            <div className="rk-side rk-side-front">
-              <Chassis layout={geometry} />
-            </div>
-            <div className="rk-side rk-side-back">
-              <BackPanel layout={geometry} />
+            <div className={flipped ? 'rk-rack rk-rack-flipped' : 'rk-rack'}>
+              <div className="rk-side rk-side-front">
+                <Chassis layout={geometry} />
+              </div>
+              <div className="rk-side rk-side-back">
+                <BackPanel layout={geometry} />
+              </div>
             </div>
           </div>
         </div>
