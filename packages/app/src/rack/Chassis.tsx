@@ -163,6 +163,8 @@ export function Chassis({ layout }: Props) {
             ]
               .filter(Boolean)
               .join(' ')}
+            data-module-id={placement.id}
+            data-module-type={placement.type}
             data-span={placement.span}
             data-drag-ghost={isGhost ? 'true' : undefined}
             style={position}

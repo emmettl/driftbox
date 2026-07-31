@@ -670,6 +670,7 @@ kbd {
 }
 
 .rk-rack {
+  --rk-rear-cable-opacity: 1;
   position: relative;
   transform-style: preserve-3d;
   transition: transform var(--spin) cubic-bezier(0.6, 0.05, 0.3, 1);
@@ -677,25 +678,28 @@ kbd {
 
 .rk-rack-flipped {
   transform: rotateY(180deg);
+  animation: rk-reveal-rear-cables var(--spin) linear;
 }
 
-/* The rear SVG is updated while the rack spins so its cables can swing. Those repaints can promote the
-   cable groups out of their hidden back face for a frame, making every lead flash over the front as soon
-   as a front-to-back turn starts. Make the intended hand-off explicit: that direction reveals the real
-   cables only once the rear face has crossed the edge. Removing the flipped class removes this animation,
-   so back-to-front keeps its existing, correct first-half view of the cables. */
+/* The rear SVG is updated while the rack spins so its cables can swing. Running the reveal animation on
+   those repainting SVG groups let their clock start late, most visibly in a busy Combinator rack. The rack
+   itself is stable through those updates, so it owns one inherited opacity clock for every lead.
+
+   The easing reaches 90deg at 45.6% of the elapsed time, not 50%; 45.8% puts the reveal just beyond that
+   edge without leaving a late empty panel. Removing the flipped class removes the clock, so back-to-front
+   keeps its existing, correct first-half view of the cables. */
 .rk-rack-flipped .rk-cable {
-  animation: rk-reveal-rear-cables var(--spin) linear;
+  opacity: var(--rk-rear-cable-opacity);
 }
 
 @keyframes rk-reveal-rear-cables {
   0%,
-  54.99% {
-    opacity: 0;
+  45.79% {
+    --rk-rear-cable-opacity: 0;
   }
-  55%,
+  45.8%,
   100% {
-    opacity: 1;
+    --rk-rear-cable-opacity: 1;
   }
 }
 
@@ -728,7 +732,7 @@ kbd {
   .rk-rack {
     transition: none;
   }
-  .rk-rack-flipped .rk-cable {
+  .rk-rack-flipped {
     animation: none;
   }
 }
