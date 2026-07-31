@@ -1,4 +1,5 @@
-import { DEFAULT_BASS_PARAMS, bassNote, previousStep, type BassNote } from './bass.js'
+import { bassNote, previousStep, type BassNote } from './bass.js'
+import { bassParamsAt, bpmAt, swingAt, voiceParamsAt } from './automation.js'
 import {
   CLIP_SLOTS,
   barLengthForBar,
@@ -7,11 +8,11 @@ import {
   patternForClip,
   patternForVoice,
   stepAt,
-  swingFor,
   type Song,
 } from './pattern.js'
 import { swingDelay } from './timing.js'
 import type { StepEvent } from './transport.js'
+import type { VoiceParams } from './types.js'
 
 // What one step of the arrangement plays.
 //
@@ -31,6 +32,8 @@ export interface DrumHit {
   time: number
   /** 1 for an accent, 0.55 for a normal hit — the two velocities the grid has. */
   accent: number
+  /** Knobs resolved at this exact song position, shared by live and offline playback. */
+  params: VoiceParams
 }
 
 export interface BassHit {
@@ -40,11 +43,12 @@ export interface BassHit {
 }
 
 export interface StepPlan {
+  time: number
+  stepSeconds: number
+  bpm: number
   drums: DrumHit[]
   bass: BassHit[]
 }
-
-const EMPTY: StepPlan = { drums: [], bass: [] }
 
 /**
  * Everything one step of the song plays, at absolute times.
@@ -54,11 +58,17 @@ const EMPTY: StepPlan = { drums: [], bass: [] }
  * on the grid is a groove you cannot get from one global setting.
  */
 export function planStep(song: Song, event: StepEvent): StepPlan {
+  const bpm = bpmAt(song, event.bar, event.index)
+  const stepSeconds = 60 / bpm / 4
   const pattern = patternForBar(song, event.bar)
-  if (!pattern) return EMPTY
+  if (!pattern) return { time: event.time, stepSeconds, bpm, drums: [], bass: [] }
 
   const swung = (voiceId: string) =>
-    event.time + swingDelay(event.index, swingFor(song, voiceId), event.stepSeconds)
+    event.time + swingDelay(
+      event.index,
+      swingAt(song, voiceId, event.bar, event.index),
+      stepSeconds,
+    )
 
   // The union tells us which voice ids might exist; `patternForVoice` then reads each
   // from its selected machine clip. Sets avoid scheduling a voice twice when several
@@ -79,12 +89,13 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
     if (value === 0) continue
     const time = swung(voiceId)
     const accent = value === 2 ? 1 : 0.55
-    drums.push({ voiceId, time, accent })
+    const params = voiceParamsAt(song, voiceId, event.bar, event.index)
+    drums.push({ voiceId, time, accent, params })
     if (voiceId.startsWith('909.') && flamAt(source, voiceId, event.index)) {
       // ReBirth's flam knob controls the gap between the two strikes. Keep the useful
       // range narrow enough to read as one articulated hit rather than an echo.
       const spacing = 0.012 + (song.kit.flam ?? 0.4) * 0.048
-      drums.push({ voiceId, time: time + spacing, accent })
+      drums.push({ voiceId, time: time + spacing, accent, params })
     }
   }
 
@@ -102,15 +113,15 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
     // Read per step rather than cached, so a tempo change shortens the notes with it
     // instead of leaving them overlapping.
     const note = bassNote(
-      song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS,
+      bassParamsAt(song, voiceId, event.bar, event.index),
       step,
       previousStep(line, event.index, source.length),
-      event.stepSeconds,
+      stepSeconds,
     )
     if (note) bass.push({ voiceId, time: swung(voiceId), note })
   }
 
-  return { drums, bass }
+  return { time: event.time, stepSeconds, bpm, drums, bass }
 }
 
 /**
@@ -126,7 +137,7 @@ export function planSong(song: Song, bars: number, from = 0): StepPlan[] {
   for (let bar = 0; bar < bars; bar++) {
     const length = barLengthForBar(song, bar)
     for (let index = 0; index < length; index++) {
-      const stepSeconds = 60 / song.bpm / 4
+      const stepSeconds = 60 / bpmAt(song, bar, index) / 4
       out.push(planStep(song, { absolute: out.length, index, bar, time, stepSeconds }))
       time += stepSeconds
     }

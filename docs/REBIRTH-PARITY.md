@@ -54,7 +54,7 @@ user could approximate it from oscillators.
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song transport | Section seek and loop | Arranger transport | Add arbitrary loop bounds and share the primitives |
-| Song automation | No | Combinator/MIDI only | Recordable parameter timeline shared by both modes |
+| Song automation | Versioned lanes; tempo, swing, drum and 303 playback | Combinator/MIDI only | Add editor/rack recording controls, then sends and effects |
 | Section mixer | Per voice | Mixer/Out | Four section buses with mute, pan, level, meter and routes |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Keyboard audition only | Yes | Extract the rack MIDI host for both modes |
@@ -75,10 +75,11 @@ work is ordered by dependency:
    303 B, 808 and 909. Each section selects the four sources independently and shorter
    clips wrap under the longest one. Existing composite sections remain the fallback, so
    old songs migrate without changing playback.
-2. **Song transport and automation.** Section seek and whole-section looping are present.
-   Add arbitrary loop start/length, bar-quantised clip recording and parameter automation.
-   Pattern changes are discrete events; knobs, faders and effect controls are sampled
-   automation.
+2. **Song transport and automation.** Section seek, whole-section looping and the shared
+   versioned automation timeline are present. Tempo, swing, drum knobs and 303 knobs
+   resolve identically for live and offline playback. Add editor/rack recording controls,
+   arbitrary loop start/length and bar-quantised clip recording; sends and effects remain
+   sampled automation targets to wire into playback.
 3. **Section buses and effects.** Add the four machine strips and the ReBirth signal
    path: distortion, pattern-controlled filter and compressor as inserts, delay as a
    send. Keep Driftbox's reverb and per-voice controls.

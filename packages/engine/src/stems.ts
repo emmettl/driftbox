@@ -4,7 +4,6 @@ import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects.js'
 import { songBars, type Song } from './pattern.js'
 import { renderVoice } from './render.js'
 import { planSong } from './schedule.js'
-import { DEFAULT_PARAMS } from './types.js'
 import { buildVoice, voiceById } from './kit.js'
 
 // Stems. One audio file per voice, which is what "per-voice outputs" means in practice.
@@ -77,8 +76,8 @@ export function voicesUsed(song: Song): string[] {
 /** How long the song runs, plus room for the tail. */
 export function songSeconds(song: Song, tail = 4): number {
   const plan = planSong(song, songBars(song))
-  const stepSeconds = 60 / song.bpm / 4
-  return (plan.length ? plan.length * stepSeconds : 0) + tail
+  const last = plan[plan.length - 1]
+  return (last ? last.time + last.stepSeconds : 0) + tail
 }
 
 /**
@@ -135,7 +134,7 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
       for (const step of plan) {
         for (const hit of step.drums) {
           if (hit.voiceId !== voiceId) continue
-          const spec = buildVoice(voice, song.kit.params[voiceId] ?? DEFAULT_PARAMS, hit.accent)
+          const spec = buildVoice(voice, hit.params, hit.accent)
           const handle = renderVoice(ctx, spec, bus, hit.time)
           sendTo(handle.output)
         }

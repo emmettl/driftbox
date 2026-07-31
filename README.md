@@ -243,11 +243,15 @@ is also how it would have been programmed on the hardware.
 
 ## A song is a value
 
-A `Song` is plain JSON — patterns, a chain, kit settings and the effect sends. That was a
-deliberate constraint from the start rather than a convenience, and it is what makes three
-separate features nearly free: the session autosaves, a song exports to a file, and a
-whole song compresses into a URL you can paste to somebody. Measured on the shipped song,
-6020 bytes of JSON become 987 characters of hash.
+A `Song` is plain JSON — patterns, a chain, kit settings, effect sends and optional
+automation lanes. Each lane names a stable engine target and carries bar/step points with
+hold or linear interpolation. The live engine and offline planner resolve the same tempo,
+swing, drum and 303 knob values, so a host can record automation without owning a second
+playback model.
+
+That plain-data constraint was deliberate rather than convenient, and it is what makes
+three separate features nearly free: the session autosaves, a song exports to a file, and
+a whole song compresses into a URL you can paste to somebody.
 
 The reading side is the part with actual work in it, because a song arrives from outside
 the program — from storage written by an older build, from a file somebody edited by hand,
@@ -496,8 +500,8 @@ await engine.start()          // from a click; browsers start contexts suspended
 engine.audition('909.cp')     // one-shot, for a game event
 ```
 
-A `Song` is plain JSON — patterns, a chain, and kit settings — so a soundtrack ships as
-an asset rather than as code.
+A `Song` is plain JSON — patterns, a chain, kit settings and optional automation — so a
+soundtrack ships as an asset rather than as code.
 
 ## Verification
 
