@@ -676,6 +676,26 @@ kbd {
   transform: rotateY(180deg);
 }
 
+/* The rear SVG is updated while the rack spins so its cables can swing. Those repaints can promote the
+   cable groups out of their hidden back face for a frame, making every lead flash over the front as soon
+   as a front-to-back turn starts. Make the intended hand-off explicit: that direction reveals the real
+   cables only once the rear face has crossed the edge. Removing the flipped class removes this animation,
+   so back-to-front keeps its existing, correct first-half view of the cables. */
+.rk-rack-flipped .rk-cable {
+  animation: rk-reveal-rear-cables var(--spin) linear;
+}
+
+@keyframes rk-reveal-rear-cables {
+  0%,
+  54.99% {
+    opacity: 0;
+  }
+  55%,
+  100% {
+    opacity: 1;
+  }
+}
+
 .rk-side {
   position: absolute;
   inset: 0;
@@ -704,6 +724,9 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .rk-rack {
     transition: none;
+  }
+  .rk-rack-flipped .rk-cable {
+    animation: none;
   }
 }
 
