@@ -50,11 +50,11 @@ user could approximate it from oscillators.
 | Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
 | 303 note/accent/slide/tie editing | Partial | Retained 303 step editor plus Tracker primitives | Add faster sequential and keyboard entry |
-| 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
+| 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
 | Pattern transforms | Rotate, transpose, randomise and alter | Retained lane/machine rotate, focused randomise/alter, 303 transpose and 909 flam | Landed; add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted section seek, section loop and arbitrary whole-bar loop ranges plus Arranger | Landed |
-| Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted shared timeline plus Combinator/MIDI | Expose the shared recorder in rack mode |
+| Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted recorder for tempo, global swing and instrument controls plus Combinator/MIDI | Add retained per-voice swing, send and effect control surfaces |
 | Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Keyboard audition only | Yes | Extract the rack MIDI host for both modes |
@@ -127,7 +127,10 @@ quantised path, and neither action mutates the document. Contextual voice contro
 the complete retained drum or bass parameter block and reach following scheduled hits without
 rebuilding the rack. The selected section can now seek or loop on the hosted transport, and
 arbitrary whole-bar loop ranges may cross section boundaries without entering the document.
-Next, expose automation recording, keyboard tap recording and focused cut/copy/paste. Do
+Rack mode now arms the shared recorder against the hosted engine clock for tempo, global
+swing and every visible drum/303 knob; recorded lanes remain in the compatible song envelope
+and clearing them is undoable. Next, add retained per-voice swing, send and effect controls,
+keyboard tap recording and focused cut/copy/paste. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
