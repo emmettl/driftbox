@@ -11,9 +11,10 @@ describe('the rack turn', () => {
     expect(styles).toContain(
       '.rk-rack-flipped .rk-side-back {\n  animation: rk-reveal-rear-face var(--spin) linear;\n}',
     )
-    expect(styles).toContain('0%,\n  45.79% {\n    visibility: hidden;')
-    expect(styles).toContain('45.8%,\n  100% {\n    visibility: visible;')
+    expect(styles).toContain('0%,\n  45.79% {\n    opacity: 0;')
+    expect(styles).toContain('45.8%,\n  100% {\n    opacity: 1;')
     expect(styles).not.toContain('--rk-rear-cable-opacity')
+    expect(styles).not.toContain('45.79% {\n    visibility: hidden;')
   })
 
   it('does not delay the rear face when reduced motion removes the turn', () => {
