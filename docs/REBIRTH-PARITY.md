@@ -51,7 +51,7 @@ user could approximate it from oscillators.
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
 | 303 note/accent/slide/tie editing | Partial | Retained 303 step editor plus Tracker primitives | Add faster sequential and keyboard entry |
 | 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
-| Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
+| Pattern transforms | Rotate, transpose, randomise and alter | Retained lane/machine rotate, focused randomise/alter, 303 transpose and 909 flam | Landed; add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted section seek, section loop and arbitrary whole-bar loop ranges plus Arranger | Landed |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted shared timeline plus Combinator/MIDI | Expose the shared recorder in rack mode |
@@ -87,8 +87,8 @@ work is ordered by dependency:
    delay as a send. Keep Driftbox's reverb and per-voice controls.
 4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise,
    material-preserving alter and 909 flam are present. Rack mode now exposes retained drum
-   steps and pitched/accented/sliding 303 steps without restarting playback. Add keyboard
-   tap recording and focused cut/copy/paste.
+   steps, pitched/accented/sliding 303 steps, lane or machine transforms and flam programming
+   without restarting playback. Add keyboard tap recording and focused cut/copy/paste.
 5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
    full-mix rendering and put songs and patches in one named library.
 
@@ -127,7 +127,7 @@ quantised path, and neither action mutates the document. Contextual voice contro
 the complete retained drum or bass parameter block and reach following scheduled hits without
 rebuilding the rack. The selected section can now seek or loop on the hosted transport, and
 arbitrary whole-bar loop ranges may cross section boundaries without entering the document.
-Next, expose automation recording and the remaining fast pattern tools. Do
+Next, expose automation recording, keyboard tap recording and focused cut/copy/paste. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

@@ -53,9 +53,10 @@ their 808, 909 and two 303s as metered patchable stereo sources with level, pan 
 strips, edit retained drum and 303 patterns, assign machine clips per arrangement section
 without restarting playback, launch each machine's selected clip on the next bar without
 mutating the arrangement, edit the full retained control set for every drum voice and 303,
-seek or loop sections and arbitrary whole-bar ranges on the hosted transport, and return to
-the sequencer without losing that document. Next, expose automation recording and the
-remaining fast pattern tools; do not
+seek or loop sections and arbitrary whole-bar ranges on the hosted transport, rotate or
+transform focused retained lanes, program 909 flams, and return to the sequencer without
+losing that document. Next, expose automation recording, keyboard tap recording and focused
+cut/copy/paste; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate
