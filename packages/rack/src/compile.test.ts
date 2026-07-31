@@ -493,3 +493,136 @@ describe('stereo ports', () => {
     expect(plan.outputs[0].right).toBeNull()
   })
 })
+
+describe('bypass', () => {
+  const node = (plan: Plan, id: string) => plan.nodes.find((n) => n.id === id)
+
+  const chain = (bypass: string[]): Plan =>
+    compile(
+      {
+        modules: [
+          { id: 'osc', type: 'vco' },
+          { id: 'lad', type: 'ladder', bypassed: bypass.includes('lad') || undefined },
+          { id: 'svf', type: 'svf', bypassed: bypass.includes('svf') || undefined },
+          { id: 'out-1', type: 'out' },
+        ],
+        cables: [
+          { from: ['osc', 'out'], to: ['lad', 'in'] },
+          { from: ['lad', 'out'], to: ['svf', 'in'] },
+          { from: ['svf', 'lp'], to: ['out-1', 'in'] },
+        ],
+      },
+      MODULES,
+    )
+
+  it('runs nothing for a bypassed module', () => {
+    // Not "runs it and ignores the result": it gets no node at all, which is what makes bypassing an
+    // expensive module actually free the CPU.
+    expect(node(chain(['lad']), 'lad')).toBeUndefined()
+    expect(node(chain([]), 'lad')).toBeDefined()
+  })
+
+  it('passes its input straight to whatever read its outlet', () => {
+    const plan = chain(['lad'])
+    // The SVF now reads the oscillator directly.
+    expect(node(plan, 'svf')!.inlets[0]).toBe(node(plan, 'osc')!.outlets[0])
+  })
+
+  it('walks back through a run of bypassed modules', () => {
+    const plan = chain(['lad', 'svf'])
+    // Both gone, so the Out reads the oscillator through two of them.
+    expect(node(plan, 'out-1')!.inlets[0]).toBe(node(plan, 'osc')!.outlets[0])
+  })
+
+  it('carries a stereo signal through unchanged', () => {
+    // Resolution returns the source's CHANNELS rather than one buffer, so a bypassed module in front of
+    // something stereo does not quietly fold the pair.
+    const plan = compile(
+      {
+        modules: [
+          { id: 'rev', type: 'reverb' },
+          { id: 'eq', type: 'eq', bypassed: true },
+          { id: 'out-1', type: 'out' },
+        ],
+        cables: [
+          { from: ['rev', 'out'], to: ['eq', 'in'] },
+          { from: ['eq', 'out'], to: ['out-1', 'in'] },
+        ],
+      },
+      MODULES,
+    )
+    expect(node(plan, 'out-1')!.inlets).toEqual(node(plan, 'rev')!.outlets)
+  })
+
+  it('is silence when there is nothing in front of it', () => {
+    const plan = compile(
+      {
+        modules: [
+          { id: 'lad', type: 'ladder', bypassed: true },
+          { id: 'out-1', type: 'out' },
+        ],
+        cables: [{ from: ['lad', 'out'], to: ['out-1', 'in'] }],
+      },
+      MODULES,
+    )
+    expect(node(plan, 'out-1')!.inlets).toEqual([0, 0])
+  })
+
+  it('is silence for a bypassed source, which is what turning one off means', () => {
+    // A VCO has no signal inlet to pass through, so one flag covers Reason's Bypass and its Off.
+    const plan = compile(
+      {
+        modules: [
+          { id: 'osc', type: 'vco', bypassed: true },
+          { id: 'out-1', type: 'out' },
+        ],
+        cables: [{ from: ['osc', 'out'], to: ['out-1', 'in'] }],
+      },
+      MODULES,
+    )
+    expect(node(plan, 'out-1')!.inlets).toEqual([0, 0])
+  })
+
+  it('takes a bypassed Out off the mix bus', () => {
+    // Its outlet buffer is written by nobody, so summing it would put whatever was last in that buffer
+    // into the mix for ever.
+    expect(compile({ modules: [{ id: 'out-1', type: 'out' }], cables: [] }, MODULES).outputs).toHaveLength(1)
+    expect(
+      compile({ modules: [{ id: 'out-1', type: 'out', bypassed: true }], cables: [] }, MODULES).outputs,
+    ).toHaveLength(0)
+  })
+
+  it('survives a ring of bypassed modules rather than overflowing the stack', () => {
+    // A patch arrives from outside the program. The placeholder rule's standard — neutralise, never crash
+    // — has to hold for this too.
+    const plan = compile(
+      {
+        modules: [
+          { id: 'a', type: 'ladder', bypassed: true },
+          { id: 'b', type: 'ladder', bypassed: true },
+          { id: 'out-1', type: 'out' },
+        ],
+        cables: [
+          { from: ['a', 'out'], to: ['b', 'in'] },
+          { from: ['b', 'out'], to: ['a', 'in'] },
+          { from: ['b', 'out'], to: ['out-1', 'in'] },
+        ],
+      },
+      MODULES,
+    )
+    expect(node(plan, 'out-1')!.inlets).toEqual([0, 0])
+  })
+
+  it('keeps its param slots, so its knobs still work while it is out of circuit', () => {
+    // Half of why anybody bypasses something is to set it up against the dry signal.
+    const plan = chain(['lad'])
+    expect(plan.slots.lad).toBeDefined()
+    expect(typeof plan.slots.lad.cutoff).toBe('number')
+  })
+
+  it('stops constraining the order it is no longer part of', () => {
+    // Resolution happens before the topological sort, so a bypassed module in the middle does not report
+    // a feedback delay that no longer exists.
+    expect(kinds(chain(['lad', 'svf']), 'delayed')).toHaveLength(0)
+  })
+})

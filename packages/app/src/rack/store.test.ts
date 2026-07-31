@@ -914,3 +914,50 @@ describe('duplicating a module', () => {
     expect(state().history.past).toHaveLength(0)
   })
 })
+
+describe('bypassing a module', () => {
+  const state = () => useRack.getState()
+  const bypassed = (id: string) =>
+    state().patch.modules.find((m) => m.id === id)?.bypassed === true
+
+  it('rebuilds the graph, because the compiler resolves it into the plan', () => {
+    const revision = state().revision
+    state().setBypassed('reverb-1', true)
+    expect(bypassed('reverb-1')).toBe(true)
+    expect(state().revision).toBe(revision + 1)
+  })
+
+  it('writes nothing at all when it goes back into circuit', () => {
+    // Absent rather than `false`, so a patch that has never had anything bypassed stays byte-identical to
+    // one written before bypass existed — the same standard `voices` and `tempo` hold themselves to.
+    state().setBypassed('reverb-1', true)
+    state().setBypassed('reverb-1', false)
+    const module = state().patch.modules.find((m) => m.id === 'reverb-1')!
+    expect('bypassed' in module).toBe(false)
+  })
+
+  it('declines when it would change nothing', () => {
+    const patch = state().patch
+    state().setBypassed('reverb-1', false)
+    expect(state().patch).toBe(patch)
+    state().setBypassed('nobody', true)
+    expect(state().patch).toBe(patch)
+    expect(state().history.past).toHaveLength(0)
+  })
+
+  it('is one undo, and undoing it rebuilds', () => {
+    const revision = state().revision
+    state().setBypassed('reverb-1', true)
+    state().undo()
+    expect(bypassed('reverb-1')).toBe(false)
+    // `needsRebuild` has to see bypass as structural, or the graph would keep running the resolved plan
+    // while the document said otherwise.
+    expect(state().revision).toBe(revision + 2)
+  })
+
+  it('survives a round trip through the patch codec', () => {
+    state().setBypassed('reverb-1', true)
+    const reopened = decodePatch(encodePatch(state().patch))!
+    expect(reopened.modules.find((m) => m.id === 'reverb-1')?.bypassed).toBe(true)
+  })
+})

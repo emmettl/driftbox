@@ -171,6 +171,15 @@ interface RackState {
    * panels would fight over every knob.
    */
   duplicateModule: (moduleId: string) => void
+  /**
+   * Take a module out of circuit, or put it back.
+   *
+   * Structural, because the compiler resolves it: a bypassed module gets no node at all and everything
+   * reading its outlets is redirected to whatever reaches its first inlet. So this rebuilds the graph,
+   * which also means a bypassed module's filter history and oscillator phase are gone when it comes back —
+   * the honest consequence of not running it, and the reason bypassing a Vocoder actually buys something.
+   */
+  setBypassed: (moduleId: string, bypassed: boolean) => void
   removeModule: (moduleId: string) => void
   moveModule: (moduleId: string, by: number) => void
   /**
@@ -571,6 +580,18 @@ export const useRack = create<RackState>((set, get) => {
             ? { data: Object.fromEntries(Object.entries(source.data).map(([k, v]) => [k, [...v]])) }
             : {}),
         })
+        return { ...patch, modules }
+      }),
+
+    setBypassed: (moduleId, bypassed) =>
+      structural((patch) => {
+        const at = patch.modules.findIndex((m) => m.id === moduleId)
+        if (at < 0 || (patch.modules[at].bypassed === true) === bypassed) return patch
+        const modules = [...patch.modules]
+        // Absent rather than `false`, so a patch that has never had anything bypassed stays byte-identical
+        // to one written before bypass existed — the same standard `voices`, `tempo` and `modulation` hold.
+        const { bypassed: _drop, ...rest } = modules[at]
+        modules[at] = bypassed ? { ...rest, bypassed: true } : rest
         return { ...patch, modules }
       }),
 

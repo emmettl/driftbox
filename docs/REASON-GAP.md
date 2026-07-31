@@ -103,7 +103,7 @@ had before the undo.
 | Duplicate a device | Copy, paste, duplicate, with settings | **Landed** | Copies params and pattern data, lands beside the original, arrives unpatched |
 | Auto-routing | A new device connects to the next mixer channel | Chunks only | `addModule` appends an unpatched module; `insertChunk` wires a fresh Out, which is the same idea |
 | CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
-| Bypass | On / Bypass / Off on every effect | Terminal only | `Out` has mute and solo; no other module can be taken out of circuit |
+| Bypass | On / Bypass / Off on every effect | **Landed** | A flag on the module; the compiler drops its node and passes its first inlet through |
 | Device patches | A browser and a factory bank per device | Patch-level | The library saves whole racks; `PATCHES` and `CHUNKS` are whole-rack and multi-module |
 | Multi-select | Rubber-band a group of devices | Absent | Reordering and removal are one module at a time |
 | Undo | Full history | **Landed** | `history.ts` — sixty-four steps, a drag is one of them |
@@ -186,8 +186,9 @@ Worth writing down so nobody builds them twice.
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
 3. Recorded automation, once the ABI carries a frame.
 4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
-5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate is done; the
-   next cheapest are per-device bypass and auto-routing a bare module onto its own Out.
+5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate and bypass are
+   done; what is left there is auto-routing a bare module, CV trim per jack, per-device patches
+   and multi-select.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.

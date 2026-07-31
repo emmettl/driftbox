@@ -39,6 +39,7 @@ export function Chassis({ layout }: Props) {
   const paramValue = useRack((s) => s.paramValue)
   const removeModule = useRack((s) => s.removeModule)
   const duplicateModule = useRack((s) => s.duplicateModule)
+  const setBypassed = useRack((s) => s.setBypassed)
   const moveModule = useRack((s) => s.moveModule)
   const dropModule = useRack((s) => s.dropModule)
 
@@ -153,7 +154,15 @@ export function Chassis({ layout }: Props) {
         return (
           <section
             key={placement.id}
-            className={isSelected ? 'rk-module rk-module-on' : 'rk-module'}
+            className={[
+              'rk-module',
+              isSelected ? 'rk-module-on' : '',
+              // Dimmed rather than hidden, and it keeps its knobs: a bypassed module is still a module you
+              // are setting up, and half of why you bypass one is to compare it against itself.
+              module.bypassed ? 'rk-module-bypassed' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             data-span={placement.span}
             data-drag-ghost={isGhost ? 'true' : undefined}
             style={position}
@@ -217,6 +226,8 @@ export function Chassis({ layout }: Props) {
               </div>
             )}
 
+            {module.bypassed && <span className="rk-bypass-flag">bypassed</span>}
+
             {isSelected && (
               <div className="rk-module-tools">
                 <button type="button" onClick={() => moveModule(placement.id, -1)} aria-label="Move up">
@@ -224,6 +235,15 @@ export function Chassis({ layout }: Props) {
                 </button>
                 <button type="button" onClick={() => moveModule(placement.id, 1)} aria-label="Move down">
                   ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBypassed(placement.id, !module.bypassed)}
+                  aria-label="Bypass"
+                  aria-pressed={module.bypassed === true}
+                  title="Bypass — out of circuit, its input passed straight through"
+                >
+                  ⏻
                 </button>
                 {/* Next to Remove rather than next to the arrows: both of these change what is in the
                     rack, while the arrows only change where it sits. */}

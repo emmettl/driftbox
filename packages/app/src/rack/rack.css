@@ -1318,6 +1318,25 @@ kbd {
   padding: 8px;
 }
 
+/* Out of circuit. The faceplate stays readable — its knobs still work and still save — because half of
+   why anybody bypasses something is to set it up while comparing it against the dry signal. */
+.rk-module-bypassed {
+  opacity: 0.55;
+}
+/* Said in words as well as by the dimming. Every faceplate draws its own title, so there is no shared
+   element to hang this off — and a rule aimed at one that does not exist would silently do nothing, which
+   is exactly the kind of "it looked fine in the CSS" bug the module tools had. */
+.rk-bypass-flag {
+  position: absolute;
+  bottom: 6px;
+  left: 10px;
+  font: 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  pointer-events: none;
+}
+
 .rk-module-tools {
   position: absolute;
   top: 6px;

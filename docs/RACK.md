@@ -863,6 +863,33 @@ The risk is all in the first item. Do it first and alone.
      place today, and "today" is the problem: two modules whose lane array is the same reference is a trap
      laid for whoever writes the first in-place edit.
 
+   **Bypass** ✅ — one flag on a module, resolved entirely by the compiler.
+
+   - **It cannot be a param, which is the first thing anybody tries.** A param is read by the module's own
+     `process`, and a bypassed module does not run — so something has to answer for its outlets on its
+     behalf, and only the compiler can see both ends of the cables that would carry the answer. Exactly the
+     reasoning that put `terminalMute` and `terminalSolo` outside their processor: solo silences the
+     *others*, and a module has no idea the others exist.
+   - **A bypassed module gets no node at all.** Not "runs and is ignored" — it is not built, so bypassing
+     the Vocoder genuinely gives back its 32 bands. The honest consequence is that its filter history and
+     oscillator phase are gone when it comes back, which is what not running something means.
+   - **All of its outlets carry its first inlet**, and the tidier-looking alternative is nonsense on a real
+     module: pairing outlet *n* with inlet *n* would put a cutoff CV on the SVF's highpass jack. The first
+     inlet is the signal path on every module here by convention, and bypass is a statement about the
+     signal path. A module with **no** inlets bypasses to silence, which is what turning a source off
+     means — so one flag covers Reason's Bypass and its Off.
+   - **Resolution happens before the topological sort**, so a bypassed module in the middle of a chain
+     stops constraining the order and cannot report a feedback delay that no longer exists. It also means
+     the stereo rules apply to the *resolved* source, so a bypassed module in front of something stereo
+     does not quietly fold the pair.
+   - **A ring of bypassed modules is silence, not a stack overflow.** A patch arrives from outside the
+     program, and the placeholder rule's standard — neutralise, never crash — has to hold here too.
+   - **A bypassed terminal comes off the mix bus.** Its outlet buffer is written by nobody, so summing it
+     would put whatever was last in that buffer into the mix for ever.
+   - `needsRebuild` had to learn about it, or undoing a bypass would leave the graph running the resolved
+     plan while the document said otherwise. And `false` is never written to the patch: a rack that has
+     never had anything bypassed stays byte-identical to one saved before the flag existed.
+
    **And the bug.** Adding a fourth button to the module tools found that none of the other three could be
    clicked. `.rk-grip` is a transparent overlay across the whole title bar at `z-index: 2`, and
    `.rk-module-tools` sits inside that band at `top: 6px` with no z-index at all — so ↑, ↓ and ✕ had been
