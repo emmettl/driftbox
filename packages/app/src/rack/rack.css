@@ -2550,11 +2550,70 @@ kbd {
   }
 }
 
-/* ---- performance mode ---------------------------------------------------------
+/* ---- performance views --------------------------------------------------------
  *
- * The pad takes the space the rack was using. Not a separate page: the keyboard, the transport and the audio
- * graph are the same ones, and what changes is which of them are big enough to use with your hands.
+ * Rack, rack-and-pad, and pad are three arrangements of the same live instrument. The middle arrangement
+ * deliberately keeps the rack at its 480px design width: scaling it down would make the cable geometry and
+ * pointer targets disagree with what is drawn. The pair is allowed to scroll horizontally on a small viewport.
  */
+.rk-performance-space-split {
+  display: grid;
+  grid-template-columns: 480px 480px;
+  grid-template-areas: 'rack pad';
+  align-items: start;
+  justify-content: center;
+  gap: 24px;
+  padding: 32px 16px calc(48px + var(--keys-offset));
+  overflow-x: auto;
+}
+
+.rk-performance-space-split .rk-stage {
+  grid-area: rack;
+  padding: 0;
+  overflow: visible;
+  animation: rk-rack-make-room 360ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.rk-performance-space-split .rk-perform {
+  grid-area: pad;
+  padding: 0;
+  animation: rk-pad-arrive 300ms 70ms ease-out both;
+}
+
+.rk-performance-space-split .rk-pad {
+  width: 480px;
+  /* Equal widths read as two pieces of one instrument and preserve useful Y travel on the pad. */
+  aspect-ratio: 1;
+}
+
+/* Once the two bays no longer fit, start at the rack's left edge. A centred oversized grid puts that edge
+ * at a negative X coordinate, which horizontal scrolling can never reach; the pad remains one swipe right. */
+@media (max-width: 1015px) {
+  .rk-performance-space-split {
+    justify-content: start;
+  }
+}
+
+@keyframes rk-rack-make-room {
+  from {
+    transform: translateX(252px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes rk-pad-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .rk-perform {
   display: flex;
   padding: 24px max(16px, env(safe-area-inset-left)) calc(24px + var(--keys-offset));
@@ -2729,6 +2788,8 @@ kbd {
   .rk-pad-turn {
     transition: none;
   }
+  .rk-performance-space-split .rk-stage,
+  .rk-performance-space-split .rk-perform,
   .rk-pad-mascot-dancer {
     animation: none;
   }
