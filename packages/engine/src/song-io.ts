@@ -221,7 +221,9 @@ function automation(value: unknown): AutomationLane[] {
             : target.startsWith('song/') ||
                 target.startsWith('voice/') ||
                 target.startsWith('bass/') ||
-                target.startsWith('swing/')
+                target.startsWith('swing/') ||
+                target.startsWith('send/') ||
+                target.startsWith('fx/')
               ? clamp(rawPoint.value, 0, 1, 0)
               : clamp(rawPoint.value, -1_000_000, 1_000_000, 0),
       }

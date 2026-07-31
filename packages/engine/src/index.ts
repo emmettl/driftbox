@@ -1,6 +1,6 @@
 import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, type BassStep } from './bass.js'
 import { Bassline } from './bassline.js'
-import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects.js'
+import { DEFAULT_FX, DEFAULT_SENDS, Sends, type SendLevels } from './effects.js'
 import { Kaoss } from './kaoss.js'
 import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
@@ -183,12 +183,17 @@ export class DriftboxEngine {
    * send that has never been touched costs nothing at all: no node is built until the
    * voice is actually sent somewhere.
    */
-  private routeSends(voiceId: string, output: AudioNode): void {
-    const levels = this.song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
+  private routeSends(
+    voiceId: string,
+    output: AudioNode,
+    levels?: SendLevels,
+    time = this.ctx.currentTime,
+  ): void {
+    const resolved = levels ?? this.song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
 
     for (const [kind, amount] of [
-      ['delay', levels.delay],
-      ['reverb', levels.reverb],
+      ['delay', resolved.delay],
+      ['reverb', resolved.reverb],
     ] as const) {
       const key = `${voiceId}:${kind}`
       let gain = this.sendGains.get(key)
@@ -198,7 +203,7 @@ export class DriftboxEngine {
         gain.connect(kind === 'delay' ? this.sends.delayInput : this.sends.reverbInput)
         this.sendGains.set(key, gain)
       }
-      gain.gain.value = amount
+      gain.gain.setValueAtTime(amount, time)
       output.connect(gain)
     }
   }
@@ -322,7 +327,13 @@ export class DriftboxEngine {
     this.trigger(voiceId, this.ctx.currentTime + 0.01, accent)
   }
 
-  trigger(voiceId: string, time: number, accent: number, params?: VoiceParams): void {
+  trigger(
+    voiceId: string,
+    time: number,
+    accent: number,
+    params?: VoiceParams,
+    sends?: SendLevels,
+  ): void {
     const voice = voiceById(voiceId)
     if (!voice) return
 
@@ -339,7 +350,7 @@ export class DriftboxEngine {
     }
 
     const handle = renderVoice(this.ctx, spec, this.bus, time)
-    this.routeSends(voiceId, handle.output)
+    this.routeSends(voiceId, handle.output, sends, time)
     if (voice.choke) this.choking.set(voice.choke, handle)
   }
 
@@ -434,14 +445,16 @@ export class DriftboxEngine {
     const plan = planStep(this.song, event)
     if (this.transport.bpm !== plan.bpm) {
       this.transport.bpm = plan.bpm
-      this.syncFx()
     }
-    for (const hit of plan.drums) this.trigger(hit.voiceId, hit.time, hit.accent, hit.params)
+    this.sends.update(plan.fx, plan.bpm, event.time)
+    for (const hit of plan.drums) {
+      this.trigger(hit.voiceId, hit.time, hit.accent, hit.params, hit.sends)
+    }
     for (const hit of plan.bass) {
       const bassline = this.basslines.get(hit.voiceId)
       if (!bassline) continue
       bassline.play(hit.note, hit.time)
-      this.routeSends(hit.voiceId, bassline.output)
+      this.routeSends(hit.voiceId, bassline.output, hit.sends, hit.time)
     }
   }
 

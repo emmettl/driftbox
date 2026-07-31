@@ -1,5 +1,11 @@
 import { DEFAULT_BASS_PARAMS, type BassParams } from './bass.js'
 import {
+  DEFAULT_FX,
+  DEFAULT_SENDS,
+  type FxParams,
+  type SendLevels,
+} from './effects.js'
+import {
   barLengthForBar,
   swingFor,
   type AutomationInterpolation,
@@ -17,6 +23,8 @@ export const AUTOMATION_TARGET = {
   voice: (voiceId: string, key: keyof VoiceParams): string => `voice/${voiceId}/${key}`,
   bass: (voiceId: string, key: keyof BassParams): string => `bass/${voiceId}/${key}`,
   voiceSwing: (voiceId: string): string => `swing/${voiceId}`,
+  send: (voiceId: string, key: keyof SendLevels): string => `send/${voiceId}/${key}`,
+  fx: (key: keyof FxParams): string => `fx/${key}`,
 } as const
 
 function comparePoints(a: AutomationPoint, b: AutomationPoint): number {
@@ -133,6 +141,21 @@ export function voiceParamsAt(song: Song, voiceId: string, bar: number, index: n
 export function bassParamsAt(song: Song, voiceId: string, bar: number, index: number): BassParams {
   const base = song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
   return automatedKnobs(song, (key) => AUTOMATION_TARGET.bass(voiceId, key), base, bar, index)
+}
+
+export function sendLevelsAt(
+  song: Song,
+  voiceId: string,
+  bar: number,
+  index: number,
+): SendLevels {
+  const base = song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
+  return automatedKnobs(song, (key) => AUTOMATION_TARGET.send(voiceId, key), base, bar, index)
+}
+
+export function fxParamsAt(song: Song, bar: number, index: number): FxParams {
+  const base = song.fx ?? DEFAULT_FX
+  return automatedKnobs(song, (key) => AUTOMATION_TARGET.fx(key), base, bar, index)
 }
 
 export function bpmAt(song: Song, bar: number, index: number): number {
