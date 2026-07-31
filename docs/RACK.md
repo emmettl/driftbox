@@ -124,6 +124,14 @@ offset from global swing beside the five shared delay/reverb controls. Those bas
 their automation targets are the same ones the sequencer uses; selecting another voice only
 changes which authored send/swing lane is in focus, while the effects remain song-wide.
 
+The pattern editor's tap arm gives the rack keyboard a second, explicit destination. While
+the hosted transport runs, computer, pointer and MIDI-keyboard note-ons are quantised to the
+current sequencer step in the focused retained clip. Drum velocity chooses hit or accent; a
+303 key writes its root-relative pitch and accent without erasing an existing slide. Claimed
+taps audition the authored machine instead of also reaching the generic MIDI graph, and the
+entire take coalesces into one rack undo step. The arm, focus and held notes remain session
+state; only the resulting pattern steps enter the compatible song envelope.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a

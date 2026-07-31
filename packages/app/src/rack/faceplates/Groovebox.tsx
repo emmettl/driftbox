@@ -36,7 +36,7 @@ import { useEffect, useState } from 'react'
 import { ParamControl } from '../ParamControl.js'
 import { Knob } from '../../ui/Knob.js'
 import { useMeter } from '../meter.js'
-import { useRack } from '../store.js'
+import { useRack, type GrooveboxTapTarget } from '../store.js'
 import { meterLabel, meterPosition } from './meter-display.js'
 import type { FaceplateProps } from './types.js'
 
@@ -132,6 +132,9 @@ export function GrooveboxPatternEditor({
   setVoiceSwing,
   setSend,
   setFx,
+  tapRecording = false,
+  toggleTapRecording,
+  setTapTarget,
   automationRecording = false,
   running = false,
   toggleAutomationRecording,
@@ -160,6 +163,9 @@ export function GrooveboxPatternEditor({
   setVoiceSwing: (voiceId: string, value: number) => void
   setSend: (voiceId: string, key: keyof SendLevels, value: number) => void
   setFx: (key: keyof FxParams, value: number) => void
+  tapRecording?: boolean
+  toggleTapRecording: () => void
+  setTapTarget: (target: GrooveboxTapTarget) => void
   automationRecording?: boolean
   running?: boolean
   toggleAutomationRecording: () => void
@@ -287,6 +293,18 @@ export function GrooveboxPatternEditor({
     : voice?.name ?? sectionName(section)
   const rotateTarget =
     !bass && wholeMachine ? `whole ${sectionName(section)}` : focusedTarget
+  const tapTarget = (
+    patternId: string,
+    nextSection: GrooveboxSection,
+    voiceId?: string,
+  ): GrooveboxTapTarget => ({
+    patternId,
+    section: nextSection,
+    voiceId:
+      nextSection === '303.a' || nextSection === '303.b'
+        ? nextSection
+        : voiceId ?? ALL_VOICES.find((candidate) => candidate.machine === nextSection)?.id ?? '',
+  })
 
   return (
     <section className="rk-groovebox-editor" aria-label="Groovebox pattern editor">
@@ -300,6 +318,7 @@ export function GrooveboxPatternEditor({
               setWantedPattern(event.target.value)
               setPage(0)
               setSelectedStep(0)
+              setTapTarget(tapTarget(event.target.value, section, voice?.id))
             }}
           >
             {song.patterns.map((candidate) => (
@@ -315,8 +334,10 @@ export function GrooveboxPatternEditor({
             aria-label="Machine to edit"
             value={section}
             onChange={(event) => {
-              setSection(event.target.value as GrooveboxSection)
+              const next = event.target.value as GrooveboxSection
+              setSection(next)
               setWantedVoice('')
+              setTapTarget(tapTarget(pattern.id, next))
             }}
           >
             {GROOVEBOX_SECTIONS.map((candidate) => (
@@ -332,7 +353,10 @@ export function GrooveboxPatternEditor({
             <select
               aria-label="Drum voice to edit"
               value={voice.id}
-              onChange={(event) => setWantedVoice(event.target.value)}
+              onChange={(event) => {
+                setWantedVoice(event.target.value)
+                setTapTarget(tapTarget(pattern.id, section, event.target.value))
+              }}
             >
               {voices.map((candidate) => (
                 <option value={candidate.id} key={candidate.id}>
@@ -412,6 +436,29 @@ export function GrooveboxPatternEditor({
 
       <div className="rk-groovebox-tools" aria-label="Groovebox pattern transforms">
         <strong>{rotateTarget}</strong>
+        <button
+          type="button"
+          className="rk-groovebox-tap"
+          aria-pressed={tapRecording}
+          aria-label={
+            tapRecording
+              ? 'Disarm Groovebox tap recording'
+              : 'Arm Groovebox tap recording'
+          }
+          title={
+            tapRecording
+              ? running
+                ? `Recording keyboard taps into ${focusedTarget} at the hosted playhead`
+                : 'Tap recording armed — start playback, then play the rack keyboard'
+              : `Quantise rack keyboard taps into the focused ${focusedTarget} clip`
+          }
+          onClick={() => {
+            setTapTarget(tapTarget(pattern.id, section, voice?.id))
+            toggleTapRecording()
+          }}
+        >
+          <span aria-hidden="true">●</span> tap
+        </button>
         {!bass && (
           <button
             type="button"
@@ -819,6 +866,9 @@ function PatternEditor() {
   const setVoiceSwing = useRack((state) => state.setGrooveboxVoiceSwing)
   const setSend = useRack((state) => state.setGrooveboxSend)
   const setFx = useRack((state) => state.setGrooveboxFx)
+  const tapRecording = useRack((state) => state.grooveboxTapRecording)
+  const toggleTapRecording = useRack((state) => state.toggleGrooveboxTapRecording)
+  const setTapTarget = useRack((state) => state.setGrooveboxTapTarget)
   const automationRecording = useRack((state) => state.grooveboxAutomationRecording)
   const running = useRack((state) => state.running)
   const toggleAutomationRecording = useRack(
@@ -841,6 +891,9 @@ function PatternEditor() {
       setVoiceSwing={setVoiceSwing}
       setSend={setSend}
       setFx={setFx}
+      tapRecording={tapRecording}
+      toggleTapRecording={toggleTapRecording}
+      setTapTarget={setTapTarget}
       automationRecording={automationRecording}
       running={running}
       toggleAutomationRecording={toggleAutomationRecording}

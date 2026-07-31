@@ -37,6 +37,8 @@ beforeEach(() => {
     grooveboxLoop: null,
     grooveboxAutomationRecording: false,
     grooveboxAutomationPosition: null,
+    grooveboxTapRecording: false,
+    grooveboxTapTarget: null,
   })
 })
 
@@ -797,6 +799,81 @@ describe('editing a retained Groovebox pattern', () => {
     expect(useRack.getState().grooveboxAutomationRecording).toBe(true)
     expect(useRack.getState().patch).toBe(patch)
     expect(useRack.getState().history).toBe(history)
+  })
+
+  it('quantises keyboard taps into the focused drum lane at the hosted playhead', () => {
+    const song = grooveboxSong(useRack.getState().patch)!
+    const pattern = song.patterns[1] ?? song.patterns[0]
+    useRack.getState().setGrooveboxTapTarget({
+      patternId: pattern.id,
+      section: 'tr909',
+      voiceId: '909.sd',
+    })
+    let index = 19
+    useRack.getState().setGrooveboxAutomationPosition(() => ({ bar: 3, index }))
+    useRack.getState().toggleGrooveboxTapRecording()
+
+    const hit = useRack.getState().recordGrooveboxTap(48, 0.9)
+    index = 20
+    useRack.getState().recordGrooveboxTap(47, 0.5)
+    const recorded = grooveboxSong(useRack.getState().patch)!
+
+    expect(hit).toEqual({
+      section: 'tr909',
+      voiceId: '909.sd',
+      semitone: 12,
+      accent: true,
+    })
+    expect(recorded.patterns.find((candidate) => candidate.id === pattern.id)?.tracks['909.sd']?.[3]).toBe(2)
+    expect(recorded.patterns.find((candidate) => candidate.id === pattern.id)?.tracks['909.sd']?.[4]).toBe(1)
+    expect(recorded.patterns.find((candidate) => candidate.id !== pattern.id)).toEqual(
+      song.patterns.find((candidate) => candidate.id !== pattern.id),
+    )
+    expect(useRack.getState().revision).toBe(0)
+    expect(useRack.getState().history.past).toHaveLength(1)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+  })
+
+  it('records a clamped 303 note while preserving the focused step slide', () => {
+    const song = grooveboxSong(useRack.getState().patch)!
+    const pattern = song.patterns[0]
+    useRack.getState().setGrooveboxPattern({
+      ...pattern,
+      bass: {
+        ...pattern.bass,
+        '303.a': Array.from({ length: pattern.length }, (_, index) =>
+          index === 5
+            ? { note: 4, accent: false, slide: true }
+            : { note: null, accent: false, slide: false },
+        ),
+      },
+    })
+    useRack.getState().setGrooveboxTapTarget({
+      patternId: pattern.id,
+      section: '303.a',
+      voiceId: '303.a',
+    })
+    useRack.getState().setGrooveboxAutomationPosition(() => ({ bar: 0, index: 5 }))
+    useRack.getState().toggleGrooveboxTapRecording()
+
+    expect(useRack.getState().recordGrooveboxTap(72, 0.4)).toMatchObject({
+      section: '303.a',
+      semitone: 24,
+      accent: false,
+    })
+    expect(
+      grooveboxSong(useRack.getState().patch)?.patterns[0].bass?.['303.a']?.[5],
+    ).toEqual({ note: 24, accent: false, slide: true })
+  })
+
+  it('does not claim a keyboard tap while disarmed or stopped', () => {
+    const patch = useRack.getState().patch
+    expect(useRack.getState().recordGrooveboxTap(48, 1)).toBeNull()
+
+    useRack.getState().toggleGrooveboxTapRecording()
+    useRack.getState().setGrooveboxAutomationPosition(() => null)
+    expect(useRack.getState().recordGrooveboxTap(48, 1)).toBeNull()
+    expect(useRack.getState().patch).toBe(patch)
   })
 
   it('clamps instrument controls and ignores them without a retained song', () => {
