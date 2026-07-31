@@ -189,25 +189,49 @@ describe('dragging a module to a new place', () => {
 
   describe('where a drop lands', () => {
     const geometry = stack('vco', 'ladder', 'vca', 'out')
+    const at = (x: number, y: number) => ({ x, y })
 
     it('is 0 above the first module, and past the end below the last', () => {
       // Total by construction: counting midpoints crossed has an answer everywhere, including off both
       // ends, which hit-testing a box does not.
-      expect(dropIndex(geometry.placements, -500)).toBe(0)
-      expect(dropIndex(geometry.placements, geometry.height + 500)).toBe(geometry.placements.length)
+      expect(dropIndex(geometry.placements, at(0, -500))).toBe(0)
+      expect(dropIndex(geometry.placements, at(0, geometry.height + 500))).toBe(geometry.placements.length)
     })
 
     it('flips at each module’s midpoint', () => {
       const second = geometry.placements[1]
-      expect(dropIndex(geometry.placements, second.y + second.height / 2 - 1)).toBe(1)
-      expect(dropIndex(geometry.placements, second.y + second.height / 2 + 1)).toBe(2)
+      expect(dropIndex(geometry.placements, at(COLUMN, second.y + second.height / 2 - 1))).toBe(1)
+      expect(dropIndex(geometry.placements, at(COLUMN, second.y + second.height / 2 + 1))).toBe(2)
     })
 
     it('has an answer in the gap between rows', () => {
       // There is no gap in this layout, but the rule must not depend on that — a module's own boundary
       // is exactly where two placements meet, and neither owns it.
       const edge = geometry.placements[1].y
-      expect(Number.isInteger(dropIndex(geometry.placements, edge))).toBe(true)
+      expect(Number.isInteger(dropIndex(geometry.placements, at(COLUMN, edge)))).toBe(true)
+    })
+
+    it('inserts before, between or after two half-width modules by x position', () => {
+      const compact = layout(
+        [module('a', 'delay'), module('b', 'vca'), module('c', 'out')],
+        sizes({ delay: { span: 1 }, vca: { span: 1 }, out: { span: 2 } }),
+      )
+      const y = ROW / 2
+
+      expect(dropIndex(compact.placements, at(0, y))).toBe(0)
+      expect(dropIndex(compact.placements, at(COLUMN, y))).toBe(1)
+      expect(dropIndex(compact.placements, at(COLUMN * 2, y))).toBe(2)
+    })
+
+    it('uses the empty side of a lone half-width row as a pairing target', () => {
+      const compact = layout(
+        [module('a', 'delay'), module('b', 'out')],
+        sizes({ delay: { span: 1 }, out: { span: 2 } }),
+      )
+      const y = ROW / 2
+
+      expect(dropIndex(compact.placements, at(0, y))).toBe(0)
+      expect(dropIndex(compact.placements, at(COLUMN * 1.5, y))).toBe(1)
     })
   })
 

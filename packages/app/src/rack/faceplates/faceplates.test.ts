@@ -58,6 +58,19 @@ describe('how big a module is', () => {
     expect(size('seq').rows).toBeGreaterThan(3)
   })
 
+  it('compacts small generic faceplates to half width', () => {
+    expect(size('delay').span).toBe(1)
+    expect(size('vca').span).toBe(1)
+    expect(size('clock').span).toBe(1)
+    expect(size('seq').span).toBe(2)
+  })
+
+  it('compacts small hand-built faceplates only when they opt in', () => {
+    expect(size('vco').span).toBe(1)
+    expect(size('ladder').span).toBe(1)
+    expect(size('sampler').span).toBe(2)
+  })
+
   it('gives a module it has never heard of a size rather than throwing', () => {
     expect(size('wavefolder')).toMatchObject({ span: 2 })
     expect(size('wavefolder').rows).toBeGreaterThan(0)

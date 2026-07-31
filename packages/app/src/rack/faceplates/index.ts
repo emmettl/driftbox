@@ -49,9 +49,11 @@ const FACEPLATES: Record<string, Entry> = {
   // just as well: a row of four rotaries, a row of four buttons and a way through to the routing list is
   // about that tall, and a Combinator is a big device in Reason too.
   combi: { component: Combinator, rows: 5 },
-  vco: { component: Vco, rows: 2 },
-  ladder: { component: Ladder },
-  midi: { component: Midi, rows: 2 },
+  // These hand-built panels still fit the same three-control half-width grid as a small generic panel.
+  // Declared here because custom panels opt out of the automatic generic sizing below.
+  vco: { component: Vco, span: 1, rows: 2 },
+  ladder: { component: Ladder, span: 1 },
+  midi: { component: Midi, span: 1, rows: 2 },
   out: { component: Out, span: 1 },
   sampler: { component: Sampler, rows: 3 },
   // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.
@@ -75,7 +77,12 @@ export function sizeFor(defs: Record<string, ModuleDef>): (type: string) => Size
   return (type) => {
     const def = defs[type]
     const entry = FACEPLATES[type]
-    const span = entry?.span ?? 2
+    // A generic faceplate is exactly a grid of controls, so its width can be derived rather than
+    // maintained as a list of special cases. Three controls fit in a half-width panel. Modules such as
+    // Delay, VCA, Clock and S&H therefore compact automatically, while a larger panel stays full width.
+    // A hand-built panel must opt in because it may contain UI that is not represented by `def.params`.
+    const shown = def?.params.filter((param) => !param.hidden).length
+    const span = entry?.span ?? (entry ? 2 : shown !== undefined && shown <= columnsFor(1) ? 1 : 2)
     if (!def) return { span, rows: entry?.rows ?? 1 }
 
     const front = entry?.rows ?? genericRows(def, span)

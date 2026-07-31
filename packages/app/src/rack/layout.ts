@@ -267,28 +267,59 @@ export const SNAP = 30
 // ---------------------------------------------------------------------------------------
 
 /**
- * Where a module dragged to `y` would be inserted, as an index into the module list.
+ * Where a module dragged to `point` would be inserted, as an index into the module list.
  *
  * Here rather than in the component for the same reason `nearestJack` is: this is geometry, the whole
  * point of this file is that the geometry is arithmetic rather than DOM measurement, and a rule that
  * lives in a pointer handler can only be checked by hand in a browser.
  *
  * **Counted by midpoints rather than by hit-testing a box.** Asking which module the pointer is *over*
- * has no answer in the gaps and no answer past either end, so it needs two special cases that are easy
- * to get subtly wrong. Counting how many modules the pointer has passed the middle of is total — every
- * y maps to an index, including above the first module and below the last — and it is the rule that
- * makes the drop indicator land where the eye expects.
+ * has no answer in the gaps and no answer past either end, so it needs special cases that are easy to
+ * get subtly wrong. A full-width row is crossed vertically. Within a row of half-width modules, each
+ * module is crossed horizontally. That gives every point an insertion index and, crucially, makes it
+ * possible to put a narrow module to the left or right of another one instead of only above or below it.
  *
- * Two half-width modules share a row, so their midpoints are identical and they are crossed together.
- * Dropping into the middle of such a pair is therefore ambiguous and resolves to one side of it, which
- * is the honest outcome: there is no position "between" two modules occupying one row.
+ * A lone half-width module uses the same horizontal rule. Dropping on its empty right half inserts after
+ * it, which lets the layout pair the two modules; dropping on its left inserts before it and makes the
+ * dragged module the left-hand one.
  */
-export function dropIndex(placements: readonly Placement[], y: number): number {
+export function dropIndex(
+  placements: readonly Placement[],
+  point: { x: number; y: number },
+): number {
   let index = 0
-  for (const placement of placements) {
-    if (y > placement.y + placement.height / 2) index++
+
+  while (index < placements.length) {
+    const first = placements[index]
+    const row = [first]
+    while (
+      index + row.length < placements.length &&
+      placements[index + row.length].row === first.row
+    ) {
+      row.push(placements[index + row.length])
+    }
+
+    const bottom = Math.max(...row.map((placement) => placement.y + placement.height))
+    if (point.y < first.y) return index
+    if (point.y >= bottom) {
+      index += row.length
+      continue
+    }
+
+    // A narrow row reads left to right. This includes a lone narrow module: crossing its midpoint
+    // means "put it on the right", while staying before it means "put it on the left".
+    if (row.some((placement) => placement.span === 1)) {
+      let crossed = 0
+      for (const placement of row) {
+        if (point.x > placement.x + placement.width / 2) crossed++
+      }
+      return index + crossed
+    }
+
+    return point.y > first.y + first.height / 2 ? index + 1 : index
   }
-  return index
+
+  return placements.length
 }
 
 /**

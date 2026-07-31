@@ -1408,20 +1408,22 @@ kbd {
 .rk-grip:active {
   cursor: grabbing;
 }
-/* The module being dragged fades, so the drop line is what you are reading rather than competing with a
-   full-strength faceplate sitting where the module no longer conceptually is. */
+/* Reordering is a live layout preview: every faceplate moves to its proposed slot and the one being
+   carried remains fully visible. This is especially important in a half-width row, where a line between
+   modules cannot say which faceplate will end up on which side. */
 .rk-face[data-dragging]:not([data-dragging='']) .rk-module {
-  transition: opacity 120ms ease;
+  transition:
+    left 140ms ease,
+    top 140ms ease,
+    width 140ms ease,
+    height 140ms ease,
+    box-shadow 120ms ease;
 }
-.rk-drop {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  margin-top: -1px;
-  background: var(--nine);
-  box-shadow: 0 0 8px var(--nine);
-  pointer-events: none;
+.rk-module[data-drag-preview='true'] {
+  border-color: var(--nine);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(95, 240, 208, 0.35);
   z-index: 3;
 }
 
