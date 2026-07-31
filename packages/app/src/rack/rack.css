@@ -1185,6 +1185,38 @@ kbd {
   font: 9px var(--mono);
 }
 
+.rk-groovebox-clip {
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-clip label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rk-groovebox-clip select {
+  max-width: 130px;
+  height: 24px;
+  color: var(--ink);
+  background: rgba(7, 4, 15, 0.75);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  font: 9px var(--mono);
+}
+
+.rk-groovebox-clip span {
+  margin: 0 0 5px auto;
+  color: rgba(95, 240, 208, 0.58);
+  text-transform: uppercase;
+}
+
 .rk-groovebox-bass strong {
   min-width: 45px;
   color: var(--three);

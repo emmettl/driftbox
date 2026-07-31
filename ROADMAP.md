@@ -46,9 +46,9 @@ song without rewriting it, including a future song this build cannot decode, and
 an explicit compatibility state before a save. Song links can enter rack mode, play
 through the existing groovebox engine on the rack's shared performance output, expose
 their 808, 909 and two 303s as metered patchable stereo sources with level, pan and mute
-strips, edit retained drum and 303 patterns without restarting playback, and return to the
-sequencer without losing that document. Next, add rack-side clip arrangement and instrument
-controls over the retained song; do not
+strips, edit retained drum and 303 patterns, assign machine clips per arrangement section
+without restarting playback, and return to the sequencer without losing that document. Next,
+add live quantised clip launch and instrument controls over the retained song; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

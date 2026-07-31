@@ -659,4 +659,45 @@ describe('editing a retained Groovebox pattern', () => {
     useRack.setState({ patch: { modules: [], cables: [] } })
     expect(() => useRack.getState().setGrooveboxPattern(pattern)).not.toThrow()
   })
+
+  it('assigns one machine clip without changing the section fallback', () => {
+    const before = useRack.getState().revision
+    const song = grooveboxSong(useRack.getState().patch)!
+    const fallback = song.chain[0].pattern
+    const wanted = song.patterns.find((pattern) => pattern.id !== fallback)!.id
+
+    useRack.getState().setGrooveboxClip(0, 'tr909', wanted)
+
+    const next = grooveboxSong(useRack.getState().patch)!
+    expect(next.chain[0]).toMatchObject({
+      pattern: fallback,
+      clips: { tr909: wanted },
+    })
+    expect(useRack.getState().revision).toBe(before)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+  })
+
+  it('removes a redundant override when a machine returns to the section pattern', () => {
+    const song = grooveboxSong(useRack.getState().patch)!
+    const fallback = song.chain[0].pattern
+    const wanted = song.patterns.find((pattern) => pattern.id !== fallback)!.id
+    useRack.getState().setGrooveboxClip(0, '303.a', wanted)
+    useRack.getState().setGrooveboxClip(0, '303.a', fallback)
+
+    expect(grooveboxSong(useRack.getState().patch)?.chain[0].clips?.['303.a']).toBeUndefined()
+  })
+
+  it('materialises one equivalent section for a song with an empty chain', () => {
+    const song = grooveboxSong(useRack.getState().patch)!
+    useRack.setState({
+      patch: embedGrooveboxSong({ ...song, chain: [] }),
+      revision: 0,
+    })
+
+    useRack.getState().setGrooveboxClip(0, 'tr808', song.patterns[0].id)
+
+    expect(grooveboxSong(useRack.getState().patch)?.chain).toEqual([
+      { pattern: song.patterns[0].id, repeat: 1 },
+    ])
+  })
 })

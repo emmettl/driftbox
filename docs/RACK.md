@@ -69,8 +69,11 @@ open one 16-step page at a time; drum steps cycle rest, hit and accent, while ea
 can set pitch, accent and slide. Longer polymetric patterns page rather than being truncated.
 Edits replace the versioned song envelope and reach the hosted scheduler on its next step
 without recompiling the rack graph, restarting the arrangement or turning a compatible song
-into a rack-extended document. Clip arrangement and instrument controls remain the next
-editor layers.
+into a rack-extended document. A section selector beside the steps assigns any pattern from
+the retained bank to the selected machine in that arrangement section. Selecting the
+section's fallback removes the redundant override, preserving the old whole-pattern song
+shape where possible. Live quantised launch and instrument controls remain the next editor
+layers.
 
 ## What this is not
 

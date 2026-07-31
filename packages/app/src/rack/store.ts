@@ -1,6 +1,8 @@
 import {
+  chainSetClip,
   type Pattern,
   type Song,
+  type GrooveboxSection,
   encodeSong,
 } from '@driftbox/engine'
 import {
@@ -204,6 +206,12 @@ interface RackState {
    * worklet graph or restart the arrangement.
    */
   setGrooveboxPattern: (pattern: Pattern) => void
+  /** Assign one retained machine clip to one arrangement section. */
+  setGrooveboxClip: (
+    section: number,
+    machine: GrooveboxSection,
+    patternId: string,
+  ) => void
   /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
@@ -593,6 +601,25 @@ export const useRack = create<RackState>((set, get) => {
           patterns: song.patterns.map((candidate) =>
             candidate.id === pattern.id ? pattern : candidate,
           ),
+        }
+        const patch = { ...state.patch, groovebox: encodeSong(next) }
+        autosavePatch(patch)
+        return { patch }
+      }),
+
+    setGrooveboxClip: (section, machine, patternId) =>
+      set((state) => {
+        const song = grooveboxSong(state.patch)
+        if (!song || !song.patterns.some((pattern) => pattern.id === patternId)) return {}
+        const chain =
+          song.chain.length > 0
+            ? song.chain
+            : [{ pattern: song.patterns[0]?.id ?? patternId, repeat: 1 }]
+        if (section < 0 || section >= chain.length) return {}
+        const withChain = { ...song, chain }
+        const next: Song = {
+          ...withChain,
+          chain: chainSetClip(withChain, section, machine, patternId),
         }
         const patch = { ...state.patch, groovebox: encodeSong(next) }
         autosavePatch(patch)
