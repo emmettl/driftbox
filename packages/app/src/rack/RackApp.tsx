@@ -203,9 +203,11 @@ export default function RackApp() {
    *  runs during render — putting the `const` further down the component was a temporal-dead-zone crash that
    *  took the whole page out, and nothing but loading the page would have found it. */
   const loadBreakRef = useRef<(id: string) => Promise<void>>(async () => {})
+  const stopSamplePreviewRef = useRef<() => void>(() => {})
 
   const loadBreak = useCallback(
     async (id: string) => {
+      stopSamplePreviewRef.current()
       const entry = BREAKS.find((candidate) => candidate.id === id)
       if (!entry) return
       // Recorded before the live-rack check, not after. This used to return early when audio had not started,
@@ -232,6 +234,9 @@ export default function RackApp() {
       for (const module of samplers) live.setData(module.id, 'sample', rendered.slice())
       setLoadedBreak({ id: entry.id, name: entry.name })
       for (const module of samplers) {
+        // Retained once for auditioning and export. Several Samplers may safely share this immutable array;
+        // only the copies transferred to the worklet are detached.
+        sampleAudio.current.set(module.id, rendered)
         useRack.getState().setSample(module.id, {
           name: entry.name,
           bars: 1,
@@ -383,6 +388,75 @@ export default function RackApp() {
    * needs it back.
    */
   const sampleAudio = useRef(new Map<string, Float32Array>())
+  /** One raw-sample audition at a time, independent of the rack transport and patch cables. */
+  const samplePreviewContext = useRef<AudioContext | null>(null)
+  const samplePreviewSource = useRef<AudioBufferSourceNode | null>(null)
+  const samplePreviewTicket = useRef(0)
+
+  const stopSamplePreview = useCallback(() => {
+    samplePreviewTicket.current++
+    const source = samplePreviewSource.current
+    samplePreviewSource.current = null
+    source?.disconnect()
+    try {
+      source?.stop()
+    } catch {
+      // An already-ended source is stopped in every meaningful sense.
+    }
+    useRack.getState().setPreviewingSample(null)
+  }, [])
+  stopSamplePreviewRef.current = stopSamplePreview
+
+  const previewSample = useCallback(async (moduleId: string) => {
+    if (useRack.getState().previewingSample === moduleId) {
+      stopSamplePreview()
+      return
+    }
+
+    stopSamplePreview()
+    const samples = sampleAudio.current.get(moduleId)
+    const info = useRack.getState().samples[moduleId]
+    if (!samples || !info || !(info.seconds > 0)) return
+
+    // Audition the source, not the source layered over the running rack. The rack context suspends when its
+    // transport stops; this preview owns a separate context so it remains audible.
+    if (useRack.getState().running) useRack.getState().setRunning(false)
+
+    const ticket = samplePreviewTicket.current
+    const context = samplePreviewContext.current ?? new AudioContext()
+    samplePreviewContext.current = context
+    if (context.state === 'suspended') await context.resume()
+    if (ticket !== samplePreviewTicket.current) return
+
+    // Recover the decode rate from the retained frame count and exact duration. The preview context resamples
+    // it to the output device; forcing its own rate here would change the length and pitch.
+    const sampleRate = Math.max(3_000, Math.min(192_000, Math.round(samples.length / info.seconds)))
+    const buffer = context.createBuffer(1, samples.length, sampleRate)
+    buffer.getChannelData(0).set(samples)
+    const source = context.createBufferSource()
+    source.buffer = buffer
+    source.connect(context.destination)
+    source.onended = () => {
+      if (samplePreviewSource.current !== source) return
+      samplePreviewSource.current = null
+      source.disconnect()
+      useRack.getState().setPreviewingSample(null)
+    }
+    samplePreviewSource.current = source
+    useRack.getState().setPreviewingSample(moduleId)
+    source.start()
+  }, [stopSamplePreview])
+
+  useEffect(() => {
+    useRack.getState().setSamplePreviewer(previewSample)
+    return () => {
+      useRack.getState().setSamplePreviewer(null)
+      stopSamplePreview()
+      const context = samplePreviewContext.current
+      samplePreviewContext.current = null
+      if (context && context.state !== 'closed') void context.close()
+    }
+  }, [previewSample, stopSamplePreview])
 
   /**
    * Load an audio file into one Sampler.
@@ -395,6 +469,7 @@ export default function RackApp() {
    * that makes it so; see the note at the top of `sample.ts`.
    */
   const loadSampleInto = useCallback(async (moduleId: string, file: File) => {
+    stopSamplePreview()
     const bytes = await file.arrayBuffer()
     // 1 frame is the smallest legal length; nothing is rendered through it, it only decodes.
     const decoder = new OfflineAudioContext(1, 1, 44100)
@@ -418,7 +493,7 @@ export default function RackApp() {
     const tempo = tempoForBars(seconds, bars)
     if (tempo > 0) setTempo(Math.round(tempo * 100) / 100)
     setRunning(true)
-  }, [setTempo, setRunning])
+  }, [setTempo, setRunning, stopSamplePreview])
 
   useEffect(() => {
     useRack.getState().setSampleLoader(loadSampleInto)

@@ -46,6 +46,12 @@ export interface StemOptions {
   sampleRate?: number
   /** Seconds of silence after the last step, so tails are not cut off. */
   tail?: number
+  /** Start rendering this many seconds into the arrangement. Defaults to the beginning. */
+  start?: number
+  /** Stop scheduling new notes after this many seconds. Defaults to the rest of the song. */
+  duration?: number
+  /** Use the AudioWorklet ladder for bass voices. Disable for a faster rough preview. */
+  useLadder?: boolean
   /** Render only these voices. Defaults to every voice the song actually uses. */
   only?: string[]
   /** Supplied by the host in tests; defaults to the global. */
@@ -87,8 +93,19 @@ export function songSeconds(song: Song, tail = 4): number {
  * transport walks, so a stem plays exactly what you heard — including its swing, which is
  * per voice and would be very easy to lose here.
  */
-async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOptions, 'sampleRate' | 'tail'>> & Pick<StemOptions, 'offline'>): Promise<AudioBuffer> {
-  const seconds = songSeconds(song, opts.tail)
+async function renderOne(
+  song: Song,
+  voiceId: string,
+  opts: Required<Pick<StemOptions, 'sampleRate' | 'tail' | 'start'>>
+    & Pick<StemOptions, 'duration' | 'offline' | 'useLadder'>,
+): Promise<AudioBuffer> {
+  const arrangementSeconds = songSeconds(song, 0)
+  const start = Math.min(Math.max(0, opts.start), arrangementSeconds)
+  const duration = Math.min(
+    opts.duration ?? arrangementSeconds - start,
+    arrangementSeconds - start,
+  )
+  const seconds = Math.max(0, duration) + opts.tail
   const make =
     opts.offline ?? ((c: number, l: number, r: number) => new OfflineAudioContext(c, l, r))
   const ctx = make(2, Math.ceil(seconds * opts.sampleRate), opts.sampleRate)
@@ -118,7 +135,7 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
   const isBass = BASS_VOICES.some((v) => v.id === voiceId)
 
   if (isBass) {
-    const { bassline } = await Bassline.create(ctx)
+    const { bassline } = await Bassline.create(ctx, { useLadder: opts.useLadder })
     bassline.output.connect(bus)
     const bassSends = [
       [sends.delayInput, 'delay'],
@@ -134,9 +151,11 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
     for (const step of plan) {
       for (const hit of step.bass) {
         if (hit.voiceId !== voiceId) continue
-        sendGains.delay.gain.setValueAtTime(hit.sends.delay, hit.time)
-        sendGains.reverb.gain.setValueAtTime(hit.sends.reverb, hit.time)
-        bassline.play(hit.note, hit.time)
+        const time = hit.time - start
+        if (time < 0 || time >= duration) continue
+        sendGains.delay.gain.setValueAtTime(hit.sends.delay, time)
+        sendGains.reverb.gain.setValueAtTime(hit.sends.reverb, time)
+        bassline.play(hit.note, time)
       }
     }
   } else {
@@ -145,8 +164,10 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
       for (const step of plan) {
         for (const hit of step.drums) {
           if (hit.voiceId !== voiceId) continue
+          const time = hit.time - start
+          if (time < 0 || time >= duration) continue
           const spec = buildVoice(voice, hit.params, hit.accent)
-          const handle = renderVoice(ctx, spec, bus, hit.time)
+          const handle = renderVoice(ctx, spec, bus, time)
           sendTo(handle.output, hit.sends)
         }
       }
@@ -167,11 +188,19 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
 export async function renderStems(song: Song, options: StemOptions = {}): Promise<Stem[]> {
   const sampleRate = options.sampleRate ?? 44100
   const tail = options.tail ?? 4
+  const start = options.start ?? 0
   const ids = options.only ?? voicesUsed(song)
 
   const out: Stem[] = []
   for (const voiceId of ids) {
-    const buffer = await renderOne(song, voiceId, { sampleRate, tail, offline: options.offline })
+    const buffer = await renderOne(song, voiceId, {
+      sampleRate,
+      tail,
+      start,
+      duration: options.duration,
+      useLadder: options.useLadder,
+      offline: options.offline,
+    })
     const name = voiceById(voiceId)?.name ?? BASS_VOICES.find((v) => v.id === voiceId)?.name ?? voiceId
     out.push({ voiceId, name, buffer })
   }
