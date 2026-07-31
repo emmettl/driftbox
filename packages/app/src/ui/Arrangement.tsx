@@ -1,4 +1,4 @@
-import { chainPositionAt, songBars, type ClipSlot } from '@driftbox/engine'
+import { chainBarAt, chainPositionAt, songBars, type ClipSlot } from '@driftbox/engine'
 import { useBox } from '../store'
 import { Panel } from './Panel'
 import { usePlayhead } from './usePlayhead'
@@ -24,6 +24,9 @@ export function Arrangement() {
   const setChainRepeat = useBox((s) => s.setChainRepeat)
   const setChainClip = useBox((s) => s.setChainClip)
   const moveChain = useBox((s) => s.moveChain)
+  const loop = useBox((s) => s.loop)
+  const startAtBar = useBox((s) => s.startAtBar)
+  const toggleSectionLoop = useBox((s) => s.toggleSectionLoop)
 
   const playhead = usePlayhead()
   const playing = playhead ? chainPositionAt(song, playhead.bar) : undefined
@@ -49,12 +52,14 @@ export function Arrangement() {
         {song.chain.map((step, index) => {
           const live = playing?.index === index
           const clip = step.clips?.[slot] ?? step.pattern
+          const startsAt = chainBarAt(song, index)
+          const looping = loop?.start === startsAt && loop.bars === step.repeat
           return (
             <div
               key={index}
               className={`chain-step${live ? ' live' : ''}${
                 clip === editing ? ' editing' : ''
-              }`}
+              }${looping ? ' looping' : ''}`}
             >
               <div className="chain-head">
                 <button
@@ -119,13 +124,32 @@ export function Arrangement() {
                 </button>
               </div>
 
-              <button
-                className="chain-edit"
-                onClick={() => setEditing(clip)}
-                title={`Edit this section's ${slotLabel} clip`}
-              >
-                edit
-              </button>
+              <div className="chain-transport">
+                <button
+                  className="chain-edit"
+                  onClick={() => setEditing(clip)}
+                  title={`Edit this section's ${slotLabel} clip`}
+                >
+                  edit
+                </button>
+                <button
+                  className="chain-edit"
+                  onClick={() => startAtBar(startsAt)}
+                  title={`Play from section ${index + 1}`}
+                  aria-label={`Play from section ${index + 1}`}
+                >
+                  ▶
+                </button>
+                <button
+                  className={`chain-edit${looping ? ' on' : ''}`}
+                  onClick={() => toggleSectionLoop(index)}
+                  title={`Loop section ${index + 1}`}
+                  aria-label={`Loop section ${index + 1}`}
+                  aria-pressed={looping}
+                >
+                  loop
+                </button>
+              </div>
             </div>
           )
         })}

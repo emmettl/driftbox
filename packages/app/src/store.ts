@@ -8,6 +8,7 @@ import {
   DriftboxEngine,
   REST,
   chainAppend,
+  chainBarAt,
   chainMove,
   chainRemove,
   chainSetClip,
@@ -70,11 +71,16 @@ import {
 /** Which instrument the grid and the channel strip are showing. The two drum machines
  *  and the 303 rack are three views of one song, not three songs. */
 export type View = MachineId | 'bass'
+export interface SongLoop {
+  start: number
+  bars: number
+}
 
 interface State {
   song: Song
   engine: DriftboxEngine | null
   running: boolean
+  loop: SongLoop | null
   view: View
   /**
    * Which meter is drawn over the scene, and in the editor's scope panel.
@@ -120,6 +126,8 @@ interface State {
 
   init: () => void
   toggleTransport: () => void
+  startAtBar: (bar: number) => void
+  toggleSectionLoop: (index: number) => void
   setBpm: (bpm: number) => void
   setSwing: (swing: number) => void
   setView: (view: View) => void
@@ -265,8 +273,9 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
     engine.bpm = song.bpm
     engine.swing = song.swing
     engine.syncFx()
+    engine.clearLoop()
   }
-  return { song, editing: song.patterns[0]?.id ?? '', followPlayhead: true }
+  return { song, editing: song.patterns[0]?.id ?? '', followPlayhead: true, loop: null }
 }
 
 export const useBox = create<State>()((set, get) => ({
@@ -274,6 +283,7 @@ export const useBox = create<State>()((set, get) => ({
   preset: initialPreset,
   engine: null,
   running: false,
+  loop: null,
   view: 'tr808',
   scope: 'wave',
   rendering: null,
@@ -319,6 +329,31 @@ export const useBox = create<State>()((set, get) => ({
     } else {
       void engine.start().then(() => set({ running: true }))
     }
+  },
+
+  startAtBar: (bar) => {
+    get().init()
+    const engine = get().engine
+    if (!engine) return
+    if (engine.running) engine.stop()
+    void engine.startAt(Math.max(0, Math.floor(bar))).then(() => set({ running: true }))
+  },
+
+  toggleSectionLoop: (index) => {
+    get().init()
+    const { song, engine, loop } = get()
+    if (!engine) return
+    const step = song.chain[index]
+    if (!step) return
+    const start = chainBarAt(song, index)
+    const bars = Math.max(1, Math.floor(step.repeat))
+    if (loop?.start === start && loop.bars === bars) {
+      engine.clearLoop()
+      set({ loop: null })
+      return
+    }
+    engine.setLoop(start, bars)
+    set({ loop: { start, bars } })
   },
 
   setBpm: (bpm) => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   barLengthForBar,
+  chainBarAt,
   chainAppend,
   chainMove,
   chainPositionAt,
@@ -50,6 +51,14 @@ describe('how long a song is', () => {
     // still takes up a row in the editor — a section that silently does nothing.
     expect(songBars(song({ chain: [{ pattern: 'a', repeat: 0 }] }))).toBe(1)
     expect(songBars(song({ chain: [{ pattern: 'a', repeat: -4 }] }))).toBe(1)
+  })
+
+  it('finds the absolute bar where each section starts', () => {
+    const s = song()
+    expect(chainBarAt(s, 0)).toBe(0)
+    expect(chainBarAt(s, 1)).toBe(2)
+    expect(chainBarAt(s, 2)).toBe(5)
+    expect(chainBarAt(s, 999)).toBe(5)
   })
 })
 

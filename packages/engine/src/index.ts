@@ -268,6 +268,27 @@ export class DriftboxEngine {
     this.transport.start()
   }
 
+  /** Start immediately from a bar/step without applying the count-in at song position 0. */
+  async startAt(bar: number, index = 0): Promise<void> {
+    if (this.transport.running) this.transport.stop()
+    await this.resume()
+    await this.ensureBass()
+    this.countInUntil = 0
+    this.transport.startAt(bar, index)
+  }
+
+  setLoop(start: number, bars: number): void {
+    this.transport.setLoop(start, bars)
+  }
+
+  clearLoop(): void {
+    this.transport.clearLoop()
+  }
+
+  get loop(): { start: number; bars: number } | null {
+    return this.transport.loop
+  }
+
   /** Whether the transport is currently counting in rather than playing the song. */
   get countingIn(): boolean {
     return this.transport.running && this.transport.position.bar < this.countInUntil

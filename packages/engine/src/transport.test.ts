@@ -158,6 +158,18 @@ describe('starting and stopping', () => {
     expect(events[0]).toMatchObject({ absolute: 0, index: 0, bar: 0 })
   })
 
+  it('can start from an exact bar and step', () => {
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      barLength: () => 8,
+      onStep: (event) => events.push(event),
+    })
+    transport.startAt(3, 5)
+    run(clock, 0.2)
+    transport.stop()
+
+    expect(events[0]).toMatchObject({ absolute: 0, index: 5, bar: 3 })
+  })
+
   it('emits nothing once stopped', () => {
     const transport = start(() => 4)
     run(clock, 0.5)
@@ -185,5 +197,47 @@ describe('starting and stopping', () => {
     const caught = events.length - before
     expect(caught).toBeLessThanOrEqual(64)
     expect(caught).toBeLessThan(200)
+  })
+})
+
+describe('song loops', () => {
+  it('wraps at the end of a whole-bar range', () => {
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      barLength: () => 2,
+      onStep: (event) => events.push(event),
+    })
+    transport.setLoop(1, 2)
+    transport.startAt(1)
+    run(clock, 2)
+    transport.stop()
+
+    const downbeats = events.filter((event) => event.index === 0).map((event) => event.bar)
+    expect(downbeats.slice(0, 6)).toEqual([1, 2, 1, 2, 1, 2])
+    expect(transport.loop).toEqual({ start: 1, bars: 2 })
+  })
+
+  it('continues past the former end when the loop is cleared', () => {
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      barLength: () => 2,
+      onStep: (event) => events.push(event),
+    })
+    transport.setLoop(1, 2)
+    transport.startAt(1)
+    run(clock, 0.4)
+    transport.clearLoop()
+    run(clock, 1)
+    transport.stop()
+
+    expect(events.some((event) => event.bar >= 3)).toBe(true)
+    expect(transport.loop).toBeNull()
+  })
+
+  it('treats a non-positive loop length as off', () => {
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      barLength: () => 4,
+      onStep: (event) => events.push(event),
+    })
+    transport.setLoop(3, 0)
+    expect(transport.loop).toBeNull()
   })
 })

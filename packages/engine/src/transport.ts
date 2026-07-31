@@ -88,6 +88,8 @@ export class Transport {
   private index = 0
   private bar = 0
   private length = 16
+  private loopStart: number | undefined
+  private loopEnd: number | undefined
 
   private readonly ctx: BaseAudioContext
   private readonly options: TransportOptions
@@ -108,11 +110,17 @@ export class Transport {
   }
 
   start(): void {
+    this.startAt(0)
+  }
+
+  /** Start from an exact song position. The end is exclusive, as it is everywhere
+   * else in the scheduler, so seeking to step `length` lands on the next bar instead. */
+  startAt(bar: number, index = 0): void {
     if (this.active) return
-    this.length = this.options.barLength(0)
+    this.bar = Math.max(0, Math.floor(bar))
+    this.length = Math.max(1, Math.floor(this.options.barLength(this.bar)))
     this.absolute = 0
-    this.index = 0
-    this.bar = 0
+    this.index = Math.max(0, Math.min(this.length - 1, Math.floor(index)))
     // A beat of headroom before the first hit. Starting at exactly currentTime means
     // the first step is already in the past by the time the nodes are built, and the
     // pattern opens with a stumble.
@@ -121,6 +129,28 @@ export class Transport {
     this.tick()
     this.ticker ??= createTicker(() => this.tick())
     this.ticker.start(TICK_MS)
+  }
+
+  /** Loop whole bars. `bars <= 0` disables looping. Changes are heard at the next bar
+   * boundary, so the current bar never gets cut in half. */
+  setLoop(start: number, bars: number): void {
+    const length = Math.floor(bars)
+    if (length <= 0) {
+      this.clearLoop()
+      return
+    }
+    this.loopStart = Math.max(0, Math.floor(start))
+    this.loopEnd = this.loopStart + length
+  }
+
+  clearLoop(): void {
+    this.loopStart = undefined
+    this.loopEnd = undefined
+  }
+
+  get loop(): { start: number; bars: number } | null {
+    if (this.loopStart === undefined || this.loopEnd === undefined) return null
+    return { start: this.loopStart, bars: this.loopEnd - this.loopStart }
   }
 
   stop(): void {
@@ -152,6 +182,13 @@ export class Transport {
       if (this.index >= this.length) {
         this.index = 0
         this.bar += 1
+        if (
+          this.loopStart !== undefined &&
+          this.loopEnd !== undefined &&
+          this.bar >= this.loopEnd
+        ) {
+          this.bar = this.loopStart
+        }
         this.length = this.options.barLength(this.bar)
       }
     }
