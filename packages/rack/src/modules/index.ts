@@ -1,5 +1,6 @@
 import type { ModuleDef, Registry } from '../types.js'
 import { ADSR_MODULE } from './adsr.js'
+import { AUDIO_INPUT_MODULE } from './audio-input.js'
 import { ARRANGER_MODULE } from './arranger.js'
 import { ALLIGATOR_MODULE } from './alligator.js'
 import { CLOCK_MODULE } from './clock.js'
@@ -30,7 +31,7 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 
-// Thirty modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-one modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -71,6 +72,7 @@ import { VOCODER_MODULE } from './vocoder.js'
  */
 export const MODULE_LIST: readonly ModuleDef[] = [
   GROOVEBOX_MODULE,
+  AUDIO_INPUT_MODULE,
   VCO_MODULE,
   NOISE_MODULE,
   SAMPLER_MODULE,
@@ -116,6 +118,7 @@ export const MODULES: Registry = Object.fromEntries(
 )
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
+export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './audio-input.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'

@@ -229,7 +229,7 @@ export interface ModuleDef {
   /**
    * Which shelf of the picker this sits on — "Sources", "Filters" and so on.
    *
-   * A flat list of twenty-nine names is a list you read rather than a place you look. Grouping is the
+   * A flat list of names is a list you read rather than a place you look. Grouping is the
    * cheapest fix and it has to be stated rather than inferred: `MODULE_LIST`'s order has always implied
    * these groups, but nothing enforced it and nothing could read it.
    */

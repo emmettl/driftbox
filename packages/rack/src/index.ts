@@ -93,6 +93,7 @@ export { CHUNKS, chunkById, insertChunk, type Chunk, type Inserted } from './chu
 export { VCV_MODELS, importVcv, importVcvPatch, type ImportNote, type Imported } from './vcv/index.js'
 export { MODULES, MODULE_LIST } from './modules/index.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
+export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './modules/audio-input.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './modules/arranger.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './modules/combi.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './modules/follower.js'
@@ -117,8 +118,9 @@ export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './workle
 export { renderLength, renderPatch, type RenderOptions } from './render.js'
 
 export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
-/** Four stereo host inputs: 808, 909, 303 A and 303 B. */
-export const RACK_HOST_INPUTS = 4
+/** Host input 4 is reserved for a browser MediaStream; 0..3 are the groovebox sections. */
+export const RACK_LIVE_INPUT = 4
+export const RACK_HOST_INPUTS = 5
 
 /**
  * The host side of a rack.
@@ -162,8 +164,8 @@ export class Rack {
     if (!(await loadRack(this.ctx, this.registry))) return false
 
     const node = new AudioWorkletNode(this.ctx, RACK_PROCESSOR, {
-      // Four stereo host inputs. They make no sound by themselves: the Groovebox source
-      // module is what turns one into ordinary patchable rack outlets.
+      // Four groovebox buses plus one live browser input. They make no sound by
+      // themselves: source modules turn them into ordinary patchable rack outlets.
       numberOfInputs: RACK_HOST_INPUTS,
       numberOfOutputs: 1,
       outputChannelCount: [2],

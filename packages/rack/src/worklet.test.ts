@@ -148,6 +148,25 @@ describe('the assembled worklet', () => {
     )
   })
 
+  it('turns the fifth host bus into the patchable live input', () => {
+    const patch: Patch = {
+      modules: [
+        { id: 'live', type: 'audio-input', params: { level: 2, channel: 1 } },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [{ from: ['live', 'out'], to: ['out', 'in'] }],
+    }
+    const { instance } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(patch, MODULES) } })
+    const inputs = Array.from({ length: 5 }, () => [] as Float32Array[])
+    inputs[4] = [
+      new Float32Array(FRAMES).fill(0.1),
+      new Float32Array(FRAMES).fill(0.25),
+    ]
+
+    expect([...render(instance, 1, inputs)]).toEqual(new Array(FRAMES).fill(0.5))
+  })
+
   it('carries the ladder across without the ladder knowing its own name', () => {
     // This is the minifier hazard, reproduced. A bundler may rename a class, its binding, or
     // both, and if the module body referenced `Ladder` by identifier the two halves could

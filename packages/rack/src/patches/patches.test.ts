@@ -3,7 +3,7 @@ import { compile } from '../compile.js'
 import { applyModulation } from '../modulation.js'
 import { MODULES } from '../modules/index.js'
 import { decodePatch, encodePatch } from '../patch-io.js'
-import { PATCHES, patchPresetById } from './index.js'
+import { GUITAR_PEDALBOARD_GAPS, PATCHES, patchPresetById } from './index.js'
 
 // A shipped patch that does not work is worse than no shipped patch: it is the first thing anybody sees, and
 // a dangling cable or a param that no longer exists reads as the whole rack being broken. Every one of them
@@ -91,6 +91,26 @@ describe('the patch library', () => {
     // And between them they exercise most of the rack.
     const covered = new Set(PATCHES.flatMap((p) => p.build().modules.map((m) => m.type)))
     expect(covered.size).toBeGreaterThanOrEqual(12)
+  })
+})
+
+describe('the guitar pedalboard', () => {
+  const modules = () => patchPresetById('guitar-pedalboard')!.build().modules
+
+  it('starts at the live input and includes the distortion and EQ already available', () => {
+    expect(modules()[0].type).toBe('audio-input')
+    expect(modules().some((module) => module.type === 'drive')).toBe(true)
+    expect(modules().some((module) => module.type === 'eq')).toBe(true)
+  })
+
+  it('adopts every documented guitar gap when its module lands', () => {
+    for (const gap of GUITAR_PEDALBOARD_GAPS) {
+      if (!MODULES[gap.type]) continue
+      expect(
+        modules().some((module) => module.type === gap.type),
+        `${gap.name} exists but the guitar preset does not use it`,
+      ).toBe(true)
+    }
   })
 })
 

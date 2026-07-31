@@ -72,11 +72,14 @@ const UNSTABLE = [
   'rackSource',
   'RACK_PROCESSOR',
   'RACK_HOST_INPUTS',
+  'RACK_LIVE_INPUT',
   // Individual module defs and processors, exported one by one as things needed them. The registry is the
   // supported way to reach a module; these are convenience that hardened into API.
   'ALLIGATOR_BANDS',
   'ALLIGATOR_MODULE',
   'AlligatorProcessor',
+  'AUDIO_INPUT_MODULE',
+  'AudioInputProcessor',
   'ARRANGER_MODULE',
   'ARRANGER_SECTIONS',
   'ArrangerProcessor',
