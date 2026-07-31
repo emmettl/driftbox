@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compile } from '../compile.js'
+import { applyModulation } from '../modulation.js'
 import { MODULES } from '../modules/index.js'
 import { decodePatch, encodePatch } from '../patch-io.js'
 import { PATCHES, patchPresetById } from './index.js'
@@ -76,9 +77,9 @@ describe('the patch library', () => {
     expect(patchPresetById('nonesuch')).toBeUndefined()
   })
 
-  it('demonstrates a range rather than four of the same thing', () => {
-    // The point of shipping four. If they all had a sequencer and an oscillator they would be four settings
-    // of one instrument, which is the opposite of what a modular is for.
+  it('demonstrates a range rather than one instrument with several settings', () => {
+    // If every patch had a sequencer and an oscillator this would be a bank of settings, which is the
+    // opposite of what a modular is for.
     const uses = (id: string, type: string) =>
       patchPresetById(id)!.build().modules.some((m) => m.type === type)
 
@@ -105,8 +106,12 @@ describe('the patches built on a break', () => {
 
   it('have somewhere to put the break they ask for', () => {
     for (const preset of needing) {
-      const samplers = preset.build().modules.filter((m) => m.type === 'sampler')
+      const patch = preset.build()
+      const samplers = patch.modules.filter((m) => m.type === 'sampler')
       expect(samplers.length, preset.id).toBeGreaterThan(0)
+      // `needsBreak` makes the catalogue readable; `break` is the document metadata that survives a save,
+      // download or shared URL. If they diverge the first play works and every reopened copy loses its drums.
+      expect(patch.break, preset.id).toBe(preset.needsBreak)
     }
   })
 
@@ -124,27 +129,38 @@ describe('the patches built on a break', () => {
 describe('the patterns inside the patches', () => {
   it('only put data in slots the module actually reads', () => {
     // Data is addressed by string, so a typo is silence rather than an error — `lane5` on a four-lane
-    // Tracker would simply never be read, and the lane would rest for ever.
+    // Tracker or `repeat` on an Arranger would simply never be read.
+    const slots: Record<string, RegExp> = {
+      tracker: /^lane[1-4]$/,
+      arranger: /^(patterns|repeats)$/,
+    }
     for (const preset of PATCHES) {
       for (const module of preset.build().modules) {
         if (!module.data) continue
-        expect(module.type, `${preset.id}/${module.id}`).toBe('tracker')
+        expect(slots[module.type], `${preset.id}/${module.id}`).toBeDefined()
         for (const slot of Object.keys(module.data)) {
-          expect(slot, `${preset.id}/${module.id}`).toMatch(/^lane[1-4]$/)
+          expect(slot, `${preset.id}/${module.id}`).toMatch(slots[module.type])
         }
       }
     }
   })
 
-  it('write no more steps than the tracker is set to play', () => {
-    // Steps past the length are never reached. Not an error, but in a shipped patch it means somebody wrote
-    // a bar and a half and only ever hears the first bar.
+  it('writes no more than eight complete patterns to a tracker bank', () => {
+    // Patterns are stored end to end. Before banks existed this test allowed only `length` values, which
+    // quietly prevented a shipped patch from using the feature the Tracker's faceplate already exposed.
+    // A partial final pattern is legal while editing, but not in a preset: it is an invisible short bar.
     for (const preset of PATCHES) {
       for (const module of preset.build().modules) {
-        if (!module.data) continue
+        if (module.type !== 'tracker' || !module.data) continue
         const length = module.params?.length ?? 16
+        const patterns =
+          (MODULES.tracker.params.find((param) => param.id === 'pattern')?.max ?? 7) + 1
         for (const [slot, values] of Object.entries(module.data)) {
-          expect(values.length, `${preset.id}/${module.id}/${slot}`).toBeLessThanOrEqual(length)
+          expect(values.length, `${preset.id}/${module.id}/${slot}`).toBeLessThanOrEqual(
+            length * patterns,
+          )
+          expect(values.length, `${preset.id}/${module.id}/${slot}`).toBeGreaterThan(0)
+          expect(values.length % length, `${preset.id}/${module.id}/${slot}`).toBe(0)
         }
       }
     }
@@ -177,11 +193,54 @@ describe('the patterns inside the patches', () => {
     // A lane of nothing but rests is a lane somebody meant to write and did not.
     for (const preset of PATCHES) {
       for (const module of preset.build().modules) {
-        if (!module.data) continue
+        if (module.type !== 'tracker' || !module.data) continue
         for (const [slot, values] of Object.entries(module.data)) {
           expect(values.some((v) => v !== 0), `${preset.id}/${slot}`).toBe(true)
         }
       }
     }
+  })
+})
+
+describe('the hero song', () => {
+  const hero = () => patchPresetById('pressure-system')!.build()
+
+  it('opens with every Combinator target already settled', () => {
+    // Loading runs all routes once. If a target is even a floating-point whisker away from its routed value,
+    // the stored copy differs from the catalogue and can no longer recover its title after a reload.
+    const patch = hero()
+    expect(applyModulation(patch, MODULES)).toBe(patch)
+  })
+
+  it('is an arrangement, not a one-bar patch', () => {
+    const patch = hero()
+    const arranger = patch.modules.find((module) => module.type === 'arranger')
+    expect(arranger).toBeDefined()
+    expect(arranger?.data?.patterns.length).toBeGreaterThanOrEqual(8)
+    expect(arranger?.data?.repeats.reduce((sum, bars) => sum + bars, 0)).toBeGreaterThanOrEqual(32)
+
+    const trackers = patch.modules.filter((module) => module.type === 'tracker')
+    expect(trackers.length).toBeGreaterThanOrEqual(2)
+    for (const tracker of trackers) {
+      expect(Math.max(...Object.values(tracker.data ?? {}).map((lane) => lane.length))).toBe(
+        (tracker.params?.length ?? 16) * 8,
+      )
+    }
+  })
+
+  it('puts the rack-native signature devices in the composition', () => {
+    const types = new Set(hero().modules.map((module) => module.type))
+    for (const type of ['sampler', 'arranger', 'combi', 'alligator', 'vocoder', 'compressor']) {
+      expect(types, type).toContain(type)
+    }
+  })
+
+  it('has playable macro routing rather than an ornamental Combinator', () => {
+    const routes = hero().modulation ?? []
+    const controls = new Set(routes.map((route) => route.from.join('.')))
+    for (let rotary = 1; rotary <= 4; rotary++) {
+      expect(controls).toContain(`combi-1.rotary${rotary}`)
+    }
+    expect(routes.length).toBeGreaterThanOrEqual(12)
   })
 })

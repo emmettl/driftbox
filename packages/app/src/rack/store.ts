@@ -7,6 +7,8 @@ import {
   type ModRoute,
   MODULES,
   PATCHES,
+  decodePatch,
+  encodePatch,
   patchPresetById,
   type Patch,
   type PatchCable,
@@ -185,6 +187,8 @@ interface RackState {
   /** Not structural. Tempo is a value in the patch — it saves and it travels in a link, but changing it does not
    *  rebuild the graph, so it goes down the same path a knob does. */
   setTempo: (tempo: number) => void
+  /** Change the generated break the patch asks its host to load. The id travels; the rendered audio does not. */
+  setBreak: (id: string | null) => void
   /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
@@ -261,27 +265,16 @@ function freshId(patch: Patch, type: string): string {
 }
 
 /**
- * What an empty rack opens on.
- *
- * The shipped Acid patch rather than a second copy of it — it was written out longhand here first, and two
- * definitions of the same patch is one too many. `@driftbox/rack` owns them now for the same reason the
- * engine owns its songs: they are data about the rack, not about the page showing it.
- *
- * It matters more than it looks. An empty rack is a correct empty state and a terrible first impression: a
- * modular with nothing in it does not hint at what it is for, and the first thing anybody needs is to hear
- * that it works and see a cable.
- */
-/**
  * What a first-time visitor arrives on.
  *
  * A beat, not a bleep. `docs/DNB.md` is explicit that the reward for the gesture that starts audio has to be
  * immediate and has to be the thing this rack is for — and a sequenced acid line, which is what this used to
  * be, is a demonstration rather than a record.
  *
- * Acid is still the second entry in the picker and is still the shortest description of what the rack can
- * do. It is just no longer the first thing anybody hears.
+ * The shipped factory rather than a second copy of it: `@driftbox/rack` owns presets for the same reason the
+ * engine owns songs. They are data about the instrument, not about the page showing it.
  */
-const FIRST_PRESET = patchPresetById('cutup') ?? PATCHES[0]
+const FIRST_PRESET = patchPresetById('pressure-system') ?? PATCHES[0]
 
 const STARTER = (): Patch => FIRST_PRESET.build()
 
@@ -567,6 +560,14 @@ export const useRack = create<RackState>((set, get) => {
         return { patch }
       })
     },
+    setBreak: (id) =>
+      set((state) => {
+        if ((id ?? undefined) === state.patch.break) return {}
+        const { break: _drop, ...rest } = state.patch
+        const patch = id ? { ...rest, break: id } : rest
+        autosavePatch(patch)
+        return { patch }
+      }),
 
     setRunning: (running) => set({ running }),
 
@@ -666,10 +667,26 @@ export const useRack = create<RackState>((set, get) => {
  */
 export async function openingPatch(): Promise<Opening> {
   const shared = await takePatchFromUrl()
-  if (shared) return { patch: shared, fresh: false }
+  if (shared) return { patch: shared, fresh: false, preset: matchingPreset(shared) }
   const stored = loadStoredPatch()
-  if (stored) return { patch: stored, fresh: false }
+  if (stored) return { patch: stored, fresh: false, preset: matchingPreset(stored) }
   return { patch: STARTER(), fresh: true, preset: FIRST_PRESET }
+}
+
+/**
+ * Recover the identity of an untouched shipped patch after it has travelled through storage or a link.
+ *
+ * Names stay outside the patch document so somebody's graph is not forced to have one. Exact encoded equality
+ * is deliberately strict: the instant a person changes a knob it is their patch, not something the catalogue
+ * should silently relabel as ours.
+ */
+export function matchingPreset(patch: Patch): PatchPreset | undefined {
+  // Decoding once gives every optional top-level field and every module field a canonical insertion order.
+  // Comparing the raw encodings did not: a factory writes `{ tempo, break, modules, ... }`, while a saved
+  // patch decodes as `{ modules, cables, break, ... }`, and JSON object order made identical patches differ.
+  const canonical = (candidate: Patch) => encodePatch(decodePatch(encodePatch(candidate))!)
+  const encoded = canonical(patch)
+  return PATCHES.find((preset) => canonical(preset.build()) === encoded)
 }
 
 /**
