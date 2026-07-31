@@ -15,7 +15,7 @@ import { layout } from './layout.js'
 import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
-import { Kaoss, toWav } from '@driftbox/engine'
+import { DriftboxEngine, Kaoss, toWav } from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { ccValue, targets as ccTargets } from './cc.js'
@@ -67,6 +67,10 @@ export default function RackApp() {
   const tempo = patch.tempo ?? retainedSong?.bpm ?? 120
 
   const rack = useRef<Rack | null>(null)
+  /** The retained song playing beside the rack graph, through the same final performance bus. */
+  const groovebox = useRef<DriftboxEngine | null>(null)
+  /** Exact envelope currently hosted, so rack-only edits do not rebuild the song engine. */
+  const hostedGroovebox = useRef<string | undefined>(undefined)
   /**
    * The rack's own analyser.
    *
@@ -376,6 +380,29 @@ export default function RackApp() {
   }, [loadSampleInto])
 
   /**
+   * A library load can replace a hosted song with another song or a native patch after
+   * audio has started. Rebuild only when the retained envelope changes; adding a cable
+   * to the surrounding rack must not restart the groovebox transport.
+   */
+  useEffect(() => {
+    const live = rack.current
+    const pad = kaoss.current
+    if (!live || !pad || hostedGroovebox.current === patch.groovebox) return
+
+    groovebox.current?.dispose()
+    groovebox.current = null
+    hostedGroovebox.current = patch.groovebox
+    if (!retainedSong) return
+
+    const hosted = new DriftboxEngine(retainedSong, {
+      context: live.output?.context as AudioContext,
+      destination: pad.input,
+    })
+    groovebox.current = hosted
+    if (playing) void hosted.start()
+  }, [patch.groovebox, playing, retainedSong])
+
+  /**
    * Render the patch to a WAV and hand it over.
    *
    * Offline rather than a recording of what is playing — see the note at the top of `render.ts`. The break
@@ -483,6 +510,17 @@ export default function RackApp() {
     kaoss.current = pad
     setHasKaoss(true)
 
+    // Host the intact authored song with its own engine rather than exploding it into
+    // anonymous rack primitives. Both engines enter the same pad, analyser and destination,
+    // so performance controls and visuals see one combined output.
+    const currentPatch = useRack.getState().patch
+    const song = grooveboxSong(currentPatch)
+    const hosted = song
+      ? new DriftboxEngine(song, { context: ctx, destination: pad.input })
+      : null
+    groovebox.current = hosted
+    hostedGroovebox.current = currentPatch.groovebox
+
     const scope = ctx.createAnalyser()
     scope.fftSize = 2048
     scope.smoothingTimeConstant = 0.75
@@ -496,9 +534,10 @@ export default function RackApp() {
     rack.current = live
     // The gesture that starts audio is also the gesture that starts the music. Anything else means arriving,
     // pressing a button, and getting silence — which is the "instant DJ" problem in `docs/DNB.md`.
-    live.setTransport(useRack.getState().patch.tempo ?? 120, true)
+    live.setTransport(currentPatch.tempo ?? song?.bpm ?? 120, true)
     setRunning(true)
     setStarted(true)
+    if (hosted) await hosted.start()
 
     // The reward for the gesture, and `docs/DNB.md` calls this the most important thing in it: a beat, not a
     // bleep. The opening patch is a chopped break for a first-time visitor, and a break is silent until one
@@ -537,7 +576,13 @@ export default function RackApp() {
   // Knob moves go straight to the audio thread. Subscribing rather than doing it in the handler keeps
   // the faceplates from needing the Rack at all — they only ever touch the store.
   // Let go of the devices on the way out, so a reload does not leave handlers on a closed page.
-  useEffect(() => () => midi.current?.close(), [])
+  useEffect(
+    () => () => {
+      midi.current?.close()
+      groovebox.current?.dispose()
+    },
+    [],
+  )
 
   // The keyboards have to agree with the graph about how many voices there are, or a note lands on a voice
   // the audio thread does not have. `setVoices` silences everything, which is what recompiling does anyway.
@@ -566,12 +611,20 @@ export default function RackApp() {
     // is always given a real AudioContext, so this is a narrowing rather than an assumption.
     const ctx = live.output?.context as AudioContext | undefined
     if (!ctx) return
-    if (playing) {
-      if (ctx.state === 'suspended') void ctx.resume()
-    } else if (ctx.state === 'running') {
-      void ctx.suspend()
+    // A rack tempo is an explicit override. With no override, the hosted engine keeps
+    // ownership of its song tempo and any recorded tempo automation.
+    const hosted = groovebox.current
+    if (patch.tempo !== undefined && hosted && hosted.bpm !== tempo) {
+      hosted.bpm = tempo
     }
-  }, [tempo, playing])
+    if (playing) {
+      void groovebox.current?.start()
+      if (ctx.state === 'suspended') void ctx.resume()
+    } else {
+      groovebox.current?.stop()
+      if (ctx.state === 'running') void ctx.suspend()
+    }
+  }, [patch.tempo, tempo, playing])
 
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
@@ -811,8 +864,8 @@ export default function RackApp() {
           {' · '}
           {retainedSong
             ? compatibility === 'rack-extended'
-              ? 'Groovebox playback devices are the next rack layer; “Sequencer →” opens only the retained song and keeps rack additions saved here.'
-              : 'Groovebox playback devices are the next rack layer; “Sequencer →” returns without loss.'
+              ? 'The retained song plays through the shared rack output; “Sequencer →” opens only that song and keeps rack additions saved here.'
+              : 'The retained song plays through the shared rack output; “Sequencer →” returns without loss.'
             : 'This build will preserve it, but will not send it to a sequencer that cannot decode it.'}
         </p>
       )}

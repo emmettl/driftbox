@@ -47,6 +47,14 @@ const HELD_SECONDS = 30
 export interface EngineOptions {
   /** Supply your own context to share one with other audio in the host app. */
   context?: AudioContext
+  /**
+   * Where the complete groovebox mix goes. Defaults to the context destination.
+   *
+   * A host such as rack mode can provide its own shared performance/filter bus so the
+   * groovebox and another engine are one audible instrument rather than two unrelated
+   * outputs. The node must belong to `context`.
+   */
+  destination?: AudioNode
   /** Master level, 0..1. */
   gain?: number
 }
@@ -144,7 +152,8 @@ export class DriftboxEngine {
     // exactly when somebody is leaning on the filter.
     this.clickOut = this.ctx.createGain()
     this.clickOut.gain.value = 1
-    this.clickOut.connect(this.ctx.destination)
+    const destination = options.destination ?? this.ctx.destination
+    this.clickOut.connect(destination)
 
     // After the compressor, so the compressor is not reacting to signal the filter is
     // about to throw away, and a resonant peak cannot be pumped by it.
@@ -154,7 +163,7 @@ export class DriftboxEngine {
     compressor.connect(this.kaoss.input)
     this.kaoss.output.connect(this.master)
     this.master.connect(this.analyser)
-    this.analyser.connect(this.ctx.destination)
+    this.analyser.connect(destination)
 
     this.transport = new Transport(this.ctx, {
       barLength: (bar) => barLengthForBar(this.song, bar),

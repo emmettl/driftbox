@@ -25,7 +25,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
-| Rack | An unpublished work in progress with 27 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, performance mode, offline export and an additive groovebox document bridge. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 27 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, performance mode, offline export and hosted playback of retained groovebox songs through a shared output. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -43,10 +43,11 @@ record for the modular engine itself.
 
 The first interchange layer is landed: rack patches can retain the complete versioned
 song without rewriting it, including a future song this build cannot decode, and expose
-an explicit compatibility state before a save. Song links can enter rack mode and return
-to the sequencer without losing that document. Next, derive first-class groovebox devices
-and shared transport from the retained song; do not duplicate its authored patterns into
-anonymous rack primitives.
+an explicit compatibility state before a save. Song links can enter rack mode, play
+through the existing groovebox engine on the rack's shared performance output, and return
+to the sequencer without losing that document. Next, derive first-class patchable
+groovebox devices and rack-side editors from the retained song; do not duplicate its
+authored patterns into anonymous rack primitives.
 
 ## What is deliberate
 

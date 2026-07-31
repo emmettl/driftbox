@@ -41,6 +41,12 @@ The two app entry points now exercise it: “rack” carries the current song in
 `rack.html`, which accepts both document kinds and can send the retained song back to the
 sequencer unchanged.
 
+An understood retained song is now audible in rack mode through the existing
+`DriftboxEngine`, not a second rendering implementation. `EngineOptions.destination`
+puts that complete mix on the rack's final Kaoss/analyser bus beside the worklet graph,
+and the rack transport starts and stops both. This is hosting, not yet patchability:
+first-class 303/808/909 devices and rack-side clip editing remain the next layer.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a
