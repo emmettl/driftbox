@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import {
   ALL_VOICES,
+  AUTOMATION_TARGET,
   BASS_VOICES,
   DEFAULT_BASS_PARAMS,
   DEFAULT_FX,
@@ -30,6 +31,7 @@ import {
   rotateBassLine,
   rotateTrack,
   setBassStep,
+  setAutomationPoint,
   setStep as setPatternStep,
   toggleFlam,
   transposeBassLine,
@@ -81,6 +83,8 @@ interface State {
   engine: DriftboxEngine | null
   running: boolean
   loop: SongLoop | null
+  /** Armed recording is editor state; the points it writes live in `Song.automation`. */
+  automationRecording: boolean
   view: View
   /**
    * Which meter is drawn over the scene, and in the editor's scope panel.
@@ -128,6 +132,8 @@ interface State {
   toggleTransport: () => void
   startAtBar: (bar: number) => void
   toggleSectionLoop: (index: number) => void
+  toggleAutomationRecording: () => void
+  clearAutomation: () => void
   setBpm: (bpm: number) => void
   setSwing: (swing: number) => void
   setView: (view: View) => void
@@ -275,7 +281,26 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
     engine.syncFx()
     engine.clearLoop()
   }
-  return { song, editing: song.patterns[0]?.id ?? '', followPlayhead: true, loop: null }
+  return {
+    song,
+    editing: song.patterns[0]?.id ?? '',
+    followPlayhead: true,
+    loop: null,
+    automationRecording: false,
+  }
+}
+
+function recordPoint(
+  song: Song,
+  engine: DriftboxEngine | null,
+  armed: boolean,
+  target: string,
+  value: number,
+  interpolation: 'hold' | 'linear' = 'linear',
+): Song {
+  if (!armed || !engine?.running) return song
+  const { bar, index } = engine.position
+  return setAutomationPoint(song, target, bar, index, value, interpolation)
 }
 
 export const useBox = create<State>()((set, get) => ({
@@ -284,6 +309,7 @@ export const useBox = create<State>()((set, get) => ({
   engine: null,
   running: false,
   loop: null,
+  automationRecording: false,
   view: 'tr808',
   scope: 'wave',
   rendering: null,
@@ -356,18 +382,49 @@ export const useBox = create<State>()((set, get) => ({
     set({ loop: { start, bars } })
   },
 
+  toggleAutomationRecording: () => {
+    set((state) => ({ automationRecording: !state.automationRecording }))
+  },
+
+  clearAutomation: () => {
+    const { song, engine } = get()
+    if (!song.automation?.length) return
+    const next: Song = { ...song, automation: undefined }
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
   setBpm: (bpm) => {
-    const song = { ...get().song, bpm }
-    const engine = get().engine
-    if (engine) engine.bpm = bpm
-    set({ song })
+    const { song, engine, automationRecording } = get()
+    const next = recordPoint(
+      { ...song, bpm },
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.bpm,
+      bpm,
+      'hold',
+    )
+    if (engine) {
+      engine.song = next
+      engine.bpm = bpm
+    }
+    set({ song: next })
   },
 
   setSwing: (swing) => {
-    const song = { ...get().song, swing }
-    const engine = get().engine
-    if (engine) engine.swing = swing
-    set({ song })
+    const { song, engine, automationRecording } = get()
+    const next = recordPoint(
+      { ...song, swing },
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.swing,
+      swing,
+    )
+    if (engine) {
+      engine.song = next
+      engine.swing = swing
+    }
+    set({ song: next })
   },
 
   setView: (view) => {
@@ -501,27 +558,41 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   setParam: (voiceId, key, value) => {
-    const { song, engine } = get()
+    const { song, engine, automationRecording } = get()
     const params: VoiceParams = { ...song.kit.params[voiceId], [key]: value }
     // `...song.kit`, not `{ params }`. The kit carries the 303 settings, the send levels
     // and the per-voice swing as well, and rebuilding it from `params` alone silently
     // dropped all three — turning one drum knob wiped every one of them. It read as
     // correct because it WAS correct when the kit held nothing else.
-    const next: Song = {
+    const edited: Song = {
       ...song,
       kit: { ...song.kit, params: { ...song.kit.params, [voiceId]: params } },
     }
+    const next = recordPoint(
+      edited,
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.voice(voiceId, key),
+      value,
+    )
     if (engine) engine.song = next
     set({ song: next })
   },
 
   setBassParam: (voiceId, key, value) => {
-    const { song, engine } = get()
+    const { song, engine, automationRecording } = get()
     const current = song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
-    const next: Song = {
+    const edited: Song = {
       ...song,
       kit: { ...song.kit, bass: { ...song.kit.bass, [voiceId]: { ...current, [key]: value } } },
     }
+    const next = recordPoint(
+      edited,
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.bass(voiceId, key),
+      value,
+    )
     if (engine) engine.song = next
     set({ song: next })
   },
@@ -538,11 +609,18 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   setVoiceSwing: (voiceId, value) => {
-    const { song, engine } = get()
-    const next: Song = {
+    const { song, engine, automationRecording } = get()
+    const edited: Song = {
       ...song,
       kit: { ...song.kit, swing: { ...song.kit.swing, [voiceId]: value } },
     }
+    const next = recordPoint(
+      edited,
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.voiceSwing(voiceId),
+      value,
+    )
     if (engine) engine.song = next
     set({ song: next })
   },
