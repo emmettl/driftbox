@@ -55,8 +55,11 @@ puts that complete mix on the rack's final Kaoss/analyser bus beside the worklet
 and the rack transport starts and stops both. Four stereo host inputs now feed the
 Groovebox source module. Its 808, 909, 303 A and 303 B outlets are ordinary rack signals;
 patching either side of a section diverts it from the original master without rebuilding
-or restarting the hosted engine. Rack-side clip and instrument editing remains the next
-layer.
+or restarting the hosted engine. Four source strips apply level, balance pan and mute to
+those stereo signals before their outlets. The controls default to unity and are not
+written into imported songs; saving the first adjustment is rack-authored intent and
+makes the document `rack-extended`. Meters, then rack-side clip and instrument editing,
+remain the next layers.
 
 ## What this is not
 

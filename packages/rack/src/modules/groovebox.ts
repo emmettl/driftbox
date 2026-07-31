@@ -8,7 +8,17 @@ import type { ModuleDef, Processor, Transport } from '../types.js'
  * “303 A R” from quietly reading the 303 B input after either side is reordered.
  */
 export const GROOVEBOX_PORTS: Readonly<
-  Record<GrooveboxSection, { input: number; left: string; right: string }>
+  Record<
+    GrooveboxSection,
+    {
+      input: number
+      left: string
+      right: string
+      level: string
+      pan: string
+      mute: string
+    }
+  >
 > = Object.fromEntries(
   GROOVEBOX_SECTIONS.map((section, input) => [
     section,
@@ -16,9 +26,22 @@ export const GROOVEBOX_PORTS: Readonly<
       input,
       left: `${section}-l`,
       right: `${section}-r`,
+      level: `${section.replace('.', '-')}-level`,
+      pan: `${section.replace('.', '-')}-pan`,
+      mute: `${section.replace('.', '-')}-mute`,
     },
   ]),
-) as Record<GrooveboxSection, { input: number; left: string; right: string }>
+) as Record<
+  GrooveboxSection,
+  {
+    input: number
+    left: string
+    right: string
+    level: string
+    pan: string
+    mute: string
+  }
+>
 
 const sectionName = (section: GrooveboxSection): string =>
   section === 'tr808'
@@ -34,13 +57,14 @@ const sectionName = (section: GrooveboxSection): string =>
  *
  * Native Web Audio renders the 303s and drum machines; this processor only crosses that
  * host boundary. Once copied into these buffers the signals are ordinary rack audio, so
- * filters, delays, vocoders and Out strips need no special groovebox path.
+ * filters, delays, vocoders and Out strips need no special groovebox path. The three
+ * params per section form its source strip in this exact order: level, pan, mute.
  */
 export class GrooveboxProcessor implements Processor {
   process(
     _inlets: Float32Array[],
     outlets: Float32Array[],
-    _params: Float32Array[],
+    params: Float32Array[],
     frames: number,
     _transport?: Transport,
     hostInputs: Float32Array[][] = [],
@@ -52,9 +76,16 @@ export class GrooveboxProcessor implements Processor {
       const right = channels[1] ?? left
       const leftOut = outlets[section * 2]
       const rightOut = outlets[section * 2 + 1]
+      const level = params[section * 3]
+      const pan = params[section * 3 + 1]
+      const mute = params[section * 3 + 2]
       for (let i = 0; i < frames; i++) {
-        leftOut[i] = left?.[i] ?? 0
-        rightOut[i] = right?.[i] ?? 0
+        const balance = Math.max(-1, Math.min(1, pan[i]))
+        const gain = mute[i] >= 0.5 ? 0 : level[i]
+        const leftGain = balance > 0 ? 1 - balance : 1
+        const rightGain = balance < 0 ? 1 + balance : 1
+        leftOut[i] = (left?.[i] ?? 0) * gain * leftGain
+        rightOut[i] = (right?.[i] ?? 0) * gain * rightGain
       }
     }
   }
@@ -72,7 +103,23 @@ export const GROOVEBOX_MODULE: ModuleDef = {
     { id: GROOVEBOX_PORTS[section].left, name: `${sectionName(section)} L` },
     { id: GROOVEBOX_PORTS[section].right, name: `${sectionName(section)} R` },
   ]),
-  params: [],
+  params: GROOVEBOX_SECTIONS.flatMap((section) => {
+    const ports = GROOVEBOX_PORTS[section]
+    const name = sectionName(section)
+    return [
+      { id: ports.level, name: `${name} Level`, min: 0, max: 1, default: 1 },
+      { id: ports.pan, name: `${name} Pan`, min: -1, max: 1, default: 0 },
+      {
+        id: ports.mute,
+        name: `${name} Mute`,
+        min: 0,
+        max: 1,
+        default: 0,
+        stepped: true,
+        labels: ['On', 'Mute'],
+      },
+    ]
+  }),
   processor: GrooveboxProcessor,
   // The retained song is one performance, even when the rack patch itself is polyphonic.
   poly: false,
