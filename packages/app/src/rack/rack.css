@@ -670,7 +670,6 @@ kbd {
 }
 
 .rk-rack {
-  --rk-rear-cable-opacity: 1;
   position: relative;
   transform-style: preserve-3d;
   transition: transform var(--spin) cubic-bezier(0.6, 0.05, 0.3, 1);
@@ -678,28 +677,29 @@ kbd {
 
 .rk-rack-flipped {
   transform: rotateY(180deg);
-  animation: rk-reveal-rear-cables var(--spin) linear;
 }
 
 /* The rear SVG is updated while the rack spins so its cables can swing. Running the reveal animation on
-   those repainting SVG groups let their clock start late, most visibly in a busy Combinator rack. The rack
-   itself is stable through those updates, so it owns one inherited opacity clock for every lead.
+   those repainting SVG groups let their clock start late. Running an inherited custom-property animation
+   on the rack fixed that clock but made the browser restyle the whole front on every frame; a Combinator
+   is busy enough for the turn to appear frozen until it finished.
 
    The easing reaches 90deg at 45.6% of the elapsed time, not 50%; 45.8% puts the reveal just beyond that
-   edge without leaving a late empty panel. Removing the flipped class removes the clock, so back-to-front
-   keeps its existing, correct first-half view of the cables. */
-.rk-rack-flipped .rk-cable {
-  opacity: var(--rk-rear-cable-opacity);
+   edge without leaving a late empty panel. The rear face is a stable animation target and hiding it hides
+   every repainting lead at once. Removing the flipped class removes the clock, so back-to-front keeps its
+   existing, correct first-half view of the rear. */
+.rk-rack-flipped .rk-side-back {
+  animation: rk-reveal-rear-face var(--spin) linear;
 }
 
-@keyframes rk-reveal-rear-cables {
+@keyframes rk-reveal-rear-face {
   0%,
   45.79% {
-    --rk-rear-cable-opacity: 0;
+    visibility: hidden;
   }
   45.8%,
   100% {
-    --rk-rear-cable-opacity: 1;
+    visibility: visible;
   }
 }
 
@@ -732,7 +732,7 @@ kbd {
   .rk-rack {
     transition: none;
   }
-  .rk-rack-flipped {
+  .rk-rack-flipped .rk-side-back {
     animation: none;
   }
 }
