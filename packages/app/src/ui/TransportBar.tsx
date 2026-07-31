@@ -43,6 +43,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const clearPattern = useBox((s) => s.clearPattern)
   const togglePerformance = useBox((s) => s.togglePerformance)
   const exportSong = useBox((s) => s.exportSong)
+  const exportMix = useBox((s) => s.exportMix)
   const importSong = useBox((s) => s.importSong)
   const copyShareLink = useBox((s) => s.copyShareLink)
   const resetSong = useBox((s) => s.resetSong)
@@ -274,10 +275,18 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
         <button
           className="ghost"
           disabled={rendering !== null}
+          onClick={() => void exportMix().then(() => showFlash('saved stereo mix'))}
+          title="Render the complete mastered stereo song to a WAV file"
+        >
+          {rendering === 'mix' ? 'rendering mix…' : 'mix'}
+        </button>
+        <button
+          className="ghost"
+          disabled={rendering !== null}
           onClick={() => setStems(true)}
           title="Preview or export one pre-master WAV per voice"
         >
-          {rendering ? `rendering ${rendering}…` : 'stems'}
+          {rendering && rendering !== 'mix' ? `rendering ${rendering}…` : 'stems'}
         </button>
         <button
           className="ghost"

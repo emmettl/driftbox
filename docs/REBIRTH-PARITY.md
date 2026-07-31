@@ -58,7 +58,7 @@ user could approximate it from oscillators.
 | Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Keyboard audition only | Yes | Extract the rack MIDI host for both modes |
-| Stereo mix and stems export | Stems | Patch render | Both exports from both modes |
+| Stereo mix and stems export | Mastered song mix and pre-master stems | Retained mastered song mix plus patch render | Add stem export to rack mode when its review UI has a rack-native source model |
 | Named local song library | One autosave | Patch library | One document library with type and compatibility state |
 | Visuals and performance pad | Yes | No | Same scene host and master performance controls |
 | Shareable, repairable documents | Yes | Yes | Versioned bridge preserving unknown rack-only content |
@@ -93,8 +93,10 @@ work is ordered by dependency:
    the focused drum lane/whole machine or 303 line without losing accents, flams or slides.
    The original editor now exposes the same engine clipboard for one lane, the visible drum
    machine, one 303 or both 303s, so the two modes cannot disagree about pasted material.
-5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
-   full-mix rendering and put songs and patches in one named library.
+5. **Interchange.** Mastered full-song rendering is now shared by both modes: rack mode
+   keeps it explicitly separate from patch rendering so rack-only changes are never
+   mistaken for edits to the retained song. Bring the rack's MIDI host and learn mappings
+   to the groovebox, then put songs and patches in one named library.
 
 The schema foundation is now present. Automation events still need stable section and
 parameter identities, but can record independent clip changes without splitting or
@@ -136,7 +138,8 @@ swing, per-voice swing, every drum/303 knob, voice sends and shared effects; rec
 remain in the compatible song envelope and clearing them is undoable. Rack keyboard taps now
 record into the focused retained clip without passing through generic rack MIDI. Focused
 cut/copy/paste is present in both editors and uses the same host-neutral engine transforms.
-Next, continue interchange. Do
+Both modes now export the same mastered retained-song WAV; rack mode labels that separately
+from its rack-graph render. Next, continue MIDI and library interchange. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

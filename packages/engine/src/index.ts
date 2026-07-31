@@ -17,6 +17,7 @@ import {
 import { buildVoice, voiceById } from './kit.js'
 import { barLengthForSelection, planStep } from './schedule.js'
 import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams } from './types.js'
+import { configureMixCompressor, MIX_BUS_GAIN, MIX_MASTER_GAIN } from './master.js'
 
 export * from './types.js'
 export * from './pattern.js'
@@ -160,7 +161,7 @@ export class DriftboxEngine {
     this.ctx = options.context ?? new AudioContext()
 
     this.bus = this.ctx.createGain()
-    this.bus.gain.value = 0.9
+    this.bus.gain.value = MIX_BUS_GAIN
     this.sectionOutputs = Object.fromEntries(
       GROOVEBOX_SECTIONS.map((section) => {
         const output = this.ctx.createGain()
@@ -175,17 +176,13 @@ export class DriftboxEngine {
     // A gentle bus compressor. Drum machines are all transient, and without something
     // holding the peaks the master has to sit so low that everything sounds thin.
     const compressor = this.ctx.createDynamicsCompressor()
-    compressor.threshold.value = -14
-    compressor.knee.value = 8
-    compressor.ratio.value = 4
-    compressor.attack.value = 0.004
-    compressor.release.value = 0.18
+    configureMixCompressor(compressor)
 
     this.master = this.ctx.createGain()
     // 0.7, not 0.8. Measured by rendering the busiest shipped pattern through this
     // exact chain offline: the raw sum peaks at 2.14 and the compressor brings that to
     // 1.08 — still over full scale, so the loudest bars were hard-clipping on output.
-    this.master.gain.value = options.gain ?? 0.7
+    this.master.gain.value = options.gain ?? MIX_MASTER_GAIN
 
     this.analyser = this.ctx.createAnalyser()
     this.analyser.fftSize = 2048

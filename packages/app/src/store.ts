@@ -56,6 +56,7 @@ import {
   type StepValue,
   defaultSong,
   type VoiceParams,
+  renderMix,
   renderStems,
   toWav,
   voicesUsed,
@@ -224,9 +225,11 @@ interface State {
   adoptSharedSong: () => Promise<boolean>
   importSong: () => Promise<boolean>
   exportSong: () => void
+  /** Render and save the complete mastered stereo song. */
+  exportMix: () => Promise<boolean>
   /** Render one WAV per voice and save them. Returns how many were written. */
   exportStems: () => Promise<number>
-  /** Which voice is being rendered, for the progress readout, or null. */
+  /** Which voice or mix is being rendered, for the progress readout, or null. */
   rendering: string | null
   copyShareLink: () => Promise<string | null>
   resetSong: () => void
@@ -937,6 +940,19 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   exportSong: () => downloadSong(get().song),
+
+  exportMix: async () => {
+    const { song, preset } = get()
+    set({ rendering: 'mix' })
+    try {
+      const buffer = await renderMix(song)
+      const name = (preset ?? 'song').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+      downloadBlob(toWav(buffer), `driftbox-${name}-mix.wav`)
+      return true
+    } finally {
+      set({ rendering: null })
+    }
+  },
 
   exportStems: async () => {
     const { song } = get()

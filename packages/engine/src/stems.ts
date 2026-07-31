@@ -3,8 +3,15 @@ import { Bassline } from './bassline.js'
 import { DEFAULT_FX, Sends, type SendLevels } from './effects.js'
 import { songBars, type Song } from './pattern.js'
 import { renderVoice } from './render.js'
-import { planSong } from './schedule.js'
+import { planSong, type StepPlan } from './schedule.js'
 import { buildVoice, voiceById } from './kit.js'
+import { Kaoss } from './kaoss.js'
+import {
+  configureMixCompressor,
+  MIX_BUS_GAIN,
+  MIX_MASTER_GAIN,
+} from './master.js'
+import type { VoiceHandle } from './render.js'
 
 // Stems. One audio file per voice, which is what "per-voice outputs" means in practice.
 //
@@ -58,6 +65,38 @@ export interface StemOptions {
   offline?: (channels: number, length: number, rate: number) => OfflineAudioContext
 }
 
+/** The same window controls as stems, without the per-voice selector. */
+export type MixOptions = Omit<StemOptions, 'only'>
+
+interface RenderWindow {
+  start: number
+  duration: number
+  seconds: number
+}
+
+function renderWindow(song: Song, start: number, duration: number | undefined, tail: number): RenderWindow {
+  const arrangementSeconds = songSeconds(song, 0)
+  const boundedStart = Math.min(Math.max(0, start), arrangementSeconds)
+  const boundedDuration = Math.min(
+    duration ?? arrangementSeconds - boundedStart,
+    arrangementSeconds - boundedStart,
+  )
+  return {
+    start: boundedStart,
+    duration: Math.max(0, boundedDuration),
+    seconds: Math.max(0, boundedDuration) + tail,
+  }
+}
+
+/** An empty chain still plays the first pattern in the live transport. */
+function renderBars(song: Song): number {
+  return song.chain.length > 0 ? songBars(song) : 1
+}
+
+function sameFx(a: StepPlan['fx'], b: StepPlan['fx']): boolean {
+  return (Object.keys(a) as (keyof StepPlan['fx'])[]).every((key) => a[key] === b[key])
+}
+
 /**
  * Every voice the song actually plays.
  *
@@ -71,8 +110,7 @@ export function voicesUsed(song: Song): string[] {
   // Derive this from the same plan used by the live engine and renderer. Looking only at
   // pattern ids is no longer precise once a section can take its 808 and 303 from
   // different patterns: a source pattern may contain other voices that are not selected.
-  const bars = song.chain.length > 0 ? songBars(song) : 1
-  for (const step of planSong(song, bars)) {
+  for (const step of planSong(song, renderBars(song))) {
     for (const hit of step.drums) seen.add(hit.voiceId)
     for (const hit of step.bass) seen.add(hit.voiceId)
   }
@@ -81,7 +119,7 @@ export function voicesUsed(song: Song): string[] {
 
 /** How long the song runs, plus room for the tail. */
 export function songSeconds(song: Song, tail = 4): number {
-  const plan = planSong(song, songBars(song))
+  const plan = planSong(song, renderBars(song))
   const last = plan[plan.length - 1]
   return (last ? last.time + last.stepSeconds : 0) + tail
 }
@@ -99,19 +137,13 @@ async function renderOne(
   opts: Required<Pick<StemOptions, 'sampleRate' | 'tail' | 'start'>>
     & Pick<StemOptions, 'duration' | 'offline' | 'useLadder'>,
 ): Promise<AudioBuffer> {
-  const arrangementSeconds = songSeconds(song, 0)
-  const start = Math.min(Math.max(0, opts.start), arrangementSeconds)
-  const duration = Math.min(
-    opts.duration ?? arrangementSeconds - start,
-    arrangementSeconds - start,
-  )
-  const seconds = Math.max(0, duration) + opts.tail
+  const { start, duration, seconds } = renderWindow(song, opts.start, opts.duration, opts.tail)
   const make =
     opts.offline ?? ((c: number, l: number, r: number) => new OfflineAudioContext(c, l, r))
-  const ctx = make(2, Math.ceil(seconds * opts.sampleRate), opts.sampleRate)
+  const ctx = make(2, Math.max(1, Math.ceil(seconds * opts.sampleRate)), opts.sampleRate)
 
   const bus = ctx.createGain()
-  bus.gain.value = 0.9
+  bus.gain.value = MIX_BUS_GAIN
   bus.connect(ctx.destination)
 
   // This voice's own sends, returning to this voice's own bus. Same settings as the live
@@ -131,7 +163,7 @@ async function renderOne(
     }
   }
 
-  const plan = planSong(song, songBars(song))
+  const plan = planSong(song, renderBars(song))
   const isBass = BASS_VOICES.some((v) => v.id === voiceId)
 
   if (isBass) {
@@ -205,6 +237,167 @@ export async function renderStems(song: Song, options: StemOptions = {}): Promis
     out.push({ voiceId, name, buffer })
   }
   return out
+}
+
+/**
+ * Render the authored song through the same mastered stereo route as live playback.
+ *
+ * Unlike stems, every voice shares one send return and one compressor. Choke groups are
+ * also shared, so a closed hat cuts the open hat in the file exactly as it does while the
+ * transport is running. The Kaoss insert is neutral: an export recalls the document, not
+ * a momentary finger performance that the document does not store.
+ */
+export async function renderMix(song: Song, options: MixOptions = {}): Promise<AudioBuffer> {
+  const sampleRate = options.sampleRate ?? 44100
+  const tail = options.tail ?? 4
+  const { start, duration, seconds } = renderWindow(song, options.start ?? 0, options.duration, tail)
+  const make =
+    options.offline ??
+    ((channels: number, length: number, rate: number) =>
+      new OfflineAudioContext(channels, length, rate))
+  const ctx = make(2, Math.max(1, Math.ceil(seconds * sampleRate)), sampleRate)
+
+  const bus = ctx.createGain()
+  bus.gain.value = MIX_BUS_GAIN
+  const compressor = ctx.createDynamicsCompressor()
+  configureMixCompressor(compressor)
+  const kaoss = new Kaoss(ctx)
+  const master = ctx.createGain()
+  master.gain.value = MIX_MASTER_GAIN
+  bus.connect(compressor)
+  compressor.connect(kaoss.input)
+  kaoss.output.connect(master)
+  master.connect(ctx.destination)
+
+  const plan = planSong(song, renderBars(song))
+  let openingStep = plan[0]
+  for (const step of plan) {
+    if (step.time > start) break
+    openingStep = step
+  }
+  const sends = new Sends(ctx, bus)
+  sends.update(openingStep?.fx ?? song.fx ?? DEFAULT_FX, openingStep?.bpm ?? song.bpm, 0)
+
+  // Plain node properties cannot be scheduled like AudioParams. Queue work in the render
+  // quantum containing its time and execute every action there under one suspension.
+  // Grouping by quantum matters: OfflineAudioContext rounds suspension times to 128-frame
+  // boundaries and rejects two nominally different times that land on the same boundary.
+  // Besides convolver changes below, this is what lets a 303's oscillator waveform
+  // automation change on the intended note instead of making the final waveform win the
+  // whole pre-scheduled render.
+  const offlineEvents = new Map<number, (() => void)[]>()
+  const at = (time: number, action: () => void) => {
+    const quantum = Math.floor((time * sampleRate) / 128)
+    if (quantum <= 0) {
+      action()
+      return
+    }
+    const actions = offlineEvents.get(quantum) ?? []
+    actions.push(action)
+    offlineEvents.set(quantum, actions)
+  }
+
+  // A ConvolverNode's impulse response is not an AudioParam and cannot be scheduled in
+  // advance. OfflineAudioContext can pause in the render quantum containing that time,
+  // though, so apply the same Sends update the live transport would make and immediately
+  // resume. This keeps automated room shape as well as delay controls in the export.
+  let previousFx = openingStep?.fx ?? song.fx ?? DEFAULT_FX
+  let previousBpm = openingStep?.bpm ?? song.bpm
+  for (const step of plan) {
+    const time = step.time - start
+    if (time <= 0 || time >= duration) continue
+    if (step.bpm === previousBpm && sameFx(step.fx, previousFx)) continue
+    const fx = step.fx
+    const bpm = step.bpm
+    at(time, () => sends.update(fx, bpm, time))
+    previousFx = fx
+    previousBpm = bpm
+  }
+
+  const sendTo = (output: AudioNode, levels: SendLevels) => {
+    for (const [input, amount] of [
+      [sends.delayInput, levels.delay],
+      [sends.reverbInput, levels.reverb],
+    ] as const) {
+      if (amount <= 0) continue
+      const gain = ctx.createGain()
+      gain.gain.value = amount
+      output.connect(gain)
+      gain.connect(input)
+    }
+  }
+
+  const bass = new Map<string, {
+    line: Bassline
+    sends: Record<keyof SendLevels, GainNode>
+  }>()
+  const bassIds = new Set(
+    plan.flatMap((step) => step.bass.map((hit) => hit.voiceId)),
+  )
+  for (const voiceId of bassIds) {
+    const { bassline } = await Bassline.create(ctx, { useLadder: options.useLadder })
+    bassline.output.connect(bus)
+    const sendGains = Object.fromEntries(
+      ([['delay', sends.delayInput], ['reverb', sends.reverbInput]] as const).map(
+        ([kind, input]) => {
+          const gain = ctx.createGain()
+          gain.gain.value = 0
+          bassline.output.connect(gain)
+          gain.connect(input)
+          return [kind, gain]
+        },
+      ),
+    ) as Record<keyof SendLevels, GainNode>
+    bass.set(voiceId, { line: bassline, sends: sendGains })
+  }
+
+  const choking = new Map<string, VoiceHandle>()
+  for (const step of plan) {
+    for (const hit of step.drums) {
+      const time = hit.time - start
+      if (time < 0 || time >= duration) continue
+      const voice = voiceById(hit.voiceId)
+      if (!voice) continue
+      if (voice.choke) {
+        const previous = choking.get(voice.choke)
+        if (previous && previous.endsAt > time) {
+          previous.output.gain.cancelScheduledValues(time)
+          previous.output.gain.setValueAtTime(previous.output.gain.value, time)
+          previous.output.gain.linearRampToValueAtTime(0, time + 0.004)
+        }
+      }
+      const handle = renderVoice(ctx, buildVoice(voice, hit.params, hit.accent), bus, time)
+      sendTo(handle.output, hit.sends)
+      if (voice.choke) choking.set(voice.choke, handle)
+    }
+    for (const hit of step.bass) {
+      const time = hit.time - start
+      if (time < 0 || time >= duration) continue
+      const target = bass.get(hit.voiceId)
+      if (!target) continue
+      at(time, () => {
+        target.sends.delay.gain.setValueAtTime(hit.sends.delay, time)
+        target.sends.reverb.gain.setValueAtTime(hit.sends.reverb, time)
+        target.line.play(hit.note, time)
+      })
+    }
+  }
+
+  const suspensions: Promise<void>[] = []
+  for (const [quantum, actions] of [...offlineEvents].sort(([a], [b]) => a - b)) {
+    const time = (quantum * 128) / sampleRate
+    suspensions.push(ctx.suspend(time).then(async () => {
+      try {
+        for (const action of actions) action()
+      } finally {
+        await ctx.resume()
+      }
+    }))
+  }
+
+  const rendering = ctx.startRendering()
+  await Promise.all(suspensions)
+  return rendering
 }
 
 /**
