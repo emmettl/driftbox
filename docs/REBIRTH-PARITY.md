@@ -45,8 +45,8 @@ user could approximate it from oscillators.
 
 | Capability | Groovebox now | Rack now | Required destination |
 |---|---:|---:|---|
-| Two authored 303 voices | Yes | Patchable stereo outputs and pitched/accented/sliding retained-pattern editor | Add instrument controls |
-| Authored 808 and 909 kits | Yes | Patchable stereo outputs and retained rest/hit/accent pattern editor | Add instrument controls; no ROM samples |
+| Two authored 303 voices | Yes | Patchable stereo outputs, retained pattern editor and all eight authored controls per 303 | Landed |
+| Authored 808 and 909 kits | Yes | Patchable stereo outputs, retained pattern editor and all six authored controls per voice | Landed; generated PCM character remains deliberate |
 | Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
 | 303 note/accent/slide/tie editing | Partial | Retained 303 step editor plus Tracker primitives | Add faster sequential and keyboard entry |
@@ -123,7 +123,9 @@ saving a strip adjustment correctly marks the document as rack-extended. Retaine
 and 303 pattern editing plus per-section machine clip assignment are now available directly
 on the device. The selected retained pattern can now be queued independently for any machine
 and becomes active at the next bar boundary; following the authored song again uses the same
-quantised path, and neither action mutates the document. Next, add instrument controls. Do
+quantised path, and neither action mutates the document. Contextual voice controls now edit
+the complete retained drum or bass parameter block and reach following scheduled hits without
+rebuilding the rack. Next, expose the shared transport and remaining fast pattern tools. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

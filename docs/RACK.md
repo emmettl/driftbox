@@ -97,7 +97,10 @@ shape where possible. Each machine can also launch the selected retained pattern
 next bar or return to following the authored arrangement. Queued and active launch state is
 explicit on the faceplate but remains session-only: it never rewrites the retained envelope,
 enters undo history or changes a groovebox-compatible document into a rack extension.
-Instrument controls remain the next editor layer.
+The same contextual editor exposes all six authored controls for the selected 808/909
+voice and all eight controls for either 303. These update the retained kit in place, so
+the shared engine applies them to following hits without rebuilding the rack or replacing
+the instrument with generic modules.
 
 ## What this is not
 

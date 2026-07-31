@@ -1,10 +1,14 @@
 import {
+  DEFAULT_BASS_PARAMS,
+  DEFAULT_PARAMS,
   chainSetClip,
+  type BassParams,
   type ClipLaunchEvent,
   type ClipLaunchPhase,
   type Pattern,
   type Song,
   type GrooveboxSection,
+  type VoiceParams,
   encodeSong,
 } from '@driftbox/engine'
 import {
@@ -259,6 +263,18 @@ interface RackState {
    * worklet graph or restart the arrangement.
    */
   setGrooveboxPattern: (pattern: Pattern) => void
+  /** Edit one authored drum voice without rebuilding the hosted engine. */
+  setGrooveboxVoiceParam: (
+    voiceId: string,
+    key: keyof VoiceParams,
+    value: number,
+  ) => void
+  /** Edit one authored 303 without rebuilding the hosted engine. */
+  setGrooveboxBassParam: (
+    voiceId: '303.a' | '303.b',
+    key: keyof BassParams,
+    value: number,
+  ) => void
   /** Assign one retained machine clip to one arrangement section. */
   setGrooveboxClip: (
     section: number,
@@ -739,6 +755,46 @@ export const useRack = create<RackState>((set, get) => {
           patterns: song.patterns.map((candidate) =>
             candidate.id === pattern.id ? pattern : candidate,
           ),
+        }
+        return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    setGrooveboxVoiceParam: (voiceId, key, value) =>
+      write(`groovebox:voice:${voiceId}:${key}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const current = song.kit.params[voiceId] ?? DEFAULT_PARAMS
+        const nextValue = Math.max(0, Math.min(1, value))
+        if (current[key] === nextValue) return patch
+        const next: Song = {
+          ...song,
+          kit: {
+            ...song.kit,
+            params: {
+              ...song.kit.params,
+              [voiceId]: { ...current, [key]: nextValue },
+            },
+          },
+        }
+        return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    setGrooveboxBassParam: (voiceId, key, value) =>
+      write(`groovebox:bass:${voiceId}:${key}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const current = song.kit.bass?.[voiceId] ?? DEFAULT_BASS_PARAMS
+        const nextValue = Math.max(0, Math.min(1, value))
+        if (current[key] === nextValue) return patch
+        const next: Song = {
+          ...song,
+          kit: {
+            ...song.kit,
+            bass: {
+              ...song.kit.bass,
+              [voiceId]: { ...current, [key]: nextValue },
+            },
+          },
         }
         return { ...patch, groovebox: encodeSong(next) }
       }),
