@@ -8,7 +8,7 @@ import {
   renderPatch,
 } from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BackPanel } from './BackPanel.js'
+import { BackPanel, TurningCables } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
@@ -960,6 +960,7 @@ export default function RackApp() {
           <div className="rk-side rk-side-back">
             <BackPanel layout={geometry} />
           </div>
+          <TurningCables layout={geometry} flipped={flipped} />
         </div>
       </div>
 
