@@ -5,6 +5,8 @@ import {
   bassParamsAt,
   bpmAt,
   clearAutomationLane,
+  fxParamsAt,
+  sendLevelsAt,
   setAutomationPoint,
   swingAt,
   voiceParamsAt,
@@ -82,10 +84,26 @@ describe('automation lanes', () => {
       0,
       0.75,
     )
+    automated = setAutomationPoint(
+      automated,
+      AUTOMATION_TARGET.send('808.bd', 'reverb'),
+      0,
+      0,
+      0.6,
+    )
+    automated = setAutomationPoint(
+      automated,
+      AUTOMATION_TARGET.fx('delayFeedback'),
+      0,
+      0,
+      0.3,
+    )
     expect(bpmAt(automated, 0, 0)).toBe(180)
     expect(voiceParamsAt(automated, '808.bd', 0, 0).level).toBe(0.2)
     expect(bassParamsAt(automated, '303.a', 0, 0).cutoff).toBe(0.9)
     expect(swingAt(automated, '808.bd', 0, 0)).toBe(0.5)
+    expect(sendLevelsAt(automated, '808.bd', 0, 0).reverb).toBe(0.6)
+    expect(fxParamsAt(automated, 0, 0).delayFeedback).toBe(0.3)
   })
 })
 
@@ -107,6 +125,34 @@ describe('automation playback', () => {
       stepSeconds: 0.125,
     })
     expect(plan.drums[0].params.decay).toBe(0.1)
+  })
+
+  it('puts resolved sends and effects into the shared step plan', () => {
+    let automated = setAutomationPoint(
+      song(),
+      AUTOMATION_TARGET.send('808.bd', 'delay'),
+      0,
+      0,
+      0.7,
+      'hold',
+    )
+    automated = setAutomationPoint(
+      automated,
+      AUTOMATION_TARGET.fx('delayTone'),
+      0,
+      0,
+      0.2,
+      'hold',
+    )
+    const plan = planStep(automated, {
+      absolute: 0,
+      bar: 0,
+      index: 0,
+      time: 0,
+      stepSeconds: 0.125,
+    })
+    expect(plan.drums[0].sends.delay).toBe(0.7)
+    expect(plan.fx.delayTone).toBe(0.2)
   })
 
   it('advances the offline timeline at the automated tempo', () => {

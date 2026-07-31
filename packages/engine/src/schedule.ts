@@ -1,5 +1,12 @@
 import { bassNote, previousStep, type BassNote } from './bass.js'
-import { bassParamsAt, bpmAt, swingAt, voiceParamsAt } from './automation.js'
+import {
+  bassParamsAt,
+  bpmAt,
+  fxParamsAt,
+  sendLevelsAt,
+  swingAt,
+  voiceParamsAt,
+} from './automation.js'
 import {
   CLIP_SLOTS,
   barLengthForBar,
@@ -13,6 +20,7 @@ import {
 import { swingDelay } from './timing.js'
 import type { StepEvent } from './transport.js'
 import type { VoiceParams } from './types.js'
+import type { FxParams, SendLevels } from './effects.js'
 
 // What one step of the arrangement plays.
 //
@@ -34,18 +42,21 @@ export interface DrumHit {
   accent: number
   /** Knobs resolved at this exact song position, shared by live and offline playback. */
   params: VoiceParams
+  sends: SendLevels
 }
 
 export interface BassHit {
   voiceId: string
   time: number
   note: BassNote
+  sends: SendLevels
 }
 
 export interface StepPlan {
   time: number
   stepSeconds: number
   bpm: number
+  fx: FxParams
   drums: DrumHit[]
   bass: BassHit[]
 }
@@ -60,8 +71,9 @@ export interface StepPlan {
 export function planStep(song: Song, event: StepEvent): StepPlan {
   const bpm = bpmAt(song, event.bar, event.index)
   const stepSeconds = 60 / bpm / 4
+  const fx = fxParamsAt(song, event.bar, event.index)
   const pattern = patternForBar(song, event.bar)
-  if (!pattern) return { time: event.time, stepSeconds, bpm, drums: [], bass: [] }
+  if (!pattern) return { time: event.time, stepSeconds, bpm, fx, drums: [], bass: [] }
 
   const swung = (voiceId: string) =>
     event.time + swingDelay(
@@ -90,12 +102,13 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
     const time = swung(voiceId)
     const accent = value === 2 ? 1 : 0.55
     const params = voiceParamsAt(song, voiceId, event.bar, event.index)
-    drums.push({ voiceId, time, accent, params })
+    const sends = sendLevelsAt(song, voiceId, event.bar, event.index)
+    drums.push({ voiceId, time, accent, params, sends })
     if (voiceId.startsWith('909.') && flamAt(source, voiceId, event.index)) {
       // ReBirth's flam knob controls the gap between the two strikes. Keep the useful
       // range narrow enough to read as one articulated hit rather than an echo.
       const spacing = 0.012 + (song.kit.flam ?? 0.4) * 0.048
-      drums.push({ voiceId, time: time + spacing, accent, params })
+      drums.push({ voiceId, time: time + spacing, accent, params, sends })
     }
   }
 
@@ -118,10 +131,17 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
       previousStep(line, event.index, source.length),
       stepSeconds,
     )
-    if (note) bass.push({ voiceId, time: swung(voiceId), note })
+    if (note) {
+      bass.push({
+        voiceId,
+        time: swung(voiceId),
+        note,
+        sends: sendLevelsAt(song, voiceId, event.bar, event.index),
+      })
+    }
   }
 
-  return { time: event.time, stepSeconds, bpm, drums, bass }
+  return { time: event.time, stepSeconds, bpm, fx, drums, bass }
 }
 
 /**

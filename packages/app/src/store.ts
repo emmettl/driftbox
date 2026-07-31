@@ -598,12 +598,19 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   setSend: (voiceId, key, value) => {
-    const { song, engine } = get()
+    const { song, engine, automationRecording } = get()
     const current = song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
-    const next: Song = {
+    const edited: Song = {
       ...song,
       kit: { ...song.kit, sends: { ...song.kit.sends, [voiceId]: { ...current, [key]: value } } },
     }
+    const next = recordPoint(
+      edited,
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.send(voiceId, key),
+      value,
+    )
     if (engine) engine.song = next
     set({ song: next })
   },
@@ -626,8 +633,15 @@ export const useBox = create<State>()((set, get) => ({
   },
 
   setFx: (key, value) => {
-    const { song, engine } = get()
-    const next: Song = { ...song, fx: { ...(song.fx ?? DEFAULT_FX), [key]: value } }
+    const { song, engine, automationRecording } = get()
+    const edited: Song = { ...song, fx: { ...(song.fx ?? DEFAULT_FX), [key]: value } }
+    const next = recordPoint(
+      edited,
+      engine,
+      automationRecording,
+      AUTOMATION_TARGET.fx(key),
+      value,
+    )
     if (engine) {
       engine.song = next
       engine.syncFx()

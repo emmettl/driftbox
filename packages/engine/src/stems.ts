@@ -1,6 +1,6 @@
 import { BASS_VOICES } from './bass.js'
 import { Bassline } from './bassline.js'
-import { DEFAULT_FX, DEFAULT_SENDS, Sends } from './effects.js'
+import { DEFAULT_FX, Sends, type SendLevels } from './effects.js'
 import { songBars, type Song } from './pattern.js'
 import { renderVoice } from './render.js'
 import { planSong } from './schedule.js'
@@ -101,8 +101,7 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
   // engine, so a stem's wet matches what that voice contributed to the mix.
   const sends = new Sends(ctx, bus)
   sends.update(song.fx ?? DEFAULT_FX, song.bpm)
-  const levels = song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
-  const sendTo = (output: AudioNode) => {
+  const sendTo = (output: AudioNode, levels: SendLevels) => {
     for (const [input, amount] of [
       [sends.delayInput, levels.delay],
       [sends.reverbInput, levels.reverb],
@@ -121,10 +120,22 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
   if (isBass) {
     const { bassline } = await Bassline.create(ctx)
     bassline.output.connect(bus)
-    sendTo(bassline.output)
+    const bassSends = [
+      [sends.delayInput, 'delay'],
+      [sends.reverbInput, 'reverb'],
+    ] as const
+    const sendGains = Object.fromEntries(bassSends.map(([input, kind]) => {
+      const gain = ctx.createGain()
+      gain.gain.value = 0
+      bassline.output.connect(gain)
+      gain.connect(input)
+      return [kind, gain]
+    })) as Record<keyof SendLevels, GainNode>
     for (const step of plan) {
       for (const hit of step.bass) {
         if (hit.voiceId !== voiceId) continue
+        sendGains.delay.gain.setValueAtTime(hit.sends.delay, hit.time)
+        sendGains.reverb.gain.setValueAtTime(hit.sends.reverb, hit.time)
         bassline.play(hit.note, hit.time)
       }
     }
@@ -136,7 +147,7 @@ async function renderOne(song: Song, voiceId: string, opts: Required<Pick<StemOp
           if (hit.voiceId !== voiceId) continue
           const spec = buildVoice(voice, hit.params, hit.accent)
           const handle = renderVoice(ctx, spec, bus, hit.time)
-          sendTo(handle.output)
+          sendTo(handle.output, hit.sends)
         }
       }
     }

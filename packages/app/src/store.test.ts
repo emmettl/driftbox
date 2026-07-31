@@ -92,6 +92,7 @@ describe('automation recording', () => {
     const engine = {
       running: true,
       position: { bar: 2, index: 3 },
+      syncFx: vi.fn(),
     } as unknown as DriftboxEngine
     useBox.setState({ engine, running: true, automationRecording: true })
 
@@ -100,6 +101,8 @@ describe('automation recording', () => {
     useBox.getState().setParam('808.bd', 'decay', 0.2)
     useBox.getState().setBassParam('303.a', 'cutoff', 0.8)
     useBox.getState().setVoiceSwing('808.ch', 0.7)
+    useBox.getState().setSend('808.bd', 'reverb', 0.4)
+    useBox.getState().setFx('delayTone', 0.3)
 
     const lanes = new Map(song().automation?.map((lane) => [lane.target, lane.points]))
     expect(lanes.get(AUTOMATION_TARGET.bpm)).toEqual([{ bar: 2, index: 3, value: 138 }])
@@ -112,6 +115,12 @@ describe('automation recording', () => {
     ])
     expect(lanes.get(AUTOMATION_TARGET.voiceSwing('808.ch'))).toEqual([
       { bar: 2, index: 3, value: 0.7 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.send('808.bd', 'reverb'))).toEqual([
+      { bar: 2, index: 3, value: 0.4 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.fx('delayTone'))).toEqual([
+      { bar: 2, index: 3, value: 0.3 },
     ])
   })
 

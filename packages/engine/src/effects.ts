@@ -220,11 +220,11 @@ export class Sends {
   }
 
   /** Apply the global settings. Safe to call as often as a knob moves. */
-  update(fx: FxParams, bpm: number): void {
+  update(fx: FxParams, bpm: number, at = this.ctx.currentTime): void {
     // Kept, so the replacement nodes built by `silence` can be given the same settings.
     this.fx = fx
     this.bpm = bpm
-    const now = this.ctx.currentTime
+    const now = Math.max(this.ctx.currentTime, at)
 
     const seconds = secondsPerStep(bpm) * delayDivision(fx.delayTime)
     // Ramped rather than set. Jumping a delay line's length re-reads the buffer from a
