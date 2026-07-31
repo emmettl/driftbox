@@ -76,6 +76,13 @@ export type {
 export { compile } from './compile.js'
 export { Graph } from './graph.js'
 export { applyModulation, routeValue, routedParams, sourcePosition } from './modulation.js'
+export {
+  embedGrooveboxSong,
+  grooveboxSong,
+  isGrooveboxEditable,
+  patchCompatibility,
+  type PatchCompatibility,
+} from './groovebox.js'
 export { PATCH_FORMAT, decodePatch, encodePatch } from './patch-io.js'
 export { PATCHES, patchPresetById, type PatchPreset } from './patches/index.js'
 export { CHUNKS, chunkById, insertChunk, type Chunk, type Inserted } from './chunks/index.js'

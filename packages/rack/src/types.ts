@@ -292,6 +292,19 @@ export interface Patch {
    */
   break?: string
   /**
+   * An encoded `@driftbox/engine` Song, retained as an opaque envelope.
+   *
+   * This is a string rather than a nested `Song` on purpose. A rack build may be older
+   * than the groovebox document it opens; keeping the original encoded text means it can
+   * still save that future song byte-for-byte even when its installed engine correctly
+   * refuses to decode it. The bridge helpers decode songs this build understands, while
+   * the patch codec only promises never to damage them.
+   *
+   * Absent means this is a rack-native document. Present with no other rack-authored
+   * state means the document remains groovebox-compatible; see `patchCompatibility`.
+   */
+  groovebox?: string
+  /**
    * Combinator routings. Absent means none, which is what every patch written before this existed means.
    *
    * At the top level rather than on the Combinator module, deliberately, and it is the decision that kept
