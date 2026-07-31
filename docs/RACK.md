@@ -234,7 +234,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Twenty-nine modules
+## Thirty modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -248,6 +248,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **SVF** | state-variable multimode — LP/HP/BP/notch, cheap, and unlike the ladder |
 | **VCA** | linear and exponential, CV inlet |
 | **Drive** | waveshaper |
+| **EQ** | low shelf, sweepable mid with a Q, high shelf — stereo |
 | **Delay** | CV'able time, tempo-syncable |
 | **ADSR** | gate inlet, one envelope out |
 | **LFO** | free or synced, several shapes, reset inlet |
@@ -801,6 +802,33 @@ The risk is all in the first item. Do it first and alone.
      the reason in their title. Same bargain the delayed cables strike: a patch that behaves unlike its
      picture is worse than one that admits it. A stereo jack gets a second ring rather than a second
      hole, because it is still one connection — dragged, snapped and pulled out like any other.
+
+   **An EQ** ✅ — the fourth thing off [REASON-GAP.md](REASON-GAP.md), and the first module added since
+   stereo cables landed.
+
+   - **The rack had two filters and neither is an EQ.** The Ladder is a 303's filter and the SVF is a clean
+     two-pole, and both of them *remove* a part of the spectrum. Nothing could add 2dB at 80Hz or take 3dB
+     out at 400Hz — which is not a filter operation, it is the operation a mixing desk does on every
+     channel, and this rack grew mixer strips before it grew the thing that goes on one.
+   - **Shelves at the ends, a parametric in the middle.** The two jobs are different: the ends are tone and
+     want to move everything past a corner, while the problem in the middle is always a specific frequency
+     and wants a Q. Three parametric bands would spend three more knobs to be worse at the two jobs anybody
+     has. It was approximable — an SVF's four outlets into a Mixer with signed levels — at six modules, a
+     page of cables and no say in where the bands sit, which is exactly the case for a device rather than a
+     chunk that `alligator.ts` already argues.
+   - **Stereo, and for a reason that is about placement rather than about the sound.** An EQ's curve applies
+     to both channels equally; what makes it stereo is that it sits at the *end* of a chain, so a mono one
+     would fold away the width the Reverb had just produced. Each channel keeps its own filter states and
+     shares the coefficients, which is what "the same curve on both" means arithmetically — and a state
+     array indexed wrongly shows up as one channel filtering the other's signal, which is what its test
+     with two different tones is for.
+   - **Coefficients are recomputed only when a knob has moved**, the trade `reverb.ts` and `svf.ts` both
+     make. A knob sitting still costs one comparison per sample; a knob being dragged ramps and so
+     recomputes per sample for the length of the gesture, which is the honest price of a control that
+     responds at audio rate rather than at block rate.
+   - **It resets its own state on a non-finite sample** rather than leaving that to the Graph's final clamp.
+     The clamp keeps the tab alive; it does not un-poison a biquad, which would otherwise stay silent for
+     ever. The test proves the recovery by feeding it an infinity and then a tone.
 
 ## The visualiser, and why it is not on the rack yet
 
