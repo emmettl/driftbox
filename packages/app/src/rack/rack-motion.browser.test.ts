@@ -1,4 +1,4 @@
-import { MODULE_LIST, MODULES, type ModuleDef, type Patch, type PatchCable } from '@driftbox/rack'
+import { MODULE_LIST, MODULES, PATCHES, type ModuleDef, type Patch, type PatchCable } from '@driftbox/rack'
 import { createElement } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
@@ -62,91 +62,100 @@ function edgeTime(turn: Animation, rack: HTMLElement, duration: number): number 
   return after
 }
 
+async function expectFaceHandoff(patch: Patch, subjectId: string, subjectType: string) {
+  const geometry = layout(patch.modules, sizeFor(MODULES))
+  useRack.getState().flip(false)
+  useRack.getState().load(patch)
+
+  const host = document.createElement('div')
+  document.body.append(host)
+  const root = createRoot(host)
+
+  try {
+    flushSync(() => root.render(createElement(TurnHarness, { geometry })))
+    const rack = host.querySelector<HTMLElement>('.rk-rack')!
+    const subject = rack.querySelector<HTMLElement>(
+      `.rk-module[data-module-id='${subjectId}'][data-module-type='${subjectType}']`,
+    )
+    const rear = rack.querySelector<HTMLElement>('.rk-side-back')!
+    const cable = rack.querySelector<SVGGElement>('.rk-cable')!
+
+    expect(subject).toBeTruthy()
+    expect(rear).toBeTruthy()
+    expect(cable).toBeTruthy()
+
+    // Commit the unflipped style before changing state so the browser creates a real transition.
+    expect(getComputedStyle(rack).transform).toBe('none')
+    flushSync(() => useRack.getState().flip(true))
+    await frame()
+
+    const animations = rack.getAnimations()
+    expect(animations.some((animation) => animation instanceof CSSAnimation)).toBe(false)
+    const turn = animations.find(
+      (animation): animation is CSSTransition =>
+        animation instanceof CSSTransition && animation.transitionProperty === 'transform',
+    )
+    const reveal = rear.getAnimations().find(
+      (animation): animation is CSSAnimation =>
+        animation instanceof CSSAnimation && animation.animationName === 'rk-reveal-rear-face',
+    )
+    expect(turn).toBeTruthy()
+    expect(reveal).toBeTruthy()
+    expect(Math.abs(Number(turn!.startTime) - Number(reveal!.startTime))).toBeLessThan(2)
+    turn!.pause()
+    reveal!.pause()
+    await Promise.all([turn!.ready, reveal!.ready])
+
+    const duration = Number(turn!.effect!.getTiming().duration)
+    const edge = edgeTime(turn!, rack, duration)
+    const margin = duration * 0.005
+
+    turn!.currentTime = edge - margin
+    reveal!.currentTime = edge - margin
+    expect(getComputedStyle(rear).opacity).toBe('0')
+
+    turn!.currentTime = edge + margin
+    reveal!.currentTime = edge + margin
+    expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeLessThan(0)
+    expect(Number(turn!.currentTime)).toBeLessThan(duration)
+    expect(getComputedStyle(rear).opacity).toBe('1')
+
+    // Removing the flipped class is the reverse direction. It must not carry the front-to-back delay
+    // back with it: the rear remains visible through the first half while it still faces us.
+    turn!.currentTime = duration
+    reveal!.currentTime = duration
+    flushSync(() => useRack.getState().flip(false))
+    await frame()
+    expect(
+      rear
+        .getAnimations()
+        .some(
+          (animation) =>
+            animation instanceof CSSAnimation &&
+            animation.animationName === 'rk-reveal-rear-face',
+        ),
+    ).toBe(false)
+    expect(getComputedStyle(rear).opacity).toBe('1')
+  } finally {
+    flushSync(() => root.unmount())
+    host.remove()
+    useRack.getState().flip(false)
+  }
+}
+
 describe('every module through a rack turn', () => {
   it.each(MODULE_LIST.map((def) => [def.type, def] as const))(
     '%s switches to the rear face at the edge',
     async (_type, def) => {
-      const patch = patchFor(def)
-      const geometry = layout(patch.modules, sizeFor(MODULES))
-      useRack.getState().flip(false)
-      useRack.getState().load(patch)
-
-      const host = document.createElement('div')
-      document.body.append(host)
-      const root = createRoot(host)
-
-      try {
-        flushSync(() => root.render(createElement(TurnHarness, { geometry })))
-        const rack = host.querySelector<HTMLElement>('.rk-rack')!
-        const subject = rack.querySelector<HTMLElement>(
-          `.rk-module[data-module-id='subject'][data-module-type='${def.type}']`,
-        )
-        const rear = rack.querySelector<HTMLElement>('.rk-side-back')!
-        const cable = rack.querySelector<SVGGElement>('.rk-cable')!
-
-        expect(subject).toBeTruthy()
-        expect(rear).toBeTruthy()
-        expect(cable).toBeTruthy()
-
-        // Commit the unflipped style before changing state so the browser creates a real transition.
-        expect(getComputedStyle(rack).transform).toBe('none')
-        flushSync(() => useRack.getState().flip(true))
-        await frame()
-
-        const animations = rack.getAnimations()
-        expect(animations.some((animation) => animation instanceof CSSAnimation)).toBe(false)
-        const turn = animations.find(
-          (animation): animation is CSSTransition =>
-            animation instanceof CSSTransition && animation.transitionProperty === 'transform',
-        )
-        const reveal = rear.getAnimations().find(
-          (animation): animation is CSSAnimation =>
-            animation instanceof CSSAnimation && animation.animationName === 'rk-reveal-rear-face',
-        )
-        expect(turn).toBeTruthy()
-        expect(reveal).toBeTruthy()
-        expect(Math.abs(Number(turn!.startTime) - Number(reveal!.startTime))).toBeLessThan(2)
-        turn!.pause()
-        reveal!.pause()
-        await Promise.all([turn!.ready, reveal!.ready])
-
-        const duration = Number(turn!.effect!.getTiming().duration)
-        const edge = edgeTime(turn!, rack, duration)
-        const margin = duration * 0.005
-
-        turn!.currentTime = edge - margin
-        reveal!.currentTime = edge - margin
-        expect(getComputedStyle(rear).visibility).toBe('hidden')
-        expect(getComputedStyle(cable).visibility).toBe('hidden')
-
-        turn!.currentTime = edge + margin
-        reveal!.currentTime = edge + margin
-        expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeLessThan(0)
-        expect(Number(turn!.currentTime)).toBeLessThan(duration)
-        expect(getComputedStyle(rear).visibility).toBe('visible')
-        expect(getComputedStyle(cable).visibility).toBe('visible')
-
-        // Removing the flipped class is the reverse direction. It must not carry the front-to-back delay
-        // back with it: the rear remains visible through the first half while it still faces us.
-        turn!.currentTime = duration
-        reveal!.currentTime = duration
-        flushSync(() => useRack.getState().flip(false))
-        await frame()
-        expect(
-          rear
-            .getAnimations()
-            .some(
-              (animation) =>
-                animation instanceof CSSAnimation &&
-                animation.animationName === 'rk-reveal-rear-face',
-            ),
-        ).toBe(false)
-        expect(getComputedStyle(rear).visibility).toBe('visible')
-      } finally {
-        flushSync(() => root.unmount())
-        host.remove()
-        useRack.getState().flip(false)
-      }
+      await expectFaceHandoff(patchFor(def), 'subject', def.type)
     },
   )
+
+  it('switches the fully routed Pressure System Combinator before the turn completes', async () => {
+    const patch = PATCHES.find((preset) => preset.id === 'pressure-system')!.build()
+    const combinator = patch.modules.find((module) => module.type === 'combi')!
+
+    expect(patch.modulation?.filter((route) => route.from[0] === combinator.id)).toHaveLength(16)
+    await expectFaceHandoff(patch, combinator.id, combinator.type)
+  })
 })

@@ -693,9 +693,11 @@ kbd {
    is busy enough for the turn to appear frozen until it finished.
 
    The easing reaches 90deg at 45.6% of the elapsed time, not 50%; 45.8% puts the reveal just beyond that
-   edge without leaving a late empty panel. The rear face is a stable animation target and hiding it hides
-   every repainting lead at once. Removing the flipped class removes the clock, so back-to-front keeps its
-   existing, correct first-half view of the rear. */
+   edge without leaving a late empty panel. The rear face is a stable animation target and its grouped
+   opacity includes every repainting lead and the Combinator's independently composited routing scroller.
+   `visibility` is deliberately not used: browsers may defer that discrete paint change to the animation's
+   end. Removing the flipped class removes the clock, so back-to-front keeps its existing, correct first-half
+   view of the rear. */
 .rk-rack-flipped .rk-side-back {
   animation: rk-reveal-rear-face var(--spin) linear;
 }
@@ -703,11 +705,11 @@ kbd {
 @keyframes rk-reveal-rear-face {
   0%,
   45.79% {
-    visibility: hidden;
+    opacity: 0;
   }
   45.8%,
   100% {
-    visibility: visible;
+    opacity: 1;
   }
 }
 
