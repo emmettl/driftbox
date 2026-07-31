@@ -160,6 +160,8 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
       setVoiceSwing: () => {},
       setSend: () => {},
       setFx: () => {},
+      toggleTapRecording: () => {},
+      setTapTarget: () => {},
       toggleAutomationRecording: () => {},
       clearAutomation: () => {},
     }),
@@ -179,6 +181,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Groovebox loop start bar"')
   expect(markup).toContain('aria-label="Groovebox loop length in bars"')
   expect(markup).toContain('aria-label="Groovebox pattern transforms"')
+  expect(markup).toContain('aria-label="Arm Groovebox tap recording"')
   expect(markup).toContain('aria-label="Groovebox automation recorder"')
   expect(markup).toContain('aria-label="Arm Groovebox automation recording"')
   expect(markup).toContain('aria-label="Groovebox swing"')
@@ -213,6 +216,8 @@ it('shows every retained 303 instrument control', () => {
       setVoiceSwing: () => {},
       setSend: () => {},
       setFx: () => {},
+      toggleTapRecording: () => {},
+      setTapTarget: () => {},
       toggleAutomationRecording: () => {},
       clearAutomation: () => {},
       initialSection: '303.a',
@@ -251,6 +256,8 @@ it('shows retained 909 flam programming controls', () => {
       setVoiceSwing: () => {},
       setSend: () => {},
       setFx: () => {},
+      toggleTapRecording: () => {},
+      setTapTarget: () => {},
       toggleAutomationRecording: () => {},
       clearAutomation: () => {},
       initialSection: 'tr909',

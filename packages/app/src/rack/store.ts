@@ -4,6 +4,8 @@ import {
   DEFAULT_FX,
   DEFAULT_PARAMS,
   DEFAULT_SENDS,
+  ALL_VOICES,
+  bassStepAt,
   chainSetClip,
   type BassParams,
   type ClipLaunchEvent,
@@ -15,7 +17,9 @@ import {
   type GrooveboxSection,
   type VoiceParams,
   encodeSong,
+  setBassStep,
   setAutomationPoint,
+  setStep,
 } from '@driftbox/engine'
 import {
   applyModulation,
@@ -81,6 +85,19 @@ import { tempoForBars } from './sample.js'
 //
 // A routing edit is deliberately **not** structural. It changes no module and no cable, so nothing needs
 // recompiling; it only moves knobs, which is exactly the path `setParam` already owns.
+
+export interface GrooveboxTapTarget {
+  patternId: string
+  section: GrooveboxSection
+  voiceId: string
+}
+
+export interface GrooveboxTapHit {
+  section: GrooveboxSection
+  voiceId: string
+  semitone: number
+  accent: boolean
+}
 
 interface RackState {
   patch: Patch
@@ -339,6 +356,13 @@ interface RackState {
   setGrooveboxAutomationPosition: (
     position: RackState['grooveboxAutomationPosition'],
   ) => void
+  /** Keyboard tap recording is armed and focused in the editor, but never saved in the patch. */
+  grooveboxTapRecording: boolean
+  grooveboxTapTarget: GrooveboxTapTarget | null
+  toggleGrooveboxTapRecording: () => void
+  setGrooveboxTapTarget: (target: GrooveboxTapTarget) => void
+  /** Quantise one keyboard strike into the focused retained clip at the hosted playhead. */
+  recordGrooveboxTap: (note: number, velocity: number) => GrooveboxTapHit | null
   /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
@@ -536,6 +560,8 @@ export const useRack = create<RackState>((set, get) => {
     grooveboxLoop: null,
     grooveboxAutomationRecording: false,
     grooveboxAutomationPosition: null,
+    grooveboxTapRecording: false,
+    grooveboxTapTarget: null,
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -1047,6 +1073,58 @@ export const useRack = create<RackState>((set, get) => {
       })),
     setGrooveboxAutomationPosition: (grooveboxAutomationPosition) =>
       set({ grooveboxAutomationPosition }),
+    toggleGrooveboxTapRecording: () =>
+      set((state) => ({ grooveboxTapRecording: !state.grooveboxTapRecording })),
+    setGrooveboxTapTarget: (grooveboxTapTarget) => set({ grooveboxTapTarget }),
+    recordGrooveboxTap: (note, velocity) => {
+      const state = get()
+      const song = grooveboxSong(state.patch)
+      const position = state.grooveboxAutomationPosition?.()
+      if (!state.grooveboxTapRecording || !song || !position) return null
+
+      const target = state.grooveboxTapTarget
+      const pattern =
+        song.patterns.find((candidate) => candidate.id === target?.patternId) ??
+        song.patterns[0]
+      if (!pattern || pattern.length <= 0) return null
+
+      const section = target?.section ?? 'tr808'
+      const bass = section === '303.a' || section === '303.b'
+      const voiceId = bass
+        ? section
+        : ALL_VOICES.some(
+              (voice) => voice.id === target?.voiceId && voice.machine === section,
+            )
+          ? target!.voiceId
+          : ALL_VOICES.find((voice) => voice.machine === section)?.id
+      if (!voiceId) return null
+
+      const step = ((Math.floor(position.index) % pattern.length) + pattern.length) % pattern.length
+      const accent = velocity >= 0.75
+      const semitone = Math.max(0, Math.min(24, Math.round(note) - 36))
+      const nextPattern = bass
+        ? setBassStep(pattern, voiceId, step, {
+            note: semitone,
+            accent,
+            slide: bassStepAt(pattern, voiceId, step).slide,
+          })
+        : setStep(pattern, voiceId, step, accent ? 2 : 1)
+
+      write(`groovebox:tap:${pattern.id}`, false, (patch) => {
+        const current = grooveboxSong(patch)
+        if (!current?.patterns.some((candidate) => candidate.id === pattern.id)) return patch
+        return {
+          ...patch,
+          groovebox: encodeSong({
+            ...current,
+            patterns: current.patterns.map((candidate) =>
+              candidate.id === pattern.id ? nextPattern : candidate,
+            ),
+          }),
+        }
+      })
+      return { section, voiceId, semitone, accent }
+    },
 
     setRunning: (running) => set({ running }),
 
@@ -1136,7 +1214,11 @@ export const useRack = create<RackState>((set, get) => {
       // resurrect the patch somebody had deliberately left — and the thing they left is not gone: it is
       // in the library, in storage, or in the link they arrived by. Reason draws the line in the same
       // place, and so does every editor with a File menu.
-      set({ history: NO_HISTORY })
+      set({
+        history: NO_HISTORY,
+        grooveboxTapRecording: false,
+        grooveboxTapTarget: null,
+      })
     },
 
     undo: () =>

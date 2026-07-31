@@ -1677,6 +1677,17 @@ kbd {
   border-color: #fff1bc;
 }
 
+.rk-groovebox-tools .rk-groovebox-tap[aria-pressed='true'] {
+  color: #21070b;
+  background: #ff6678;
+  border-color: #ffc3ca;
+  box-shadow: 0 0 7px rgba(255, 102, 120, 0.5);
+}
+
+.rk-groovebox-tap span {
+  color: #ff6678;
+}
+
 .rk-groovebox-tools label {
   display: flex;
   align-items: center;

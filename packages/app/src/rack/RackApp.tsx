@@ -34,7 +34,7 @@ import { RackKeys } from './RackKeys.js'
 import { Modulation } from './Modulation.js'
 import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink, sequencerLink, storePatch } from './persistence.js'
-import { openingPatch, useRack, type Opening } from './store.js'
+import { openingPatch, useRack, type GrooveboxTapHit, type Opening } from './store.js'
 import { buildLabel, buildTitle } from '../version.js'
 import { routedGrooveboxSections } from './groovebox.js'
 import {
@@ -351,12 +351,44 @@ export default function RackApp() {
    * which is the cheapest possible way to see that a controller is working.
    */
   const bank = useRef(new KeyboardBank())
+  /** Notes claimed by the Groovebox tap recorder instead of the generic rack MIDI path. */
+  const grooveboxTaps = useRef(new Map<number, GrooveboxTapHit>())
   /** Which notes are sounding, for lighting the keys. Session state; it never goes near the patch. */
   const [sounding, setSounding] = useState<number[]>([])
 
   /** The one path a note takes to the audio thread, whichever keyboard played it. */
   const playVoice = useCallback(
     (state: { voice: number; note: number; gate: 0 | 1; velocity: number }, channel = 1) => {
+      const heldTap = grooveboxTaps.current.get(state.note)
+      if (state.gate === 0 && heldTap) {
+        grooveboxTaps.current.delete(state.note)
+        if (heldTap.section === '303.a' || heldTap.section === '303.b') {
+          groovebox.current?.bassNoteOff(heldTap.section)
+        }
+        setSounding(bank.current.sounding())
+        return
+      }
+
+      if (state.gate === 1) {
+        // A monophonic allocator can emit a second gate-on when it falls back to a key that is still
+        // held. It should sound again, but it is not another tap and must not overwrite another step.
+        const tap = heldTap ?? useRack.getState().recordGrooveboxTap(state.note, state.velocity)
+        if (tap) {
+          const legato = [...grooveboxTaps.current.values()].some(
+            (held) => held.section === tap.section,
+          )
+          grooveboxTaps.current.set(state.note, tap)
+          if (tap.section === '303.a' || tap.section === '303.b') {
+            groovebox.current?.bassNoteOn(tap.section, tap.semitone, tap.accent, legato)
+          } else {
+            groovebox.current?.audition(tap.voiceId, tap.accent ? 1 : 0.55)
+          }
+          setMidi(state.note)
+          setSounding(bank.current.sounding())
+          return
+        }
+      }
+
       sendMidi(channel, { note: state.note, gate: state.gate, velocity: state.velocity }, state.voice)
       // Only the note that just sounded reaches the faceplate. A gate-off does not clear it, because on a
       // chord the last thing released is not interesting and blanking on it would flicker.

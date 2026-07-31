@@ -88,7 +88,8 @@ work is ordered by dependency:
 4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise,
    material-preserving alter and 909 flam are present. Rack mode now exposes retained drum
    steps, pitched/accented/sliding 303 steps, lane or machine transforms and flam programming
-   without restarting playback. Add keyboard tap recording and focused cut/copy/paste.
+   without restarting playback. Rack mode also quantises the shared keyboard into the focused
+   retained drum or 303 clip at the hosted playhead. Add focused cut/copy/paste.
 5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
    full-mix rendering and put songs and patches in one named library.
 
@@ -129,8 +130,9 @@ rebuilding the rack. The selected section can now seek or loop on the hosted tra
 arbitrary whole-bar loop ranges may cross section boundaries without entering the document.
 Rack mode now arms the shared recorder against the hosted engine clock for tempo, global
 swing, per-voice swing, every drum/303 knob, voice sends and shared effects; recorded lanes
-remain in the compatible song envelope and clearing them is undoable. Next, add keyboard tap
-recording and focused cut/copy/paste. Do
+remain in the compatible song envelope and clearing them is undoable. Rack keyboard taps now
+record into the focused retained clip without passing through generic rack MIDI. Next, add
+focused cut/copy/paste. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
