@@ -526,8 +526,9 @@ The risk is all in the first item. Do it first and alone.
    - **Reordering is two-dimensional and previews the real faceplates.** Full-width rows are crossed by
      moving vertically; a half-width row is crossed left to right, including the empty side of a lone
      module. The proposed order is run back through the same layout function while the pointer moves, so
-     every faceplate visibly settles into its eventual slot and the dragged one never becomes a blank
-     placeholder.
+     the rack visibly settles around a hollow target slot. The lifted faceplate is a separate layer that
+     follows the pointer continuously — it never becomes a blank placeholder or teleports from slot to
+     slot while it is in your hand.
    - **One coordinate system, no DOM measuring.** Front panel, back panel and cables are all laid out
      by `layout.ts` into a fixed design space that the cable SVG uses as its `viewBox`. Nothing has to
      agree with anything at runtime because there is only one set of numbers, and the geometry is

@@ -15,6 +15,23 @@ interface Props {
   layout: Layout
 }
 
+interface Point {
+  x: number
+  y: number
+}
+
+interface Dragging {
+  id: string
+  index: number
+  /** Pointer position in rack design units. Updated on every move, not only when the target slot changes. */
+  at: Point
+  /** Where within the faceplate it was picked up, so the panel does not jump under the pointer. */
+  grab: Point
+  /** Its lifted size. Pairing can stretch a slot, but the thing in the hand keeps the size it had. */
+  width: number
+  height: number
+}
+
 export function Chassis({ layout }: Props) {
   const patch = useRack((s) => s.patch)
   const selected = useRack((s) => s.selected)
@@ -33,12 +50,12 @@ export function Chassis({ layout }: Props) {
    * one that lost would be whichever happened to be deeper in the tree. A title bar is also where a
    * person reaches for a thing they mean to move.
    */
-  const [drag, setDrag] = useState<{ id: string; index: number } | null>(null)
+  const [drag, setDrag] = useState<Dragging | null>(null)
   const surface = useRef<HTMLDivElement | null>(null)
 
   /** Pointer position in design units rather than screen pixels, so the preview lines up with the layout at
    *  any zoom. The same conversion the back panel does for cables, and for the same reason. */
-  const toDesign = useCallback((event: React.PointerEvent): { x: number; y: number } => {
+  const toDesign = useCallback((event: React.PointerEvent): Point => {
     const box = surface.current?.getBoundingClientRect()
     if (!box || box.width === 0 || box.height === 0) return { x: 0, y: 0 }
     return {
@@ -48,24 +65,30 @@ export function Chassis({ layout }: Props) {
   }, [layout.height, layout.width])
 
   /**
-   * The whole rack previews the proposed order, including the faceplate being moved.
+   * The rack previews the proposed order underneath the lifted faceplate.
    *
-   * Keeping the real faceplate mounted matters: replacing it with a blank placeholder loses the thing a
-   * person is following, especially when two narrow modules are swapping sides. The same pure layout
-   * function used by the committed rack produces this temporary geometry, so the preview cannot promise a
-   * horizontal pairing that the drop then fails to make.
+   * The same pure layout function used by the committed rack produces this temporary geometry, so the
+   * target slot cannot promise a horizontal pairing that the drop then fails to make. The real faceplate
+   * is rendered separately at `drag.at`, continuously following the pointer instead of snapping between
+   * these discrete slots.
    */
+  const draggedId = drag?.id
+  const draggedIndex = drag?.index
   const preview = useMemo(() => {
-    if (!drag || drag.index < 0) return layout
-    const from = patch.modules.findIndex((module) => module.id === drag.id)
-    const modules = reordered(patch.modules, from, drag.index)
+    if (!draggedId || draggedIndex === undefined || draggedIndex < 0) return layout
+    const from = patch.modules.findIndex((module) => module.id === draggedId)
+    const modules = reordered(patch.modules, from, draggedIndex)
     return modules === patch.modules ? layout : rackLayout(modules, sizeFor(MODULES))
-  }, [drag, layout, patch.modules])
+    // Pointer coordinates deliberately are not dependencies: they move the ghost, not the proposed rack.
+  }, [draggedId, draggedIndex, layout, patch.modules])
 
   // Which knobs a Combinator is driving. Derived once for the whole rack rather than per faceplate: it is
   // a fact about the patch, and asking each module to scan the routing list would be quadratic in a rack
   // that could have forty of them.
   const routed = useMemo(() => routedParams(patch), [patch])
+  const ghostSlot = draggedId
+    ? preview.placements.find((placement) => placement.id === draggedId)
+    : undefined
 
   return (
     <div
@@ -74,8 +97,9 @@ export function Chassis({ layout }: Props) {
       data-dragging={drag ? drag.id : ''}
       onPointerMove={(event) => {
         if (!drag) return
-        const index = dropIndex(layout.placements, toDesign(event))
-        if (index !== drag.index) setDrag({ ...drag, index })
+        const at = toDesign(event)
+        const index = dropIndex(layout.placements, at)
+        setDrag({ ...drag, at, index })
       }}
       onPointerUp={(event) => {
         if (!drag) return
@@ -86,6 +110,18 @@ export function Chassis({ layout }: Props) {
       // cancelling on leave killed a cable drag that wandered over the header. Same lesson, same fix.
       onPointerCancel={() => setDrag(null)}
     >
+      {ghostSlot && (
+        <div
+          className="rk-drag-slot"
+          aria-hidden="true"
+          style={{
+            left: ghostSlot.x,
+            top: ghostSlot.y,
+            width: ghostSlot.width,
+            height: ghostSlot.height,
+          }}
+        />
+      )}
       {preview.placements.map((placement) => {
         const module = patch.modules.find((m) => m.id === placement.id)
         const def = MODULES[placement.type]
@@ -93,19 +129,29 @@ export function Chassis({ layout }: Props) {
 
         const Faceplate = faceplateFor(placement.type)
         const isSelected = selected === placement.id
+        const isGhost = drag?.id === placement.id
+        const position = isGhost
+          ? {
+              left: 0,
+              top: 0,
+              width: drag.width,
+              height: drag.height,
+              transform: `translate3d(${drag.at.x - drag.grab.x}px, ${drag.at.y - drag.grab.y}px, 0) scale(0.985)`,
+            }
+          : {
+              left: placement.x,
+              top: placement.y,
+              width: placement.width,
+              height: placement.height,
+            }
 
         return (
           <section
             key={placement.id}
             className={isSelected ? 'rk-module rk-module-on' : 'rk-module'}
             data-span={placement.span}
-            data-drag-preview={drag?.id === placement.id ? 'true' : undefined}
-            style={{
-              left: placement.x,
-              top: placement.y,
-              width: placement.width,
-              height: placement.height,
-            }}
+            data-drag-ghost={isGhost ? 'true' : undefined}
+            style={position}
             onPointerDown={() => select(placement.id)}
           >
             {/* The drag handle, over the faceplate's own title strip. A transparent overlay rather than
@@ -121,7 +167,18 @@ export function Chassis({ layout }: Props) {
                 event.stopPropagation()
                 surface.current?.setPointerCapture(event.pointerId)
                 select(placement.id)
-                setDrag({ id: placement.id, index: -1 })
+                const at = toDesign(event)
+                setDrag({
+                  id: placement.id,
+                  index: -1,
+                  at,
+                  grab: {
+                    x: at.x - placement.x,
+                    y: at.y - placement.y,
+                  },
+                  width: placement.width,
+                  height: placement.height,
+                })
               }}
             />
             {def ? (

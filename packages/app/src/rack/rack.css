@@ -1440,9 +1440,9 @@ kbd {
 .rk-grip:active {
   cursor: grabbing;
 }
-/* Reordering is a live layout preview: every faceplate moves to its proposed slot and the one being
-   carried remains fully visible. This is especially important in a half-width row, where a line between
-   modules cannot say which faceplate will end up on which side. */
+/* Reordering has two layers: the rack eases between proposed slots, while the lifted faceplate follows
+   the pointer continuously above it. Separating those motions is what makes the interaction feel physical
+   instead of making the thing in your hand teleport whenever an insertion midpoint is crossed. */
 .rk-face[data-dragging]:not([data-dragging='']) .rk-module {
   transition:
     left 140ms ease,
@@ -1451,12 +1451,34 @@ kbd {
     height 140ms ease,
     box-shadow 120ms ease;
 }
-.rk-module[data-drag-preview='true'] {
+.rk-face[data-dragging]:not([data-dragging='']) {
+  cursor: grabbing;
+}
+.rk-module[data-drag-ghost='true'] {
   border-color: var(--nine);
+  opacity: 0.84;
+  pointer-events: none;
+  transform-origin: center;
+  transition: none !important;
+  will-change: transform;
   box-shadow:
     0 10px 26px rgba(0, 0, 0, 0.45),
     0 0 0 2px rgba(95, 240, 208, 0.35);
-  z-index: 3;
+  z-index: 4;
+}
+.rk-drag-slot {
+  position: absolute;
+  border: 1px dashed rgba(95, 240, 208, 0.65);
+  border-radius: 12px;
+  background: rgba(95, 240, 208, 0.07);
+  box-shadow: inset 0 0 18px rgba(95, 240, 208, 0.05);
+  pointer-events: none;
+  transition:
+    left 140ms ease,
+    top 140ms ease,
+    width 140ms ease,
+    height 140ms ease;
+  z-index: 2;
 }
 
 .rk-combi {
