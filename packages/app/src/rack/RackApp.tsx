@@ -136,6 +136,7 @@ export default function RackApp() {
   const kaoss = useRef<Kaoss | null>(null)
   const [hasKaoss, setHasKaoss] = useState(false)
   const [performing, setPerforming] = useState(false)
+  const [keyboardOpen, setKeyboardOpen] = useState(true)
   const [started, setStarted] = useState(false)
   const [failed, setFailed] = useState(false)
   const [shared, setShared] = useState<string | null>(null)
@@ -940,7 +941,12 @@ export default function RackApp() {
   )
 
   return (
-    <div className="rk" data-playing={playing ? 'yes' : 'no'} data-audio={audioState}>
+    <div
+      className="rk"
+      data-playing={playing ? 'yes' : 'no'}
+      data-audio={audioState}
+      data-keyboard={keyboardOpen ? 'open' : 'closed'}
+    >
       <header className="rk-header">
         <h1>
           Driftbox <span>Rack</span>
@@ -1307,6 +1313,8 @@ export default function RackApp() {
       )}
 
       <RackKeys
+        open={keyboardOpen}
+        onOpenChange={setKeyboardOpen}
         wake={wake}
         down={keysDown}
         up={keysUp}
