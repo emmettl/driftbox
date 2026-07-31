@@ -1,0 +1,135 @@
+# What Reason has that the rack does not
+
+[REBIRTH-PARITY.md](REBIRTH-PARITY.md) measures the rack against the *groovebox* — the promise
+that Reason contained ReBirth. This file measures it against the other half of the analogy:
+**Reason itself.** Two different questions with two different acceptance lists, and conflating
+them is how a ledger row like "song automation" comes to mean both "the groovebox can do it and
+the rack cannot" and "nothing in this product can do it at all".
+
+Everything below was checked against the tree rather than remembered, and says where. A gap that
+turns out to be patchable is recorded as patchable, because "you can already build that from two
+modules" is a different piece of work from "nothing here can do that".
+
+## The three that matter
+
+Ordered by what it costs to do them *later* rather than by how much they are wanted.
+
+### 1. Cables are mono
+
+`graph.ts` says so plainly, and the reasoning it gives is sound for the time it was written:
+
+> **Cables are still mono.** Stereo goes exactly as far as placing each terminal module in the
+> field […] Full stereo cables would double every buffer and make every module answer what it
+> means to filter a stereo signal.
+
+Reason is stereo end to end. Every device has a left and a right, and the ones that do not —
+CV — are visibly different jacks. What the mono decision costs is not width on the master, which
+`Out.pan` gives; it is every device whose *point* is what it does between the two channels: a
+ping-pong delay, a reverb that decorrelates, a chorus that widens, a stereo imager, a mid/side
+anything.
+
+It also now costs something the rack did not have when the decision was taken. The Groovebox
+source terminates four **stereo** pairs from the hosted engine, and the only way to carry one
+through a Ladder is two Ladders and a discipline about keeping their knobs equal. A pair that
+must be kept in step by hand is exactly the thing a cable is for.
+
+This is first on the list because it is the only item here whose price rises with every module
+added. Twenty-nine modules each have to answer "what does this mean in stereo" once.
+
+### 2. Nothing records a parameter move
+
+The rack can *drive* a parameter from four places — a knob, a Combinator routing, a learned CC,
+a cable into a param-shaped inlet — and remembers none of them. Reason's sequencer records any
+parameter of any device onto a lane against the timeline, and that is most of what makes it a
+DAW rather than an instrument.
+
+Two halves, and only one of them is in the parity ledger:
+
+- **The lane.** The groovebox already has a versioned automation timeline with a recorder
+  (`engine/automation.ts`). REBIRTH-PARITY.md has the row: expose the shared recorder in rack
+  mode. That is interchange work.
+- **The clock to record against.** `graph.ts` notes that nothing is scheduled against a frame
+  yet — `param` messages ramp across the block that follows them and no further. Sample-accurate
+  automation needs the message ABI to grow a frame, which is the one growth `RACK.md` says to
+  resist and the one that would earn it.
+
+### 3. There is no undo
+
+Nowhere in the app, and the sequencer admits it in `ui/PatternBar.tsx`. The rack raises the
+stakes on it: `removeModule` deliberately drops every cable *and* every Combinator routing that
+touched the module, for good reasons written down next to the code — a stale cable that comes
+back when a module is re-added under the same id looks like a haunting. The consequence is that
+one click on a wired Combinator destroys work that took ten minutes to patch, and there is no
+way back.
+
+Cheapest of the three by a wide margin, and the only one that is a store change and nothing else.
+
+## Everything else, rack-wide
+
+| | Reason | Here | Notes |
+|---|---|---|---|
+| Duplicate a device | Copy, paste, duplicate, with settings | Absent | Chunks insert *recipes*; nothing copies a module you have already tuned |
+| Auto-routing | A new device connects to the next mixer channel | Chunks only | `addModule` appends an unpatched module; `insertChunk` wires a fresh Out, which is the same idea |
+| CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
+| Bypass | On / Bypass / Off on every effect | Terminal only | `Out` has mute and solo; no other module can be taken out of circuit |
+| Device patches | A browser and a factory bank per device | Patch-level | The library saves whole racks; `PATCHES` and `CHUNKS` are whole-rack and multi-module |
+| Multi-select | Rubber-band a group of devices | Absent | Reordering and removal are one module at a time |
+
+None of these is architectural. All of them are the difference between a rack you demonstrate
+and a rack you work in for an afternoon.
+
+## Missing devices
+
+Ordered by return, not by how big Reason's version was.
+
+- **EQ — there is nothing at all.** No peaking band, no shelf, no analyser. Approximable by
+  splitting an SVF's four outlets into a Mixer with signed levels, which is a real answer for a
+  three-band tone control and not an answer for "take 2 dB out at 400 Hz". It is the most
+  conspicuous absence in a rack that, as of this week, has mixer strips.
+- **A complete voice.** Subtractor, Thor and Malström are each *one device* that makes a sound
+  on its own. Here every voice is patched from VCO, SVF and ADSR. Polyphony landed at step 5b
+  and nothing yet takes advantage of eight voices being eight *different* notes, because the
+  patching cost is paid per voice-shaped patch rather than once.
+- **A phaser.** Chorus and flanger are patchable and `delay.ts` says so in its header — a delay
+  whose time an LFO sweeps. A phaser is not: it is a chain of allpass sections and there is no
+  allpass anywhere.
+- **Note effects.** Nothing sits between a note source and a voice. No arpeggiator (RPG-8), no
+  note echo, no scale-and-chord generator. `Quantizer` is CV scale-lock at audio rate, which is
+  a different thing: it cannot add a note that was not played.
+- **A multisample instrument.** `Sampler` is one buffer plus slices. No key zones, no velocity
+  layers, no root key, no loop points — so a sampled instrument, as opposed to a sampled break,
+  cannot be built.
+- **Multi-mode distortion.** `Drive` is one waveshaper and a 5 Hz DC blocker. Scream 4's value
+  was the *selector* — tube, tape, fuzz, digital — plus a tone stage, and each is a different
+  curve rather than a different amount.
+- **A limiter.** `Compressor` is dynamics; the ±4 clamp in the Graph is the only ceiling.
+  `RACK.md` records eight voices of the Acid patch peaking at 3.93 against that clamp, which is
+  the measurement that says a maximiser has somewhere to go.
+- **Audio input.** No live, line or microphone capture. The Sampler takes files and generated
+  breaks. Vocoding something you are saying is currently vocoding something you recorded
+  elsewhere first.
+
+## Deliberately not gaps
+
+Worth writing down so nobody builds them twice.
+
+- **A Spider.** Splitting is free — an outlet already feeds as many cables as you like — and
+  merging is what `Mixer` is. Reason needed the device because its outputs were one-to-one.
+- **A second rack.** `chunks/index.ts` argues this at length: Reason had one rack, and two here
+  would mean two graphs, two transports and a document that no longer round-trips as one link.
+- **Rack Extensions and VSTs.** `RACK.md` step 5c covers third-party modules: the design is
+  ready for it, the ABI has changed four times in four PRs, and opening it early turns each
+  change into a promise.
+- **ReWire.** A protocol for getting audio out of one 2001 application and into another. A tab
+  is not a host and a URL is a better answer than a transport bridge.
+
+## The order
+
+1. Undo. Cheapest, and it makes everything after it safer to try.
+2. Stereo cables. Rising cost; do it before the module count rises again.
+3. Recorded automation, once the ABI carries a frame.
+4. EQ, then a complete voice — the two the picker most obviously cannot offer anybody.
+5. The rack-wide table above, in whatever order the annoyance surfaces.
+
+Update this file when one lands, the same way the capability ledger is updated. A gap list that
+goes stale is worse than none, because it argues for work that is already done.

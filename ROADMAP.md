@@ -35,6 +35,10 @@ flattening it and add routing, modulation, sampling and new instruments around i
 is the Reason-over-ReBirth relationship, made an explicit compatibility promise rather
 than an analogy.
 
+[docs/REASON-GAP.md](docs/REASON-GAP.md) is the other half of the comparison — what the rack
+still lacks measured against *Reason* rather than against the groovebox, which is a different
+list with a different order. Stereo cables, recorded automation and undo lead it.
+
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. It also fixes the implementation order:
 independent machine clips (now landed) before song automation, then section buses/effects,

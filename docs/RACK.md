@@ -38,6 +38,11 @@ render-equivalence completion test. This file continues to describe how the pers
 graph works. The distinction matters: two execution engines can serve one product without
 duplicating their DSP or making interchange lossy.
 
+That ledger measures the rack against the groovebox. [REASON-GAP.md](REASON-GAP.md) measures it
+against Reason — what a rack of this shape still cannot do at all, checked against the tree
+rather than remembered, including the ones that turn out to be patchable and the ones nobody
+should build.
+
 The additive document bridge is now concrete. A `Patch` may carry the exact encoded
 groovebox song; it is kept opaque by the patch codec so a rack build can preserve a song
 from a future engine version without pretending it can edit it. Public helpers embed and
