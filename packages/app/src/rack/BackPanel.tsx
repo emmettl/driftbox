@@ -24,6 +24,90 @@ interface Props {
   layout: Layout
 }
 
+interface CablePathsProps {
+  all: Jack[]
+  cables: PatchCable[]
+  delayed: Set<string>
+  swing: ReturnType<typeof useSwing>
+  disconnect?: (cable: PatchCable) => void
+}
+
+/**
+ * The drawn leads, shared by the interactive back panel and the copy visible during the first half
+ * of a turn. Keeping one renderer matters here: a transition cable that hangs or swings differently
+ * from the one it becomes at 90 degrees would visibly jump at the hand-off.
+ */
+export function CablePaths({ all, cables, delayed, swing, disconnect }: CablePathsProps) {
+  return cables.map((cable) => {
+    const from = jackAt(all, cable.from[0], cable.from[1])
+    const to = jackAt(all, cable.to[0], cable.to[1])
+    if (!from || !to) return null
+    const key = `${cable.from.join('.')}>${cable.to.join('.')}`
+    const isDelayed = delayed.has(cable.to[0])
+    const angle =
+      swing.elapsed === null
+        ? 0
+        : swingAngle(swing.elapsed, from, to, swing.direction, swingSeed(key))
+    const grab = cableMiddle(from, to, angle)
+    const d = cablePath(from, to, angle)
+
+    return (
+      <g key={key} className={isDelayed ? 'rk-cable rk-cable-delayed' : 'rk-cable'}>
+        <path className="rk-cable-shadow" d={d} />
+        <path className="rk-cable-line" d={d} />
+        {disconnect && (
+          <circle
+            className="rk-cable-grab"
+            cx={grab.x}
+            cy={grab.y}
+            r="11"
+            onPointerDown={(event) => {
+              event.stopPropagation()
+              disconnect(cable)
+            }}
+          >
+            <title>{`${cable.from.join('.')} → ${cable.to.join('.')} — click to unpatch`}</title>
+          </circle>
+        )}
+      </g>
+    )
+  })
+}
+
+/**
+ * A cable-only copy which is allowed to show its reverse during the first half of a turn.
+ *
+ * The actual back panel must keep `backface-visibility: hidden`, otherwise its jacks and labels show
+ * mirrored through the front. That also used to hide every lead until the rack had almost finished
+ * turning. This copy sits outside that hidden face, is never interactive, and hands off to the real
+ * cables as soon as the back face becomes visible.
+ */
+export function TurningCables({ layout, flipped }: Props & { flipped: boolean }) {
+  const patch = useRack((s) => s.patch)
+  const notes = useRack((s) => s.notes)
+  const swing = useSwing(flipped)
+  const all = useMemo(() => jacks(layout.placements, MODULES), [layout])
+  const delayed = new Set(
+    notes.flatMap((note) => (note.kind === 'delayed' && note.module ? [note.module] : [])),
+  )
+
+  return (
+    <svg
+      className={flipped ? 'rk-turn-wires rk-turn-wires-on' : 'rk-turn-wires'}
+      viewBox={`0 0 ${layout.width} ${layout.height}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <CablePaths
+        all={all}
+        cables={patch.cables}
+        delayed={delayed}
+        swing={swing}
+      />
+    </svg>
+  )
+}
+
 /** A cable being dragged, before it lands anywhere. */
 interface Dragging {
   from: Jack
@@ -141,7 +225,7 @@ export function BackPanel({ layout }: Props) {
   )
 
   const delayed = new Set(
-    notes.filter((note) => note.kind === 'delayed').map((note) => note.module),
+    notes.flatMap((note) => (note.kind === 'delayed' && note.module ? [note.module] : [])),
   )
 
   return (
@@ -173,43 +257,16 @@ export function BackPanel({ layout }: Props) {
           />
         ))}
 
-        {patch.cables.map((cable) => {
-          const from = jackAt(all, cable.from[0], cable.from[1])
-          const to = jackAt(all, cable.to[0], cable.to[1])
-          if (!from || !to) return null
-          const key = `${cable.from.join('.')}>${cable.to.join('.')}`
-          // A cable the compiler had to delay to break a cycle is drawn differently. A patch that
-          // behaves unlike its picture is worse than one that admits it — the compiler reports these
-          // for exactly this purpose.
-          const isDelayed = delayed.has(cable.to[0])
-          // Zero between flips, which makes this arithmetically the resting path. The key is the seed, so
-          // this cable's own period and delay are stable across every render rather than jumping.
-          const angle =
-            swing.elapsed === null
-              ? 0
-              : swingAngle(swing.elapsed, from, to, swing.direction, swingSeed(key))
-          const grab = cableMiddle(from, to, angle)
-          const d = cablePath(from, to, angle)
-
-          return (
-            <g key={key} className={isDelayed ? 'rk-cable rk-cable-delayed' : 'rk-cable'}>
-              <path className="rk-cable-shadow" d={d} />
-              <path className="rk-cable-line" d={d} />
-              <circle
-                className="rk-cable-grab"
-                cx={grab.x}
-                cy={grab.y}
-                r="11"
-                onPointerDown={(event) => {
-                  event.stopPropagation()
-                  disconnect(cable)
-                }}
-              >
-                <title>{`${cable.from.join('.')} → ${cable.to.join('.')} — click to unpatch`}</title>
-              </circle>
-            </g>
-          )
-        })}
+        {/* A cable the compiler had to delay to break a cycle is drawn differently. A patch that
+            behaves unlike its picture is worse than one that admits it — the compiler reports these
+            for exactly this purpose. */}
+        <CablePaths
+          all={all}
+          cables={patch.cables}
+          delayed={delayed}
+          swing={swing}
+          disconnect={disconnect}
+        />
 
         {armed && (
           <circle className="rk-armed-halo" cx={armed.x} cy={armed.y} r="15" />
