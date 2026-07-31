@@ -82,6 +82,13 @@ export const MIDI_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Your keyboard, as pitch and a gate. The only module here whose input does not arrive down a cable.',
+  logo: {
+    paths: [
+      'M5 8h54v25H5z',
+      'M13 8v25M21 8v25M29 8v25M37 8v25M45 8v25M53 8v25',
+      'M10 8v14h7V8M26 8v14h7V8M42 8v14h7V8',
+    ],
+  },
   inlets: [],
   outlets: [
     { id: 'pitch', name: 'V/Oct' },

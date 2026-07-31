@@ -42,6 +42,14 @@ export const OUT_MODULE: ModuleDef = {
   group: 'Mixing',
   blurb:
     'The end of a chain, with level, pan, mute and solo. Two of them is a two-channel mix; none of them is silence.',
+  logo: {
+    paths: [
+      'M5 20h14l16-13v26L19 20',
+      'M41 14c5 3 5 9 0 12',
+      'M47 9c10 6 10 16 0 22',
+      'M18 16v8',
+    ],
+  },
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [{ id: 'out', name: 'Thru' }],
   params: [

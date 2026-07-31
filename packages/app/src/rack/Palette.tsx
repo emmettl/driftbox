@@ -1,4 +1,4 @@
-import type { Chunk } from '@driftbox/rack'
+import type { Chunk, ModuleLogo as ModuleLogoDef } from '@driftbox/rack'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { browse } from './browse.js'
 import { portSummary } from './layout.js'
@@ -32,6 +32,18 @@ import { portSummary } from './layout.js'
 interface Props {
   onModule: (type: string) => void
   onChunk: (chunk: Chunk) => void
+}
+
+function ModuleLogo({ logo }: { logo: ModuleLogoDef }) {
+  return (
+    <span className="rk-card-logo" aria-hidden="true">
+      <svg viewBox="0 0 64 40" focusable="false">
+        {logo.paths.map((path, index) => (
+          <path key={index} d={path} />
+        ))}
+      </svg>
+    </span>
+  )
 }
 
 export function Palette({ onModule, onChunk }: Props) {
@@ -96,10 +108,16 @@ export function Palette({ onModule, onChunk }: Props) {
                 key={def.type}
                 type="button"
                 className="rk-card"
+                data-group={def.group}
                 onClick={() => onModule(def.type)}
               >
-                <span className="rk-card-name">{def.name}</span>
-                <span className="rk-card-blurb">{def.blurb}</span>
+                <span className="rk-card-top">
+                  {def.logo && <ModuleLogo logo={def.logo} />}
+                  <span className="rk-card-copy">
+                    <span className="rk-card-name">{def.name}</span>
+                    <span className="rk-card-blurb">{def.blurb}</span>
+                  </span>
+                </span>
                 <span className="rk-card-ports">{portSummary(def)}</span>
               </button>
             ))}

@@ -89,6 +89,12 @@ export const DRIVE_MODULE: ModuleDef = {
   group: 'Shaping',
   blurb:
     'Saturation, level-matched so the knob makes it dirtier rather than louder. Warmth on a bass, teeth on a break.',
+  logo: {
+    paths: [
+      'M4 21c5 0 6-13 11-13h6c4 0 4 25 8 25h6c4 0 5-25 9-25h6c5 0 6 13 10 13',
+      'M22 15h12v11H22z',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cv', name: 'CV' },

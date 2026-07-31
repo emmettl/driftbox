@@ -146,6 +146,14 @@ export const REVERB_MODULE: ModuleDef = {
   group: 'Space',
   blurb:
     'A room, built from feedback delay lines. Size, decay and damping rather than a list of presets.',
+  logo: {
+    paths: [
+      'M8 31V9h48v22',
+      'M15 25c6-10 12-10 18 0',
+      'M11 29c10-17 21-17 31 0',
+      'M7 34c15-24 31-24 48 0',
+    ],
+  },
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [{ id: 'out', name: 'Out' }],
   params: [

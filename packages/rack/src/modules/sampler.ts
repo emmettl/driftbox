@@ -145,6 +145,12 @@ export const SAMPLER_MODULE: ModuleDef = {
   group: 'Sources',
   blurb:
     'Plays a break, sliced. Retriggering by slice is what chopping is, and chopping is what jungle is made of.',
+  logo: {
+    paths: [
+      'M4 21c4 0 4-11 8-11s4 20 8 20 4-15 8-15 4 11 8 11 4-18 8-18 4 24 8 24 4-11 8-11',
+      'M16 7v26M32 7v26M48 7v26',
+    ],
+  },
   inlets: [
     { id: 'trig', name: 'Trig' },
     { id: 'slice', name: 'Slice' },

@@ -120,6 +120,13 @@ export const ADSR_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Attack, decay, sustain and release from a gate. The shape a note has — into a VCA it is what makes the note at all.',
+  logo: {
+    paths: [
+      'M4 33L16 7l12 12h17l15 14',
+      'M4 36h56',
+      'M16 7v29M28 19v17M45 19v17',
+    ],
+  },
   inlets: [
     { id: 'gate', name: 'Gate' },
     // A separate trigger, so a sequencer can re-strike a note without the gate having to fall —

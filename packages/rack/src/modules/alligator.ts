@@ -166,6 +166,13 @@ export const ALLIGATOR_MODULE: ModuleDef = {
   group: 'Filters',
   blurb:
     'Three filtered gates chopping one signal at different rhythms. A pad goes in and a rhythm part comes out.',
+  logo: {
+    paths: [
+      'M5 10h14l5 5-5 5H5l5-5-5-5',
+      'M23 16h17l5 5-5 5H23l5-5-5-5',
+      'M42 22h16l-5 5 5 5H42l5-5-5-5',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     ...perBand((band) => ({ id: `gate${band + 1}`, name: `${NAMES[band]} Gate` })),

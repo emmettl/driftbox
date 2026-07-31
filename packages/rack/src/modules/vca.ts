@@ -60,6 +60,13 @@ export const VCA_MODULE: ModuleDef = {
   group: 'Shaping',
   blurb:
     'Volume you can control with a cable. The module that turns an envelope into a note.',
+  logo: {
+    paths: [
+      'M6 20h10l24-13v26L16 20',
+      'M40 20h18',
+      'M28 35v-9M24 30l4-4 4 4',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cv', name: 'CV' },

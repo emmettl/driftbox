@@ -99,6 +99,13 @@ export const CLOCK_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Divides a clock into a gate, a trigger and a ramp. One of these can drive four sequencers at four different rates.',
+  logo: {
+    paths: [
+      'M20 5a15 15 0 1 0 0 30a15 15 0 1 0 0-30',
+      'M20 20V10M20 20l8 5',
+      'M39 28V12h8v16h11',
+    ],
+  },
   inlets: [
     { id: 'rate', name: 'Rate' },
     { id: 'reset', name: 'Reset' },

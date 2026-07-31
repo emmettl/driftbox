@@ -103,6 +103,12 @@ describe('what the picker draws', () => {
     }
   })
 
+  it('draws every shipped module logo as safe SVG path data', () => {
+    expect(markup.match(/class="rk-card-logo"/g)).toHaveLength(MODULE_LIST.length)
+    expect(markup.match(/<svg /g)).toHaveLength(MODULE_LIST.length)
+    expect(markup).not.toContain('dangerouslySetInnerHTML')
+  })
+
   it('heads each shelf', () => {
     for (const shelf of browse('').shelves) expect(markup).toContain(`>${shelf.group}<`)
   })

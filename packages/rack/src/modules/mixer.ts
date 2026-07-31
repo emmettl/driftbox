@@ -45,6 +45,13 @@ export const MIXER_MODULE: ModuleDef = {
   group: 'Mixing',
   blurb:
     'Four in, one out, with a level and a CV inlet on each. Every crossfade in the rack is one of these, in plain sight.',
+  logo: {
+    paths: [
+      'M10 6v28M23 6v28M36 6v28M49 6v28',
+      'M6 13h8v7H6zM19 24h8v7h-8zM32 9h8v7h-8zM45 19h8v7h-8z',
+      'M10 36l22 2 17-2',
+    ],
+  },
   inlets: [
     { id: 'in1', name: 'In 1' },
     { id: 'in2', name: 'In 2' },

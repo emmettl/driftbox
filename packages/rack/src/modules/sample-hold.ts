@@ -41,6 +41,12 @@ export const SAMPLE_HOLD_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Grabs a value on each trigger and holds it. Noise in, a Quantizer after, and you have a melody nobody wrote.',
+  logo: {
+    paths: [
+      'M4 31h10V13h11v10h12V8h11v16h12',
+      'M14 35V9M25 35V19M37 35V4M48 35V20',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'trig', name: 'Trig' },
