@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useBox } from './store'
-import { SONGS, defaultSong, songBars } from '@driftbox/engine'
+import { SONGS, chainBarAt, defaultSong, songBars, type DriftboxEngine } from '@driftbox/engine'
 import { SCENES } from './visual/scenes'
 import { soundingPatternAt } from './ui/useLiveStep'
 
@@ -14,7 +14,7 @@ import { soundingPatternAt } from './ui/useLiveStep'
 // that class of bug cannot come back.
 
 beforeEach(() => {
-  useBox.setState({ song: defaultSong(), engine: null, editing: 'drift' })
+  useBox.setState({ song: defaultSong(), engine: null, editing: 'drift', running: false, loop: null })
 })
 
 const song = () => useBox.getState().song
@@ -115,6 +115,38 @@ describe('the arrangement', () => {
     while (song().chain.length > 0) useBox.getState().removeChain(0)
     expect(song().chain).toEqual([])
     expect(songBars(song())).toBe(0)
+  })
+
+  it('loops one section at its absolute bar range and toggles it off', () => {
+    const setLoop = vi.fn()
+    const clearLoop = vi.fn()
+    useBox.setState({
+      engine: { setLoop, clearLoop } as unknown as DriftboxEngine,
+      loop: null,
+    })
+    const index = 1
+    const start = chainBarAt(song(), index)
+    const bars = song().chain[index].repeat
+
+    useBox.getState().toggleSectionLoop(index)
+    expect(setLoop).toHaveBeenCalledWith(start, bars)
+    expect(useBox.getState().loop).toEqual({ start, bars })
+
+    useBox.getState().toggleSectionLoop(index)
+    expect(clearLoop).toHaveBeenCalled()
+    expect(useBox.getState().loop).toBeNull()
+  })
+
+  it('starts playback at an exact bar', async () => {
+    const startAt = vi.fn().mockResolvedValue(undefined)
+    useBox.setState({
+      engine: { running: false, startAt } as unknown as DriftboxEngine,
+      running: false,
+    })
+
+    useBox.getState().startAtBar(7)
+    await vi.waitFor(() => expect(useBox.getState().running).toBe(true))
+    expect(startAt).toHaveBeenCalledWith(7)
   })
 })
 

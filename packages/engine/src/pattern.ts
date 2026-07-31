@@ -510,6 +510,17 @@ export function songBars(song: Song): number {
   return total
 }
 
+/** Absolute bar where a chain entry begins. Clamped so callers can safely ask for the
+ * add button just past the end and receive the total song length. */
+export function chainBarAt(song: Song, index: number): number {
+  const end = Math.max(0, Math.min(song.chain.length, Math.floor(index)))
+  let bar = 0
+  for (let position = 0; position < end; position++) {
+    bar += Math.max(1, Math.floor(song.chain[position].repeat))
+  }
+  return bar
+}
+
 /**
  * Which entry of the chain a given bar falls in, and how far into its repeat.
  *

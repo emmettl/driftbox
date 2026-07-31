@@ -53,6 +53,7 @@ user could approximate it from oscillators.
 | 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
+| Song transport | Section seek and loop | Arranger transport | Add arbitrary loop bounds and share the primitives |
 | Song automation | No | Combinator/MIDI only | Recordable parameter timeline shared by both modes |
 | Section mixer | Per voice | Mixer/Out | Four section buses with mute, pan, level, meter and routes |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
@@ -74,9 +75,10 @@ work is ordered by dependency:
    303 B, 808 and 909. Each section selects the four sources independently and shorter
    clips wrap under the longest one. Existing composite sections remain the fallback, so
    old songs migrate without changing playback.
-2. **Song transport and automation.** Add seek, loop start/length, bar-quantised clip
-   recording and parameter automation. Pattern changes are discrete events; knobs,
-   faders and effect controls are sampled automation.
+2. **Song transport and automation.** Section seek and whole-section looping are present.
+   Add arbitrary loop start/length, bar-quantised clip recording and parameter automation.
+   Pattern changes are discrete events; knobs, faders and effect controls are sampled
+   automation.
 3. **Section buses and effects.** Add the four machine strips and the ReBirth signal
    path: distortion, pattern-controlled filter and compressor as inserts, delay as a
    send. Keep Driftbox's reverb and per-voice controls.

@@ -380,6 +380,10 @@ button {
   box-shadow: 0 0 16px rgba(95, 240, 208, 0.28);
 }
 
+.chain-step.looping {
+  box-shadow: inset 0 0 0 1px rgba(255, 176, 46, 0.55);
+}
+
 .chain-head,
 .chain-foot {
   display: flex;
@@ -456,6 +460,20 @@ button {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
+}
+
+.chain-transport {
+  display: flex;
+  gap: 3px;
+}
+
+.chain-transport .chain-edit {
+  flex: 1;
+}
+
+.chain-transport .chain-edit.on {
+  background: rgba(255, 176, 46, 0.16);
+  color: #ffd9a0;
 }
 
 .chain-edit:hover {
