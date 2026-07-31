@@ -168,7 +168,9 @@ button {
 .pattern-tools {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 4px;
+  flex-wrap: wrap;
   padding-left: 8px;
   border-left: 1px solid var(--edge);
 }
@@ -190,6 +192,13 @@ button {
 .pattern-tools .pattern-arrow {
   width: 30px;
   padding-inline: 0;
+}
+
+.pattern-tools-clipboard {
+  display: flex;
+  gap: 4px;
+  padding-left: 4px;
+  border-left: 1px solid var(--edge);
 }
 
 .flam-width {

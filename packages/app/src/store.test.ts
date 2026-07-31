@@ -28,6 +28,7 @@ beforeEach(() => {
     running: false,
     loop: null,
     automationRecording: false,
+    patternClipboard: null,
   })
 })
 
@@ -369,6 +370,78 @@ describe('focused pattern tools', () => {
     expect(song().patterns[0].flams!['909.sd'][0]).toBe(true)
     expect(song().patterns[0].tracks['808.bd']).toEqual([1, 0, 0, 0])
     expect(song().kit.flam).toBe(0.72)
+  })
+
+  it('cuts and pastes a detached drum lane with accents and flam marks', () => {
+    useBox.getState().toggleFlamStep('909.bd', 2)
+    useBox.getState().cutSelection(false)
+
+    expect(song().patterns[0].tracks['909.bd']).toBeUndefined()
+    expect(song().patterns[0].flams?.['909.bd']).toBeUndefined()
+    expect(useBox.getState().patternClipboard).toMatchObject({
+      kind: 'drum',
+      label: 'Bass Drum',
+      machine: 'tr909',
+    })
+
+    useBox.setState({
+      song: {
+        ...song(),
+        patterns: [
+          ...song().patterns,
+          { id: 'destination', name: 'Destination', length: 3, tracks: {} },
+        ],
+      },
+      editing: 'destination',
+      selectedVoice: '909.sd',
+    })
+    useBox.getState().pasteSelection()
+
+    const destination = song().patterns.find((pattern) => pattern.id === 'destination')!
+    expect(destination.tracks['909.sd']).toEqual([1, 0, 2])
+    expect(destination.flams?.['909.sd']).toEqual([false, false, true])
+  })
+
+  it('keeps a whole drum-machine clipboard scoped to its source machine', () => {
+    useBox.getState().copySelection(true)
+    const before = song()
+    useBox.setState({ view: 'tr808', selectedVoice: '808.bd' })
+    useBox.getState().pasteSelection()
+
+    expect(song()).toBe(before)
+    expect(useBox.getState().patternClipboard).toMatchObject({
+      kind: 'drum',
+      label: 'whole 909',
+      machine: 'tr909',
+    })
+  })
+
+  it('cuts and pastes both 303s together without losing articulation', () => {
+    useBox.setState({ view: 'bass' })
+    const source = song().patterns[0].bass
+    useBox.getState().cutSelection(true)
+
+    expect(song().patterns[0].bass?.['303.a']).toBeUndefined()
+    expect(song().patterns[0].bass?.['303.b']).toBeUndefined()
+    useBox.setState({
+      song: {
+        ...song(),
+        patterns: [
+          ...song().patterns,
+          { id: 'bass-destination', name: 'Bass Destination', length: 6, tracks: {} },
+        ],
+      },
+      editing: 'bass-destination',
+    })
+    useBox.getState().pasteSelection()
+
+    const destination = song().patterns.find((pattern) => pattern.id === 'bass-destination')!
+    expect(destination.bass?.['303.a']?.slice(0, 4)).toEqual(source?.['303.a'])
+    expect(destination.bass?.['303.b']?.slice(0, 4)).toEqual(source?.['303.b'])
+    expect(destination.bass?.['303.a']?.slice(4)).toEqual([
+      { note: null, accent: false, slide: false },
+      { note: null, accent: false, slide: false },
+    ])
   })
 })
 
