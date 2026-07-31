@@ -518,8 +518,16 @@ The risk is all in the first item. Do it first and alone.
    Decisions taken, and what they cost:
 
    - **Fixed width, half or full.** Two adjacent half-width modules share a row; anything else gets a
-     row to itself. Order-preserving — in a rack the arrangement *is* the document, so a packer that
+     row to itself. A generic faceplate with no more than three visible controls becomes half-width
+     automatically, so small utilities such as Delay, VCA and Clock compact without another registry
+     entry; a hand-built faceplate opts in because it may contain things its param list does not reveal.
+     The layout remains order-preserving — in a rack the arrangement *is* the document, so a packer that
      shuffled modules to close gaps would move what somebody had placed.
+   - **Reordering is two-dimensional and previews the real faceplates.** Full-width rows are crossed by
+     moving vertically; a half-width row is crossed left to right, including the empty side of a lone
+     module. The proposed order is run back through the same layout function while the pointer moves, so
+     every faceplate visibly settles into its eventual slot and the dragged one never becomes a blank
+     placeholder.
    - **One coordinate system, no DOM measuring.** Front panel, back panel and cables are all laid out
      by `layout.ts` into a fixed design space that the cable SVG uses as its `viewBox`. Nothing has to
      agree with anything at runtime because there is only one set of numbers, and the geometry is
