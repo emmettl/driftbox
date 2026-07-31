@@ -8,12 +8,66 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#07040f" />
 
     <title>Driftbox Rack — a modular synth in the browser</title>
     <meta
       name="description"
-      content="A modular synth rack with cables you can actually pull. Sixteen modules, one graph at sample rate, and a patch that fits in a URL."
+      content="A modular synth rack with cables you can actually pull. Thirty-one modules, one graph running at sample rate, and a patch that fits in a URL."
+    />
+
+    <!--
+      Link previews, and the reasoning in index.html applies here unchanged: none of
+      WhatsApp, iMessage, Slack or Signal runs JavaScript, so every tag has to be in the
+      static HTML rather than set by the app at runtime — which is why these live here and
+      not in a component. The URLs are absolute and hardcoded to the GitHub Pages
+      deployment for the same reason too: crawlers do not resolve a relative og:image
+      against the page, and that is the single commonest cause of a blank card.
+
+      **This is a second page and it needs its own card, not a copy of the sequencer's.**
+      The rack is a different instrument with a different picture — `docs/RACK.md` opens by
+      saying the back panel is what makes a rack a rack — and a shared rack link that
+      previewed as a step grid would be describing the wrong thing.
+
+      A shared PATCH carries the patch in the URL *hash*, which is never sent to a server
+      and is ignored by every crawler. So every shared patch shows this same card rather
+      than a preview of that particular patch. That is the accepted trade for putting
+      patches in the URL at all — see `app/src/hash.ts` — and it is why the copy below
+      describes the instrument rather than the patch.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Driftbox" />
+    <meta property="og:title" content="Driftbox Rack — a modular synth in the browser" />
+    <meta
+      property="og:description"
+      content="A modular synth rack with cables you can actually pull. Thirty-one modules, one graph running at sample rate, and a patch that fits in a URL."
+    />
+    <meta property="og:url" content="https://emmettl.github.io/driftbox/rack.html" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:image" content="https://emmettl.github.io/driftbox/og-rack.png" />
+    <!-- WhatsApp looks for the https variant specifically. -->
+    <meta property="og:image:secure_url" content="https://emmettl.github.io/driftbox/og-rack.png" />
+    <meta property="og:image:type" content="image/png" />
+    <!-- Given explicitly: without them WhatsApp tends to fall back to a small square
+         thumbnail instead of the wide card. -->
+    <meta property="og:image:width" content="1600" />
+    <meta property="og:image:height" content="840" />
+    <meta
+      property="og:image:alt"
+      content="The Driftbox rack seen from behind: patch cables in pink, teal and amber sweeping between the jacks of a VU meter, an oscillator, an envelope and a compressor."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Driftbox Rack — a modular synth in the browser" />
+    <meta
+      name="twitter:description"
+      content="A modular synth rack with cables you can actually pull. Thirty-one modules, one graph running at sample rate, and a patch that fits in a URL."
+    />
+    <meta name="twitter:image" content="https://emmettl.github.io/driftbox/og-rack.png" />
+    <meta
+      name="twitter:image:alt"
+      content="The Driftbox rack seen from behind: patch cables sweeping between the jacks of a VU meter, an oscillator, an envelope and a compressor."
     />
   </head>
   <body>
