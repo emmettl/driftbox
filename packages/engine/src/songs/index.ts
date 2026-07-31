@@ -16,12 +16,13 @@ import { mobiliseSong } from './mobilise.js'
 import { driftlingsSong } from './driftlings.js'
 import { assemblySong } from './assembly.js'
 import { garageSong } from './garage.js'
+import { timeVortexSong } from './timevortex.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Sixteen songs demonstrate the range of the same small set of machines.
+// Seventeen songs demonstrate the range of the same small set of machines.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -87,6 +88,13 @@ export const SONGS: SongPreset[] = [
     name: 'Transmission',
     blurb: 'ISDN-era FSOL — 104bpm, nothing lines up, no backbeat at all',
     build: transmissionSong,
+  },
+  {
+    id: 'timevortex',
+    visual: 'graphic',
+    name: 'Time Vortex',
+    blurb: 'Radiophonic sci-fi — 142bpm, galloping pulse and a signal lost in tape echo',
+    build: timeVortexSong,
   },
   {
     id: 'defcon',
@@ -194,4 +202,5 @@ export {
   driftlingsSong,
   assemblySong,
   garageSong,
+  timeVortexSong,
 }
