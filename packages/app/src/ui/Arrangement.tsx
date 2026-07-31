@@ -1,4 +1,5 @@
 import { chainBarAt, chainPositionAt, songBars, type ClipSlot } from '@driftbox/engine'
+import { useEffect, useState } from 'react'
 import { useBox } from '../store'
 import { Panel } from './Panel'
 import { usePlayhead } from './usePlayhead'
@@ -27,11 +28,21 @@ export function Arrangement() {
   const loop = useBox((s) => s.loop)
   const startAtBar = useBox((s) => s.startAtBar)
   const toggleSectionLoop = useBox((s) => s.toggleSectionLoop)
+  const setLoopRange = useBox((s) => s.setLoopRange)
+  const clearSongLoop = useBox((s) => s.clearSongLoop)
 
   const playhead = usePlayhead()
   const playing = playhead ? chainPositionAt(song, playhead.bar) : undefined
   const bars = songBars(song)
   const slot: ClipSlot = view === 'bass' ? (selectedBass as ClipSlot) : view
+  const [loopStart, setLoopStart] = useState(1)
+  const [loopBars, setLoopBars] = useState(1)
+
+  useEffect(() => {
+    if (!loop) return
+    setLoopStart(loop.start + 1)
+    setLoopBars(loop.bars)
+  }, [loop])
   const slotLabel =
     slot === 'tr808' ? '808' : slot === 'tr909' ? '909' : slot === '303.a' ? '303 A' : '303 B'
 
@@ -47,7 +58,40 @@ export function Arrangement() {
         </span>
       }
     >
-
+      <div className="loop-range" aria-label="Song loop range">
+        <label>
+          <span>Loop from</span>
+          <input
+            type="number"
+            min={1}
+            max={Math.max(1, bars)}
+            value={loopStart}
+            onChange={(event) => setLoopStart(Number(event.target.value))}
+            aria-label="Loop start bar"
+          />
+        </label>
+        <label>
+          <span>for</span>
+          <input
+            type="number"
+            min={1}
+            max={Math.max(1, bars - loopStart + 1)}
+            value={loopBars}
+            onChange={(event) => setLoopBars(Number(event.target.value))}
+            aria-label="Loop length in bars"
+          />
+          <span>bars</span>
+        </label>
+        <button
+          className="chain-edit"
+          onClick={() => setLoopRange(loopStart - 1, loopBars)}
+        >
+          set loop
+        </button>
+        <button className="chain-edit" onClick={clearSongLoop} disabled={!loop}>
+          clear
+        </button>
+      </div>
       <div className="chain">
         {song.chain.map((step, index) => {
           const live = playing?.index === index

@@ -53,7 +53,7 @@ user could approximate it from oscillators.
 | 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
-| Song transport | Section seek and loop | Arranger transport | Add arbitrary loop bounds and share the primitives |
+| Song transport | Section seek and arbitrary whole-bar loop ranges | Arranger transport | Reuse the shared primitives in rack mode |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Combinator/MIDI only | Reuse the shared timeline and recorder in rack mode |
 | Section mixer | Per voice | Mixer/Out | Four section buses with mute, pan, level, meter and routes |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
@@ -79,8 +79,8 @@ work is ordered by dependency:
    versioned automation timeline are present. The editor records tempo, swing, drum knobs,
    303 knobs, per-voice swing, sends and effects at the playhead. The shared scheduler
    resolves those targets for live playback and offline planning, including per-hit stem
-   sends. Reuse that thin recorder in rack mode, then add arbitrary loop start/length and
-   bar-quantised clip recording.
+   sends. Arbitrary whole-bar loop ranges may cross section boundaries. Reuse the thin
+   recorder and transport primitives in rack mode, then add bar-quantised clip recording.
 3. **Section buses and effects.** Add the four machine strips and the ReBirth signal
    path: distortion, pattern-controlled filter and compressor as inserts, delay as a
    send. Keep Driftbox's reverb and per-voice controls.

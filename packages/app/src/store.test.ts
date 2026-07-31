@@ -217,6 +217,28 @@ describe('the arrangement', () => {
     expect(useBox.getState().loop).toBeNull()
   })
 
+  it('sets and clamps an arbitrary whole-bar loop range', () => {
+    const setLoop = vi.fn()
+    const clearLoop = vi.fn()
+    useBox.setState({
+      engine: { setLoop, clearLoop } as unknown as DriftboxEngine,
+      loop: null,
+    })
+    const total = songBars(song())
+
+    useBox.getState().setLoopRange(3, 5)
+    expect(setLoop).toHaveBeenLastCalledWith(3, 5)
+    expect(useBox.getState().loop).toEqual({ start: 3, bars: 5 })
+
+    useBox.getState().setLoopRange(total + 8, 99)
+    expect(setLoop).toHaveBeenLastCalledWith(total - 1, 1)
+    expect(useBox.getState().loop).toEqual({ start: total - 1, bars: 1 })
+
+    useBox.getState().clearSongLoop()
+    expect(clearLoop).toHaveBeenCalled()
+    expect(useBox.getState().loop).toBeNull()
+  })
+
   it('starts playback at an exact bar', async () => {
     const startAt = vi.fn().mockResolvedValue(undefined)
     useBox.setState({
