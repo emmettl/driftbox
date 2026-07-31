@@ -4,27 +4,26 @@ import { describe, expect, it } from 'vitest'
 const styles = readFileSync(new URL('./src/rack/rack.css', import.meta.url), 'utf8')
 
 describe('the rack turn', () => {
-  it('hands off both stable faces just after the eased turn crosses the edge', () => {
+  it('hands off both stable faces at the same edge in either direction', () => {
     expect(styles).toContain(
       '.rk-rack-flipped {\n  transform: rotateY(180deg);\n}',
     )
     expect(styles).toContain(
-      '.rk-rack-flipped .rk-side-back {\n  animation: rk-reveal-rear-face var(--spin) linear;\n}',
+      '--spin: 520ms;\n  --spin-edge: 238ms;',
     )
     expect(styles).toContain(
-      '.rk-rack-flipped .rk-side-front {\n  animation: rk-hide-front-face var(--spin) linear;\n}',
+      'transition: opacity 0s linear var(--spin-edge);',
     )
-    expect(styles).toContain('0%,\n  45.79% {\n    opacity: 1;')
-    expect(styles).toContain('45.8%,\n  100% {\n    opacity: 0;')
-    expect(styles).toContain('0%,\n  45.79% {\n    opacity: 0;')
-    expect(styles).toContain('45.8%,\n  100% {\n    opacity: 1;')
+    expect(styles).toContain('.rk-side-front {\n  opacity: 1;\n}')
+    expect(styles).toContain('.rk-side-back {\n  opacity: 0;')
+    expect(styles).toContain('.rk-rack-flipped .rk-side-front {\n  opacity: 0;\n}')
+    expect(styles).toContain('.rk-rack-flipped .rk-side-back {\n  opacity: 1;\n}')
     expect(styles).not.toContain('--rk-rear-cable-opacity')
-    expect(styles).not.toContain('45.79% {\n    visibility: hidden;')
+    expect(styles).not.toContain('@keyframes rk-hide-front-face')
+    expect(styles).not.toContain('@keyframes rk-reveal-rear-face')
   })
 
   it('does not delay either face when reduced motion removes the turn', () => {
-    expect(styles).toContain(
-      '.rk-rack-flipped .rk-side-front,\n  .rk-rack-flipped .rk-side-back {\n    animation: none;\n  }',
-    )
+    expect(styles).toContain('.rk-side {\n    transition: none;\n  }')
   })
 })

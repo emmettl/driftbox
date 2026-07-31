@@ -19,8 +19,10 @@
 
   /* How long the rack takes to turn around. Long enough to read as a rotation rather than a cut,
    * short enough that Tab still feels like a shortcut. Reason snapped instantly; this is the one
-   * place worth spending 520ms. */
+   * place worth spending 520ms. The easing crosses 90deg 238ms into either direction; the face opacity
+   * transitions use that same instant, so changing one number means deliberately changing both. */
   --spin: 520ms;
+  --spin-edge: 238ms;
 
   /* How much room the keyboard and its always-reachable toggle take at the bottom. Named because the stage
      has to leave exactly this much space below the rack, and numbers that must agree should be one number. */
@@ -1098,61 +1100,35 @@ kbd {
   transform: rotateY(180deg);
 }
 
-/* The rear SVG is updated while the rack spins so its cables can swing. Running the reveal animation on
-   those repainting SVG groups let their clock start late. Running an inherited custom-property animation
-   on the rack fixed that clock but made the browser restyle the whole front on every frame; a Combinator
-   is busy enough for the turn to appear frozen until it finished.
-
-   The easing reaches 90deg at 45.6% of the elapsed time, not 50%; 45.8% puts the reveal just beyond that
-   edge without leaving a late empty panel. Both stable faces own the hand-off: the rear becomes opaque and
-   the front becomes transparent at the same instant. The second half matters for the Combinator, whose
-   scrollable routing map can remain in a separate compositor layer and otherwise paint over an already
-   visible rear until the transform settles.
-
-   `visibility` is deliberately not used: browsers may defer that discrete paint change to the animation's
-   end. Removing the flipped class removes both clocks, so back-to-front keeps its existing, correct
-   first-half view of the rear. */
-.rk-rack-flipped .rk-side-front {
-  animation: rk-hide-front-face var(--spin) linear;
-}
-
-.rk-rack-flipped .rk-side-back {
-  animation: rk-reveal-rear-face var(--spin) linear;
-}
-
-@keyframes rk-hide-front-face {
-  0%,
-  45.79% {
-    opacity: 1;
-  }
-  45.8%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes rk-reveal-rear-face {
-  0%,
-  45.79% {
-    opacity: 0;
-  }
-  45.8%,
-  100% {
-    opacity: 1;
-  }
-}
-
 .rk-side {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
   border-radius: 14px;
+  /* A zero-duration transition with a delay is a direction-independent switch. Front-to-back and
+     back-to-front now keep the currently facing side opaque until the eased rack has crossed edge-on.
+     Opacity groups the Combinator's scrollable routing layer with its face, and targeting the stable faces
+     keeps repainting cables from restarting the clock. */
+  transition: opacity 0s linear var(--spin-edge);
+}
+
+.rk-side-front {
+  opacity: 1;
 }
 
 .rk-side-back {
+  opacity: 0;
   transform: rotateY(180deg);
   background: linear-gradient(#120c22, #0b0716);
   border: 1px solid var(--edge);
+}
+
+.rk-rack-flipped .rk-side-front {
+  opacity: 0;
+}
+
+.rk-rack-flipped .rk-side-back {
+  opacity: 1;
 }
 
 /* Both faces remain mounted through the turn. Backface visibility only controls paint in WebKit, not
@@ -1171,9 +1147,8 @@ kbd {
   .rk-rack {
     transition: none;
   }
-  .rk-rack-flipped .rk-side-front,
-  .rk-rack-flipped .rk-side-back {
-    animation: none;
+  .rk-side {
+    transition: none;
   }
 }
 
