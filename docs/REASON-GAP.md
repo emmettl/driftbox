@@ -115,10 +115,13 @@ and a rack you work in for an afternoon.
 
 Ordered by return, not by how big Reason's version was.
 
-- **EQ — there is nothing at all.** No peaking band, no shelf, no analyser. Approximable by
-  splitting an SVF's four outlets into a Mixer with signed levels, which is a real answer for a
-  three-band tone control and not an answer for "take 2 dB out at 400 Hz". It is the most
-  conspicuous absence in a rack that, as of this week, has mixer strips.
+- **~~EQ — there is nothing at all.~~ Landed.** Low shelf, sweepable mid with a Q, high shelf,
+  stereo in and out. What it replaced was an approximation — split an SVF's four outlets into a
+  Mixer with signed levels — that costs six modules, a page of cables and no say in where the
+  bands sit. Stereo because of *where* an EQ sits rather than because the curve differs per side:
+  it goes at the end of a chain, so a mono one would have folded away the width that stereo
+  cables had just made carryable. Still no analyser, which is a different feature and wants the
+  Meter's telemetry path rather than a module of its own.
 - **A complete voice.** Subtractor, Thor and Malström are each *one device* that makes a sound
   on its own. Here every voice is patched from VCO, SVF and ADSR. Polyphony landed at step 5b
   and nothing yet takes advantage of eight voices being eight *different* notes, because the
@@ -166,7 +169,7 @@ Worth writing down so nobody builds them twice.
 2. ~~Stereo cables.~~ Landed, per port. The remaining adopters — a ping-pong Delay, an imager,
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
 3. Recorded automation, once the ABI carries a frame.
-4. EQ, then a complete voice — the two the picker most obviously cannot offer anybody.
+4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
 5. The rack-wide table above, in whatever order the annoyance surfaces.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
