@@ -58,8 +58,8 @@ transform focused retained lanes, program 909 flams, record tempo, global swing 
 instrument, per-voice swing, send and shared effect automation against the hosted engine
 clock, quantise keyboard taps into the focused authored clip, cut/copy/paste a focused lane
 or machine without losing articulation, and return to the sequencer without losing that
-document. Next, reuse the shared clipboard transforms in the original editor and continue
-interchange; do not
+document. The original editor now uses those same clipboard transforms for lane and machine
+focus. Next, continue interchange; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

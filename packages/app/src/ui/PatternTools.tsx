@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { useBox } from '../store'
 
 // Focused pattern operations. ReBirth hid these in the Edit menu; putting them beside
-// pattern length makes the scope visible before an operation lands. Rotating may target
-// one lane or the whole machine on screen. Randomise and alter stay lane-scoped because
-// replacing an entire kit by accident is too large a gesture for a small button.
+// pattern length makes the scope visible before an operation lands. Rotate, cut and copy
+// may target one lane or the whole machine on screen. Randomise and alter stay lane-scoped
+// because replacing an entire kit by accident is too large a gesture for a small button.
 
 export function PatternTools() {
   const view = useBox((state) => state.view)
@@ -15,6 +15,10 @@ export function PatternTools() {
   const randomizeSelection = useBox((state) => state.randomizeSelection)
   const alterSelection = useBox((state) => state.alterSelection)
   const transposeSelectedBass = useBox((state) => state.transposeSelectedBass)
+  const clipboard = useBox((state) => state.patternClipboard)
+  const copySelection = useBox((state) => state.copySelection)
+  const cutSelection = useBox((state) => state.cutSelection)
+  const pasteSelection = useBox((state) => state.pasteSelection)
   const flamMode = useBox((state) => state.flamMode)
   const toggleFlamMode = useBox((state) => state.toggleFlamMode)
   const flamWidth = useBox((state) => state.song.kit.flam ?? 0.4)
@@ -26,6 +30,18 @@ export function PatternTools() {
       ? BASS_VOICES.find((voice) => voice.id === selectedBass)?.name
       : voiceById(selectedVoice)?.name
   const machine = view === 'bass' ? 'both 303s' : view === 'tr909' ? 'whole 909' : 'whole 808'
+  const operationTarget = all ? machine : target ?? 'lane'
+  const canPaste =
+    view === 'bass'
+      ? clipboard?.kind === 'bass'
+      : clipboard?.kind === 'drum' &&
+        (clipboard.lanes.length === 1 || clipboard.machine === view)
+  const pasteTarget =
+    clipboard?.kind === 'bass' && clipboard.lines.length > 1
+      ? 'both 303s'
+      : clipboard?.kind === 'drum' && clipboard.lanes.length > 1
+        ? machine
+        : target ?? 'lane'
 
   return (
     <div className="pattern-tools" aria-label="Pattern transforms">
@@ -33,7 +49,7 @@ export function PatternTools() {
       <button
         className={`ghost${all ? ' on' : ''}`}
         onClick={() => setAll((value) => !value)}
-        title={`Rotate ${all ? machine : 'only the selected lane'}`}
+        title={`Target ${all ? machine : 'only the selected lane'} for rotate, cut and copy`}
         aria-pressed={all}
       >
         {all ? 'all' : 'lane'}
@@ -118,6 +134,37 @@ export function PatternTools() {
           </button>
         </>
       )}
+      <span className="pattern-tools-clipboard" aria-label="Focused pattern clipboard">
+        <button
+          className="ghost"
+          onClick={() => cutSelection(all)}
+          aria-label={`Cut ${operationTarget}`}
+        >
+          cut
+        </button>
+        <button
+          className="ghost"
+          onClick={() => copySelection(all)}
+          aria-label={`Copy ${operationTarget}`}
+        >
+          copy
+        </button>
+        <button
+          className="ghost"
+          disabled={!canPaste}
+          onClick={pasteSelection}
+          aria-label={`Paste into ${pasteTarget}`}
+          title={
+            canPaste && clipboard
+              ? `Paste ${clipboard.label} into ${pasteTarget}`
+              : clipboard?.kind === 'drum' && clipboard.lanes.length > 1
+                ? 'A whole-machine clipboard pastes into the same drum machine'
+                : `Copy a ${view === 'bass' ? '303 line' : 'drum lane or machine'} first`
+          }
+        >
+          paste
+        </button>
+      </span>
     </div>
   )
 }

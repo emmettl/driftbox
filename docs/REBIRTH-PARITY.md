@@ -51,7 +51,7 @@ user could approximate it from oscillators.
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
 | 303 note/accent/slide/tie editing | Partial | Retained 303 step editor plus Tracker primitives | Add faster sequential and keyboard entry |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
-| Pattern transforms | Rotate, transpose, randomise and alter | Retained lane/machine rotate, focused randomise/alter, 303 transpose, 909 flam and focused cut/copy/paste | Wire the shared clipboard primitives into the groovebox editor |
+| Pattern transforms | Rotate, transpose, randomise, alter and focused cut/copy/paste | Retained lane/machine rotate, focused randomise/alter, 303 transpose, 909 flam and focused cut/copy/paste | Landed |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted section seek, section loop and arbitrary whole-bar loop ranges plus Arranger | Landed |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted recorder for tempo, global/per-voice swing, instrument, send and shared effect controls plus Combinator/MIDI | Landed |
@@ -90,8 +90,9 @@ work is ordered by dependency:
    steps, pitched/accented/sliding 303 steps, lane or machine transforms and flam programming
    without restarting playback. Rack mode also quantises the shared keyboard into the focused
    retained drum or 303 clip at the hosted playhead. Rack mode now cuts, copies and pastes
-   the focused drum lane/whole machine or 303 line without losing accents, flams or slides;
-   expose the same shared transforms in the original editor.
+   the focused drum lane/whole machine or 303 line without losing accents, flams or slides.
+   The original editor now exposes the same engine clipboard for one lane, the visible drum
+   machine, one 303 or both 303s, so the two modes cannot disagree about pasted material.
 5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
    full-mix rendering and put songs and patches in one named library.
 
@@ -134,8 +135,8 @@ Rack mode now arms the shared recorder against the hosted engine clock for tempo
 swing, per-voice swing, every drum/303 knob, voice sends and shared effects; recorded lanes
 remain in the compatible song envelope and clearing them is undoable. Rack keyboard taps now
 record into the focused retained clip without passing through generic rack MIDI. Focused
-cut/copy/paste is also present in rack mode and uses host-neutral engine transforms. Next,
-surface that clipboard in the original editor, then continue interchange. Do
+cut/copy/paste is present in both editors and uses the same host-neutral engine transforms.
+Next, continue interchange. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

@@ -15,6 +15,10 @@ import {
   chainSetClip,
   chainSetPattern,
   chainSetRepeat,
+  clearBassLine,
+  clearTrack,
+  copyBassLine,
+  copyDrumLane,
   cycleStep,
   encodeSong,
   songBars,
@@ -27,6 +31,8 @@ import {
   duplicatePattern,
   randomizeBassLine,
   randomizeTrack,
+  pasteBassLine,
+  pasteDrumLane,
   removePattern,
   renamePattern,
   rotateBassLine,
@@ -37,10 +43,12 @@ import {
   toggleFlam,
   transposeBassLine,
   type BassParams,
+  type BassLineClipboard,
   type BassStep,
   type ChainStep,
   type ClipSlot,
   type FxParams,
+  type DrumLaneClipboard,
   type MachineId,
   type Pattern,
   type SendLevels,
@@ -74,6 +82,18 @@ import {
 /** Which instrument the grid and the channel strip are showing. The two drum machines
  *  and the 303 rack are three views of one song, not three songs. */
 export type View = MachineId | 'bass'
+export type PatternClipboard =
+  | {
+      kind: 'drum'
+      label: string
+      machine: MachineId
+      lanes: DrumLaneClipboard[]
+    }
+  | {
+      kind: 'bass'
+      label: string
+      lines: BassLineClipboard[]
+    }
 export interface SongLoop {
   start: number
   bars: number
@@ -110,6 +130,8 @@ interface State {
   selectedBass: string
   /** 909 step buttons program flam marks instead of cycling hit velocity. */
   flamMode: boolean
+  /** Detached editor clipboard. Session state: only cut/paste change the song. */
+  patternClipboard: PatternClipboard | null
   /** Full-screen visuals with the sequencer hidden. */
   performance: boolean
   /** The transport thinks it is playing but the audio context is not running — iOS took
@@ -156,6 +178,9 @@ interface State {
   randomizeSelection: () => void
   alterSelection: () => void
   transposeSelectedBass: (semitones: number) => void
+  copySelection: (all: boolean) => void
+  cutSelection: (all: boolean) => void
+  pasteSelection: () => void
   clearPattern: () => void
   setParam: (voiceId: string, key: keyof VoiceParams, value: number) => void
   setBassParam: (voiceId: string, key: keyof BassParams, value: number) => void
@@ -209,6 +234,30 @@ interface State {
 
 function replacePattern(song: Song, next: Pattern): Song {
   return { ...song, patterns: song.patterns.map((p) => (p.id === next.id ? next : p)) }
+}
+
+function copyFocused(state: State, all: boolean): PatternClipboard | null {
+  const pattern = state.song.patterns.find((candidate) => candidate.id === state.editing)
+  if (!pattern) return null
+  if (state.view === 'bass') {
+    const voices = all ? BASS_VOICES : BASS_VOICES.filter((voice) => voice.id === state.selectedBass)
+    if (voices.length === 0) return null
+    return {
+      kind: 'bass',
+      label: all ? 'both 303s' : voices[0].name,
+      lines: voices.map((voice) => copyBassLine(pattern, voice.id)),
+    }
+  }
+  const voices = all
+    ? ALL_VOICES.filter((voice) => voice.machine === state.view)
+    : ALL_VOICES.filter((voice) => voice.id === state.selectedVoice)
+  if (voices.length === 0) return null
+  return {
+    kind: 'drum',
+    label: all ? `whole ${state.view === 'tr909' ? '909' : '808'}` : voices[0].name,
+    machine: state.view,
+    lanes: voices.map((voice) => copyDrumLane(pattern, voice.id)),
+  }
 }
 
 /** Whether this is a touch device, asked once at startup. `pointer: coarse` rather than a
@@ -324,6 +373,7 @@ export const useBox = create<State>()((set, get) => ({
   selectedVoice: '808.bd',
   selectedBass: BASS_VOICES[0].id,
   flamMode: false,
+  patternClipboard: null,
   // Touch devices land in the visuals.
   //
   // A phone opening on a step grid is opening on the one part of this that a small screen
@@ -562,6 +612,70 @@ export const useBox = create<State>()((set, get) => ({
     const next = replacePattern(song, transformed)
     if (engine) engine.song = next
     set({ song: next })
+  },
+
+  copySelection: (all) => {
+    const patternClipboard = copyFocused(get(), all)
+    if (patternClipboard) set({ patternClipboard })
+  },
+
+  cutSelection: (all) => {
+    const state = get()
+    const pattern = state.song.patterns.find((candidate) => candidate.id === state.editing)
+    const patternClipboard = copyFocused(state, all)
+    if (!pattern || !patternClipboard) return
+
+    let transformed = pattern
+    if (state.view === 'bass') {
+      const voices = all ? BASS_VOICES.map((voice) => voice.id) : [state.selectedBass]
+      for (const voiceId of voices) transformed = clearBassLine(transformed, voiceId)
+    } else {
+      const voices = all
+        ? ALL_VOICES.filter((voice) => voice.machine === state.view).map((voice) => voice.id)
+        : [state.selectedVoice]
+      for (const voiceId of voices) transformed = clearTrack(transformed, voiceId)
+    }
+    const song = replacePattern(state.song, transformed)
+    if (state.engine) state.engine.song = song
+    set({ song, patternClipboard })
+  },
+
+  pasteSelection: () => {
+    const state = get()
+    const pattern = state.song.patterns.find((candidate) => candidate.id === state.editing)
+    const clipboard = state.patternClipboard
+    if (!pattern || !clipboard) return
+
+    let transformed = pattern
+    if (state.view === 'bass' && clipboard.kind === 'bass') {
+      const targets =
+        clipboard.lines.length > 1
+          ? BASS_VOICES.map((voice) => voice.id)
+          : [state.selectedBass]
+      targets.forEach((voiceId, index) => {
+        const line = clipboard.lines[index]
+        if (line) transformed = pasteBassLine(transformed, voiceId, line)
+      })
+    } else if (
+      state.view !== 'bass' &&
+      clipboard.kind === 'drum' &&
+      (clipboard.lanes.length === 1 || clipboard.machine === state.view)
+    ) {
+      const targets =
+        clipboard.lanes.length > 1
+          ? ALL_VOICES.filter((voice) => voice.machine === state.view).map((voice) => voice.id)
+          : [state.selectedVoice]
+      targets.forEach((voiceId, index) => {
+        const lane = clipboard.lanes[index]
+        if (lane) transformed = pasteDrumLane(transformed, voiceId, lane)
+      })
+    } else {
+      return
+    }
+
+    const song = replacePattern(state.song, transformed)
+    if (state.engine) state.engine.song = song
+    set({ song })
   },
 
   clearPattern: () => {
