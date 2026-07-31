@@ -37,6 +37,9 @@ from a future engine version without pretending it can edit it. Public helpers e
 decode understood songs and classify documents as `groovebox-compatible`,
 `rack-extended`, or `rack-native`. First-class devices and shared playback still have to
 be derived from that retained song—the bridge is the stable place for them to attach.
+The two app entry points now exercise it: “rack” carries the current song into
+`rack.html`, which accepts both document kinds and can send the retained song back to the
+sequencer unchanged.
 
 ## What this is not
 

@@ -43,9 +43,10 @@ record for the modular engine itself.
 
 The first interchange layer is landed: rack patches can retain the complete versioned
 song without rewriting it, including a future song this build cannot decode, and expose
-an explicit compatibility state before a save. Next, derive first-class groovebox
-devices and shared transport from that retained song; do not duplicate its authored
-patterns into anonymous rack primitives.
+an explicit compatibility state before a save. Song links can enter rack mode and return
+to the sequencer without losing that document. Next, derive first-class groovebox devices
+and shared transport from the retained song; do not duplicate its authored patterns into
+anonymous rack primitives.
 
 ## What is deliberate
 

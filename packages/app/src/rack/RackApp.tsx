@@ -1,4 +1,12 @@
-import { MIDI_INPUTS, MODULES, Rack, compile, renderPatch } from '@driftbox/rack'
+import {
+  MIDI_INPUTS,
+  MODULES,
+  Rack,
+  compile,
+  grooveboxSong,
+  patchCompatibility,
+  renderPatch,
+} from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
@@ -15,7 +23,7 @@ import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
 import { Modulation } from './Modulation.js'
 import { PatchBrowser } from './PatchBrowser.js'
-import { patchShareLink } from './persistence.js'
+import { patchShareLink, sequencerLink, storePatch } from './persistence.js'
 import { openingPatch, useRack, type Opening } from './store.js'
 import { buildLabel, buildTitle } from '../version.js'
 
@@ -46,12 +54,17 @@ export default function RackApp() {
   const setVoices = useRack((s) => s.setVoices)
   const voices = useRack((s) => s.patch.voices ?? 1)
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
-  const tempo = useRack((s) => s.patch.tempo ?? 120)
   const setTempo = useRack((s) => s.setTempo)
   const setBreak = useRack((s) => s.setBreak)
   const playing = useRack((s) => s.running)
   const setRunning = useRack((s) => s.setRunning)
   const ensureSampler = useRack((s) => s.ensureSampler)
+  const compatibility = useMemo(() => patchCompatibility(patch), [patch])
+  const retainedSong = useMemo(() => grooveboxSong(patch), [patch])
+  // Until hosted song playback lands, a compatible rack still follows the retained
+  // song's tempo. Writing a different tempo is an explicit rack override and therefore
+  // changes the compatibility state to rack-extended.
+  const tempo = patch.tempo ?? retainedSong?.bpm ?? 120
 
   const rack = useRef<Rack | null>(null)
   /**
@@ -746,10 +759,63 @@ export default function RackApp() {
           {exporting ? 'Rendering…' : 'Export'}
         </button>
 
-        <a className="rk-away" href="./index.html">
-          Sequencer →
-        </a>
+        {patch.groovebox && !retainedSong ? (
+          <span
+            className="rk-away rk-away-disabled"
+            title="This sequencer build cannot safely open the retained future song"
+          >
+            Sequencer unavailable
+          </span>
+        ) : (
+          <a
+            className="rk-away"
+            href="./index.html"
+            onClick={(event) => {
+              if (!patch.groovebox) return
+              event.preventDefault()
+              if (
+                compatibility === 'rack-extended' &&
+                !confirm(
+                  'This opens only the retained groovebox song. Your rack modules, cables and other rack-only changes stay saved in rack mode. Continue?',
+                )
+              ) {
+                return
+              }
+              // Do not leave the newest rack edit waiting in the trailing autosave timer while
+              // navigation unloads the page.
+              storePatch(patch)
+              void sequencerLink(patch).then((url) => {
+                if (url) window.location.assign(url)
+              })
+            }}
+            title={
+              patch.groovebox
+                ? compatibility === 'rack-extended'
+                  ? 'Open the retained song; rack-only additions stay saved in rack mode'
+                  : 'Return to the sequencer with the retained song'
+                : undefined
+            }
+          >
+            Sequencer →
+          </a>
+        )}
       </header>
+
+      {compatibility !== 'rack-native' && (
+        <p className="rk-document">
+          <strong>{compatibility}</strong>
+          {' · '}
+          {retainedSong
+            ? `${retainedSong.patterns.length} patterns at ${retainedSong.bpm} BPM retained exactly.`
+            : 'A song from a newer groovebox build is retained exactly but cannot be edited here.'}
+          {' · '}
+          {retainedSong
+            ? compatibility === 'rack-extended'
+              ? 'Groovebox playback devices are the next rack layer; “Sequencer →” opens only the retained song and keeps rack additions saved here.'
+              : 'Groovebox playback devices are the next rack layer; “Sequencer →” returns without loss.'
+            : 'This build will preserve it, but will not send it to a sequencer that cannot decode it.'}
+        </p>
+      )}
 
       {adding && (
         <Palette

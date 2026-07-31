@@ -138,12 +138,26 @@ export function linkTo(kind: HashKind, text: string): Promise<string> {
  * it would destroy a link somebody could still paste into the right one.
  */
 export async function takeFromUrl(kind: HashKind): Promise<string | null> {
+  const found = await takeDocumentFromUrl([kind])
+  return found?.text ?? null
+}
+
+/**
+ * Take any one of the document kinds a page knows how to host.
+ *
+ * The rack is the first caller with more than one: it opens native patches and retains
+ * groovebox songs. Keeping the clear-on-consume rule here means both entry points still
+ * avoid a reload replacing edits with the original shared document.
+ */
+export async function takeDocumentFromUrl(
+  kinds: readonly HashKind[],
+): Promise<{ kind: HashKind; text: string } | null> {
   const hash = window.location.hash
   if (hash.length < 2) return null
 
   const found = await fromHash(hash)
-  if (!found || found.kind !== kind) return null
+  if (!found || !kinds.includes(found.kind)) return null
 
   window.history.replaceState(null, '', window.location.pathname + window.location.search)
-  return found.text
+  return found
 }
