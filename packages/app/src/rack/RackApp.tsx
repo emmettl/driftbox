@@ -44,6 +44,8 @@ import {
   type AudioInputHandle,
 } from './audio-input.js'
 
+type RackView = 'rack' | 'split' | 'pad'
+
 // The rack, as a page.
 //
 // Its own entry point rather than a tab on the sequencer: `rack.html`, its own root, no shared store and
@@ -194,7 +196,15 @@ export default function RackApp() {
    *  the pad once there is something for it to move. */
   const kaoss = useRef<Kaoss | null>(null)
   const [hasKaoss, setHasKaoss] = useState(false)
-  const [performing, setPerforming] = useState(false)
+  /**
+   * Three views of one instrument, rather than a modal performance page.
+   *
+   * `split` is the useful middle ground: the rack moves aside but stays live while the performance pad
+   * occupies the neighbouring bay. One state machine also makes the header button's Rack → Split → Pad
+   * cycle explicit instead of coordinating two booleans that could describe an impossible view.
+   */
+  const [rackView, setRackView] = useState<RackView>('rack')
+  const performing = rackView !== 'rack'
   const [keyboardOpen, setKeyboardOpen] = useState(true)
   const [started, setStarted] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -1062,13 +1072,15 @@ export default function RackApp() {
         <button
           type="button"
           onClick={() => {
-            setPerforming((on) => !on)
+            setRackView((view) => (view === 'rack' ? 'split' : view === 'split' ? 'pad' : 'rack'))
             setAdding(false)
             setBrowsing(false)
           }}
           aria-pressed={performing}
+          aria-label={`View: ${rackView}. Cycle through rack, split performance, and full pad.`}
+          title="Cycle view: Rack → Split → Pad"
         >
-          {performing ? 'Rack' : 'Perform'}
+          View · {rackView[0].toUpperCase() + rackView.slice(1)}
         </button>
 
         <button
@@ -1341,28 +1353,30 @@ export default function RackApp() {
         </p>
       )}
 
-      {/* Performance mode: the patching goes away and the pad takes the whole space. Not a separate page,
-          because the keyboard, the transport and the audio graph are all the same ones — what changes is
-          which of them are big enough to use with your hands. */}
-      {performing && (
-        <div className="rk-perform">
-          <PerformPad kaoss={hasKaoss ? kaoss.current : null} flipped={flipped} />
-        </div>
-      )}
-
-      <div className="rk-stage" hidden={performing}>
-        <div
-          className={flipped ? 'rk-rack rk-rack-flipped' : 'rk-rack'}
-          style={{
-            width: geometry.width,
-            height: geometry.height,
-          }}
-        >
-          <div className="rk-side rk-side-front">
-            <Chassis layout={geometry} />
+      {/* Three views of the same live instrument. In split view the stage and pad share one grid, which moves
+          the rack left into its own bay instead of shrinking it — its design coordinates, knobs and cable
+          hit targets therefore stay exact. On a narrow screen the pair remains horizontally scrollable. */}
+      <div className={`rk-performance-space rk-performance-space-${rackView}`}>
+        {rackView !== 'rack' && (
+          <div className="rk-perform">
+            <PerformPad kaoss={hasKaoss ? kaoss.current : null} flipped={flipped} />
           </div>
-          <div className="rk-side rk-side-back">
-            <BackPanel layout={geometry} />
+        )}
+
+        <div className="rk-stage" hidden={rackView === 'pad'}>
+          <div
+            className={flipped ? 'rk-rack rk-rack-flipped' : 'rk-rack'}
+            style={{
+              width: geometry.width,
+              height: geometry.height,
+            }}
+          >
+            <div className="rk-side rk-side-front">
+              <Chassis layout={geometry} />
+            </div>
+            <div className="rk-side rk-side-back">
+              <BackPanel layout={geometry} />
+            </div>
           </div>
         </div>
       </div>
@@ -1394,10 +1408,14 @@ export default function RackApp() {
           {patch.modules.length} modules · {patch.cables.length} cables
         </span>
         <span className="rk-hint">
-          {performing
+          {rackView === 'split'
             ? flipped
-              ? 'The creature lives back here · the filter still works'
-              : 'Drag the pad · Tab to see what is behind it'
+              ? 'Patch while you perform · the creature keeps the filter live'
+              : 'Drag knobs and pad together · Tab turns both around'
+            : rackView === 'pad'
+              ? flipped
+                ? 'The creature lives back here · the filter still works'
+                : 'Drag the pad · Tab to see what is behind it'
             : flipped
               ? 'Drag between jacks to patch · × beside an input unplugs'
               : 'Drag a knob · Tab for the back'}
