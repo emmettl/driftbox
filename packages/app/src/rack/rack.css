@@ -179,6 +179,9 @@ kbd {
   border-radius: 8px;
   padding: 5px 6px;
 }
+.rk-input-device select {
+  max-width: 190px;
+}
 
 .rk-open {
   font: 11px var(--mono);

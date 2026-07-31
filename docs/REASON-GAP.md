@@ -145,9 +145,25 @@ Ordered by return, not by how big Reason's version was.
 - **A limiter.** `Compressor` is dynamics; the ±4 clamp in the Graph is the only ceiling.
   `RACK.md` records eight voices of the Acid patch peaking at 3.93 against that clamp, which is
   the measurement that says a maximiser has somewhere to go.
-- **Audio input.** No live, line or microphone capture. The Sampler takes files and generated
-  breaks. Vocoding something you are saying is currently vocoding something you recorded
-  elsewhere first.
+- **~~Audio input~~ — landed.** `getUserMedia()` capture enters the worklet on a fifth host bus
+  and the Audio Input source makes it patchable. The app enumerates `audioinput` devices after
+  permission, switches them by exact `deviceId`, disables speech processing, and stops every
+  capture track when the input is disabled or its last module is removed. Device selection
+  remains runtime state rather than machine-specific data in a shared patch.
+
+### The guitar-chain ledger
+
+The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches
+Audio Input → high-pass SVF → Drive → EQ → Compressor, with a visible dry/delay Mixer,
+Reverb and Out. **Distortion is present** through `Drive`, and the newly landed EQ shapes
+the harmonics after it; the remaining multi-mode distortion bullet above is about
+additional characters and a dedicated tone stage, not the absence of a usable pedal.
+
+What is still missing for a complete guitar rig is an **amp/cabinet** stage, a **tuner**,
+and a **looper**. Those three future module ids are recorded in `GUITAR_PEDALBOARD_GAPS`,
+and `patches.test.ts` enforces the handoff: the moment any is registered, the factory test
+fails until that device is actually incorporated. The EQ followed that path immediately
+when it landed. This is deliberately stronger than a roadmap note that can go stale.
 
 ## Deliberately not gaps
 

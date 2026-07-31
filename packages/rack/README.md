@@ -6,7 +6,7 @@ rate inside a single AudioWorklet.
 It is still a work in progress and is intentionally private and unpublished. Once complete
 and ready to support a public API, it can join the engine and app on npm.
 
-Thirty modules, a compiler, a worklet host and a patch format. The app supplies the
+Thirty-one modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
 tracker, sampler, patchable VU meters, patch library, Combinator routing with MIDI learn,
 drag-to-reorder, performance mode and offline export.
@@ -31,6 +31,16 @@ rack.patch = {
 }
 rack.output.connect(ctx.destination)
 rack.setParam('filter', 'cutoff', 2400)
+```
+
+Live capture stays host-side because browser permission and device ids are not portable
+patch data. The app does this behind its Input control; an embedding host can do the same:
+
+```js
+import { RACK_LIVE_INPUT } from '@driftbox/rack'
+
+const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+ctx.createMediaStreamSource(stream).connect(rack.input(RACK_LIVE_INPUT))
 ```
 
 ## Why it is not part of `@driftbox/engine`

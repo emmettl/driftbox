@@ -10,7 +10,7 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 29 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 31 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -57,7 +57,7 @@ sequencer unchanged.
 An understood retained song is now audible in rack mode through the existing
 `DriftboxEngine`, not a second rendering implementation. `EngineOptions.destination`
 puts that complete mix on the rack's final Kaoss/analyser bus beside the worklet graph,
-and the rack transport starts and stops both. Four stereo host inputs now feed the
+and the rack transport starts and stops both. Four stereo host inputs feed the
 Groovebox source module. Its 808, 909, 303 A and 303 B outlets are ordinary rack signals;
 patching either side of a section diverts it from the original master without rebuilding
 or restarting the hosted engine. Four source strips apply level, balance pan and mute to
@@ -68,6 +68,22 @@ engine tap while its audible signal stays on the original master; patching remov
 and uses the existing exclusive diversion. The controls default to unity and are not
 written into imported songs; saving the first adjustment is rack-authored intent and makes
 the document `rack-extended`.
+
+A fifth host input carries a permission-gated browser `MediaStream` into the **Audio
+Input** source module. The app requests raw capture with speech processing disabled,
+offers every `audioinput` returned by `enumerateDevices()`, and reconnects a selected
+device through `createMediaStreamSource()`. Device ids never enter the patch: they are
+local, permission-gated runtime state and would make a shared URL machine-specific. The
+module selects left/mono or right because two-channel guitar interfaces commonly expose
+two physical sockets as one browser device. Removing the last Audio Input module stops
+the capture tracks immediately. Capture requires HTTPS or localhost and explicit user
+permission; device labels may remain hidden until that permission is granted. The live
+context asks for interactive latency, but the browser, operating system and interface
+still choose the actual buffer.
+
+Offline export deliberately has no live host input and therefore renders this source as
+silence. Exporting a performance would be recording, not deterministic patch rendering;
+that remains separate work alongside the looper gap.
 
 The front panel also edits the retained pattern bank directly. Pattern and machine selectors
 open one 16-step page at a time; drum steps cycle rest, hit and accent, while each 303 step
@@ -234,13 +250,14 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Thirty modules
+## Thirty-one modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
 | | |
 |---|---|
 | **Groovebox** | Retained 808, 909 and two 303s as four stereo host-fed rack sources |
+| **Audio Input** | permission-gated microphone or audio-interface capture, with device selection in the host |
 | **VCO** | saw / pulse / tri, PWM, linear FM inlet, hard sync inlet |
 | **Noise** | white and pink |
 | **Sampler** | loaded or generated audio, sliced and retriggered from CV |

@@ -561,6 +561,68 @@ const wobbler = (): Patch => ({
   ],
 })
 
+/**
+ * A practical live guitar chain, rather than a synth patch waiting for a note.
+ *
+ * The SVF removes subsonic handling noise before the Drive; the EQ after it shapes the
+ * harmonics the distortion created and rolls off the direct-interface fizz while the
+ * cabinet stage remains a documented gap. Delay is wet-only by design, so the Mixer
+ * makes its dry/wet path visible before the small room.
+ */
+const guitarPedalboard = (): Patch => ({
+  modules: [
+    { id: 'input-1', type: 'audio-input', params: { level: 1, channel: 0 } },
+    { id: 'highpass-1', type: 'svf', params: { cutoff: 70, resonance: 0 } },
+    { id: 'drive-1', type: 'drive', params: { drive: 4.5, bias: 0.04 } },
+    {
+      id: 'eq-1',
+      type: 'eq',
+      params: {
+        low: 1.5,
+        lowFreq: 120,
+        mid: -2.5,
+        midFreq: 800,
+        q: 1.2,
+        high: -7,
+        highFreq: 5000,
+      },
+    },
+    {
+      id: 'compressor-1',
+      type: 'compressor',
+      params: { threshold: -20, ratio: 3, attack: 0.006, release: 0.14, makeup: 3, knee: 6 },
+    },
+    { id: 'delay-1', type: 'delay', params: { time: 0.32, feedback: 0.24 } },
+    { id: 'wet-dry-1', type: 'mixer', params: { level1: 1, level2: 0.2 } },
+    { id: 'reverb-1', type: 'reverb', params: { size: 0.5, decay: 0.62, damp: 0.66, mix: 0.14 } },
+    { id: 'out-1', type: 'out', params: { level: 0.75 } },
+  ],
+  cables: [
+    { from: ['input-1', 'out'], to: ['highpass-1', 'in'] },
+    { from: ['highpass-1', 'hp'], to: ['drive-1', 'in'] },
+    { from: ['drive-1', 'out'], to: ['eq-1', 'in'] },
+    { from: ['eq-1', 'out'], to: ['compressor-1', 'in'] },
+    { from: ['compressor-1', 'out'], to: ['wet-dry-1', 'in1'] },
+    { from: ['compressor-1', 'out'], to: ['delay-1', 'in'] },
+    { from: ['delay-1', 'out'], to: ['wet-dry-1', 'in2'] },
+    { from: ['wet-dry-1', 'out'], to: ['reverb-1', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['out-1', 'in'] },
+  ],
+})
+
+/**
+ * Stable type ids for devices the guitar factory must adopt when they land.
+ *
+ * `patches.test.ts` turns this note into an obligation: once one of these module types is
+ * registered, the test fails until the factory chain actually uses it. That keeps this
+ * list from becoming the usual roadmap paragraph that survives after the gap is fixed.
+ */
+export const GUITAR_PEDALBOARD_GAPS = [
+  { type: 'cabinet', name: 'amp/cabinet voicing' },
+  { type: 'tuner', name: 'chromatic tuner' },
+  { type: 'looper', name: 'performance looper' },
+] as const
+
 export const PATCHES: readonly PatchPreset[] = [
   {
     id: 'pressure-system',
@@ -591,6 +653,12 @@ export const PATCHES: readonly PatchPreset[] = [
     build: ducked,
   },
   { id: 'wobbler', name: 'Wobbler', blurb: 'No break at all: the bass does the work', build: wobbler },
+  {
+    id: 'guitar-pedalboard',
+    name: 'Guitar Pedalboard',
+    blurb: 'Live input through drive, dynamics, echo and room',
+    build: guitarPedalboard,
+  },
 ]
 
 export const patchPresetById = (id: string): PatchPreset | undefined =>

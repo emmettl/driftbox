@@ -2,6 +2,7 @@ import {
   MIDI_INPUTS,
   MODULES,
   GROOVEBOX_PORTS,
+  RACK_LIVE_INPUT,
   Rack,
   compile,
   grooveboxSong,
@@ -35,6 +36,12 @@ import { patchShareLink, sequencerLink, storePatch } from './persistence.js'
 import { openingPatch, useRack, type Opening } from './store.js'
 import { buildLabel, buildTitle } from '../version.js'
 import { routedGrooveboxSections } from './groovebox.js'
+import {
+  enumerateAudioInputs,
+  openAudioInput,
+  type AudioInputDevice,
+  type AudioInputHandle,
+} from './audio-input.js'
 
 // The rack, as a page.
 //
@@ -161,6 +168,14 @@ export default function RackApp() {
   const [audioState, setAudioState] = useState<AudioContextState | 'none'>('none')
   const midi = useRef<MidiHandle | null>(null)
   const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
+  const hasAudioInput = patch.modules.some((module) => module.type === 'audio-input')
+  const audioInput = useRef<AudioInputHandle | null>(null)
+  const [audioInputs, setAudioInputs] = useState<AudioInputDevice[]>([])
+  const [selectedAudioInput, setSelectedAudioInput] = useState('')
+  const [audioInputState, setAudioInputState] = useState<
+    'off' | 'opening' | 'on' | 'denied' | 'unavailable'
+  >('off')
+  const [audioInputError, setAudioInputError] = useState<string | null>(null)
 
   const geometry = useMemo(() => layout(patch.modules, sizeFor(MODULES)), [patch.modules])
 
@@ -652,9 +667,80 @@ export default function RackApp() {
     setNotes(compile(current, MODULES).notes)
   }, [revision, setNotes])
 
+  const closeAudioInput = useCallback(() => {
+    audioInput.current?.close()
+    audioInput.current = null
+    setAudioInputState('off')
+    setAudioInputError(null)
+  }, [])
+
+  /**
+   * Permission and hardware selection stay on the host side. A patch records that it
+   * wants an Audio Input module, never the device id of one particular computer.
+   */
+  const connectAudioInput = useCallback(async (deviceId?: string) => {
+    const live = rack.current
+    const context = live?.output?.context as AudioContext | undefined
+    const destination = live?.input(RACK_LIVE_INPUT)
+    if (!context || !destination) return
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setAudioInputState('unavailable')
+      setAudioInputError('Audio capture is unavailable here. Use a secure HTTPS or localhost page.')
+      return
+    }
+
+    const previous = audioInput.current
+    setAudioInputState('opening')
+    setAudioInputError(null)
+    try {
+      // Open first, close second: a rejected device switch leaves the sounding input alone.
+      const next = await openAudioInput(context, destination, deviceId)
+      previous?.close()
+      audioInput.current = next
+      setSelectedAudioInput(next.deviceId)
+      setAudioInputState('on')
+      if (context.state === 'suspended') await context.resume()
+      try {
+        setAudioInputs(await enumerateAudioInputs())
+      } catch {
+        // Capture works without enumeration; only the picker loses its other choices.
+        setAudioInputs([{ id: next.deviceId, label: next.label }])
+      }
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : ''
+      setAudioInputState(previous ? 'on' : name === 'NotSupportedError' ? 'unavailable' : 'denied')
+      setAudioInputError(
+        name === 'NotAllowedError'
+          ? 'Audio-input permission was denied.'
+          : name === 'NotFoundError' || name === 'OverconstrainedError'
+            ? 'That audio input is no longer available.'
+            : 'The browser could not open that audio input.',
+      )
+    }
+  }, [])
+
+  // Removing the last source module releases the microphone/interface immediately.
+  useEffect(() => {
+    if (!hasAudioInput) closeAudioInput()
+  }, [closeAudioInput, hasAudioInput])
+
+  // Keep the selector current while interfaces are plugged in or removed.
+  useEffect(() => {
+    if (audioInputState !== 'on' || !navigator.mediaDevices?.addEventListener) return
+    const refresh = () => {
+      void enumerateAudioInputs()
+        .then(setAudioInputs)
+        .catch(() => {})
+    }
+    navigator.mediaDevices.addEventListener('devicechange', refresh)
+    return () => navigator.mediaDevices.removeEventListener('devicechange', refresh)
+  }, [audioInputState])
+
   const start = useCallback(async () => {
     if (rack.current) return
-    const ctx = new AudioContext()
+    // A pedal chain is played through, so ask the browser to favour response time over
+    // a deeper power-saving buffer. It is a hint, not a latency guarantee.
+    const ctx = new AudioContext({ latencyHint: 'interactive' })
     const live = new Rack(ctx)
     if (!(await live.start())) {
       // No worklet, no rack — unlike the engine's ladder there is nothing to fall back to, and saying
@@ -697,6 +783,12 @@ export default function RackApp() {
     live.patch = useRack.getState().patch
     rack.current = live
     if (hosted) routeGrooveboxSources(hosted, live, currentPatch)
+    // A guitar preset should become an instrument from the same gesture that starts
+    // audio. The permission prompt is still the browser's, and a refusal leaves the rack
+    // running with a visible Enable input control.
+    if (currentPatch.modules.some((module) => module.type === 'audio-input')) {
+      void connectAudioInput()
+    }
     // The gesture that starts audio is also the gesture that starts the music. Anything else means arriving,
     // pressing a button, and getting silence — which is the "instant DJ" problem in `docs/DNB.md`.
     live.setTransport(currentPatch.tempo ?? song?.bpm ?? 120, true)
@@ -709,7 +801,7 @@ export default function RackApp() {
     // has been rendered into it — so the gesture that starts audio is also the one that fills the Sampler.
     const wanted = useRack.getState().patch.break ?? opening.current?.preset?.needsBreak
     if (wanted) void loadBreakRef.current(wanted)
-  }, [setRunning])
+  }, [connectAudioInput, setRunning])
 
 
   /**
@@ -744,6 +836,7 @@ export default function RackApp() {
   useEffect(
     () => () => {
       midi.current?.close()
+      audioInput.current?.close()
       groovebox.current?.dispose()
     },
     [],
@@ -763,9 +856,9 @@ export default function RackApp() {
    * patches, which drive themselves from a Clock, Stop changed the button's label and nothing else. A stop button
    * that does not stop is worse than no stop button.
    *
-   * Suspending is the honest answer: it stops everything regardless of what is driving the patch, it is instant,
-   * and it is what a transport control on a player does. The transport message still goes out, because a
-   * Transport-driven patch should also come back in the right place.
+   * Suspending is the honest answer unless a live input is being monitored. A pedal chain has to keep passing
+   * audio while its sequencer transport is stopped, so an open Audio Input keeps the context awake and only the
+   * transport message stops. The transport-driven patch still comes back in the right place.
    */
   useEffect(() => {
     const live = rack.current
@@ -787,9 +880,9 @@ export default function RackApp() {
       if (ctx.state === 'suspended') void ctx.resume()
     } else {
       groovebox.current?.stop()
-      if (ctx.state === 'running') void ctx.suspend()
+      if (ctx.state === 'running' && audioInputState !== 'on') void ctx.suspend()
     }
-  }, [patch.tempo, tempo, playing])
+  }, [audioInputState, patch.tempo, tempo, playing])
 
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
@@ -977,6 +1070,47 @@ export default function RackApp() {
           <span className="rk-warn">No Web MIDI in this browser.</span>
         )}
 
+        {hasAudioInput && audioInputState === 'on' && (
+          <>
+            <label className="rk-voices rk-input-device">
+              Input
+              <select
+                value={selectedAudioInput}
+                aria-label="Audio input device"
+                onChange={(event) => void connectAudioInput(event.target.value)}
+              >
+                {selectedAudioInput &&
+                  !audioInputs.some((device) => device.id === selectedAudioInput) && (
+                    <option value={selectedAudioInput}>Current audio input</option>
+                  )}
+                {audioInputs.map((device) => (
+                  <option key={device.id} value={device.id}>
+                    {device.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={closeAudioInput} aria-pressed="true">
+              Input on
+            </button>
+          </>
+        )}
+        {hasAudioInput && audioInputState !== 'on' && audioInputState !== 'unavailable' && (
+          <button
+            type="button"
+            className="rk-primary"
+            disabled={!started || audioInputState === 'opening'}
+            title={started ? 'Allow and monitor a microphone or audio interface' : 'Start audio first'}
+            onClick={() => void connectAudioInput()}
+          >
+            {audioInputState === 'opening' ? 'Opening input…' : 'Enable input'}
+          </button>
+        )}
+        {hasAudioInput && audioInputState === 'unavailable' && (
+          <span className="rk-warn">No browser audio input here.</span>
+        )}
+        {hasAudioInput && audioInputError && <span className="rk-warn">{audioInputError}</span>}
+
         <button
           type="button"
           onClick={async () => {
@@ -1112,6 +1246,13 @@ export default function RackApp() {
       {started && playing && audioState === 'suspended' && (
         <p className="rk-warn">
           The browser has suspended audio — press Play again, or click anywhere on the page.
+        </p>
+      )}
+
+      {audioInputState === 'on' && (
+        <p className="rk-warn">
+          Live input is monitoring through the rack. Use headphones or an audio interface to avoid speaker
+          feedback.
         </p>
       )}
 
