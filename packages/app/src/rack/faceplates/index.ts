@@ -6,6 +6,7 @@ import { Generic } from './Generic.js'
 import { Groovebox } from './Groovebox.js'
 import { Ladder } from './Ladder.js'
 import { Midi } from './Midi.js'
+import { Meter } from './Meter.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
 import { Tracker } from './Tracker.js'
@@ -57,6 +58,7 @@ const FACEPLATES: Record<string, Entry> = {
   vco: { component: Vco, span: 1, rows: 2 },
   ladder: { component: Ladder, span: 1 },
   midi: { component: Midi, span: 1, rows: 2 },
+  meter: { component: Meter, rows: 3 },
   out: { component: Out, span: 1 },
   sampler: { component: Sampler, rows: 3 },
   // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.

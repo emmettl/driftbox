@@ -1,6 +1,6 @@
 import { compile } from './compile.js'
 import { MODULES } from './modules/index.js'
-import type { Patch, Plan, PlanNote, Registry } from './types.js'
+import type { MeterReading, Patch, Plan, PlanNote, Registry } from './types.js'
 import { RACK_PROCESSOR, loadRack } from './worklet.js'
 
 // A modular synth rack: modules, cables between any of them, and one graph running at
@@ -46,6 +46,7 @@ export type {
   Port,
   ParamDef,
   ModuleDef,
+  MeterReading,
 } from './types.js'
 
 // ---- Tier 2: still moving ---------------------------------------------------------------
@@ -139,6 +140,8 @@ export class Rack {
   private runningValue = false
   /** Data set before there was a node to send it to. Handed over in `processorOptions` at construction. */
   private pending: { module: string; slot: string; data: Float32Array }[] = []
+  /** Meter displays are opt-in so an offline render never produces UI traffic. */
+  private meterListeners = new Set<(readings: readonly MeterReading[]) => void>()
 
   constructor(ctx: BaseAudioContext, registry: Registry = MODULES) {
     this.ctx = ctx
@@ -178,10 +181,18 @@ export class Rack {
     }
     this.pending = []
     node.port.onmessage = (event: MessageEvent) => {
-      const message = event.data as { kind?: string; types?: string[] } | null
+      const message = event.data as {
+        kind?: string
+        types?: string[]
+        readings?: MeterReading[]
+      } | null
       if (message?.kind === 'missing' && Array.isArray(message.types)) this.absent = message.types
+      if (message?.kind === 'meters' && Array.isArray(message.readings)) {
+        for (const listener of this.meterListeners) listener(message.readings)
+      }
     }
     this.node = node
+    if (this.meterListeners.size > 0) node.port.postMessage({ kind: 'monitor', enabled: true })
     // A patch set before start() is not lost — the common order is to build a patch from a
     // URL and only then get a gesture to start audio with.
     this.send()
@@ -276,6 +287,25 @@ export class Rack {
 
   get running(): boolean {
     return this.runningValue
+  }
+
+  /**
+   * Watch the patch's meter modules at display rate.
+   *
+   * The first listener enables reports on the audio thread and the last one disables them. The DSP itself
+   * continues either way: monitoring is a view of the graph, never part of making sound.
+   */
+  onMeters(listener: (readings: readonly MeterReading[]) => void): () => void {
+    this.meterListeners.add(listener)
+    if (this.meterListeners.size === 1) {
+      this.node?.port.postMessage({ kind: 'monitor', enabled: true })
+    }
+    return () => {
+      this.meterListeners.delete(listener)
+      if (this.meterListeners.size === 0) {
+        this.node?.port.postMessage({ kind: 'monitor', enabled: false })
+      }
+    }
   }
 
   /**

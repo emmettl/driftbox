@@ -577,6 +577,278 @@ kbd {
   margin-left: auto;
 }
 
+/* ---- Signal Bureau meter -----------------------------------------------------
+ *
+ * One device, three windows. The metal bezel and warm dial make the VU view feel like a piece of rack
+ * hardware; LED and waveform modes keep the same housing so switching the saved display param changes the
+ * instrument rather than replacing it with an unrelated widget.
+ */
+
+.rk-meter-title {
+  align-items: center;
+}
+
+.rk-meter-model {
+  font: 8px var(--mono);
+  color: var(--three);
+  letter-spacing: 0.14em;
+}
+
+.rk-meter-clip {
+  margin-left: auto;
+  border: 1px solid rgba(255, 122, 217, 0.2);
+  border-radius: 3px;
+  padding: 1px 4px;
+  color: rgba(255, 122, 217, 0.3);
+  font: 7px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rk-meter-clip-on {
+  color: #fff2fb;
+  border-color: var(--eight);
+  background: var(--eight);
+  box-shadow: 0 0 12px rgba(255, 122, 217, 0.75);
+}
+
+.rk-meter-title .rk-ports {
+  margin-left: 0;
+  min-width: 62px;
+  text-align: right;
+}
+
+.rk-meter-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  align-items: stretch;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+
+.rk-meter-display {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  background: #08070b;
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 0 18px rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.rk-meter-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 58px);
+  align-items: center;
+  justify-content: end;
+}
+
+.rk-meter-vu {
+  position: absolute;
+  inset: 5px;
+  overflow: hidden;
+  border-radius: 4px;
+  color: #302817;
+  background:
+    linear-gradient(110deg, rgba(255, 255, 255, 0.65), transparent 32%),
+    radial-gradient(circle at 50% 118%, #fff7ce 0 38%, #e7d799 72%, #b59a58 100%);
+  box-shadow: inset 0 -12px 20px rgba(105, 73, 19, 0.2);
+}
+
+.rk-meter-vu::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 48%, rgba(255, 255, 255, 0.23) 50%, transparent 53%);
+}
+
+.rk-meter-vu-scale {
+  position: absolute;
+  width: 0;
+  height: 0;
+  left: 50%;
+  bottom: -17px;
+}
+
+.rk-meter-tick {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 104px;
+  transform-origin: 0 100%;
+}
+
+.rk-meter-tick i {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  width: 1px;
+  height: 9px;
+  background: #514528;
+}
+
+.rk-meter-tick b {
+  position: absolute;
+  top: 16px;
+  left: -10px;
+  width: 20px;
+  color: #514528;
+  font: 7px var(--mono);
+  text-align: center;
+  transform-origin: 50% 50%;
+}
+
+.rk-meter-tick-hot i {
+  background: #c53b34;
+}
+
+.rk-meter-tick-hot b {
+  color: #b52f2b;
+}
+
+.rk-meter-needle {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  width: 2px;
+  height: 100px;
+  border-radius: 2px 2px 0 0;
+  background: #d13936;
+  box-shadow: 0 0 2px rgba(92, 13, 11, 0.55);
+  transform-origin: 50% 100%;
+  transition: transform 55ms linear;
+}
+
+.rk-meter-pivot {
+  position: absolute;
+  left: 50%;
+  bottom: -24px;
+  width: 18px;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #887c5f, #211e18 70%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.28);
+}
+
+.rk-meter-vu-mark {
+  position: absolute;
+  left: 50%;
+  bottom: 17px;
+  transform: translateX(-50%);
+  font: 700 8px/1 var(--mono);
+  letter-spacing: 0.2em;
+}
+
+.rk-meter-leds {
+  position: absolute;
+  inset: 9px 10px 7px;
+  display: grid;
+  grid-template-columns: repeat(18, 1fr);
+  grid-template-rows: 1fr 13px;
+  gap: 3px;
+  align-items: stretch;
+}
+
+.rk-meter-leds i {
+  border-radius: 2px;
+  background: rgba(95, 240, 208, 0.08);
+  border: 1px solid rgba(95, 240, 208, 0.1);
+}
+
+.rk-meter-leds i[data-zone='amber'] {
+  background: rgba(255, 176, 46, 0.08);
+  border-color: rgba(255, 176, 46, 0.12);
+}
+
+.rk-meter-leds i[data-zone='red'] {
+  background: rgba(255, 122, 217, 0.08);
+  border-color: rgba(255, 122, 217, 0.12);
+}
+
+.rk-meter-leds i[data-on='yes'][data-zone='green'] {
+  background: var(--nine);
+  border-color: #d6fff6;
+  box-shadow: 0 0 8px rgba(95, 240, 208, 0.65);
+}
+
+.rk-meter-leds i[data-on='yes'][data-zone='amber'] {
+  background: var(--three);
+  border-color: #fff0bd;
+  box-shadow: 0 0 8px rgba(255, 176, 46, 0.7);
+}
+
+.rk-meter-leds i[data-on='yes'][data-zone='red'] {
+  background: var(--eight);
+  border-color: #ffe0f6;
+  box-shadow: 0 0 9px rgba(255, 122, 217, 0.75);
+}
+
+.rk-meter-leds span {
+  color: rgba(232, 228, 255, 0.45);
+  font: 7px var(--mono);
+  grid-column: span 4;
+  align-self: end;
+}
+
+.rk-meter-leds span:last-child {
+  grid-column: span 6;
+  text-align: right;
+}
+
+.rk-meter-wave {
+  position: absolute;
+  inset: 5px;
+  border-radius: 4px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(95, 240, 208, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95, 240, 208, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(31, 83, 72, 0.32), rgba(2, 12, 11, 0.96));
+  background-size: 18px 18px, 18px 18px, auto;
+}
+
+.rk-meter-wave svg {
+  position: absolute;
+  inset: 5px 6px 16px;
+  width: calc(100% - 12px);
+  height: calc(100% - 21px);
+}
+
+.rk-meter-wave line {
+  stroke: rgba(95, 240, 208, 0.18);
+  stroke-width: 0.7;
+}
+
+.rk-meter-wave polyline {
+  fill: none;
+  stroke: var(--nine);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px rgba(95, 240, 208, 0.9));
+}
+
+.rk-meter-wave-readout {
+  position: absolute;
+  right: 7px;
+  bottom: 4px;
+  color: rgba(95, 240, 208, 0.65);
+  font: 7px var(--mono);
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-meter-needle {
+    transition: none;
+  }
+}
+
 /* A real grid with a fixed column count and a fixed cell, so `genericRows` can compute a module's height
  * by arithmetic rather than by measuring. The numbers here are the ones in `layout.ts`: CELL_WIDTH 58,
  * CELL_HEIGHT 62, seven columns for a full-width module and three for a half. Two copies of a number that

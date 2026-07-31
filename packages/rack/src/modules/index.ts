@@ -12,6 +12,7 @@ import { GROOVEBOX_MODULE } from './groovebox.js'
 import { LADDER_MODULE } from './ladder.js'
 import { LFO_MODULE } from './lfo.js'
 import { MIDI_MODULE } from './midi.js'
+import { METER_MODULE } from './meter.js'
 import { MIXER_MODULE } from './mixer.js'
 import { NOISE_MODULE } from './noise.js'
 import { OFFSET_MODULE } from './offset.js'
@@ -28,7 +29,7 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 
-// Twenty-eight modules: enough to make a track, something to play it with, something that knows what a bar
+// Twenty-nine modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -59,7 +60,7 @@ import { VOCODER_MODULE } from './vocoder.js'
  * In the order a picker would sensibly show them, and **grouped**, which is new.
  *
  * The order always implied these groups — sources, then filters, then shapers, then control, then the
- * output — but nothing stated them and nothing could read them, so a picker got twenty-eight names in a
+ * output — but nothing stated them and nothing could read them, so a picker got twenty-nine names in a
  * row. Each def now carries its own `group`, and this list is sorted to agree: every module of a group is
  * contiguous, and the groups run in signal order. `modules.test.ts` holds it to that, because a list that
  * has drifted out of group order reads as a bug in the picker rather than as a bug here.
@@ -102,6 +103,8 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   ARRANGER_MODULE,
   MIDI_MODULE,
 
+  METER_MODULE,
+
   MIXER_MODULE,
   OUT_MODULE,
 ]
@@ -122,6 +125,7 @@ export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './grooveb
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
+export { METER_MODULE, MeterProcessor } from './meter.js'
 export { MIXER_MODULE, MixerProcessor } from './mixer.js'
 export { NOISE_MODULE, NoiseProcessor } from './noise.js'
 export { OFFSET_MODULE, OffsetProcessor } from './offset.js'

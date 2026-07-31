@@ -10,7 +10,7 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 28 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 29 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -213,7 +213,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Twenty-eight modules
+## Twenty-nine modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -245,6 +245,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Alligator** | three filtered gates across one signal — fixed low/band/high, gated and enveloped apart |
 | **Vocoder** | 8, 16 or 32 bands: one sound wearing another's spectral shape, with a formant shift |
 | **Combinator** | four rotaries and four buttons, each driving any parameter of any module — and each also a CV outlet |
+| **VU Meter** | patchable needle, LED and waveform displays; unchanged Thru signal and a ballistic envelope outlet |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
 Two original omissions were later reversed for the rack specifically. The **sampler** and
@@ -680,7 +681,7 @@ The risk is all in the first item. Do it first and alone.
      state the store was *created* with, so a component that subscribes draws an empty patch.
 
    **A picker that explains itself** ✅ — a card and a sentence per thing, shelved by what it does, with a
-   search over both. What it replaced was twenty-eight names in a row — `Offset`, `S&H`, `Alligator`,
+   search over both. What it replaced was twenty-nine names in a row — `Offset`, `S&H`, `Alligator`,
    `Combi` — which assumes you already know what they are, and that is exactly what somebody opening a
    modular for the first time does not. Reason's browser was a picture and a sentence per device for the
    same reason: the picker is where you find out what the instrument can do.
