@@ -109,6 +109,13 @@ export const TRANSPORT_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'The only module that knows the tempo. Bars, beats and sixteenths for everything else to sync to.',
+  logo: {
+    paths: [
+      'M6 9l17 11L6 31z',
+      'M30 31V9M39 31V9',
+      'M47 12h10M47 20h10M47 28h10',
+    ],
+  },
   inlets: [],
   outlets: [
     { id: 'run', name: 'Run' },

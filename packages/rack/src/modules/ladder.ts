@@ -63,6 +63,13 @@ export const LADDER_MODULE: ModuleDef = {
   group: 'Filters',
   blurb:
     'The 303\'s filter: four poles, saturating, self-oscillating. Reach for it when the filter is meant to be the sound.',
+  logo: {
+    paths: [
+      'M5 9h13v6h11v6h10v6h10v6h10',
+      'M8 33c6-2 8-7 10-12 3-8 7-12 13-12',
+      'M34 9c7 0 11 4 11 10s4 10 12 10',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cutoff', name: 'Cutoff' },

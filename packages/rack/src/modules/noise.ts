@@ -71,6 +71,12 @@ export const NOISE_MODULE: ModuleDef = {
   group: 'Sources',
   blurb:
     'White and pink at once. Hiss for hats and snares, and the raw material a sample-and-hold turns into a melody.',
+  logo: {
+    paths: [
+      'M4 21l4-9 4 17 4-13 4 8 4-15 4 20 4-11 4 5 4-14 4 19 4-10 4 3 4-8',
+      'M5 34h54',
+    ],
+  },
   inlets: [],
   outlets: [
     { id: 'white', name: 'White' },

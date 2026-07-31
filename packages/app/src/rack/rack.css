@@ -372,11 +372,12 @@ kbd {
   display: grid;
   /* As many columns as fit at a readable width. A fixed count would give a phone three cramped columns
      and a desktop three wide ones; this gives each what it has room for and needs no breakpoint. */
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 8px;
 }
 
 .rk-card {
+  --rk-card-accent: var(--nine);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -391,7 +392,7 @@ kbd {
 }
 .rk-card:hover,
 .rk-card:focus-visible {
-  border-color: var(--nine);
+  border-color: var(--rk-card-accent);
 }
 /* A chunk adds several modules, some cables and a channel of its own, which is a bigger thing to have
    happen than adding a VCO — so it does not look identical to one. */
@@ -401,6 +402,62 @@ kbd {
 .rk-card-chunk:hover,
 .rk-card-chunk:focus-visible {
   border-color: var(--three);
+}
+.rk-card[data-group='Sources'],
+.rk-card[data-group='Sequencing'] {
+  --rk-card-accent: var(--three);
+}
+.rk-card[data-group='Filters'],
+.rk-card[data-group='Shaping'],
+.rk-card[data-group='Mixing'] {
+  --rk-card-accent: var(--eight);
+}
+.rk-card-top {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.rk-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+.rk-card-copy:only-child {
+  grid-column: 1 / -1;
+}
+.rk-card-logo {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 44px;
+  color: var(--rk-card-accent);
+  background: color-mix(in srgb, var(--rk-card-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rk-card-accent) 22%, transparent);
+  border-radius: 7px;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.rk-card:hover .rk-card-logo,
+.rk-card:focus-visible .rk-card-logo {
+  background: color-mix(in srgb, var(--rk-card-accent) 13%, transparent);
+  border-color: color-mix(in srgb, var(--rk-card-accent) 42%, transparent);
+}
+.rk-card-logo svg {
+  display: block;
+  width: 48px;
+  height: 32px;
+  overflow: visible;
+}
+.rk-card-logo path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 .rk-card-name {
   font-weight: 600;

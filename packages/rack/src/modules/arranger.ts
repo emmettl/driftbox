@@ -132,6 +132,13 @@ export const ARRANGER_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'A list of sections, each a pattern and a count of bars. Intro, main, break, drop — a song, driving a Tracker.',
+  logo: {
+    paths: [
+      'M5 8h14v9H5zM25 8h24v9H25zM5 23h30v9H5zM41 23h18v9H41z',
+      'M19 12h6M49 12h8v15M35 27h6',
+      'M54 24l3 3-3 3',
+    ],
+  },
   inlets: [
     { id: 'clock', name: 'Bar' },
     { id: 'reset', name: 'Reset' },

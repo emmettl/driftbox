@@ -191,6 +191,13 @@ export const VOCODER_MODULE: ModuleDef = {
   group: 'Filters',
   blurb:
     'One sound wearing another\'s shape. Speak into a saw and the saw talks; run a break into a pad and the pad plays the drums.',
+  logo: {
+    paths: [
+      'M3 14c4-8 7 8 11 0s7 8 11 0',
+      'M28 9v22M34 6v28M40 11v18M46 8v24',
+      'M49 26c4-8 7 8 12 0',
+    ],
+  },
   inlets: [
     // Carrier first, because it is the one you patch a synth into and the one whose level you notice.
     { id: 'carrier', name: 'Carrier' },

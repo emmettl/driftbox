@@ -98,6 +98,13 @@ export const COMBI_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Four knobs and four buttons wired to any parameters in the rack. One gesture opening a filter, shortening a decay and pushing a send.',
+  logo: {
+    paths: [
+      'M8 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0M21 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0M34 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0M47 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0',
+      'M13 15l3-3M26 15v-4M39 15l-3-3M52 15l-3 3',
+      'M9 27h8v7H9zM22 27h8v7h-8zM35 27h8v7h-8zM48 27h8v7h-8z',
+    ],
+  },
   // See the note above: nothing patches *into* a macro control.
   inlets: [],
   // Rotaries then buttons, matching the param order, because the processor derives which is which from

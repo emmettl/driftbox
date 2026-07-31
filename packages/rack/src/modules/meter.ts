@@ -99,6 +99,14 @@ export const METER_MODULE: ModuleDef = {
   group: 'Analysis',
   blurb:
     'Watches any signal as a needle, bank of LEDs or waveform. Thru is untouched; Env follows what you see.',
+  logo: {
+    paths: [
+      'M6 31a26 26 0 0 1 52 0',
+      'M13 29l4-4M19 19l3 4M32 12v6M45 19l-3 4M51 29l-4-4',
+      'M32 31l13-15',
+      'M27 31a5 5 0 1 0 10 0',
+    ],
+  },
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [
     { id: 'thru', name: 'Thru' },

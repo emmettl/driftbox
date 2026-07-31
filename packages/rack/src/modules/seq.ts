@@ -125,6 +125,12 @@ export const SEQ_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Eight steps, a pitch knob and a switch on each. Immediate — what you reach for when you want a line right now.',
+  logo: {
+    paths: [
+      'M5 27h7V15h7v5h7V9h7v14h7V13h7v8h7V6h7',
+      'M8 33h3M15 33h3M22 33h3M29 33h3M36 33h3M43 33h3M50 33h3M57 33h3',
+    ],
+  },
   inlets: [
     { id: 'clock', name: 'Clock' },
     { id: 'reset', name: 'Reset' },

@@ -97,6 +97,13 @@ export const GROOVEBOX_MODULE: ModuleDef = {
   name: 'Groovebox',
   blurb:
     'The retained song’s authored 808, 909 and two 303s as stereo rack sources. Silent when the patch has no retained song.',
+  logo: {
+    paths: [
+      'M7 9v22M21 9v22M35 9v22M49 9v22M57 9v22',
+      'M10 14h8M24 22h8M38 13h8M38 18h8M52 25h3',
+      'M10 27h8M24 13h8M24 28h8M38 27h8M52 15h3',
+    ],
+  },
   group: 'Sources',
   inlets: [],
   outlets: GROOVEBOX_SECTIONS.flatMap((section) => [

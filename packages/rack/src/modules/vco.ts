@@ -127,6 +127,13 @@ export const VCO_MODULE: ModuleDef = {
   group: 'Sources',
   blurb:
     'Band-limited saw, pulse and triangle, with a width knob on the pulse. The thing that makes a note, and where most patches start.',
+  logo: {
+    paths: [
+      'M4 27l12-16v16l12-16v16l12-16v16',
+      'M44 27v-16h12v16',
+      'M4 32h52',
+    ],
+  },
   inlets: [
     { id: 'pitch', name: 'V/Oct' },
     { id: 'fm', name: 'FM' },

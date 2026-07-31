@@ -36,6 +36,13 @@ export const OFFSET_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Scales, inverts and shifts a CV. The plainest module here and among the most used — an envelope upside down, an LFO in the right range.',
+  logo: {
+    paths: [
+      'M5 31h54M12 36V5',
+      'M16 28l15-15 13 8 14-14',
+      'M18 13l14 9 12-7 14 12',
+    ],
+  },
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [{ id: 'out', name: 'Out' }],
   params: [

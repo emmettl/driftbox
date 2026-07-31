@@ -96,6 +96,14 @@ export const QUANTIZER_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Snaps a pitch to a scale. Random voltage becomes a melody in A minor for almost no arithmetic.',
+  logo: {
+    paths: [
+      'M5 33h11V26h11V18h11V11h11V6h10',
+      'M11 27a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+      'M33 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0',
+      'M52 6l4 4M56 6l-4 4',
+    ],
+  },
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [
     { id: 'out', name: 'Out' },

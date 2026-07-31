@@ -106,6 +106,12 @@ export const FOLLOWER_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Turns audio into the shape it is already making. A filter that opens on every kick is one cable.',
+  logo: {
+    paths: [
+      'M4 27l5-15 5 20 5-23 5 17 5-8 5 9 5-12 5 11 5-5 5 7',
+      'M4 33c12 0 10-24 23-24 12 0 8 23 33 23',
+    ],
+  },
   inlets: [{ id: 'in', name: 'In' }],
   outlets: [
     { id: 'env', name: 'Env' },

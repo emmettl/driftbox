@@ -98,6 +98,14 @@ export const DELAY_MODULE: ModuleDef = {
   group: 'Space',
   blurb:
     'An echo with a time you can modulate. Wet only, so patch the dry through a Mixer and the balance stays visible.',
+  logo: {
+    paths: [
+      'M4 22c5-13 9 13 14 0s9 13 14 0',
+      'M28 22c4-9 7 9 11 0s7 9 11 0',
+      'M48 22c3-5 5 5 9 0',
+      'M20 32h35M48 29l7 3-7 3',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'time', name: 'Time' },

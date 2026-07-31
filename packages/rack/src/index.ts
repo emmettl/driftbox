@@ -45,6 +45,7 @@ export type {
   ModRoute,
   Port,
   ParamDef,
+  ModuleLogo,
   ModuleDef,
   MeterReading,
 } from './types.js'

@@ -108,6 +108,14 @@ export const SVF_MODULE: ModuleDef = {
   group: 'Filters',
   blurb:
     'A clean two-pole filter with low, high, band and notch on separate outlets. For shaping a sound rather than becoming it.',
+  logo: {
+    paths: [
+      'M4 31c13 0 14-2 20-17 3-7 8-8 15-8',
+      'M25 31c5-1 8-7 11-14 4-9 9-11 23-11',
+      'M4 21c9 0 13-15 22-15s13 28 33 28',
+      'M4 7c10 0 14 5 20 14 5 8 10 11 17 11s9-5 18-25',
+    ],
+  },
   inlets: [
     { id: 'in', name: 'In' },
     { id: 'cutoff', name: 'Cutoff' },

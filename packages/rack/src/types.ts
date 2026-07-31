@@ -166,6 +166,18 @@ export type ProcessorClass = new (
  *  that a constructor taking real arguments is still assignable. */
 export type Dep = abstract new (...args: never[]) => unknown
 
+/**
+ * A small, host-rendered SVG mark for a module.
+ *
+ * Only path data crosses the package boundary. Keeping the view box fixed and leaving the `<svg>` element
+ * to the host makes this safe to render without accepting arbitrary markup, while still letting a module
+ * bring the visual identity that makes it recognisable in a catalogue. Paths are drawn as unfilled strokes
+ * in a 64 × 40 view box, so colour and weight can follow the surface they appear on.
+ */
+export interface ModuleLogo {
+  paths: readonly string[]
+}
+
 export interface ModuleDef {
   /** Stable forever. This is the string a saved patch stores. */
   type: string
@@ -186,6 +198,14 @@ export interface ModuleDef {
    * about anybody's.
    */
   blurb?: string
+  /**
+   * A compact vector explanation of the module, drawn in a 64 × 40 view box.
+   *
+   * Optional for the same reason `blurb` is optional: a module supplied by another package remains usable
+   * without presentation metadata. Shipped modules have one, and hosts should simply omit the artwork when
+   * it is absent.
+   */
+  logo?: ModuleLogo
   /**
    * Which shelf of the picker this sits on — "Sources", "Filters" and so on.
    *

@@ -191,13 +191,18 @@ describe('the registry', () => {
   })
 
   it('describes every module it ships', () => {
-    // `blurb` and `group` are optional on the type, because a module from somewhere else is merely
+    // `blurb`, `group` and `logo` are optional on the type, because a module from somewhere else is merely
     // undescribed rather than broken without them. The shipped set is held to a higher bar: the picker
     // is a gallery now, and a module with nothing to say about itself is a blank card in it — which is
     // worse than the flat list of names it replaced, because the space it takes up promises an answer.
     for (const def of MODULE_LIST) {
       expect(def.group, def.type).toBeTruthy()
       expect(def.blurb, def.type).toBeTruthy()
+      expect(def.logo?.paths.length, def.type).toBeGreaterThan(0)
+      for (const path of def.logo!.paths) {
+        expect(path.trim(), def.type).not.toBe('')
+        expect(path, def.type).not.toMatch(/[<>]/)
+      }
       // Two short sentences, not a manual. Anything much longer stops being read.
       expect(def.blurb!.length, def.type).toBeLessThan(190)
       expect(def.blurb!.endsWith('.'), def.type).toBe(true)
