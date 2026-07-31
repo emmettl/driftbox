@@ -17,6 +17,7 @@ import {
   chainSetRepeat,
   cycleStep,
   encodeSong,
+  songBars,
   songPresetById,
   SONGS,
   type SongPreset,
@@ -132,6 +133,8 @@ interface State {
   toggleTransport: () => void
   startAtBar: (bar: number) => void
   toggleSectionLoop: (index: number) => void
+  setLoopRange: (start: number, bars: number) => void
+  clearSongLoop: () => void
   toggleAutomationRecording: () => void
   clearAutomation: () => void
   setBpm: (bpm: number) => void
@@ -380,6 +383,23 @@ export const useBox = create<State>()((set, get) => ({
     }
     engine.setLoop(start, bars)
     set({ loop: { start, bars } })
+  },
+
+  setLoopRange: (start, bars) => {
+    get().init()
+    const { song, engine } = get()
+    if (!engine) return
+    const total = Math.max(1, songBars(song))
+    const loopStart = Math.max(0, Math.min(total - 1, Math.floor(start)))
+    const loopBars = Math.max(1, Math.min(total - loopStart, Math.floor(bars)))
+    engine.setLoop(loopStart, loopBars)
+    set({ loop: { start: loopStart, bars: loopBars } })
+  },
+
+  clearSongLoop: () => {
+    const engine = get().engine
+    engine?.clearLoop()
+    set({ loop: null })
   },
 
   toggleAutomationRecording: () => {

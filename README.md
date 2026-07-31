@@ -110,7 +110,8 @@ The **Song** strip along the top is the arrangement. Each card is a number of ba
 shows the clip for the machine currently on screen: switch between 808, 909, 303 A and
 303 B to give the same section four independent patterns and loop lengths. It can all be
 changed and rearranged while the thing is playing. Each section can also start playback
-from its first bar or become the active song loop.
+from its first bar or become the active song loop. The loop row above the sections accepts
+one-based start and length values when the range should cut across section boundaries.
 
 **auto** arms automation writing. Start playback, arm it, then move BPM, global swing,
 a drum knob, a 303 knob, a voice's swing or send, or a delay/reverb control; the editor
