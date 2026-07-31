@@ -181,7 +181,7 @@ export class Graph {
    * the default is a genuine no-op, and hard-panning loses 3dB of total power exactly as a balance control
    * on a mixer does.
    */
-  process(channels: Float32Array[]): void {
+  process(channels: Float32Array[], hostInputs: Float32Array[][] = []): void {
     const mix = channels[0]
     if (!mix) return
     if (mix.length !== this.frames) {
@@ -239,7 +239,7 @@ export class Graph {
           for (let i = 0; i < frames; i++) into[i] += other[i]
         }
       }
-      node.processor.process(node.inlets, node.outlets, node.params, frames, transport)
+      node.processor.process(node.inlets, node.outlets, node.params, frames, transport, hostInputs)
     }
 
     if (this.outputs.length === 0) {

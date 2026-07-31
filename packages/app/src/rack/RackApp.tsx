@@ -1,11 +1,13 @@
 import {
   MIDI_INPUTS,
   MODULES,
+  GROOVEBOX_PORTS,
   Rack,
   compile,
   grooveboxSong,
   patchCompatibility,
   renderPatch,
+  type Patch,
 } from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BackPanel } from './BackPanel.js'
@@ -15,7 +17,12 @@ import { layout } from './layout.js'
 import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { BREAKS, renderBreak } from './breaks.js'
-import { DriftboxEngine, Kaoss, toWav } from '@driftbox/engine'
+import {
+  DriftboxEngine,
+  GROOVEBOX_SECTIONS,
+  Kaoss,
+  toWav,
+} from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { ccValue, targets as ccTargets } from './cc.js'
@@ -26,6 +33,7 @@ import { PatchBrowser } from './PatchBrowser.js'
 import { patchShareLink, sequencerLink, storePatch } from './persistence.js'
 import { openingPatch, useRack, type Opening } from './store.js'
 import { buildLabel, buildTitle } from '../version.js'
+import { routedGrooveboxSections } from './groovebox.js'
 
 // The rack, as a page.
 //
@@ -37,6 +45,25 @@ import { buildLabel, buildTitle } from '../version.js'
 // visualiser, so WebGL was available and is the wrong tool here: rotating real DOM keeps every knob a
 // real element with its own events, its focus ring and its ARIA role, which a canvas would have to
 // reimplement badly. `preserve-3d` and `backface-visibility` are the whole mechanism.
+
+/**
+ * Hand only patched authored machines from the groovebox master into the rack graph.
+ *
+ * An unpatched source keeps the exact hosted mix #114 introduced. The first cable from
+ * either stereo outlet diverts that whole machine through its matching worklet input;
+ * removing the last cable restores the original route without restarting the song.
+ */
+function routeGrooveboxSources(
+  hosted: DriftboxEngine,
+  live: Rack,
+  patch: Patch,
+): void {
+  const routed = new Set(routedGrooveboxSections(patch))
+  for (const section of GROOVEBOX_SECTIONS) {
+    const ports = GROOVEBOX_PORTS[section]
+    hosted.routeSection(section, routed.has(section) ? live.input(ports.input) : null)
+  }
+}
 
 export default function RackApp() {
   const patch = useRack((s) => s.patch)
@@ -399,6 +426,7 @@ export default function RackApp() {
       destination: pad.input,
     })
     groovebox.current = hosted
+    routeGrooveboxSources(hosted, live, useRack.getState().patch)
     if (playing) void hosted.start()
   }, [patch.groovebox, playing, retainedSong])
 
@@ -481,12 +509,17 @@ export default function RackApp() {
    */
   useEffect(() => {
     const live = rack.current
-    if (live) live.patch = useRack.getState().patch
+    const current = useRack.getState().patch
+    if (live) {
+      live.patch = current
+      const hosted = groovebox.current
+      if (hosted) routeGrooveboxSources(hosted, live, current)
+    }
     // Compiled for diagnostics whether or not audio is running. The Rack would produce the same notes,
     // but only once it exists — and a feedback cable has to be drawn as feedback from the moment it is
     // patched, not from the moment somebody presses Start. Compiling is pure and cheap; it is the same
     // function the audio thread's plan comes from, so the two cannot disagree.
-    setNotes(compile(useRack.getState().patch, MODULES).notes)
+    setNotes(compile(current, MODULES).notes)
   }, [revision, setNotes])
 
   const start = useCallback(async () => {
@@ -532,6 +565,7 @@ export default function RackApp() {
 
     live.patch = useRack.getState().patch
     rack.current = live
+    if (hosted) routeGrooveboxSources(hosted, live, currentPatch)
     // The gesture that starts audio is also the gesture that starts the music. Anything else means arriving,
     // pressing a button, and getting silence — which is the "instant DJ" problem in `docs/DNB.md`.
     live.setTransport(currentPatch.tempo ?? song?.bpm ?? 120, true)
@@ -864,8 +898,8 @@ export default function RackApp() {
           {' · '}
           {retainedSong
             ? compatibility === 'rack-extended'
-              ? 'The retained song plays through the shared rack output; “Sequencer →” opens only that song and keeps rack additions saved here.'
-              : 'The retained song plays through the shared rack output; “Sequencer →” returns without loss.'
+              ? 'The retained song plays here; cabled machines run through the Groovebox source, and “Sequencer →” keeps those rack additions saved here.'
+              : 'The retained song plays through its original mix; patch a Groovebox output to route that machine through the rack. “Sequencer →” returns without loss.'
             : 'This build will preserve it, but will not send it to a sequencer that cannot decode it.'}
         </p>
       )}

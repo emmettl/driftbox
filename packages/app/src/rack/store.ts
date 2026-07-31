@@ -10,6 +10,7 @@ import {
   decodePatch,
   encodePatch,
   patchPresetById,
+  withGrooveboxSource,
   type Patch,
   type PatchCable,
   type PatchPreset,
@@ -651,7 +652,7 @@ export const useRack = create<RackState>((set, get) => {
         }
         return { ...patch, voices: wanted }
       }),
-    load: (patch) => structural(() => patch),
+    load: (patch) => structural(() => withGrooveboxSource(patch)),
     select: (moduleId) => set({ selected: moduleId }),
     flip: (flipped) => set((state) => ({ flipped: flipped ?? !state.flipped })),
   }

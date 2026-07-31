@@ -81,7 +81,7 @@ describe('a patch in a URL', () => {
     const document = await rackDocumentFromHash(hash)
 
     expect(document).toEqual({
-      modules: [],
+      modules: [{ id: 'groovebox', type: 'groovebox', pos: [0, 0] }],
       cables: [],
       groovebox: expect.any(String),
     })
