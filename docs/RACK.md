@@ -56,10 +56,13 @@ and the rack transport starts and stops both. Four stereo host inputs now feed t
 Groovebox source module. Its 808, 909, 303 A and 303 B outlets are ordinary rack signals;
 patching either side of a section diverts it from the original master without rebuilding
 or restarting the hosted engine. Four source strips apply level, balance pan and mute to
-those stereo signals before their outlets. The controls default to unity and are not
-written into imported songs; saving the first adjustment is rack-authored intent and
-makes the document `rack-extended`. Meters, then rack-side clip and instrument editing,
-remain the next layers.
+those stereo signals before their outlets. Each strip reports its post-control level
+through the same opt-in telemetry path as the patchable VU Meter, without adding hidden
+modules to the document. An unpatched machine reaches that input through a non-destructive
+engine tap while its audible signal stays on the original master; patching removes the tap
+and uses the existing exclusive diversion. The controls default to unity and are not
+written into imported songs; saving the first adjustment is rack-authored intent and makes
+the document `rack-extended`. Rack-side clip and instrument editing remain the next layers.
 
 ## What this is not
 

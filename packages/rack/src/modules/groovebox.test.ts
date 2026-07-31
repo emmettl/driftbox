@@ -98,4 +98,37 @@ describe('the hosted groovebox source', () => {
       }),
     )
   })
+
+  it('publishes one post-strip reading for every authored machine', () => {
+    const processor = new GrooveboxProcessor(48_000, {}, 'song')
+    const inputs = Array.from({ length: 4 }, (_, section) => [
+      new Float32Array(frames).fill((section + 1) * 0.1),
+      new Float32Array(frames).fill((section + 1) * 0.1),
+    ])
+
+    processor.process(
+      [],
+      outputs(),
+      params({
+        [GROOVEBOX_PORTS.tr909.level]: 0.5,
+        [GROOVEBOX_PORTS['303.a'].mute]: 1,
+      }),
+      frames,
+      undefined,
+      inputs,
+    )
+
+    const readings = processor.meters()
+    expect(readings.map((reading) => reading.id)).toEqual([
+      'song:tr808',
+      'song:tr909',
+      'song:303.a',
+      'song:303.b',
+    ])
+    expect(readings[0].level).toBeCloseTo(0.1)
+    expect(readings[1].level).toBeCloseTo(0.1)
+    expect(readings[2].level).toBe(0)
+    expect(readings[3].level).toBeCloseTo(0.4)
+    expect(readings.every((reading) => reading.waveform.length === 48)).toBe(true)
+  })
 })

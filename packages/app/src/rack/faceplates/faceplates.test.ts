@@ -125,3 +125,21 @@ describe('a hand-built faceplate still shows everything its module has', () => {
     })
   }
 })
+
+it('shows a live meter for every Groovebox source strip', () => {
+  const def = MODULES.groovebox
+  const Faceplate = faceplateFor('groovebox')
+  const markup = renderToStaticMarkup(
+    createElement(Faceplate, {
+      def,
+      module: { id: 'song', type: 'groovebox' },
+      value: (id: string) => def.params.find((param) => param.id === id)?.default ?? 0,
+      onChange: () => {},
+    }),
+  )
+
+  expect(markup.match(/role="meter"/g)).toHaveLength(4)
+  for (const name of ['808', '909', '303 A', '303 B']) {
+    expect(markup).toContain(`aria-label="${name} output level"`)
+  }
+})

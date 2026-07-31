@@ -25,7 +25,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
-| Rack | An unpublished work in progress with 28 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, performance mode, offline export, retained groovebox playback and a patchable four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 29 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -45,9 +45,9 @@ The first interchange layer is landed: rack patches can retain the complete vers
 song without rewriting it, including a future song this build cannot decode, and expose
 an explicit compatibility state before a save. Song links can enter rack mode, play
 through the existing groovebox engine on the rack's shared performance output, expose
-their 808, 909 and two 303s as patchable stereo sources with level, pan and mute strips,
-and return to the sequencer without losing that document. Next, add source meters and
-rack-side editors over the retained song; do not
+their 808, 909 and two 303s as metered patchable stereo sources with level, pan and mute
+strips, and return to the sequencer without losing that document. Next, add rack-side
+editors over the retained song; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

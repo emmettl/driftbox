@@ -128,6 +128,14 @@ export interface Processor {
    * the whole DSP contract. A fresh waveform is expected because the value crosses `postMessage`.
    */
   meter?(): Omit<MeterReading, 'id'>
+  /**
+   * Several named readings from one processor.
+   *
+   * A Groovebox is one retained device but has four authored-machine strips. Making those
+   * four hidden Meter modules would change the patch merely to draw its front panel, so a
+   * multi-bus processor can publish stable, fully-qualified reading ids directly instead.
+   */
+  meters?(): readonly MeterReading[]
 }
 
 /** One meter module's latest display state, sent from the audio thread at animation rate. */

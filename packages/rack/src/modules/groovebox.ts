@@ -1,5 +1,5 @@
 import { GROOVEBOX_SECTIONS, type GrooveboxSection } from '@driftbox/engine'
-import type { ModuleDef, Processor, Transport } from '../types.js'
+import type { MeterReading, ModuleDef, Processor, Transport } from '../types.js'
 
 /**
  * The rack inlet and stereo outlet names for each authored groovebox machine.
@@ -61,6 +61,26 @@ const sectionName = (section: GrooveboxSection): string =>
  * params per section form its source strip in this exact order: level, pan, mute.
  */
 export class GrooveboxProcessor implements Processor {
+  private readonly sampleRate: number
+  private readonly meterIds: string[]
+  private readonly levels = new Float32Array(4)
+  private readonly peaks = new Float32Array(4)
+  private readonly envelopes = new Float32Array(4)
+  private readonly waveforms = Array.from({ length: 4 }, () => new Float32Array(48))
+
+  constructor(
+    sampleRate = 48_000,
+    _deps: Record<string, unknown> = {},
+    id = 'groovebox',
+  ) {
+    this.sampleRate = sampleRate
+    // Kept inside the class because processors are stringified into the worklet without
+    // their module scope. These are the same stable section identities the engine owns.
+    this.meterIds = ['tr808', 'tr909', '303.a', '303.b'].map(
+      (section) => `${id}:${section}`,
+    )
+  }
+
   process(
     _inlets: Float32Array[],
     outlets: Float32Array[],
@@ -79,6 +99,8 @@ export class GrooveboxProcessor implements Processor {
       const level = params[section * 3]
       const pan = params[section * 3 + 1]
       const mute = params[section * 3 + 2]
+      let squares = 0
+      let peak = 0
       for (let i = 0; i < frames; i++) {
         const balance = Math.max(-1, Math.min(1, pan[i]))
         const gain = mute[i] >= 0.5 ? 0 : level[i]
@@ -86,8 +108,43 @@ export class GrooveboxProcessor implements Processor {
         const rightGain = balance < 0 ? 1 + balance : 1
         leftOut[i] = (left?.[i] ?? 0) * gain * leftGain
         rightOut[i] = (right?.[i] ?? 0) * gain * rightGain
+        squares += leftOut[i] * leftOut[i] + rightOut[i] * rightOut[i]
+        const samplePeak = Math.max(Math.abs(leftOut[i]), Math.abs(rightOut[i]))
+        if (samplePeak > peak) peak = samplePeak
+      }
+
+      const rms = frames > 0 ? Math.sqrt(squares / (frames * 2)) : 0
+      this.levels[section] = rms
+      this.peaks[section] = peak
+      const previous = this.envelopes[section]
+      const release = Math.pow(
+        0.01,
+        frames / Math.max(1, this.sampleRate * 0.3),
+      )
+      this.envelopes[section] =
+        peak >= previous ? peak : peak + (previous - peak) * release
+
+      const waveform = this.waveforms[section]
+      for (let point = 0; point < waveform.length; point++) {
+        const index = Math.max(
+          0,
+          Math.min(frames - 1, Math.floor((point * frames) / waveform.length)),
+        )
+        const sample = frames > 0 ? (leftOut[index] + rightOut[index]) * 0.5 : 0
+        waveform[point] = Math.max(-1, Math.min(1, sample))
       }
     }
+  }
+
+  /** Four post-strip readings, without materialising four hidden rack modules. */
+  meters(): readonly MeterReading[] {
+    return this.meterIds.map((id, section) => ({
+      id,
+      level: this.levels[section],
+      peak: this.peaks[section],
+      envelope: this.envelopes[section],
+      waveform: this.waveforms[section].slice(),
+    }))
   }
 }
 

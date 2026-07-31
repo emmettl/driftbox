@@ -63,6 +63,27 @@ function rms(data: Float64Array, from = 0): number {
   return Math.sqrt(sum / (data.length - from))
 }
 
+it('collects several named meter readings from one hosted source', () => {
+  const graph = graphFor({
+    modules: [{ id: 'song', type: 'groovebox' }],
+    cables: [],
+  })
+  const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+  const hostInputs = Array.from({ length: 4 }, (_, section) => [
+    new Float32Array(FRAMES).fill((section + 1) * 0.1),
+    new Float32Array(FRAMES).fill((section + 1) * 0.1),
+  ])
+
+  graph.process(channels, hostInputs)
+
+  expect(graph.meters().map((reading) => reading.id)).toEqual([
+    'song:tr808',
+    'song:tr909',
+    'song:303.a',
+    'song:303.b',
+  ])
+})
+
 /** Upward zero crossings per second. A saw crosses upward exactly once per cycle. */
 function fundamental(data: Float64Array, from = 0): number {
   let crossings = 0

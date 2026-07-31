@@ -55,7 +55,7 @@ user could approximate it from oscillators.
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted shared transport plus Arranger | Expose the shared primitives in rack mode |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted shared timeline plus Combinator/MIDI | Expose the shared recorder in rack mode |
-| Section mixer | Per voice | Four patchable stereo source strips with level, pan and mute | Add meters |
+| Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Keyboard audition only | Yes | Extract the rack MIDI host for both modes |
 | Stereo mix and stems export | Stems | Patch render | Both exports from both modes |
@@ -81,10 +81,10 @@ work is ordered by dependency:
    resolves those targets for live playback and offline planning, including per-hit stem
    sends. Arbitrary whole-bar loop ranges may cross section boundaries. Reuse the thin
    recorder and transport primitives in rack mode, then add bar-quantised clip recording.
-3. **Section buses and effects.** The four authored machines now arrive on rack source
-   strips with level, pan and mute before their patchable stereo outputs. Add meters and
-   the ReBirth signal path: distortion, pattern-controlled filter and compressor as
-   inserts, delay as a send. Keep Driftbox's reverb and per-voice controls.
+3. **Section buses and effects.** The four authored machines now arrive on metered rack
+   source strips with level, pan and mute before their patchable stereo outputs. Add the
+   ReBirth signal path: distortion, pattern-controlled filter and compressor as inserts,
+   delay as a send. Keep Driftbox's reverb and per-voice controls.
 4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise,
    material-preserving alter and 909 flam are present. Add sequential 303 entry,
    keyboard tap recording and focused cut/copy/paste.
@@ -117,9 +117,9 @@ destination as the rack graph. The shared engine also exposes stable live output
 pairs inside the rack worklet, where ordinary cables can send them through any rack
 device. Adding the device alone remains groovebox-compatible; the first cable makes the
 document explicitly rack-extended. Each source now has a rack strip with level, balance
-pan and mute; its unity defaults preserve the retained mix, while saving a strip adjustment
-correctly marks the document as rack-extended. Next, add meters and rack-side clip and
-instrument editor controls. Do
+pan, mute and a live post-strip meter; its unity defaults preserve the retained mix, while
+saving a strip adjustment correctly marks the document as rack-extended. Next, add
+rack-side clip and instrument editor controls. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
