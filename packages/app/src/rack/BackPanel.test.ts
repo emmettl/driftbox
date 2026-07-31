@@ -3,7 +3,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CablePaths } from './BackPanel.js'
-import { jacks, layout } from './layout.js'
+import { cablePath } from './cable.js'
+import { jackAt, jacks, layout, withDraggedPlacement } from './layout.js'
 
 const patch = {
   modules: [
@@ -56,5 +57,56 @@ describe('the shared cable renderer', () => {
       }),
     )
     expect(drawn).toContain('rk-cable-folded')
+  })
+
+  it('anchors an attached cable to the pointer-following rear ghost', () => {
+    const moved = withDraggedPlacement(geometry.placements, {
+      id: 'osc',
+      at: { x: 300, y: 260 },
+      grab: { x: 100, y: 30 },
+      width: geometry.placements[0].width,
+      height: geometry.placements[0].height,
+    })
+    const all = jacks(moved, MODULES)
+    const from = jackAt(all, 'osc', 'out')!
+    const to = jackAt(all, 'speaker', 'in')!
+    const markup = renderToStaticMarkup(
+      createElement(CablePaths, {
+        all,
+        cables: patch.cables,
+        delayed: new Set<string>(),
+        folded: new Set<string>(),
+        swing: { elapsed: null, direction: 1 },
+      }),
+    )
+
+    expect(markup).toContain(cablePath(from, to))
+    expect(from.y).toBeGreaterThan(geometry.placements[0].height)
+  })
+
+  it('jiggles only leads attached to the moving module', () => {
+    const props = {
+      all: jacks(geometry.placements, MODULES),
+      cables: patch.cables,
+      delayed: new Set<string>(),
+      folded: new Set<string>(),
+      swing: { elapsed: null, direction: 1 },
+    }
+    const still = renderToStaticMarkup(createElement(CablePaths, props))
+    const attached = renderToStaticMarkup(
+      createElement(CablePaths, {
+        ...props,
+        jiggle: { module: 'osc', angle: 0.45 },
+      }),
+    )
+    const unrelated = renderToStaticMarkup(
+      createElement(CablePaths, {
+        ...props,
+        jiggle: { module: 'somewhere-else', angle: 0.45 },
+      }),
+    )
+
+    expect(attached).not.toBe(still)
+    expect(unrelated).toBe(still)
   })
 })

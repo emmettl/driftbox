@@ -1,6 +1,13 @@
 import { MODULES, routedParams } from '@driftbox/rack'
 import { faceplateFor, sizeFor } from './faceplates/index.js'
-import { dropIndex, layout as rackLayout, reordered, type Layout } from './layout.js'
+import {
+  dragBounds,
+  dropIndex,
+  layout as rackLayout,
+  reordered,
+  type Layout,
+  type ModuleDragGeometry,
+} from './layout.js'
 import { useRack } from './store.js'
 import { useCallback, useMemo, useRef, useState } from 'react'
 
@@ -20,16 +27,8 @@ interface Point {
   y: number
 }
 
-interface Dragging {
-  id: string
+interface Dragging extends ModuleDragGeometry {
   index: number
-  /** Pointer position in rack design units. Updated on every move, not only when the target slot changes. */
-  at: Point
-  /** Where within the faceplate it was picked up, so the panel does not jump under the pointer. */
-  grab: Point
-  /** Its lifted size. Pairing can stretch a slot, but the thing in the hand keeps the size it had. */
-  width: number
-  height: number
 }
 
 export function Chassis({ layout }: Props) {
@@ -133,14 +132,15 @@ export function Chassis({ layout }: Props) {
 
         const Faceplate = faceplateFor(placement.type)
         const isSelected = selected === placement.id
-        const isGhost = drag?.id === placement.id
-        const position = isGhost
+        const bounds = drag?.id === placement.id ? dragBounds(drag) : null
+        const isGhost = bounds !== null
+        const position = bounds
           ? {
               left: 0,
               top: 0,
-              width: drag.width,
-              height: drag.height,
-              transform: `translate3d(${drag.at.x - drag.grab.x}px, ${drag.at.y - drag.grab.y}px, 0) scale(0.985)`,
+              width: bounds.width,
+              height: bounds.height,
+              transform: `translate3d(${bounds.x}px, ${bounds.y}px, 0) scale(0.985)`,
             }
           : {
               left: placement.x,
