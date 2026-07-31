@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useBox } from './store'
-import { SONGS, chainBarAt, defaultSong, songBars, type DriftboxEngine } from '@driftbox/engine'
+import {
+  AUTOMATION_TARGET,
+  SONGS,
+  chainBarAt,
+  defaultSong,
+  songBars,
+  type DriftboxEngine,
+} from '@driftbox/engine'
 import { SCENES } from './visual/scenes'
 import { soundingPatternAt } from './ui/useLiveStep'
 
@@ -14,7 +21,14 @@ import { soundingPatternAt } from './ui/useLiveStep'
 // that class of bug cannot come back.
 
 beforeEach(() => {
-  useBox.setState({ song: defaultSong(), engine: null, editing: 'drift', running: false, loop: null })
+  useBox.setState({
+    song: defaultSong(),
+    engine: null,
+    editing: 'drift',
+    running: false,
+    loop: null,
+    automationRecording: false,
+  })
 })
 
 const song = () => useBox.getState().song
@@ -70,6 +84,63 @@ describe('editing one thing does not disturb the others', () => {
     const before = song().patterns.find((p) => p.id === 'neon')
     useBox.getState().toggleStep('808.bd', 3)
     expect(song().patterns.find((p) => p.id === 'neon')).toEqual(before)
+  })
+})
+
+describe('automation recording', () => {
+  it('writes supported controls at the current transport position while armed and running', () => {
+    const engine = {
+      running: true,
+      position: { bar: 2, index: 3 },
+    } as unknown as DriftboxEngine
+    useBox.setState({ engine, running: true, automationRecording: true })
+
+    useBox.getState().setBpm(138)
+    useBox.getState().setSwing(0.42)
+    useBox.getState().setParam('808.bd', 'decay', 0.2)
+    useBox.getState().setBassParam('303.a', 'cutoff', 0.8)
+    useBox.getState().setVoiceSwing('808.ch', 0.7)
+
+    const lanes = new Map(song().automation?.map((lane) => [lane.target, lane.points]))
+    expect(lanes.get(AUTOMATION_TARGET.bpm)).toEqual([{ bar: 2, index: 3, value: 138 }])
+    expect(lanes.get(AUTOMATION_TARGET.swing)).toEqual([{ bar: 2, index: 3, value: 0.42 }])
+    expect(lanes.get(AUTOMATION_TARGET.voice('808.bd', 'decay'))).toEqual([
+      { bar: 2, index: 3, value: 0.2 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.bass('303.a', 'cutoff'))).toEqual([
+      { bar: 2, index: 3, value: 0.8 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.voiceSwing('808.ch'))).toEqual([
+      { bar: 2, index: 3, value: 0.7 },
+    ])
+  })
+
+  it('does not write points while stopped, even if recording is armed', () => {
+    const engine = {
+      running: false,
+      position: { bar: 4, index: 5 },
+    } as unknown as DriftboxEngine
+    useBox.setState({ engine, running: false, automationRecording: true })
+    useBox.getState().setParam('808.bd', 'tone', 0.1)
+    expect(song().automation).toBeUndefined()
+  })
+
+  it('clears the timeline without changing base parameter values', () => {
+    const current = song()
+    useBox.setState({
+      song: {
+        ...current,
+        automation: [{
+          target: AUTOMATION_TARGET.swing,
+          interpolation: 'linear',
+          points: [{ bar: 0, index: 0, value: 0.8 }],
+        }],
+      },
+    })
+    const swing = song().swing
+    useBox.getState().clearAutomation()
+    expect(song().automation).toBeUndefined()
+    expect(song().swing).toBe(swing)
   })
 })
 

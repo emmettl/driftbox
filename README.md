@@ -112,6 +112,12 @@ shows the clip for the machine currently on screen: switch between 808, 909, 303
 changed and rearranged while the thing is playing. Each section can also start playback
 from its first bar or become the active song loop.
 
+**auto** arms automation writing. Start playback, arm it, then move BPM, global swing,
+a drum knob, a 303 knob or a voice's swing control; the editor writes points at the song
+playhead while still updating the underlying knob value. The number on the button is the
+lane count. **clear auto** removes the timeline after confirmation without changing the
+base sound.
+
 Your work is saved as you go. **share** puts the whole song in a link, **save** and
 **load** move it to and from a file, and **reset** goes back to the shipped patterns.
 

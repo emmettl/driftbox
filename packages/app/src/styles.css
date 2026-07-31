@@ -318,6 +318,25 @@ button {
   border-color: var(--nine);
 }
 
+.automation-record {
+  white-space: nowrap;
+}
+
+.automation-record span {
+  color: rgba(255, 90, 120, 0.55);
+}
+
+.automation-record.on,
+.automation-record.on span {
+  color: #ff7690;
+  border-color: rgba(255, 90, 120, 0.8);
+}
+
+.automation-record.on {
+  background: rgba(255, 90, 120, 0.12);
+  box-shadow: 0 0 16px rgba(255, 90, 120, 0.18);
+}
+
 .patterns button.on {
   color: var(--ink);
   border-color: rgba(255, 255, 255, 0.4);

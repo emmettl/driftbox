@@ -34,6 +34,9 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const toggleTransport = useBox((s) => s.toggleTransport)
   const setBpm = useBox((s) => s.setBpm)
   const setSwing = useBox((s) => s.setSwing)
+  const automationRecording = useBox((s) => s.automationRecording)
+  const toggleAutomationRecording = useBox((s) => s.toggleAutomationRecording)
+  const clearAutomation = useBox((s) => s.clearAutomation)
   const setView = useBox((s) => s.setView)
   const clearPattern = useBox((s) => s.clearPattern)
   const togglePerformance = useBox((s) => s.togglePerformance)
@@ -53,6 +56,9 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const [more, setMore] = useState(false)
 
   const pattern = song.patterns.find((p) => p.id === editing)
+  const automationLanes = song.automation?.length ?? 0
+  const automationPoints =
+    song.automation?.reduce((total, lane) => total + lane.points.length, 0) ?? 0
 
   return (
     <header className="transport">
@@ -63,6 +69,22 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
         title="Play / stop (space)"
       >
         {running ? '■' : '▶'}
+      </button>
+
+      <button
+        className={`ghost automation-record${automationRecording ? ' on' : ''}`}
+        onClick={toggleAutomationRecording}
+        aria-pressed={automationRecording}
+        aria-label={automationRecording ? 'Disarm automation recording' : 'Arm automation recording'}
+        title={
+          automationRecording
+            ? running
+              ? 'Recording supported controls at the song playhead'
+              : 'Automation armed — start playback, then move a supported control'
+            : `${automationLanes} automation lanes, ${automationPoints} points`
+        }
+      >
+        <span aria-hidden="true">●</span> auto{automationLanes > 0 ? ` ${automationLanes}` : ''}
       </button>
 
       <label className="field">
@@ -169,6 +191,23 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
         title="Count one bar in before playing"
       >
         1·2·3·4
+      </button>
+      <button
+        className="ghost"
+        disabled={automationLanes === 0}
+        onClick={() => {
+          if (confirm(`Clear ${automationLanes} automation lanes? This cannot be undone.`)) {
+            clearAutomation()
+            showFlash('automation cleared')
+          }
+        }}
+        title={
+          automationLanes > 0
+            ? `Clear ${automationLanes} lanes and ${automationPoints} points`
+            : 'No automation recorded'
+        }
+      >
+        clear auto
       </button>
 
       <button className="ghost" onClick={clearPattern} title="Clear this pattern">
