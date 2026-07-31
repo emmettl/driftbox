@@ -49,14 +49,19 @@ function TurnHarness({ geometry }: { geometry: Layout }) {
 const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
 
 /** Find when the real CSS transition reaches edge-on instead of duplicating its easing arithmetic here. */
-function edgeTime(turn: Animation, rack: HTMLElement, duration: number): number {
+function edgeTime(
+  turn: Animation,
+  rack: HTMLElement,
+  duration: number,
+  startsFacingFront: boolean,
+): number {
   let before = 0
   let after = duration
   for (let step = 0; step < 18; step++) {
     const middle = (before + after) / 2
     turn.currentTime = middle
     const facingFront = new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11 > 0
-    if (facingFront) before = middle
+    if (facingFront === startsFacingFront) before = middle
     else after = middle
   }
   return after
@@ -97,59 +102,100 @@ async function expectFaceHandoff(patch: Patch, subjectId: string, subjectType: s
       (animation): animation is CSSTransition =>
         animation instanceof CSSTransition && animation.transitionProperty === 'transform',
     )
-    const reveal = rear.getAnimations().find(
-      (animation): animation is CSSAnimation =>
-        animation instanceof CSSAnimation && animation.animationName === 'rk-reveal-rear-face',
+    const frontSwitch = front.getAnimations().find(
+      (animation): animation is CSSTransition =>
+        animation instanceof CSSTransition && animation.transitionProperty === 'opacity',
     )
-    const hide = front.getAnimations().find(
-      (animation): animation is CSSAnimation =>
-        animation instanceof CSSAnimation && animation.animationName === 'rk-hide-front-face',
+    const rearSwitch = rear.getAnimations().find(
+      (animation): animation is CSSTransition =>
+        animation instanceof CSSTransition && animation.transitionProperty === 'opacity',
     )
     expect(turn).toBeTruthy()
-    expect(reveal).toBeTruthy()
-    expect(hide).toBeTruthy()
-    expect(Math.abs(Number(turn!.startTime) - Number(reveal!.startTime))).toBeLessThan(2)
-    expect(Math.abs(Number(turn!.startTime) - Number(hide!.startTime))).toBeLessThan(2)
+    expect(frontSwitch).toBeTruthy()
+    expect(rearSwitch).toBeTruthy()
+    expect(Math.abs(Number(turn!.startTime) - Number(frontSwitch!.startTime))).toBeLessThan(2)
+    expect(Math.abs(Number(turn!.startTime) - Number(rearSwitch!.startTime))).toBeLessThan(2)
     turn!.pause()
-    reveal!.pause()
-    hide!.pause()
-    await Promise.all([turn!.ready, reveal!.ready, hide!.ready])
+    frontSwitch!.pause()
+    rearSwitch!.pause()
+    await Promise.all([turn!.ready, frontSwitch!.ready, rearSwitch!.ready])
 
     const duration = Number(turn!.effect!.getTiming().duration)
-    const edge = edgeTime(turn!, rack, duration)
+    const edge = edgeTime(turn!, rack, duration, true)
     const margin = duration * 0.005
+    const switchTime = Number(frontSwitch!.effect!.getTiming().delay)
+    expect(Number(rearSwitch!.effect!.getTiming().delay)).toBe(switchTime)
+    expect(switchTime).toBeGreaterThan(edge)
+    expect(switchTime - edge).toBeLessThan(margin)
 
     turn!.currentTime = edge - margin
-    reveal!.currentTime = edge - margin
-    hide!.currentTime = edge - margin
+    frontSwitch!.currentTime = edge - margin
+    rearSwitch!.currentTime = edge - margin
     expect(getComputedStyle(front).opacity).toBe('1')
     expect(getComputedStyle(rear).opacity).toBe('0')
 
     turn!.currentTime = edge + margin
-    reveal!.currentTime = edge + margin
-    hide!.currentTime = edge + margin
+    frontSwitch!.currentTime = edge + margin
+    rearSwitch!.currentTime = edge + margin
     expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeLessThan(0)
     expect(Number(turn!.currentTime)).toBeLessThan(duration)
     expect(getComputedStyle(front).opacity).toBe('0')
     expect(getComputedStyle(rear).opacity).toBe('1')
 
-    // Removing the flipped class is the reverse direction. It must not carry the front-to-back delay
-    // back with it: the rear remains visible through the first half while it still faces us.
-    turn!.currentTime = duration
-    reveal!.currentTime = duration
-    hide!.currentTime = duration
+    // Finish at the back, then exercise a genuinely new reverse transition. The front must stay hidden
+    // through the first half rather than appearing as soon as the flipped class is removed.
+    turn!.finish()
+    frontSwitch!.finish()
+    rearSwitch!.finish()
     flushSync(() => useRack.getState().flip(false))
     await frame()
-    expect(
-      [...front.getAnimations(), ...rear.getAnimations()]
-        .some(
-          (animation) =>
-            animation instanceof CSSAnimation &&
-            ['rk-hide-front-face', 'rk-reveal-rear-face'].includes(animation.animationName),
-        ),
-    ).toBe(false)
-    expect(getComputedStyle(front).opacity).toBe('1')
+
+    const reverseTurn = rack.getAnimations().find(
+      (animation): animation is CSSTransition =>
+        animation instanceof CSSTransition && animation.transitionProperty === 'transform',
+    )
+    const reverseFrontSwitch = front.getAnimations().find(
+      (animation): animation is CSSTransition =>
+        animation instanceof CSSTransition && animation.transitionProperty === 'opacity',
+    )
+    const reverseRearSwitch = rear.getAnimations().find(
+      (animation): animation is CSSTransition =>
+        animation instanceof CSSTransition && animation.transitionProperty === 'opacity',
+    )
+    expect(reverseTurn).toBeTruthy()
+    expect(reverseFrontSwitch).toBeTruthy()
+    expect(reverseRearSwitch).toBeTruthy()
+    reverseTurn!.pause()
+    reverseFrontSwitch!.pause()
+    reverseRearSwitch!.pause()
+    await Promise.all([
+      reverseTurn!.ready,
+      reverseFrontSwitch!.ready,
+      reverseRearSwitch!.ready,
+    ])
+
+    const reverseDuration = Number(reverseTurn!.effect!.getTiming().duration)
+    const reverseEdge = edgeTime(reverseTurn!, rack, reverseDuration, false)
+    const reverseMargin = reverseDuration * 0.005
+    const reverseSwitchTime = Number(reverseFrontSwitch!.effect!.getTiming().delay)
+    expect(Number(reverseRearSwitch!.effect!.getTiming().delay)).toBe(reverseSwitchTime)
+    expect(reverseSwitchTime).toBeGreaterThan(reverseEdge)
+    expect(reverseSwitchTime - reverseEdge).toBeLessThan(reverseMargin)
+
+    reverseTurn!.currentTime = reverseEdge - reverseMargin
+    reverseFrontSwitch!.currentTime = reverseEdge - reverseMargin
+    reverseRearSwitch!.currentTime = reverseEdge - reverseMargin
+    expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeLessThan(0)
+    expect(getComputedStyle(front).opacity).toBe('0')
     expect(getComputedStyle(rear).opacity).toBe('1')
+
+    reverseTurn!.currentTime = reverseEdge + reverseMargin
+    reverseFrontSwitch!.currentTime = reverseEdge + reverseMargin
+    reverseRearSwitch!.currentTime = reverseEdge + reverseMargin
+    expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeGreaterThan(0)
+    expect(Number(reverseTurn!.currentTime)).toBeLessThan(reverseDuration)
+    expect(getComputedStyle(front).opacity).toBe('1')
+    expect(getComputedStyle(rear).opacity).toBe('0')
   } finally {
     flushSync(() => root.unmount())
     host.remove()
@@ -165,7 +211,7 @@ describe('every module through a rack turn', () => {
     },
   )
 
-  it('switches the fully routed Pressure System Combinator before the turn completes', async () => {
+  it('switches the fully routed Pressure System Combinator at the edge in both directions', async () => {
     const patch = PATCHES.find((preset) => preset.id === 'pressure-system')!.build()
     const combinator = patch.modules.find((module) => module.type === 'combi')!
 
