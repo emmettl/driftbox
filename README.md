@@ -129,10 +129,21 @@ the release steps; nothing goes to npm without cutting a release on purpose.
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
 is how to check a change actually sounds right without trusting your ears or the tests.
 
-`packages/app/public/og.png` is the link preview, and it is a real screenshot — so it goes
-stale when the UI changes. Regenerate it by loading the app at a 1600×840 viewport,
-pressing play so the scope has something in it, and screenshotting the page. The tags that
-point at it live in `packages/app/index.html`, with the reasoning next to them.
+**The link previews are real screenshots**, so they go stale when the UI changes. There are
+two, because there are two pages and a shared rack link previewing as a step grid would be
+describing the wrong instrument:
+
+| | | |
+|---|---|---|
+| `packages/app/public/og.png` | `index.html` | The sequencer. Load the app at a 1600×840 viewport and press play, so the scope has something in it |
+| `packages/app/public/og-rack.png` | `rack.html` | The rack, **from the back** — the cables are what make it recognisable. Start audio, hide the keyboard, press Tab to turn it around, and scroll until several modules and their cables are in frame |
+
+Both must stay 1600×840: `packages/app/meta.test.ts` reads the PNG's own header and fails if
+the declared `og:image:width` stops matching, because a size that no longer matches is how a
+wide card silently becomes a small square thumbnail in WhatsApp. That test also holds both
+pages to having a complete card with absolute URLs — a relative `og:image` is the commonest
+reason a preview comes back blank, and it is invisible until somebody has already sent the
+link. The tags themselves live in the two HTML files with the reasoning next to them.
 
 ## No recorded samples
 
