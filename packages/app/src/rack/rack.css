@@ -1033,19 +1033,37 @@ kbd {
   width: min(900px, 100%);
   /* Tall enough to have travel in both axes. A pad wider than it is tall makes resonance a twitch. */
   aspect-ratio: 3 / 2;
+  perspective: 2400px;
+  cursor: crosshair;
+  /* Without this a drag scrolls the page under the finger instead of sweeping the filter. */
+  touch-action: none;
+}
+.rk-pad-turn {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform var(--spin) cubic-bezier(0.6, 0.05, 0.3, 1);
+}
+.rk-pad[data-side='back'] .rk-pad-turn {
+  transform: rotateY(180deg);
+}
+.rk-pad-face {
+  position: absolute;
+  inset: 0;
   border: 1px solid var(--edge);
   border-radius: 16px;
+  backface-visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rk-pad-face-front {
   background:
     radial-gradient(120% 100% at 0% 100%, rgba(95, 240, 208, 0.16), transparent 60%),
     radial-gradient(120% 100% at 100% 100%, rgba(255, 122, 217, 0.16), transparent 60%),
     var(--panel);
-  transition: border-color 180ms ease, background-color 180ms ease;
-  cursor: crosshair;
-  /* Without this a drag scrolls the page under the finger instead of sweeping the filter. */
-  touch-action: none;
-  overflow: hidden;
 }
-.rk-pad[data-side='back'] {
+.rk-pad-face-back {
+  transform: rotateY(180deg);
   border-color: rgba(255, 176, 46, 0.4);
   background:
     radial-gradient(circle at 50% 45%, rgba(255, 122, 217, 0.2), transparent 28%),
@@ -1054,7 +1072,7 @@ kbd {
     repeating-linear-gradient(135deg, transparent 0 28px, rgba(255, 255, 255, 0.018) 28px 29px),
     #10091e;
 }
-.rk-pad[data-held='yes'] {
+.rk-pad[data-held='yes'] .rk-pad-face {
   border-color: rgba(95, 240, 208, 0.5);
 }
 
@@ -1175,6 +1193,9 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .rk-pad-turn {
+    transition: none;
+  }
   .rk-pad-mascot-dancer {
     animation: none;
   }
