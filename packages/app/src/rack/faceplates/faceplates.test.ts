@@ -155,6 +155,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
       setClip: () => {},
       setVoiceParam: () => {},
       setBassParam: () => {},
+      setFlamWidth: () => {},
     }),
   )
 
@@ -171,12 +172,17 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Loop section 1"')
   expect(markup).toContain('aria-label="Groovebox loop start bar"')
   expect(markup).toContain('aria-label="Groovebox loop length in bars"')
+  expect(markup).toContain('aria-label="Groovebox pattern transforms"')
+  expect(markup).toContain('aria-label="Rotate Bass Drum left"')
+  expect(markup).toContain('aria-label="Rotate Bass Drum right"')
+  expect(markup).toContain('random')
+  expect(markup).toContain('alter')
   expect(markup).toContain('aria-label="Bass Drum instrument controls"')
   for (const control of ['Level', 'Tune', 'Decay', 'Tone', 'Colour', 'Pan']) {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(10)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(11)
 })
 
 it('shows every retained 303 instrument control', () => {
@@ -188,11 +194,14 @@ it('shows every retained 303 instrument control', () => {
       setClip: () => {},
       setVoiceParam: () => {},
       setBassParam: () => {},
+      setFlamWidth: () => {},
       initialSection: '303.a',
     }),
   )
 
   expect(markup).toContain('aria-label="303 A instrument controls"')
+  expect(markup).toContain('aria-label="Transpose 303 A down"')
+  expect(markup).toContain('aria-label="Transpose 303 A up"')
   for (const control of [
     'Tune',
     'Wave',
@@ -205,4 +214,22 @@ it('shows every retained 303 instrument control', () => {
   ]) {
     expect(markup).toContain(`aria-label="${control}"`)
   }
+})
+
+it('shows retained 909 flam programming controls', () => {
+  const song = SONGS[0].build()
+  const markup = renderToStaticMarkup(
+    createElement(GrooveboxPatternEditor, {
+      encoded: encodeSong(song),
+      setPattern: () => {},
+      setClip: () => {},
+      setVoiceParam: () => {},
+      setBassParam: () => {},
+      setFlamWidth: () => {},
+      initialSection: 'tr909',
+    }),
+  )
+
+  expect(markup).toContain('title="Program a second, closely spaced strike on 909 steps"')
+  expect(markup).toContain('>flam</button>')
 })

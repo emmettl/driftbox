@@ -105,6 +105,12 @@ the selected arrangement section can start or loop, and an arbitrary whole-bar r
 cross section boundaries. Seeking wakes and starts the rack transport with the song; loop
 selection remains session-only and never changes the retained envelope.
 
+The retained pattern editor also carries the groovebox's fast operations into rack mode.
+The selected drum lane—or the whole visible drum machine—can rotate; focused drum and 303
+lanes can randomise or material-preserving alter; and either 303 can transpose. The 909's
+flam marks and shared flam width remain authored song data. Each button gesture is its own
+undo step, while direct step painting continues to coalesce as one edit.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a

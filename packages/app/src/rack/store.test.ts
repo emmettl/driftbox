@@ -1,4 +1,4 @@
-import { SONGS, cycleStep } from '@driftbox/engine'
+import { SONGS, cycleStep, rotateTrack } from '@driftbox/engine'
 import { NO_HISTORY } from './history.js'
 import {
   MODULES,
@@ -665,6 +665,19 @@ describe('editing a retained Groovebox pattern', () => {
     expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
   })
 
+  it('keeps discrete transforms as separate undo steps', () => {
+    const first = grooveboxSong(useRack.getState().patch)!.patterns[0]
+    useRack.getState().setGrooveboxPattern(rotateTrack(first, '808.bd', 1), true)
+    const once = grooveboxSong(useRack.getState().patch)!.patterns[0]
+    useRack.getState().setGrooveboxPattern(rotateTrack(once, '808.bd', 1), true)
+    const twice = grooveboxSong(useRack.getState().patch)!.patterns[0]
+
+    expect(useRack.getState().history.past).toHaveLength(2)
+    useRack.getState().undo()
+    expect(grooveboxSong(useRack.getState().patch)!.patterns[0]).toEqual(once)
+    expect(grooveboxSong(useRack.getState().patch)!.patterns[0]).not.toEqual(twice)
+  })
+
   it('edits authored drum and bass controls without rebuilding or extending the rack', () => {
     const before = useRack.getState().revision
     const song = grooveboxSong(useRack.getState().patch)!
@@ -679,6 +692,18 @@ describe('editing a retained Groovebox pattern', () => {
     expect(next.kit.sends).toEqual(sends)
     expect(useRack.getState().revision).toBe(before)
     expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+  })
+
+  it('edits shared 909 flam spacing as retained document data', () => {
+    const before = useRack.getState().revision
+    useRack.getState().setGrooveboxFlamWidth(0.72)
+
+    expect(grooveboxSong(useRack.getState().patch)?.kit.flam).toBe(0.72)
+    expect(useRack.getState().revision).toBe(before)
+    expect(useRack.getState().history.past).toHaveLength(1)
+
+    useRack.getState().setGrooveboxFlamWidth(2)
+    expect(grooveboxSong(useRack.getState().patch)?.kit.flam).toBe(1)
   })
 
   it('clamps instrument controls and ignores them without a retained song', () => {

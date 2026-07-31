@@ -262,7 +262,8 @@ interface RackState {
    * immutable song at the following scheduled step, so a step edit must not rebuild the
    * worklet graph or restart the arrangement.
    */
-  setGrooveboxPattern: (pattern: Pattern) => void
+  /** Pass discrete for one-shot transforms; direct painting coalesces by pattern. */
+  setGrooveboxPattern: (pattern: Pattern, discrete?: boolean) => void
   /** Edit one authored drum voice without rebuilding the hosted engine. */
   setGrooveboxVoiceParam: (
     voiceId: string,
@@ -275,6 +276,8 @@ interface RackState {
     key: keyof BassParams,
     value: number,
   ) => void
+  /** Edit the shared 909 flam spacing without rebuilding the hosted engine. */
+  setGrooveboxFlamWidth: (value: number) => void
   /** Assign one retained machine clip to one arrangement section. */
   setGrooveboxClip: (
     section: number,
@@ -757,11 +760,11 @@ export const useRack = create<RackState>((set, get) => {
         return id ? { ...rest, break: id } : rest
       }),
 
-    setGrooveboxPattern: (pattern) =>
+    setGrooveboxPattern: (pattern, discrete = false) =>
       // Keyed by the pattern, so painting a drum lane in the retained song coalesces the way painting a
       // Tracker lane does. Undoing it re-encodes the previous song, which the hosted engine picks up on
       // its next step — the same live handoff a forward edit uses, and no graph rebuild either way.
-      write(`groovebox:${pattern.id}`, false, (patch) => {
+      write(discrete ? null : `groovebox:${pattern.id}`, false, (patch) => {
         const song = grooveboxSong(patch)
         if (!song || !song.patterns.some((candidate) => candidate.id === pattern.id)) return patch
         const next: Song = {
@@ -771,6 +774,21 @@ export const useRack = create<RackState>((set, get) => {
           ),
         }
         return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    setGrooveboxFlamWidth: (value) =>
+      write('groovebox:flam-width', false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const flam = Math.max(0, Math.min(1, value))
+        if ((song.kit.flam ?? 0.4) === flam) return patch
+        return {
+          ...patch,
+          groovebox: encodeSong({
+            ...song,
+            kit: { ...song.kit, flam },
+          }),
+        }
       }),
 
     setGrooveboxVoiceParam: (voiceId, key, value) =>

@@ -4,13 +4,22 @@ import {
   DEFAULT_PARAMS,
   GROOVEBOX_SECTIONS,
   REST,
+  alterBassLine,
+  alterTrack,
   bassStepAt,
   chainBarAt,
   cycleStep,
   decodeSong,
+  flamAt,
+  randomizeBassLine,
+  randomizeTrack,
+  rotateBassLine,
+  rotateTrack,
   setBassStep,
   songBars,
   stepAt,
+  toggleFlam,
+  transposeBassLine,
   type BassParams,
   type GrooveboxSection,
   type Pattern,
@@ -95,6 +104,7 @@ export function GrooveboxPatternEditor({
   setClip,
   setVoiceParam,
   setBassParam,
+  setFlamWidth,
   launch,
   launches,
   transport,
@@ -102,7 +112,7 @@ export function GrooveboxPatternEditor({
   initialSection = 'tr808',
 }: {
   encoded?: string
-  setPattern: (pattern: Pattern) => void
+  setPattern: (pattern: Pattern, discrete?: boolean) => void
   setClip: (section: number, machine: GrooveboxSection, patternId: string) => void
   setVoiceParam: (
     voiceId: string,
@@ -114,6 +124,7 @@ export function GrooveboxPatternEditor({
     key: keyof BassParams,
     value: number,
   ) => void
+  setFlamWidth: (value: number) => void
   launch?: (
     machine: GrooveboxSection,
     patternId: string | null,
@@ -142,6 +153,8 @@ export function GrooveboxPatternEditor({
   const [arrangementSection, setArrangementSection] = useState(0)
   const [loopStart, setLoopStart] = useState(1)
   const [loopBars, setLoopBars] = useState(1)
+  const [wholeMachine, setWholeMachine] = useState(false)
+  const [flamMode, setFlamMode] = useState(false)
   useEffect(() => {
     if (!loop) return
     setLoopStart(loop.start + 1)
@@ -191,7 +204,36 @@ export function GrooveboxPatternEditor({
     ? song.kit.bass?.[section] ?? DEFAULT_BASS_PARAMS
     : DEFAULT_BASS_PARAMS
 
-  const save = (next: Pattern) => setPattern(next)
+  const save = (next: Pattern, discrete = false) => {
+    if (next !== pattern) setPattern(next, discrete)
+  }
+  const rotate = (delta: number) => {
+    let next = pattern
+    if (bass) {
+      next = rotateBassLine(next, section, delta)
+    } else {
+      const targets = wholeMachine
+        ? voices.map((candidate) => candidate.id)
+        : voice
+          ? [voice.id]
+          : []
+      for (const target of targets) next = rotateTrack(next, target, delta)
+    }
+    save(next, true)
+  }
+  const randomize = () => {
+    if (bass) save(randomizeBassLine(pattern, section), true)
+    else if (voice) save(randomizeTrack(pattern, voice.id), true)
+  }
+  const alter = () => {
+    if (bass) save(alterBassLine(pattern, section), true)
+    else if (voice) save(alterTrack(pattern, voice.id), true)
+  }
+  const focusedTarget = bass
+    ? sectionName(section)
+    : voice?.name ?? sectionName(section)
+  const rotateTarget =
+    !bass && wholeMachine ? `whole ${sectionName(section)}` : focusedTarget
 
   return (
     <section className="rk-groovebox-editor" aria-label="Groovebox pattern editor">
@@ -291,20 +333,109 @@ export function GrooveboxPatternEditor({
           }
 
           const value = voice ? stepAt(pattern, voice.id, step) : 0
+          const flam =
+            section === 'tr909' && voice ? flamAt(pattern, voice.id, step) : false
           return (
             <button
               type="button"
               key={step}
               data-state={stepState(value)}
-              aria-label={`${voice?.name ?? 'Drum'} step ${step + 1}: ${stepState(value)}`}
+              data-flam={flam ? 'yes' : undefined}
+              aria-label={`${voice?.name ?? 'Drum'} step ${step + 1}: ${stepState(value)}${flam ? ', flam' : ''}`}
               onClick={() => {
-                if (voice) save(cycleStep(pattern, voice.id, step))
+                if (!voice) return
+                save(
+                  section === 'tr909' && flamMode
+                    ? toggleFlam(pattern, voice.id, step)
+                    : cycleStep(pattern, voice.id, step),
+                )
               }}
             >
               {step + 1}
             </button>
           )
         })}
+      </div>
+
+      <div className="rk-groovebox-tools" aria-label="Groovebox pattern transforms">
+        <strong>{rotateTarget}</strong>
+        {!bass && (
+          <button
+            type="button"
+            aria-pressed={wholeMachine}
+            onClick={() => setWholeMachine((current) => !current)}
+            title={`Rotate ${wholeMachine ? `only ${voice?.name ?? 'the selected lane'}` : `the whole ${sectionName(section)}`}`}
+          >
+            {wholeMachine ? 'all' : 'lane'}
+          </button>
+        )}
+        {section === 'tr909' && (
+          <button
+            type="button"
+            aria-pressed={flamMode}
+            onClick={() => setFlamMode((current) => !current)}
+            title="Program a second, closely spaced strike on 909 steps"
+          >
+            flam
+          </button>
+        )}
+        <button type="button" onClick={() => rotate(-1)} aria-label={`Rotate ${rotateTarget} left`}>
+          ←
+        </button>
+        <button type="button" onClick={() => rotate(1)} aria-label={`Rotate ${rotateTarget} right`}>
+          →
+        </button>
+        {section === 'tr909' && flamMode ? (
+          <label>
+            Flam width
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={song.kit.flam ?? 0.4}
+              onChange={(event) => setFlamWidth(Number(event.target.value))}
+              aria-label="Groovebox flam width"
+            />
+          </label>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Randomise ${focusedTarget}? This replaces that lane.`)) randomize()
+              }}
+            >
+              random
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Alter ${focusedTarget}? This rearranges its existing material.`)) alter()
+              }}
+            >
+              alter
+            </button>
+          </>
+        )}
+        {bass && (
+          <>
+            <button
+              type="button"
+              onClick={() => save(transposeBassLine(pattern, section, -1), true)}
+              aria-label={`Transpose ${focusedTarget} down`}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              onClick={() => save(transposeBassLine(pattern, section, 1), true)}
+              aria-label={`Transpose ${focusedTarget} up`}
+            >
+              +
+            </button>
+          </>
+        )}
       </div>
 
       <div className="rk-groovebox-clip" aria-label="Groovebox clip arrangement">
@@ -547,6 +678,7 @@ function PatternEditor() {
   const setClip = useRack((state) => state.setGrooveboxClip)
   const setVoiceParam = useRack((state) => state.setGrooveboxVoiceParam)
   const setBassParam = useRack((state) => state.setGrooveboxBassParam)
+  const setFlamWidth = useRack((state) => state.setGrooveboxFlamWidth)
   const launch = useRack((state) => state.grooveboxLauncher)
   const launches = useRack((state) => state.grooveboxLaunches)
   const transport = useRack((state) => state.grooveboxTransport)
@@ -558,6 +690,7 @@ function PatternEditor() {
       setClip={setClip}
       setVoiceParam={setVoiceParam}
       setBassParam={setBassParam}
+      setFlamWidth={setFlamWidth}
       launch={launch ?? undefined}
       launches={launches}
       transport={transport ?? undefined}
