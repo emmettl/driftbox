@@ -77,10 +77,12 @@ async function expectFaceHandoff(patch: Patch, subjectId: string, subjectType: s
     const subject = rack.querySelector<HTMLElement>(
       `.rk-module[data-module-id='${subjectId}'][data-module-type='${subjectType}']`,
     )
+    const front = rack.querySelector<HTMLElement>('.rk-side-front')!
     const rear = rack.querySelector<HTMLElement>('.rk-side-back')!
     const cable = rack.querySelector<SVGGElement>('.rk-cable')!
 
     expect(subject).toBeTruthy()
+    expect(front).toBeTruthy()
     expect(rear).toBeTruthy()
     expect(cable).toBeTruthy()
 
@@ -99,12 +101,19 @@ async function expectFaceHandoff(patch: Patch, subjectId: string, subjectType: s
       (animation): animation is CSSAnimation =>
         animation instanceof CSSAnimation && animation.animationName === 'rk-reveal-rear-face',
     )
+    const hide = front.getAnimations().find(
+      (animation): animation is CSSAnimation =>
+        animation instanceof CSSAnimation && animation.animationName === 'rk-hide-front-face',
+    )
     expect(turn).toBeTruthy()
     expect(reveal).toBeTruthy()
+    expect(hide).toBeTruthy()
     expect(Math.abs(Number(turn!.startTime) - Number(reveal!.startTime))).toBeLessThan(2)
+    expect(Math.abs(Number(turn!.startTime) - Number(hide!.startTime))).toBeLessThan(2)
     turn!.pause()
     reveal!.pause()
-    await Promise.all([turn!.ready, reveal!.ready])
+    hide!.pause()
+    await Promise.all([turn!.ready, reveal!.ready, hide!.ready])
 
     const duration = Number(turn!.effect!.getTiming().duration)
     const edge = edgeTime(turn!, rack, duration)
@@ -112,29 +121,34 @@ async function expectFaceHandoff(patch: Patch, subjectId: string, subjectType: s
 
     turn!.currentTime = edge - margin
     reveal!.currentTime = edge - margin
+    hide!.currentTime = edge - margin
+    expect(getComputedStyle(front).opacity).toBe('1')
     expect(getComputedStyle(rear).opacity).toBe('0')
 
     turn!.currentTime = edge + margin
     reveal!.currentTime = edge + margin
+    hide!.currentTime = edge + margin
     expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeLessThan(0)
     expect(Number(turn!.currentTime)).toBeLessThan(duration)
+    expect(getComputedStyle(front).opacity).toBe('0')
     expect(getComputedStyle(rear).opacity).toBe('1')
 
     // Removing the flipped class is the reverse direction. It must not carry the front-to-back delay
     // back with it: the rear remains visible through the first half while it still faces us.
     turn!.currentTime = duration
     reveal!.currentTime = duration
+    hide!.currentTime = duration
     flushSync(() => useRack.getState().flip(false))
     await frame()
     expect(
-      rear
-        .getAnimations()
+      [...front.getAnimations(), ...rear.getAnimations()]
         .some(
           (animation) =>
             animation instanceof CSSAnimation &&
-            animation.animationName === 'rk-reveal-rear-face',
+            ['rk-hide-front-face', 'rk-reveal-rear-face'].includes(animation.animationName),
         ),
     ).toBe(false)
+    expect(getComputedStyle(front).opacity).toBe('1')
     expect(getComputedStyle(rear).opacity).toBe('1')
   } finally {
     flushSync(() => root.unmount())
