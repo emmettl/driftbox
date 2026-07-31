@@ -22,6 +22,7 @@ import {
   DriftboxEngine,
   GROOVEBOX_SECTIONS,
   Kaoss,
+  songBars,
   toWav,
 } from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono, waveformPeaks } from './sample.js'
@@ -123,15 +124,51 @@ export default function RackApp() {
   const hostedGroovebox = useRef<string | undefined>(undefined)
   /** Detach launch observations before replacing the hosted engine. */
   const grooveboxLaunchObserver = useRef<(() => void) | null>(null)
-  const bindGrooveboxLauncher = useCallback((hosted: DriftboxEngine | null) => {
+  const bindGrooveboxPerformance = useCallback((hosted: DriftboxEngine | null) => {
     grooveboxLaunchObserver.current?.()
     grooveboxLaunchObserver.current = null
 
     const state = useRack.getState()
     state.clearGrooveboxLaunches()
+    state.setGrooveboxLoop(null)
     state.setGrooveboxLauncher(
       hosted
         ? (section, patternId) => hosted.queueClip(section, patternId)
+        : null,
+    )
+    state.setGrooveboxTransport(
+      hosted
+        ? {
+            startAt: (bar) => {
+              const live = rack.current
+              if (!live) return false
+              const total = Math.max(1, songBars(hosted.song))
+              const start = Math.max(0, Math.min(total - 1, Math.floor(bar)))
+              const currentPatch = useRack.getState().patch
+              live.setTransport(
+                currentPatch.tempo ?? grooveboxSong(currentPatch)?.bpm ?? 120,
+                true,
+              )
+              useRack.getState().setRunning(true)
+              void hosted.startAt(start)
+              return true
+            },
+            setLoop: (start, bars) => {
+              const total = Math.max(1, songBars(hosted.song))
+              const loopStart = Math.max(0, Math.min(total - 1, Math.floor(start)))
+              const loopBars = Math.max(
+                1,
+                Math.min(total - loopStart, Math.floor(bars)),
+              )
+              hosted.setLoop(loopStart, loopBars)
+              useRack.getState().setGrooveboxLoop({ start: loopStart, bars: loopBars })
+              return true
+            },
+            clearLoop: () => {
+              hosted.clearLoop()
+              useRack.getState().setGrooveboxLoop(null)
+            },
+          }
         : null,
     )
     if (hosted) {
@@ -558,7 +595,7 @@ export default function RackApp() {
       return
     }
 
-    bindGrooveboxLauncher(null)
+    bindGrooveboxPerformance(null)
     current?.dispose()
     groovebox.current = null
     if (!retainedSong) return
@@ -568,10 +605,10 @@ export default function RackApp() {
       destination: pad.input,
     })
     groovebox.current = hosted
-    bindGrooveboxLauncher(hosted)
+    bindGrooveboxPerformance(hosted)
     routeGrooveboxSources(hosted, live, useRack.getState().patch)
     if (playing) void hosted.start()
-  }, [bindGrooveboxLauncher, patch.groovebox, patch.tempo, playing, retainedSong])
+  }, [bindGrooveboxPerformance, patch.groovebox, patch.tempo, playing, retainedSong])
 
   /**
    * Render the patch to a WAV and hand it over.
@@ -792,7 +829,7 @@ export default function RackApp() {
       : null
     groovebox.current = hosted
     hostedGroovebox.current = currentPatch.groovebox
-    bindGrooveboxLauncher(hosted)
+    bindGrooveboxPerformance(hosted)
 
     const scope = ctx.createAnalyser()
     scope.fftSize = 2048
@@ -824,7 +861,7 @@ export default function RackApp() {
     // has been rendered into it — so the gesture that starts audio is also the one that fills the Sampler.
     const wanted = useRack.getState().patch.break ?? opening.current?.preset?.needsBreak
     if (wanted) void loadBreakRef.current(wanted)
-  }, [bindGrooveboxLauncher, connectAudioInput, setRunning])
+  }, [bindGrooveboxPerformance, connectAudioInput, setRunning])
 
 
   /**
@@ -860,10 +897,10 @@ export default function RackApp() {
     () => () => {
       midi.current?.close()
       audioInput.current?.close()
-      bindGrooveboxLauncher(null)
+      bindGrooveboxPerformance(null)
       groovebox.current?.dispose()
     },
-    [bindGrooveboxLauncher],
+    [bindGrooveboxPerformance],
   )
 
   // The keyboards have to agree with the graph about how many voices there are, or a note lands on a voice

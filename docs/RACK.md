@@ -100,7 +100,10 @@ enters undo history or changes a groovebox-compatible document into a rack exten
 The same contextual editor exposes all six authored controls for the selected 808/909
 voice and all eight controls for either 303. These update the retained kit in place, so
 the shared engine applies them to following hits without rebuilding the rack or replacing
-the instrument with generic modules.
+the instrument with generic modules. The device also exposes the hosted transport directly:
+the selected arrangement section can start or loop, and an arbitrary whole-bar range can
+cross section boundaries. Seeking wakes and starts the rack transport with the song; loop
+selection remains session-only and never changes the retained envelope.
 
 ## What this is not
 

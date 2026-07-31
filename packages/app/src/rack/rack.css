@@ -1618,7 +1618,8 @@ kbd {
 
 .rk-groovebox-page button,
 .rk-groovebox-bass button,
-.rk-groovebox-live button {
+.rk-groovebox-live button,
+.rk-groovebox-transport button {
   min-width: 24px;
   height: 24px;
   padding: 0 5px;
@@ -1727,6 +1728,41 @@ kbd {
 }
 
 .rk-groovebox-live button:first-child:not(:disabled) {
+  color: #07120f;
+  background: var(--nine);
+  border-color: #cffff2;
+}
+
+.rk-groovebox-transport {
+  display: flex;
+  align-items: end;
+  gap: 5px;
+  min-height: 27px;
+  color: var(--dim);
+  font: 7px var(--mono);
+}
+
+.rk-groovebox-transport label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rk-groovebox-transport input {
+  box-sizing: border-box;
+  width: 40px;
+  height: 24px;
+  padding: 2px 4px;
+  color: var(--ink);
+  background: rgba(7, 4, 15, 0.75);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-transport button[aria-pressed='true'] {
   color: #07120f;
   background: var(--nine);
   border-color: #cffff2;
