@@ -1,7 +1,9 @@
 import {
   ALL_VOICES,
   DEFAULT_BASS_PARAMS,
+  DEFAULT_FX,
   DEFAULT_PARAMS,
+  DEFAULT_SENDS,
   GROOVEBOX_SECTIONS,
   REST,
   alterBassLine,
@@ -10,6 +12,7 @@ import {
   chainBarAt,
   cycleStep,
   decodeSong,
+  delayDivision,
   flamAt,
   randomizeBassLine,
   randomizeTrack,
@@ -18,11 +21,14 @@ import {
   setBassStep,
   songBars,
   stepAt,
+  swingFor,
   toggleFlam,
   transposeBassLine,
   type BassParams,
+  type FxParams,
   type GrooveboxSection,
   type Pattern,
+  type SendLevels,
   type VoiceParams,
 } from '@driftbox/engine'
 import { GROOVEBOX_PORTS } from '@driftbox/rack'
@@ -91,6 +97,23 @@ const BASS_KNOBS: readonly { key: keyof BassParams; label: string }[] = [
   { key: 'level', label: 'Level' },
 ]
 
+const SEND_KNOBS: readonly { key: keyof SendLevels; label: string }[] = [
+  { key: 'delay', label: 'Delay' },
+  { key: 'reverb', label: 'Reverb' },
+]
+
+const FX_KNOBS: readonly {
+  key: keyof FxParams
+  label: string
+  format: (value: number) => string
+}[] = [
+  { key: 'delayTime', label: 'Time', format: (value) => `${delayDivision(value)}/16` },
+  { key: 'delayFeedback', label: 'F.back', format: (value) => percent(value) },
+  { key: 'delayTone', label: 'FX Tone', format: (value) => percent(value) },
+  { key: 'reverbSize', label: 'Size', format: (value) => `${(0.3 + value * 3.5).toFixed(1)}s` },
+  { key: 'reverbDamping', label: 'Damp', format: (value) => percent(value) },
+]
+
 const percent = (value: number): string => `${Math.round(value * 100)}`
 const pan = (value: number): string => {
   const amount = Math.round((value - 0.5) * 200)
@@ -106,6 +129,9 @@ export function GrooveboxPatternEditor({
   setBassParam,
   setFlamWidth,
   setSwing,
+  setVoiceSwing,
+  setSend,
+  setFx,
   automationRecording = false,
   running = false,
   toggleAutomationRecording,
@@ -131,6 +157,9 @@ export function GrooveboxPatternEditor({
   ) => void
   setFlamWidth: (value: number) => void
   setSwing: (value: number) => void
+  setVoiceSwing: (voiceId: string, value: number) => void
+  setSend: (voiceId: string, key: keyof SendLevels, value: number) => void
+  setFx: (key: keyof FxParams, value: number) => void
   automationRecording?: boolean
   running?: boolean
   toggleAutomationRecording: () => void
@@ -216,6 +245,17 @@ export function GrooveboxPatternEditor({
   const bassParams = bass
     ? song.kit.bass?.[section] ?? DEFAULT_BASS_PARAMS
     : DEFAULT_BASS_PARAMS
+  const routingVoice = bass ? section : voice?.id
+  const routingName = bass ? sectionName(section) : voice?.name ?? sectionName(section)
+  const routingColour = bass ? '#ffb02e' : section === 'tr909' ? '#5ff0d0' : '#ff7ad9'
+  const sends = routingVoice
+    ? song.kit.sends?.[routingVoice] ?? DEFAULT_SENDS
+    : DEFAULT_SENDS
+  const swingOffset = routingVoice ? song.kit.swing?.[routingVoice] ?? 0.5 : 0.5
+  const effectiveSwing = routingVoice
+    ? Math.round(swingFor(song, routingVoice) * 100)
+    : Math.round(song.swing * 100)
+  const fx = song.fx ?? DEFAULT_FX
 
   const save = (next: Pattern, discrete = false) => {
     if (next !== pattern) setPattern(next, discrete)
@@ -645,6 +685,41 @@ export function GrooveboxPatternEditor({
             ))}
       </div>
 
+      {routingVoice && (
+        <div
+          className="rk-groovebox-mix"
+          aria-label={`${routingName} sends and shared effects`}
+        >
+          {SEND_KNOBS.map(({ key, label }) => (
+            <Knob
+              key={`send:${key}`}
+              label={label}
+              value={sends[key]}
+              colour={routingColour}
+              format={percent}
+              onChange={(value) => setSend(routingVoice, key, value)}
+            />
+          ))}
+          <Knob
+            label="Swing"
+            value={swingOffset}
+            colour={routingColour}
+            format={() => (swingOffset === 0.5 ? `· ${effectiveSwing}` : `${effectiveSwing}`)}
+            onChange={(value) => setVoiceSwing(routingVoice, value)}
+          />
+          {FX_KNOBS.map(({ key, label, format }) => (
+            <Knob
+              key={`fx:${key}`}
+              label={label}
+              value={fx[key]}
+              colour="#9d95c8"
+              format={format}
+              onChange={(value) => setFx(key, value)}
+            />
+          ))}
+        </div>
+      )}
+
       {bass && (
         <div className="rk-groovebox-bass" aria-label={`${sectionName(section)} selected step`}>
           <strong>Step {selected + 1}</strong>
@@ -741,6 +816,9 @@ function PatternEditor() {
   const setBassParam = useRack((state) => state.setGrooveboxBassParam)
   const setFlamWidth = useRack((state) => state.setGrooveboxFlamWidth)
   const setSwing = useRack((state) => state.setGrooveboxSwing)
+  const setVoiceSwing = useRack((state) => state.setGrooveboxVoiceSwing)
+  const setSend = useRack((state) => state.setGrooveboxSend)
+  const setFx = useRack((state) => state.setGrooveboxFx)
   const automationRecording = useRack((state) => state.grooveboxAutomationRecording)
   const running = useRack((state) => state.running)
   const toggleAutomationRecording = useRack(
@@ -760,6 +838,9 @@ function PatternEditor() {
       setBassParam={setBassParam}
       setFlamWidth={setFlamWidth}
       setSwing={setSwing}
+      setVoiceSwing={setVoiceSwing}
+      setSend={setSend}
+      setFx={setFx}
       automationRecording={automationRecording}
       running={running}
       toggleAutomationRecording={toggleAutomationRecording}
