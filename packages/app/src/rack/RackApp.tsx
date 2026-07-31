@@ -11,6 +11,7 @@ import {
   type Patch,
 } from '@driftbox/rack'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
@@ -211,6 +212,41 @@ export default function RackApp() {
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
+  /**
+   * Move between the three arrangements with one shared-element transition when the browser can do it.
+   *
+   * Split → Pad is the important case: the browser snapshots the *same* pad before and after the state
+   * change, so its real 480px square grows into the full performance surface instead of one pad fading out
+   * while another fades in. Pad → Rack has no shared surface, but the named old pad and new rack let CSS
+   * choreograph a hand-off. Rack → Split keeps its existing lightweight CSS entrance.
+   */
+  const cycleRackView = useCallback(() => {
+    const next: RackView = rackView === 'rack' ? 'split' : rackView === 'split' ? 'pad' : 'rack'
+    const update = () => {
+      setRackView(next)
+      setAdding(false)
+      setBrowsing(false)
+    }
+
+    if (
+      rackView === 'rack' ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+      !document.startViewTransition
+    ) {
+      update()
+      return
+    }
+
+    const motion = `${rackView}-${next}`
+    const root = document.documentElement
+    root.dataset.rackViewTransition = motion
+    const transition = document.startViewTransition(() => flushSync(update))
+    void transition.finished
+      .finally(() => {
+        if (root.dataset.rackViewTransition === motion) delete root.dataset.rackViewTransition
+      })
+      .catch(() => {})
+  }, [rackView])
   /** Which break is loaded, by id as well as name — the id so an export can render it again.
    *  Keeping the audio itself would mean holding about 700kB for the life of the page, and `setData`
    *  transfers the array away anyway, so there is nothing left on this side to keep. */
@@ -1071,11 +1107,7 @@ export default function RackApp() {
             A custom filled style put teal text on a teal background and the label vanished. */}
         <button
           type="button"
-          onClick={() => {
-            setRackView((view) => (view === 'rack' ? 'split' : view === 'split' ? 'pad' : 'rack'))
-            setAdding(false)
-            setBrowsing(false)
-          }}
+          onClick={cycleRackView}
           aria-pressed={performing}
           aria-label={`View: ${rackView}. Cycle through rack, split performance, and full pad.`}
           title="Cycle view: Rack → Split → Pad"
