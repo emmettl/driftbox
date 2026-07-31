@@ -28,18 +28,24 @@ interface CablePathsProps {
   all: Jack[]
   cables: PatchCable[]
   delayed: Set<string>
+  /** Cables whose source is stereo and whose destination is not, keyed as `from>to`. */
+  folded: Set<string>
   swing: ReturnType<typeof useSwing>
   disconnect?: (cable: PatchCable) => void
 }
 
 /** The drawn leads, kept separate from the panel furniture so their geometry has one implementation. */
-export function CablePaths({ all, cables, delayed, swing, disconnect }: CablePathsProps) {
+export function CablePaths({ all, cables, delayed, folded, swing, disconnect }: CablePathsProps) {
   return cables.map((cable) => {
     const from = jackAt(all, cable.from[0], cable.from[1])
     const to = jackAt(all, cable.to[0], cable.to[1])
     if (!from || !to) return null
     const key = `${cable.from.join('.')}>${cable.to.join('.')}`
     const isDelayed = delayed.has(cable.to[0])
+    // Keyed by the cable rather than by its destination module, unlike `delayed`. A fold is a fact about
+    // one connection — a module can take a stereo pair on one inlet and a folded one on another — whereas a
+    // delayed cable is reported against the module the compiler had to run out of order.
+    const isFolded = folded.has(key)
     const angle =
       swing.elapsed === null
         ? 0
@@ -48,7 +54,12 @@ export function CablePaths({ all, cables, delayed, swing, disconnect }: CablePat
     const d = cablePath(from, to, angle)
 
     return (
-      <g key={key} className={isDelayed ? 'rk-cable rk-cable-delayed' : 'rk-cable'}>
+      <g
+        key={key}
+        className={['rk-cable', isDelayed ? 'rk-cable-delayed' : '', isFolded ? 'rk-cable-folded' : '']
+          .filter(Boolean)
+          .join(' ')}
+      >
         <path className="rk-cable-shadow" d={d} />
         <path className="rk-cable-line" d={d} />
         {disconnect && (
@@ -62,7 +73,9 @@ export function CablePaths({ all, cables, delayed, swing, disconnect }: CablePat
               disconnect(cable)
             }}
           >
-            <title>{`${cable.from.join('.')} → ${cable.to.join('.')} — click to unpatch`}</title>
+            <title>{`${cable.from.join('.')} → ${cable.to.join('.')}${
+              isFolded ? ' — mono: the left channel only' : ''
+            } — click to unpatch`}</title>
           </circle>
         )}
       </g>
@@ -189,6 +202,15 @@ export function BackPanel({ layout }: Props) {
   const delayed = new Set(
     notes.flatMap((note) => (note.kind === 'delayed' && note.module ? [note.module] : [])),
   )
+  // A stereo outlet reaching a mono inlet loses its right channel. The compiler decides it and says so;
+  // drawing it is the other half of that bargain, and it is the same one the delayed cables strike.
+  const folded = new Set(
+    notes.flatMap((note) =>
+      note.kind === 'mono-fold' && note.cable
+        ? [`${note.cable.from.join('.')}>${note.cable.to.join('.')}`]
+        : [],
+    ),
+  )
 
   return (
     <div className="rk-back" data-dragging={dragging ? `${dragging.from.module}.${dragging.from.port}` : ''}>
@@ -226,6 +248,7 @@ export function BackPanel({ layout }: Props) {
           all={all}
           cables={patch.cables}
           delayed={delayed}
+          folded={folded}
           swing={swing}
           disconnect={disconnect}
         />
@@ -250,6 +273,9 @@ export function BackPanel({ layout }: Props) {
             className={[
               'rk-jack',
               jack.kind === 'in' ? 'rk-jack-in' : 'rk-jack-out',
+              // One jack, two channels. Drawn with a second ring rather than a second hole, because it is
+              // one connection: a stereo cable is dragged, snapped and pulled out exactly like a mono one.
+              jack.stereo ? 'rk-jack-stereo' : '',
               // The jack a release would land on, highlighted. Feedback rather than decoration: with
               // snapping, where the cable ends is not always exactly where the pointer is, and on a
               // touchscreen the finger is covering the answer.
@@ -260,7 +286,7 @@ export function BackPanel({ layout }: Props) {
               .join(' ')}
             tabIndex={0}
             role="button"
-            aria-label={`${jack.module} ${jack.name} ${jack.kind === 'in' ? 'input' : 'output'}${
+            aria-label={`${jack.module} ${jack.name} ${jack.stereo ? 'stereo ' : ''}${jack.kind === 'in' ? 'input' : 'output'}${
               armed ? `, press Enter to patch from ${armed.module} ${armed.name}` : ''
             }`}
             onKeyDown={(event) => onJackKey(event, jack)}
@@ -277,6 +303,9 @@ export function BackPanel({ layout }: Props) {
                 hopeless for a thumb, and the drag has to start reliably or patching feels broken. */}
             <circle className="rk-jack-hit" cx={jack.x} cy={jack.y} r="16" />
             <circle className="rk-jack-ring" cx={jack.x} cy={jack.y} r="10" />
+            {jack.stereo && (
+              <circle className="rk-jack-collar" cx={jack.x} cy={jack.y} r="13.5" />
+            )}
             <circle className="rk-jack-hole" cx={jack.x} cy={jack.y} r="4" />
             <text
               className="rk-jack-label"

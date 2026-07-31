@@ -75,6 +75,8 @@ export class Graph {
    */
   private outputs: {
     signal: Float32Array
+    /** The right channel, for a terminal module whose outlet is stereo. Null means `signal` is both. */
+    right: Float32Array | null
     pan: Float32Array | null
     mute: Float32Array | null
     solo: Float32Array | null
@@ -196,10 +198,14 @@ export class Graph {
   /**
    * Sum the rack into the channels it was handed, panned and limited.
    *
-   * **Cables are still mono.** Stereo goes exactly as far as placing each terminal module in the field and
-   * no further, which is the trade `docs/DNB.md` argues for: two chains hard-panned gives a Reese that
-   * actually phases, and it costs no change to any module. Full stereo cables would double every buffer and
-   * make every module answer what it means to filter a stereo signal.
+   * **A cable carries whatever its source port declares.** This used to say cables were mono and that
+   * making them stereo "would double every buffer and make every module answer what it means to filter a
+   * stereo signal". Neither turned out to be the price, because stereo is declared per PORT rather than per
+   * cable: a module that says nothing owns one buffer and sees one, exactly as before, and only the ports
+   * that opt in cost a second. See `stereo.ts` for the three connection rules.
+   *
+   * Placing a mono terminal in the field is still what a mono terminal does, and `docs/DNB.md`'s argument
+   * for it — two chains hard-panned give a Reese that actually phases — is untouched.
    *
    * The pan law is **balance, not equal-power.** Equal-power puts centre at 0.707 on both channels, which
    * would have made every patch shared before this quietly 3dB quieter. Balance leaves centre at unity, so
@@ -299,18 +305,24 @@ export class Graph {
         // zero afterwards, which is the same answer and less work.
         if (output.mute !== null && output.mute[i] >= 0.5) continue
         if (soloed && !(output.solo !== null && output.solo[i] >= 0.5)) continue
+        // A mono terminal is one sample placed in the field; a stereo one is a pair already in it. The
+        // arithmetic below is the same either way — which is the point of reading the right channel here
+        // rather than giving the mix loop a second branch per sample.
         const sample = output.signal[i]
+        const other = output.right === null ? sample : output.right[i]
         if (output.pan === null) {
           left += sample
-          rightSum += sample
+          rightSum += other
           continue
         }
         let pan = output.pan[i]
         if (pan < -1) pan = -1
         else if (pan > 1) pan = 1
-        // Balance: unity on both at centre, so no pan is no change.
+        // Balance: unity on both at centre, so no pan is no change. On a stereo pair this attenuates one
+        // side rather than moving a point source, which is what a pan control on a stereo channel does on
+        // every mixer ever built — and it is why the knob keeps its name instead of gaining a second one.
         left += pan <= 0 ? sample : sample * (1 - pan)
-        rightSum += pan >= 0 ? sample : sample * (1 + pan)
+        rightSum += pan >= 0 ? other : other * (1 + pan)
       }
 
       // A modular can produce an infinity — patching an output back into its own input is
@@ -515,6 +527,9 @@ export class Graph {
     for (const output of plan.outputs) {
       if (output.buffer <= 0) continue
       const voices = this.buffers[output.buffer] ?? []
+      // The right channel is a second buffer of the same width, so it is indexed by voice exactly as the
+      // left one is. A plan from a build without stereo has no `right` at all, which reads as mono.
+      const rights = output.right === null || output.right <= 0 ? null : this.buffers[output.right]
       const pan = output.pan === null ? null : this.paramBuffers[output.pan]
       const mute = output.mute === null ? null : this.paramBuffers[output.mute]
       const solo = output.solo === null ? null : this.paramBuffers[output.solo]
@@ -523,6 +538,7 @@ export class Graph {
       for (let voice = 0; voice < voices.length; voice++) {
         this.outputs.push({
           signal: voices[voice],
+          right: rights ? (rights[voice] ?? rights[0] ?? null) : null,
           pan: at(pan, voice),
           mute: at(mute, voice),
           solo: at(solo, voice),

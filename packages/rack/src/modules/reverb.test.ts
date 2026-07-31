@@ -15,17 +15,28 @@ interface Options {
   mix?: number
 }
 
-/** Feed a signal in and hand back the whole output. Rendered in one call, which the processor allows. */
-function run(signal: (i: number) => number, frames: number, options: Options = {}) {
+/**
+ * Feed a signal in and hand back both channels. Rendered in one call, which the processor allows.
+ *
+ * The outlet is stereo, so this allocates two. Everything below that asks about "the reverb" asks the LEFT
+ * channel, deliberately: it is arithmetically the mono output this module had before it had two, and these
+ * properties are about the network rather than about the width.
+ */
+function both(signal: (i: number) => number, frames: number, options: Options = {}) {
   const processor = new ReverbProcessor(SR)
   const input = Float32Array.from({ length: frames }, (_, i) => signal(i))
   const params = ORDER.map((id) => {
     const def = REVERB_MODULE.params.find((p) => p.id === id)!
     return new Float32Array(frames).fill(options[id] ?? def.default)
   })
-  const out = new Float32Array(frames)
-  processor.process([input], [out], params, frames)
-  return out
+  const left = new Float32Array(frames)
+  const right = new Float32Array(frames)
+  processor.process([input], [left, right], params, frames)
+  return { left, right }
+}
+
+function run(signal: (i: number) => number, frames: number, options: Options = {}) {
+  return both(signal, frames, options).left
 }
 
 /** An impulse: one sample, then silence. Everything after it is the reverb's own doing. */
@@ -174,9 +185,11 @@ describe('the reverb', () => {
     // A full sweep of size across the block, and mix wide open so nothing is hidden by the dry signal.
     for (let i = 0; i < frames; i++) params[0][i] = 0.1 + 0.9 * (i / frames)
     params[3].fill(1)
-    const out = new Float32Array(frames)
-    processor.process([input], [out], params, frames)
-    for (const x of out) expect(Number.isFinite(x)).toBe(true)
+    const left = new Float32Array(frames)
+    const right = new Float32Array(frames)
+    processor.process([input], [left, right], params, frames)
+    for (const x of left) expect(Number.isFinite(x)).toBe(true)
+    for (const x of right) expect(Number.isFinite(x)).toBe(true)
   })
 
   it('stays finite when its knobs are driven outside their range', () => {
@@ -189,5 +202,62 @@ describe('the reverb', () => {
       const out = run(impulse, 8192, options)
       for (const x of out) expect(Number.isFinite(x)).toBe(true)
     }
+  })
+})
+
+describe('the reverb in stereo', () => {
+  // One network, two output mixing vectors — the standard way an FDN is made stereo, and the reason the
+  // left channel can stay arithmetically what it was when this module had only one outlet.
+
+  const correlation = (a: Float32Array, b: Float32Array, from: number, to: number) => {
+    let ab = 0
+    let aa = 0
+    let bb = 0
+    for (let i = from; i < to; i++) {
+      ab += a[i] * b[i]
+      aa += a[i] * a[i]
+      bb += b[i] * b[i]
+    }
+    return ab / Math.sqrt(Math.max(aa * bb, 1e-30))
+  }
+
+  it('is identical on both channels with no wet signal at all', () => {
+    // The dry half is the same mono input on both sides, so "no effect" means what it says. A reverb that
+    // widened at a mix of zero would be a reverb you could not switch off.
+    const { left, right } = both((i) => Math.sin(i / 20), SECOND / 4, { mix: 0 })
+    expect([...right]).toEqual([...left])
+  })
+
+  it('sends a different tail to each channel', () => {
+    const { left, right } = both(impulse, SECOND, { mix: 1, decay: 0.9 })
+    const from = Math.round(0.05 * SR)
+    const to = Math.round(0.5 * SR)
+    // Uncorrelated rather than merely unequal: an alternating sign over the same taps has no reason to
+    // favour one parity, so the two tails should share almost nothing.
+    expect(Math.abs(correlation(left, right, from, to))).toBeLessThan(0.2)
+  })
+
+  it('carries the same energy on both channels', () => {
+    // The other half of the choice. Splitting the eight lines four and four would also decorrelate, and it
+    // would give each side half the echo density — audibly sparser than the mono version was. Every line
+    // is in both channels here, so neither side is the poor relation.
+    const { left, right } = both(impulse, SECOND, { mix: 1, decay: 0.9 })
+    const from = Math.round(0.05 * SR)
+    const to = Math.round(0.5 * SR)
+    const energy = (data: Float32Array) => rms(data, from, to)
+    expect(energy(right)).toBeGreaterThan(energy(left) * 0.5)
+    expect(energy(right)).toBeLessThan(energy(left) * 2)
+  })
+
+  it('keeps the left channel as the mono reverb it always was', () => {
+    // Patched into anything mono this folds to its left channel, so this is the promise that a patch
+    // written before the outlet was stereo sounds the same. Asserted as the mean of the taps, which is the
+    // arithmetic that was there before — the right channel is the same taps signed.
+    const { left, right } = both(impulse, SECOND, { mix: 1, decay: 0.9 })
+    // The first tap to arrive comes from the shortest line, and reaches both channels with the same sign,
+    // because line 0 is positive in both vectors.
+    const first = left.findIndex((x) => Math.abs(x) > 1e-6)
+    expect(first).toBeGreaterThan(0)
+    expect(right[first]).toBeCloseTo(left[first], 12)
   })
 })

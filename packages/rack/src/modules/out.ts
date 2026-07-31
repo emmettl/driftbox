@@ -10,14 +10,21 @@ import type { ModuleDef, Processor } from '../types.js'
 // It still has a real outlet, which means it can be patched onward like anything else — an
 // Out feeding a Delay feeding another Out is a legal patch and does what it looks like.
 //
-// **Pan lives here and is applied by the Graph, not by this processor.** A module's outlets are mono and
-// staying that way — see the note on `process` in `graph.ts` — so this module cannot place itself in the
-// field even if it wanted to. What it does instead is declare `terminalPan`, and the Graph reads that
-// param's buffer when it sums the terminal outlets. The pan law then lives in exactly one place, which is
-// what it should be: it is a property of the mix, not of the module.
+// **Both its ports are stereo, and this is the module that had to be first.** Everything upstream can be as
+// stereo as it likes and none of it is audible until the end of the rack can take a pair. A mono cable into
+// a stereo inlet feeds both channels — `stereo.ts` has the three rules — so every patch written before this
+// arrives centred and sounds exactly as it did.
 //
-// The `Thru` outlet stays MONO and pre-pan. It is a patch cable, and a patch cable in this rack carries one
-// signal; a Thru that quietly carried only the left half would be a trap.
+// **Pan lives here and is applied by the Graph, not by this processor.** What this declares is
+// `terminalPan`, and the Graph reads that param's buffer when it sums the terminal outlets, so the pan law
+// lives in exactly one place. On a mono signal that is placement; on a stereo pair the same arithmetic is
+// balance, which is what a pan control on a stereo channel means on any mixer. One knob, one name, and no
+// second control that only sometimes applies.
+//
+// The `Thru` outlet is stereo too, and pre-pan. It was mono when nothing could carry a pair, with a note
+// here saying a Thru that quietly carried only the left half would be a trap — which was right, and the fix
+// was never to make the Thru mono for ever. Patched into something mono it folds to its left channel, and
+// the compiler says so in `plan.notes`.
 //
 // This class is SELF-CONTAINED — see the comment in `worklet.ts`.
 
@@ -28,10 +35,17 @@ export class OutProcessor implements Processor {
     params: Float32Array[],
     frames: number,
   ): void {
-    const input = inlets[0]
-    const out = outlets[0]
+    // Two slots per stereo port, in declaration order: in-left, in-right, then out-left, out-right.
+    const left = inlets[0]
+    const right = inlets[1]
+    const outLeft = outlets[0]
+    const outRight = outlets[1]
     const level = params[0]
-    for (let i = 0; i < frames; i++) out[i] = input[i] * level[i]
+    for (let i = 0; i < frames; i++) {
+      const gain = level[i]
+      outLeft[i] = left[i] * gain
+      outRight[i] = right[i] * gain
+    }
   }
 }
 
@@ -50,8 +64,10 @@ export const OUT_MODULE: ModuleDef = {
       'M18 16v8',
     ],
   },
-  inlets: [{ id: 'in', name: 'In' }],
-  outlets: [{ id: 'out', name: 'Thru' }],
+  // Stereo, and the ids are unchanged — which is the whole reason adding a channel is safe. Cables name
+  // ports, so widening one moves no cable; renaming one would silently rewire every patch that used it.
+  inlets: [{ id: 'in', name: 'In', stereo: true }],
+  outlets: [{ id: 'out', name: 'Thru', stereo: true }],
   params: [
     { id: 'level', name: 'Level', min: 0, max: 1, default: 0.7 },
     // Centre by default, which is what every Out was before stereo existed — so a patch shared before this

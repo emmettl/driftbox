@@ -1450,6 +1450,25 @@ kbd {
 .rk-jack-out .rk-jack-ring {
   stroke: var(--three);
 }
+/* Two channels on one jack. A second ring outside the first, which reads as "more of the same signal"
+   rather than as a different kind of jack — because it is not one: a stereo cable is dragged, snapped and
+   pulled out exactly like a mono one. */
+.rk-jack-stereo .rk-jack-ring {
+  stroke-width: 2.5;
+}
+.rk-jack-stereo .rk-jack-collar {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  opacity: 0.55;
+}
+.rk-jack-stereo.rk-jack-in .rk-jack-collar {
+  stroke: var(--nine);
+}
+.rk-jack-stereo.rk-jack-out .rk-jack-collar {
+  stroke: var(--three);
+}
+
 .rk-jack:hover .rk-jack-ring {
   fill: #2a1f4a;
   stroke-width: 2.5;
@@ -1529,6 +1548,13 @@ kbd {
  * silently behaves unlike its picture is worse than one that admits it. */
 .rk-cable-delayed .rk-cable-line {
   stroke-dasharray: 9 6;
+}
+
+/* A stereo outlet reaching a mono inlet: the right channel is not heard. Thinner rather than dashed, so a
+   cable that is both delayed and folded still reads as delayed — the dash is the louder fact. */
+.rk-cable-folded .rk-cable-line {
+  stroke-width: 2;
+  opacity: 0.75;
 }
 
 .rk-cable-live {

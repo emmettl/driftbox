@@ -72,10 +72,12 @@ should say so plainly rather than silently sharing a broken link.
 by somebody who can be accountable for having read them, and a wrong one here is published under a real name
 with an attestation attached. If a specific CC0 pack is chosen and checked, wiring it in is an afternoon.
 
-**Stereo goes as far as a pan on the Out and no further, for now.** Cables stay mono; the Out gains a pan per
-voice. Two chains hard-panned gives a Reese that actually phases, which is most of the point, and it costs no
-change to any module. Full stereo cables would double every buffer and make every module answer "what does it
-mean to filter a stereo signal" — worth doing later, from evidence, not now.
+**~~Stereo goes as far as a pan on the Out and no further, for now.~~** Two chains hard-panned gives a Reese
+that actually phases, which was most of the point and cost no change to any module — and that half still
+stands. What this said next was that full stereo cables "would double every buffer and make every module
+answer what it means to filter a stereo signal", and neither turned out to be the price: stereo is declared
+per **port**, so a module that says nothing owns one buffer and sees one exactly as before. See
+`packages/rack/src/stereo.ts` and [REASON-GAP.md](REASON-GAP.md).
 
 **A new sequencer module, reusing the engine's notation and not its machinery.** The valuable, reusable part is
 `songs/notation.ts` — `X` accent, `x` normal, `.` rest, spaces for grouping — because it makes a shipped pattern

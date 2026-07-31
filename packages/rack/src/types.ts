@@ -9,6 +9,18 @@
 export interface Port {
   id: string
   name: string
+  /**
+   * This port carries two channels rather than one, and owns two consecutive buffers.
+   *
+   * Absent means mono, which is what every port was before stereo existed — so a module that says nothing
+   * behaves exactly as it did. See `stereo.ts` for the three connection rules and why a mono destination
+   * takes the left channel rather than the sum.
+   *
+   * A processor sees this as slots, not as ports: a def declaring `[in(stereo), cv]` hands `process` three
+   * inlet buffers — left, right, cv. Declaring it is therefore a change to the module's own indexing and
+   * nothing else, and adding it to a port does NOT rename that port, so no existing cable moves.
+   */
+  stereo?: boolean
 }
 
 export interface ParamDef {
@@ -423,8 +435,13 @@ export interface PlanNode {
  * module type this build has never seen from needing one.
  */
 export interface PlanOutput {
-  /** Buffer to sum into the mix. */
+  /** Buffer to sum into the mix. The left channel when `right` is set, and the whole signal otherwise. */
   buffer: number
+  /**
+   * The right channel's buffer, for a terminal module whose first outlet is stereo. Null for a mono one,
+   * which is then panned into the field exactly as it was before stereo existed.
+   */
+  right: number | null
   /** Param slot carrying pan: −1 hard left, +1 hard right. */
   pan: number | null
   /** Param slot carrying mute, and one carrying solo. Both read as "above a half means yes". */
@@ -453,6 +470,8 @@ export interface PlanNote {
     | 'replaced-cable'
     | 'duplicate-module'
     | 'migration-failed'
+    /** A stereo outlet reaching a mono inlet: the left channel is heard and the right is not. */
+    | 'mono-fold'
   detail: string
   module?: string
   cable?: PatchCable

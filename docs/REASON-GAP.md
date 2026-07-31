@@ -14,27 +14,41 @@ modules" is a different piece of work from "nothing here can do that".
 
 Ordered by what it costs to do them *later* rather than by how much they are wanted.
 
-### 1. Cables are mono
+### 1. ~~Cables are mono~~ — landed
 
-`graph.ts` says so plainly, and the reasoning it gives is sound for the time it was written:
+`graph.ts` used to say so plainly, and gave a reason that sounded like a cost nobody would pay:
 
-> **Cables are still mono.** Stereo goes exactly as far as placing each terminal module in the
-> field […] Full stereo cables would double every buffer and make every module answer what it
-> means to filter a stereo signal.
+> Full stereo cables would double every buffer and make every module answer what it means to
+> filter a stereo signal.
 
-Reason is stereo end to end. Every device has a left and a right, and the ones that do not —
-CV — are visibly different jacks. What the mono decision costs is not width on the master, which
-`Out.pan` gives; it is every device whose *point* is what it does between the two channels: a
-ping-pong delay, a reverb that decorrelates, a chorus that widens, a stereo imager, a mid/side
-anything.
+**Neither was the price, because stereo is declared per port rather than per cable.** A port that
+says nothing owns one buffer and its module sees one, exactly as before; a port that opts in owns
+two consecutive buffers and occupies two slots in its processor's arrays. Twenty-seven of the
+twenty-nine modules did not change at all, and no patch written before it moved a byte.
 
-It also now costs something the rack did not have when the decision was taken. The Groovebox
-source terminates four **stereo** pairs from the hosted engine, and the only way to carry one
-through a Ladder is two Ladders and a discipline about keeping their knobs equal. A pair that
-must be kept in step by hand is exactly the thing a cable is for.
+Three rules, all in `stereo.ts` and all total:
 
-This is first on the list because it is the only item here whose price rises with every module
-added. Twenty-nine modules each have to answer "what does this mean in stereo" once.
+| | |
+|---|---|
+| stereo → stereo | both channels, in order. The point of the feature |
+| mono → stereo | the one buffer feeds both channels, so a mono source is centred |
+| stereo → mono | the **left** channel, and the compiler records the fold in `plan.notes` |
+
+The last rule is Reason's — its jacks are labelled "L (Mono)" — and it is deliberately not a sum.
+A sum needs a scratch buffer and a copy per folded inlet every block, and it adds 6dB to any
+centred signal. The Mixer is one module away for anybody who wants it, and it is then visible in
+the patch.
+
+Two ports opted in first, and they are the pair that makes the feature audible rather than
+theoretical: **Out** (both ports, so the end of the rack can take a pair at all) and **Reverb**
+(a stereo tail out of a mono in, which is what a room is). The reverb's left channel is
+arithmetically what it was — one FDN, two output mixing vectors, the second being the same taps
+under an alternating sign — so folding it back to mono is unchanged sample for sample.
+
+What is still to come is the rest of the adopters: a ping-pong Delay, a stereo imager, and the
+Groovebox source's four pairs becoming four stereo jacks rather than eight mono ones. That last
+one waits on a port rename, which would move existing cables — adding a channel to a port is
+safe, renaming one is not.
 
 ### 2. Nothing records a parameter move
 
@@ -109,6 +123,10 @@ Ordered by return, not by how big Reason's version was.
   on its own. Here every voice is patched from VCO, SVF and ADSR. Polyphony landed at step 5b
   and nothing yet takes advantage of eight voices being eight *different* notes, because the
   patching cost is paid per voice-shaped patch rather than once.
+- **A stereo imager and a ping-pong delay.** Both were impossible before cables carried a pair
+  and are ordinary modules now. The Delay is the interesting one: making its existing ports
+  stereo would change what every patch using it sounds like, so it wants a second thought about
+  whether ping-pong is a mode or a module.
 - **A phaser.** Chorus and flanger are patchable and `delay.ts` says so in its header — a delay
   whose time an LFO sweeps. A phaser is not: it is a chain of allpass sections and there is no
   allpass anywhere.
@@ -145,7 +163,8 @@ Worth writing down so nobody builds them twice.
 ## The order
 
 1. ~~Undo.~~ Landed. Cheapest, and it makes everything after it safer to try.
-2. Stereo cables. Rising cost; do it before the module count rises again.
+2. ~~Stereo cables.~~ Landed, per port. The remaining adopters — a ping-pong Delay, an imager,
+   the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
 3. Recorded automation, once the ABI carries a frame.
 4. EQ, then a complete voice — the two the picker most obviously cannot offer anybody.
 5. The rack-wide table above, in whatever order the annoyance surfaces.

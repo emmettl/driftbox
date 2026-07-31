@@ -64,7 +64,8 @@ export class ReverbProcessor implements Processor {
     frames: number,
   ): void {
     const input = inlets[0]
-    const out = outlets[0]
+    const outLeft = outlets[0]
+    const outRight = outlets[1]
 
     const sizeParam = params[0]
     const decayParam = params[1]
@@ -116,6 +117,16 @@ export class ReverbProcessor implements Processor {
       const share = (2 * sum) / count
       const sample = input[i]
       let wet = 0
+      // The right channel's tail is the same taps under an alternating sign. **Two output mixing vectors
+      // over one network** is how an FDN is made stereo, and this pair is chosen so that the left channel
+      // is arithmetically what it was before this module had two: a patch that folds this back to mono, or
+      // one written before stereo existed, is unchanged sample for sample.
+      //
+      // Alternating signs rather than splitting the lines four and four. Both decorrelate, but a split
+      // gives each side half the lines and therefore half the echo density — audibly sparser on both sides
+      // than the mono version was. Signed, every line is in both channels at full density and the two are
+      // still uncorrelated, because the tap sequence has no reason to favour one parity.
+      let wetRight = 0
       for (let line = 0; line < count; line++) {
         const mixed = taps[line] - share
         // Damping in the feedback path, not on the output: it has to compound with each pass around the
@@ -126,15 +137,21 @@ export class ReverbProcessor implements Processor {
         write[line]++
         if (write[line] >= buffer.length) write[line] = 0
         wet += taps[line]
+        wetRight += line % 2 === 0 ? taps[line] : -taps[line]
       }
 
       // Divided by the line count, because N lines summed at full level is N times the input before the tail
       // has even started. This is the level that makes the mix knob mean what it says.
       wet /= count
+      wetRight /= count
       let mix = mixParam[i]
       if (mix < 0) mix = 0
       else if (mix > 1) mix = 1
-      out[i] = sample * (1 - mix) + wet * mix
+      // The dry half is the same mono input on both sides, so a dry reverb is centred rather than wide —
+      // and at mix 0 the two channels are identical, which is what "no effect" has to mean.
+      const dry = sample * (1 - mix)
+      outLeft[i] = dry + wet * mix
+      outRight[i] = dry + wetRight * mix
     }
   }
 }
@@ -155,7 +172,10 @@ export const REVERB_MODULE: ModuleDef = {
     ],
   },
   inlets: [{ id: 'in', name: 'In' }],
-  outlets: [{ id: 'out', name: 'Out' }],
+  // Stereo out of a mono in, which is what a room does: one source, two ears, two different arrival
+  // patterns. The id is unchanged, so no existing cable moves — and a cable from here into anything mono
+  // still carries exactly the signal it carried before.
+  outlets: [{ id: 'out', name: 'Out', stereo: true }],
   params: [
     { id: 'size', name: 'Size', min: 0.1, max: 1, default: 0.7 },
     { id: 'decay', name: 'Decay', min: 0, max: 0.98, default: 0.82 },

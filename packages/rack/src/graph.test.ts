@@ -585,9 +585,10 @@ describe('a patch made of the whole rack', () => {
 })
 
 describe('where the rack ends up in the stereo field', () => {
-  // Cables are mono and staying that way. Stereo goes exactly as far as placing each terminal module, which
-  // is the trade `docs/DNB.md` argues for: two chains hard-panned gives a Reese that actually phases, and it
-  // costs no change to any module.
+  // Placing a mono terminal in the field is what `docs/DNB.md` argues for: two chains hard-panned give a
+  // Reese that actually phases. A stereo terminal arrives as a pair instead, and the same pan knob then
+  // means balance — both cases are below, because the arithmetic is shared and a change to one is a change
+  // to the other.
 
   /** Render both channels, rather than only the left as `render` does. */
   const stereo = (patch: Patch, blocks = 3) => {
@@ -631,6 +632,43 @@ describe('where the rack ends up in the stereo field', () => {
     const { left, right } = stereo(panned(-0.5))
     expect(left).toBeCloseTo(0.5, 5)
     expect(right).toBeCloseTo(0.25, 5)
+  })
+
+  it('carries a stereo source to the two channels without mixing them', () => {
+    // The feature: one cable, two channels, different signals on each. Hard-panned Outs could already put
+    // two SOURCES apart; nothing could carry one source's own width.
+    const graph = graphFor({
+      modules: [
+        { id: 'rev', type: 'reverb', params: { mix: 1, decay: 0.9, size: 1 } },
+        { id: 'imp', type: 'clock', params: { rate: 2 } },
+        { id: 'out-1', type: 'out', params: { level: 1 } },
+      ],
+      cables: [
+        { from: ['imp', 'trig'], to: ['rev', 'in'] },
+        { from: ['rev', 'out'], to: ['out-1', 'in'] },
+      ],
+    })
+    const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+    let apart = 0
+    let energy = 0
+    for (let block = 0; block < 200; block++) {
+      graph.process(channels)
+      for (let i = 0; i < FRAMES; i++) {
+        apart += (channels[0][i] - channels[1][i]) ** 2
+        energy += channels[0][i] ** 2 + channels[1][i] ** 2
+      }
+    }
+    expect(energy).toBeGreaterThan(0)
+    // Not merely non-zero: genuinely different signals. Two identical channels would give zero here, which
+    // is exactly what this measured before the reverb's outlet became a pair.
+    expect(apart / energy).toBeGreaterThan(0.1)
+  })
+
+  it('still centres a mono source into a stereo inlet, at the level it always had', () => {
+    // Every patch written before stereo existed is this case. `wire` duplicates the one buffer, so both
+    // channels get it and the pan law then does what it always did.
+    const { left, right } = stereo(panned(0))
+    expect(left).toBeCloseTo(right, 10)
   })
 
   it('places two Outs independently, which is the whole point', () => {
