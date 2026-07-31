@@ -346,7 +346,7 @@ export default function RackApp() {
       load(result.patch)
       // A shipped patch is a named piece of work, not an anonymous graph. This matters most in Perform
       // mode, where the rack is hidden: before this, the hero demo's only visible identity became the
-      // sample it happened to load ("Chopper"), which made a complete song read like a break preset.
+      // sample it happened to load, which made a complete song read like a break preset.
       if (result.preset) setName(result.preset.name)
       // Recorded before anything is played, so an export straight off the page still has its drums.
       const wanted = result.patch.break ?? result.preset?.needsBreak

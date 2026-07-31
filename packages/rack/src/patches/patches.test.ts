@@ -220,7 +220,7 @@ describe('the hero song', () => {
     expect(arranger?.data?.repeats.reduce((sum, bars) => sum + bars, 0)).toBeGreaterThanOrEqual(32)
 
     const trackers = patch.modules.filter((module) => module.type === 'tracker')
-    expect(trackers.length).toBeGreaterThanOrEqual(2)
+    expect(trackers).toHaveLength(1)
     for (const tracker of trackers) {
       expect(Math.max(...Object.values(tracker.data ?? {}).map((lane) => lane.length))).toBe(
         (tracker.params?.length ?? 16) * 8,
@@ -230,9 +230,20 @@ describe('the hero song', () => {
 
   it('puts the rack-native signature devices in the composition', () => {
     const types = new Set(hero().modules.map((module) => module.type))
-    for (const type of ['sampler', 'arranger', 'combi', 'alligator', 'vocoder', 'compressor']) {
+    for (const type of ['sampler', 'arranger', 'combi', 'compressor', 'delay']) {
       expect(types, type).toContain(type)
     }
+  })
+
+  it('leaves room instead of arranging every showcase device at once', () => {
+    const patch = hero()
+    expect(patch.modules.length).toBeLessThanOrEqual(24)
+    expect(patch.cables.length).toBeLessThanOrEqual(30)
+    expect(patch.modules.some((module) => module.type === 'alligator')).toBe(false)
+    expect(patch.modules.some((module) => module.type === 'vocoder')).toBe(false)
+
+    const tracker = patch.modules.find((module) => module.type === 'tracker')!
+    expect(Object.keys(tracker.data ?? {})).toEqual(['lane1', 'lane2', 'lane3'])
   })
 
   it('has playable macro routing rather than an ornamental Combinator', () => {

@@ -359,27 +359,30 @@ shared copy.
 **D4. The record in the box.** ✅ Built: `Pressure System`.
 
 The first D&B patches were useful proofs and poor shop windows: one repeated bar, one trick each, everything
-present from the downbeat. `Pressure System` treats the rack like a song-making environment instead. One
-Arranger moves two eight-pattern Tracker banks through a 38-bar form: intro, lift, first drop, turn,
-breakdown, second drop, final and outro. Its 39 modules and 57 cables are not breadth for its own sake; the
-layers have different jobs and enter at different points:
+present from the downbeat. `Pressure System` treats the rack like a song-making environment instead. Its
+current cut is a 41-bar form—intro, groove, first drop, one-bar turn, breakdown, second drop, final and
+outro—driven by one Arranger and one eight-pattern Tracker.
 
-- the generated break is chopped, compressed and given only a short room;
-- a triangle sub carries the fundamental and ducks under the break;
-- detuned saws make the Reese, with a delayed right side for width and a sidechained compressor for space;
-- Alligator gates a parallel copy of that bass into a second rhythm;
-- three oscillators feed a Vocoder carrier while the break supplies its consonants, then delay and reverb
-  turn the result into the atmospheric pad.
+The first shipped cut tried to prove too much. It ran a busy chopped break, sub, Reese, three Alligator gates
+and a vocoder pad together; the default Weight macro opened nearly all of them. Listening supplied the verdict
+that the structural tests could not: *"too busy and chaotic."* The correction was subtraction, not a cleverer
+mix. The hero is now 24 modules and 30 cables rather than 39 and 57:
 
-The Combinator is the playable surface over the arrangement. Its four rotaries are Pressure, Space, Motion
-and Weight; four buttons change vocoder resolution and mute or thicken whole musical roles. Eighteen routes
-make those controls musical rather than exposing a wall of unrelated knobs.
+- the steadier Roller break mostly plays its slices in order, with one short fill in the whole form;
+- a triangle sub uses two-note phrases with real rests and ducks under the break;
+- the dark stereo Reese answers the sub in selected sections instead of becoming another constant rhythm;
+- the Alligator and vocoder are no longer automatically arranged into the hero.
+
+The Combinator remains the playable surface. Tone, Air, Width and Weight provide sixteen useful routes without
+adding another part; its buttons remove layers or deliberately roughen them. The default state is the pocket,
+and busyness is something a player may choose rather than something the demo imposes.
 
 The journey also closed two presentation gaps that a compile test could not reveal. A pristine shipped patch
 now recovers its title after storage or URL round-trip, while the header distinguishes the song from the
 break it loaded. And the hero has a real browser-audio render test: twelve bars must remain audible, the drop
-must lift above the intro, the stereo field must be meaningfully different, and the limiter must keep the
-peak in bounds. Those are guardrails, not a claim that a metric can replace listening.
+must lift above the intro without becoming a limiter-held wall, the stereo field must be meaningfully
+different, and the peak must stay in bounds. Those are guardrails, not a claim that a metric can replace
+listening—the second cut exists precisely because they cannot.
 
 ## Not in this plan
 

@@ -99,10 +99,10 @@ describe('editing the rack', () => {
   })
 
   it('allows several cables out of one outlet', () => {
-    // A split is free in the buffer model — one buffer read by three readers — so nothing should stop it.
+    // A split is free in the buffer model — one buffer read by two readers — so nothing should stop it.
     useRack.getState().connect(['adsr-1', 'out'], ['ladder-1', 'res'])
     const from = useRack.getState().patch.cables.filter((c) => c.from[0] === 'adsr-1')
-    expect(from.length).toBeGreaterThan(2)
+    expect(from).toHaveLength(2)
   })
 
   it('unpatches exactly the cable it was given', () => {
@@ -582,7 +582,7 @@ describe('writing a pattern', () => {
 
   it('is an empty array for a lane nothing has written', () => {
     // The hero's musical Tracker uses all four lanes; its second Tracker uses three for the Alligator.
-    expect(useRack.getState().lane('tracker-2', 3)).toEqual([])
+    expect(useRack.getState().lane('tracker-1', 3)).toEqual([])
     expect(useRack.getState().lane('nobody', 0)).toEqual([])
   })
 
