@@ -64,7 +64,7 @@ function edgeTime(turn: Animation, rack: HTMLElement, duration: number): number 
 
 describe('every module through a rack turn', () => {
   it.each(MODULE_LIST.map((def) => [def.type, def] as const))(
-    '%s keeps the rear cable hand-off at the edge',
+    '%s switches to the rear face at the edge',
     async (_type, def) => {
       const patch = patchFor(def)
       const geometry = layout(patch.modules, sizeFor(MODULES))
@@ -81,9 +81,11 @@ describe('every module through a rack turn', () => {
         const subject = rack.querySelector<HTMLElement>(
           `.rk-module[data-module-id='subject'][data-module-type='${def.type}']`,
         )
+        const rear = rack.querySelector<HTMLElement>('.rk-side-back')!
         const cable = rack.querySelector<SVGGElement>('.rk-cable')!
 
         expect(subject).toBeTruthy()
+        expect(rear).toBeTruthy()
         expect(cable).toBeTruthy()
 
         // Commit the unflipped style before changing state so the browser creates a real transition.
@@ -92,13 +94,14 @@ describe('every module through a rack turn', () => {
         await frame()
 
         const animations = rack.getAnimations()
+        expect(animations.some((animation) => animation instanceof CSSAnimation)).toBe(false)
         const turn = animations.find(
           (animation): animation is CSSTransition =>
             animation instanceof CSSTransition && animation.transitionProperty === 'transform',
         )
-        const reveal = animations.find(
+        const reveal = rear.getAnimations().find(
           (animation): animation is CSSAnimation =>
-            animation instanceof CSSAnimation && animation.animationName === 'rk-reveal-rear-cables',
+            animation instanceof CSSAnimation && animation.animationName === 'rk-reveal-rear-face',
         )
         expect(turn).toBeTruthy()
         expect(reveal).toBeTruthy()
@@ -111,30 +114,34 @@ describe('every module through a rack turn', () => {
         const edge = edgeTime(turn!, rack, duration)
         const margin = duration * 0.005
 
+        turn!.currentTime = edge - margin
         reveal!.currentTime = edge - margin
-        expect(getComputedStyle(cable).opacity).toBe('0')
+        expect(getComputedStyle(rear).visibility).toBe('hidden')
+        expect(getComputedStyle(cable).visibility).toBe('hidden')
 
         turn!.currentTime = edge + margin
         reveal!.currentTime = edge + margin
         expect(new DOMMatrixReadOnly(getComputedStyle(rack).transform).m11).toBeLessThan(0)
-        expect(getComputedStyle(cable).opacity).toBe('1')
+        expect(Number(turn!.currentTime)).toBeLessThan(duration)
+        expect(getComputedStyle(rear).visibility).toBe('visible')
+        expect(getComputedStyle(cable).visibility).toBe('visible')
 
         // Removing the flipped class is the reverse direction. It must not carry the front-to-back delay
-        // back with it: the cables remain visible through the first half while the rear face still faces us.
+        // back with it: the rear remains visible through the first half while it still faces us.
         turn!.currentTime = duration
         reveal!.currentTime = duration
         flushSync(() => useRack.getState().flip(false))
         await frame()
         expect(
-          rack
+          rear
             .getAnimations()
             .some(
               (animation) =>
                 animation instanceof CSSAnimation &&
-                animation.animationName === 'rk-reveal-rear-cables',
+                animation.animationName === 'rk-reveal-rear-face',
             ),
         ).toBe(false)
-        expect(getComputedStyle(cable).opacity).toBe('1')
+        expect(getComputedStyle(rear).visibility).toBe('visible')
       } finally {
         flushSync(() => root.unmount())
         host.remove()
