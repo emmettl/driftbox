@@ -907,25 +907,28 @@ export default function RackApp() {
       )}
 
       {adding && (
-        <Palette
-          onModule={(type) => {
-            addModule(type)
-            setAdding(false)
-          }}
-          onChunk={(chunk) => {
-            const added = addChunk(chunk)
-            setAdding(false)
-            // A Sampler with nothing in it is silent, so a chunk that needs one is offered whatever the
-            // patch is already holding. Same reasoning as `ensureSampler`: a freshly dropped thing has
-            // to make a sound.
-            if (chunk.needsSample && intendedBreak) {
-              const sampler = Object.entries(added.ids).find(
-                ([local]) => chunk.modules.find((m) => m.id === local)?.type === 'sampler',
-              )
-              if (sampler) void loadBreak(intendedBreak)
-            }
-          }}
-        />
+        <div className="rk-palette-layer">
+          <Palette
+            onClose={() => setAdding(false)}
+            onModule={(type) => {
+              addModule(type)
+              setAdding(false)
+            }}
+            onChunk={(chunk) => {
+              const added = addChunk(chunk)
+              setAdding(false)
+              // A Sampler with nothing in it is silent, so a chunk that needs one is offered whatever the
+              // patch is already holding. Same reasoning as `ensureSampler`: a freshly dropped thing has
+              // to make a sound.
+              if (chunk.needsSample && intendedBreak) {
+                const sampler = Object.entries(added.ids).find(
+                  ([local]) => chunk.modules.find((m) => m.id === local)?.type === 'sampler',
+                )
+                if (sampler) void loadBreak(intendedBreak)
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* `onLoadBreak` is always passed now, not only once audio has started: `loadBreak` records which
