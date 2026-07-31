@@ -120,6 +120,27 @@ export interface Processor {
      */
     hostInputs?: Float32Array[][],
   ): void
+  /**
+   * A low-rate visual reading for a host faceplate.
+   *
+   * Optional because almost every module has nothing to show beyond its params. The audio thread samples
+   * this only while a host has explicitly subscribed, and never uses it to make sound; `process` remains
+   * the whole DSP contract. A fresh waveform is expected because the value crosses `postMessage`.
+   */
+  meter?(): Omit<MeterReading, 'id'>
+}
+
+/** One meter module's latest display state, sent from the audio thread at animation rate. */
+export interface MeterReading {
+  id: string
+  /** RMS amplitude after the meter's sensitivity control. */
+  level: number
+  /** Highest absolute sample in the latest render block, after sensitivity. */
+  peak: number
+  /** The meter's ballistics, also available from its Env outlet. */
+  envelope: number
+  /** A small, display-only view of the latest render block. */
+  waveform: Float32Array
 }
 
 /**
@@ -168,7 +189,7 @@ export interface ModuleDef {
   /**
    * Which shelf of the picker this sits on — "Sources", "Filters" and so on.
    *
-   * A flat list of twenty-eight names is a list you read rather than a place you look. Grouping is the
+   * A flat list of twenty-nine names is a list you read rather than a place you look. Grouping is the
    * cheapest fix and it has to be stated rather than inferred: `MODULE_LIST`'s order has always implied
    * these groups, but nothing enforced it and nothing could read it.
    */

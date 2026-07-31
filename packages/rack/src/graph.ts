@@ -1,4 +1,11 @@
-import type { ModuleData, Plan, Processor, ProcessorClass, Transport } from './types.js'
+import type {
+  MeterReading,
+  ModuleData,
+  Plan,
+  Processor,
+  ProcessorClass,
+  Transport,
+} from './types.js'
 
 // The audio thread. Walks a compiled plan, once per render quantum.
 //
@@ -29,6 +36,8 @@ import type { ModuleData, Plan, Processor, ProcessorClass, Transport } from './t
  * be four branches in the innermost loop in the program.
  */
 interface Node {
+  /** The patch id, so a visual reading reaches the faceplate for the right instance. */
+  id: string
   processor: Processor
   inlets: Float32Array[]
   outlets: Float32Array[]
@@ -166,6 +175,21 @@ export class Graph {
     const forModule = this.pushed.get(module) ?? new Map<string, Float32Array>()
     forModule.set(slot, data)
     this.pushed.set(module, forModule)
+  }
+
+  /**
+   * Read only the processors that volunteered display telemetry.
+   *
+   * Called at animation rate by the worklet, never per sample, and only while the host is listening. Keeping
+   * the opt-in on the processor avoids teaching the graph that one particular module type is a meter.
+   */
+  meters(): MeterReading[] {
+    const readings: MeterReading[] = []
+    for (const node of this.nodes) {
+      const reading = node.processor.meter?.()
+      if (reading) readings.push({ id: node.id, ...reading })
+    }
+    return readings
   }
 
   /**
@@ -457,6 +481,7 @@ export class Graph {
         })
 
         this.nodes.push({
+          id: node.id,
           // Voice 0 keeps the plain module id, so a one-voice patch sounds exactly as it did before
           // polyphony existed — which matters because anything random in the rack seeds from this. Later
           // voices get a suffix, so eight Noise modules are eight different noises rather than one 18dB

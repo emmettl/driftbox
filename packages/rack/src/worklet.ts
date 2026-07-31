@@ -50,6 +50,8 @@ export type RackMessage =
   | { kind: 'plan'; plan: unknown }
   | { kind: 'param'; slot: number; value: number; voice?: number }
   | { kind: 'transport'; tempo: number; running: boolean }
+  /** Enable low-rate meter readings only while a host faceplate is listening. */
+  | { kind: 'monitor'; enabled: boolean }
   /** `data` is transferred rather than copied — see `Rack.setData`. */
   | { kind: 'data'; module: string; slot: string; data: Float32Array }
 
@@ -95,6 +97,8 @@ class RackProcessor extends AudioWorkletProcessor {
     // 128 is the render quantum. The Graph reallocates if it is ever handed a different
     // one, so this is a starting size rather than an assumption.
     this.graph = new Graph(sampleRate, 128, MODULES, DEPS)
+    this.monitoring = false
+    this.reportBlock = 0
 
     // Everything the node was constructed with, applied before a single sample is asked for.
     //
@@ -127,6 +131,8 @@ class RackProcessor extends AudioWorkletProcessor {
         this.graph.setParam(message.slot, message.value, message.voice)
       } else if (message.kind === 'transport') {
         this.graph.setTransport(message.tempo, message.running)
+      } else if (message.kind === 'monitor') {
+        this.monitoring = message.enabled === true
       } else if (message.kind === 'data') {
         this.graph.setData(message.module, message.slot, message.data)
       }
@@ -135,6 +141,14 @@ class RackProcessor extends AudioWorkletProcessor {
 
   process(inputs, outputs) {
     this.graph.process(outputs[0], inputs)
+    // Eight render quanta is roughly 46Hz at 48kHz: fluid enough for a needle, far below sample rate, and
+    // small enough that several meters remain cheap. Offline rendering never enables this, so exporting a
+    // patch does not fill the main-thread queue with display messages.
+    this.reportBlock = (this.reportBlock + 1) & 7
+    if (this.monitoring && this.reportBlock === 0) {
+      const readings = this.graph.meters()
+      if (readings.length > 0) this.port.postMessage({ kind: 'meters', readings })
+    }
     // Never retire. A rack with a self-oscillating filter or a feedback patch makes sound
     // with no input at all, so the usual "no input, no output, shut down" optimisation
     // would silence exactly the patches this whole thing exists to allow.

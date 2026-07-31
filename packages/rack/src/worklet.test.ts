@@ -181,6 +181,37 @@ describe('the assembled worklet', () => {
     expect(rms(render(instance, 4))).toBe(0)
   })
 
+  it('reports meter modules only while a host is listening', () => {
+    const patch: Patch = {
+      modules: [
+        { id: 'osc', type: 'vco' },
+        { id: 'meter', type: 'meter' },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [
+        { from: ['osc', 'out'], to: ['meter', 'in'] },
+        { from: ['meter', 'thru'], to: ['out', 'in'] },
+      ],
+    }
+    const { instance, posted } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(patch, MODULES) } })
+
+    render(instance, 8)
+    expect(posted).toEqual([])
+
+    instance.port.onmessage?.({ data: { kind: 'monitor', enabled: true } })
+    render(instance, 8)
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({
+      kind: 'meters',
+      readings: [{ id: 'meter' }],
+    })
+
+    instance.port.onmessage?.({ data: { kind: 'monitor', enabled: false } })
+    render(instance, 8)
+    expect(posted).toHaveLength(1)
+  })
+
   it('ignores a message it does not understand', () => {
     // The port is reachable from anywhere with a handle on the node. A message from a future
     // build, or from nothing at all, must not take the audio thread down.

@@ -25,6 +25,7 @@ import {
 } from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
+import { publishMeters } from './meter.js'
 import { ccValue, targets as ccTargets } from './cc.js'
 import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
@@ -532,6 +533,7 @@ export default function RackApp() {
       setFailed(true)
       return
     }
+    live.onMeters(publishMeters)
     ctx.onstatechange = () => setAudioState(ctx.state)
     setAudioState(ctx.state)
 

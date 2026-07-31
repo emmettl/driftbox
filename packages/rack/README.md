@@ -6,9 +6,10 @@ rate inside a single AudioWorklet.
 It is still a work in progress and is intentionally private and unpublished. Once complete
 and ready to support a public API, it can join the engine and app on npm.
 
-Twenty-eight modules, a compiler, a worklet host and a patch format. The app supplies the
+Twenty-nine modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
-tracker, sampler, patch library, Combinator routing with MIDI learn, drag-to-reorder, performance mode and offline export.
+tracker, sampler, patchable VU meters, patch library, Combinator routing with MIDI learn,
+drag-to-reorder, performance mode and offline export.
 `../../docs/RACK.md` records the design and the decisions the implementation taught us.
 
 ```js
