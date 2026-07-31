@@ -125,6 +125,9 @@ function module(value: unknown): PatchModule | null {
   if (bulk) out.data = bulk
   const pos = position(value.pos)
   if (pos) out.pos = pos
+  // Only `true` is written, never `false`. A module in circuit says nothing, so a patch that has never had
+  // anything bypassed round-trips byte-identical to one written before bypass existed.
+  if (value.bypassed === true) out.bypassed = true
   return out
 }
 

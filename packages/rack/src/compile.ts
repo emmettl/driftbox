@@ -208,6 +208,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     channels: number[]
     /** null when the cable comes from a placeholder. */
     from: number | null
+    /** The cable's own endpoints, kept so bypass can be walked back through them. */
+    fromId: string
+    fromPort: string
     /** The destination, carried rather than parsed back out of the map key. Deriving it from
      *  the key means the key format is load-bearing in two places, and it is exactly the kind
      *  of coupling that made a NUL separator look load-bearing when it was an accident. */
@@ -269,10 +272,60 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       // shape and only loses its sound.
       channels: source.index === null ? [ZERO] : (outletBuffer.get(key(fromId, fromPort)) ?? [ZERO]),
       from: source.index,
+      fromId,
+      fromPort,
       to: dest.index,
       toId,
       toPort,
     })
+  }
+
+  // ---- Bypass --------------------------------------------------------------------------
+  //
+  // A bypassed module is not processed at all — it gets no node, so its CPU is genuinely freed, which is
+  // most of what makes bypassing something like the Vocoder worth doing. What answers for its outlets is
+  // this pass: anything reading one of them is redirected to whatever reaches that module's FIRST inlet.
+  //
+  // **All of its outlets carry the same signal**, and the tidier-looking alternative is nonsense on a real
+  // module. Pairing outlet *n* with inlet *n* would put a cutoff CV on the SVF's highpass jack, because
+  // that module's second inlet is a control voltage. The first inlet is the signal path on every module
+  // here, by convention, and bypass is a statement about the signal path.
+  //
+  // Resolution happens here, before the ordering, so everything downstream — the topological sort, the
+  // delayed-cable notes, the mono-fold notes — sees the real source rather than the one the cable names.
+  // Otherwise a bypassed module in the middle of a chain would still constrain the order, and could report
+  // a feedback delay that no longer exists.
+
+  const bypassed = (index: number | null): boolean => index !== null && live[index].bypassed === true
+
+  /** What a port really carries, having walked back through any bypassed modules in front of it. */
+  const resolve = (
+    fromId: string,
+    fromPort: string,
+    seen: Set<string>,
+  ): { channels: number[]; from: number | null } => {
+    const entry = entries.get(fromId)
+    if (!entry || entry.index === null) return { channels: [ZERO], from: null }
+    if (!bypassed(entry.index)) {
+      return { channels: outletBuffer.get(key(fromId, fromPort)) ?? [ZERO], from: entry.index }
+    }
+    // A ring of bypassed modules has nothing at the end of it to read. Silence rather than a throw or a
+    // stack overflow: this is a patch from outside the program, and the placeholder rule's standard —
+    // neutralise, never crash — applies to every other malformed thing in this file too.
+    if (seen.has(fromId)) return { channels: [ZERO], from: null }
+    seen.add(fromId)
+
+    const first = registry[entry.module.type].inlets[0]
+    if (!first) return { channels: [ZERO], from: null }
+    const feeding = inletSource.get(key(fromId, first.id))
+    if (!feeding) return { channels: [ZERO], from: null }
+    return resolve(feeding.fromId, feeding.fromPort, seen)
+  }
+
+  for (const source of inletSource.values()) {
+    const resolved = resolve(source.fromId, source.fromPort, new Set())
+    source.channels = resolved.channels
+    source.from = resolved.from
   }
 
   // ---- Order ---------------------------------------------------------------------------
@@ -353,7 +406,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
 
   // ---- Nodes and output ----------------------------------------------------------------
 
-  const nodes: PlanNode[] = order.map((index) => {
+  // A bypassed module gets no node: nothing runs it, and everything that read its outlets was pointed at
+  // its input by the pass above.
+  const nodes: PlanNode[] = order.filter((index) => !bypassed(index)).map((index) => {
     const module = live[index]
     const def = registry[module.type]
     return {
@@ -379,6 +434,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   for (const module of live) {
     const def = registry[module.type]
     if (!def.terminal) continue
+    // A bypassed terminal contributes nothing. Its outlet buffer is written by nobody — there is no node —
+    // so summing it would put whatever was in that buffer last into the mix for ever.
+    if (module.bypassed === true) continue
     const port = def.outlets[0]
     if (!port) continue
     const channels = outletBuffer.get(key(module.id, port.id))

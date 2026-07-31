@@ -922,3 +922,44 @@ describe('the soft ceiling behind the limiter', () => {
     expect(channels[0][FRAMES - 1]).toBeCloseTo(channels[1][FRAMES - 1], 6)
   })
 })
+
+describe('taking a module out of circuit', () => {
+  // The compiler decides bypass and `compile.test.ts` proves the wiring. What that cannot show is that
+  // the result is audibly the dry signal, which is the only thing anybody actually wants from a bypass.
+
+  const patch = (bypassed?: true): Patch => ({
+    modules: [
+      { id: 'o-1', type: 'offset', params: { offset: 0.4 } },
+      // A big boost, so "did it apply" is not a question about a fraction of a dB.
+      { id: 'eq-1', type: 'eq', params: { low: 18, lowFreq: 500 }, ...(bypassed ? { bypassed } : {}) },
+      { id: 'out-1', type: 'out', params: { level: 1 } },
+    ],
+    cables: [
+      { from: ['o-1', 'out'], to: ['eq-1', 'in'] },
+      { from: ['eq-1', 'out'], to: ['out-1', 'in'] },
+    ],
+  })
+
+  it('is audibly the dry signal, sample for sample', () => {
+    const wet = run(patch(), 8)
+    const dry = run(patch(true), 8)
+    // DC through an 18dB low shelf comes out well above the input; bypassed it must be the input itself.
+    expect(rms(dry, FRAMES * 4)).toBeCloseTo(0.4, 3)
+    expect(rms(wet, FRAMES * 4)).toBeGreaterThan(0.5)
+  })
+
+  it('is the same as never having patched it, once it is out', () => {
+    const direct = run(
+      {
+        modules: [
+          { id: 'o-1', type: 'offset', params: { offset: 0.4 } },
+          { id: 'out-1', type: 'out', params: { level: 1 } },
+        ],
+        cables: [{ from: ['o-1', 'out'], to: ['out-1', 'in'] }],
+      },
+      8,
+    )
+    const bypassed = run(patch(true), 8)
+    expect(rms(bypassed, FRAMES * 4)).toBeCloseTo(rms(direct, FRAMES * 4), 6)
+  })
+})

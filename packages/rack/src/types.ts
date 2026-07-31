@@ -301,6 +301,21 @@ export interface PatchModule {
   data?: Record<string, number[]>
   /** Where it sits in the rack. The engine does not read this; the UI does. */
   pos?: [number, number]
+  /**
+   * Taken out of circuit: not processed at all, and its outlets carry whatever reaches its FIRST inlet.
+   *
+   * Absent means in circuit, so a patch written before this existed is byte-identical and sounds the same.
+   *
+   * **It cannot be a param**, which is the first thing anybody tries. A param is read by the module's own
+   * `process`, and a bypassed module does not run — something has to answer for its outlets on its behalf,
+   * and only the compiler can see both ends of the cables that would carry the answer. The same reasoning
+   * put `terminalMute` and `terminalSolo` outside their processor: solo silences the OTHERS, and a module
+   * has no idea the others exist.
+   *
+   * A module with no inlets bypasses to silence, because there is nothing for it to pass through. That is
+   * what turning a source off means, and it is why one flag covers Reason's Bypass and its Off.
+   */
+  bypassed?: boolean
 }
 
 /** `[moduleId, portId]` at each end. Port *names*, never indices — so a module that gains

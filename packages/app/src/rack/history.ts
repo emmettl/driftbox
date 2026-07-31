@@ -155,6 +155,10 @@ export function needsRebuild(before: Patch, after: Patch): boolean {
     // Order as well as membership: the module list *is* the rack's layout, and the plan is emitted in
     // that order. Comparing as sets would call a reorder a no-op and leave the graph as it was.
     if (a.id !== b.id || a.type !== b.type || a.version !== b.version) return true
+    // Bypass is structural, because the compiler resolves it into the plan: a bypassed module gets no node
+    // and everything reading its outlets is pointed at its input instead. Undoing one therefore has to
+    // rebuild, unlike undoing a knob.
+    if ((a.bypassed === true) !== (b.bypassed === true)) return true
   }
 
   if (before.cables.length !== after.cables.length) return true
