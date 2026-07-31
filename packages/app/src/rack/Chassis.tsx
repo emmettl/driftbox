@@ -104,6 +104,10 @@ export function Chassis({ layout }: Props) {
       onPointerUp={(event) => {
         if (!drag) return
         dropModule(drag.id, dropIndex(layout.placements, toDesign(event)))
+        // Safari can occasionally keep a native selection alive after a captured pointer crosses
+        // faceplate text. The grip prevents that default below; clearing here is the last line of
+        // defence for a selection the browser had already started before capture took effect.
+        window.getSelection()?.removeAllRanges()
         setDrag(null)
       }}
       // Not onPointerLeave: with the pointer captured the drag can stray outside and come back, and
@@ -164,6 +168,10 @@ export function Chassis({ layout }: Props) {
               aria-label={`Drag ${placement.id} to reorder`}
               title="Drag to reorder"
               onPointerDown={(event) => {
+                // Text selection is a pointerdown default action. Cancel it before capture rather than
+                // relying only on `user-select`: Safari can otherwise select the title beneath this
+                // transparent grip while the faceplate is moving.
+                event.preventDefault()
                 event.stopPropagation()
                 surface.current?.setPointerCapture(event.pointerId)
                 select(placement.id)
