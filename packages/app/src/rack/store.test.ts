@@ -828,3 +828,89 @@ describe('undo', () => {
     expect(patchCompatibility(state().patch)).toBe('groovebox-compatible')
   })
 })
+
+describe('duplicating a module', () => {
+  const state = () => useRack.getState()
+
+  it('lands directly after the original rather than at the end', () => {
+    // The module list is the layout, so a copy appended to the bottom is a copy you have to go and find.
+    const order = () => state().patch.modules.map((m) => m.id)
+    const before = order()
+    const at = before.indexOf('reverb-1')
+
+    state().duplicateModule('reverb-1')
+
+    expect(order()).toHaveLength(before.length + 1)
+    expect(order()[at + 1]).toBe('reverb-2')
+    // Everything else stays exactly where it was, on both sides of the insertion.
+    expect(order().slice(0, at + 1)).toEqual(before.slice(0, at + 1))
+    expect(order().slice(at + 2)).toEqual(before.slice(at + 1))
+  })
+
+  it('brings the settings with it, which is the entire point', () => {
+    state().setParam('reverb-1', 'size', 0.63)
+    state().setParam('reverb-1', 'damp', 0.11)
+
+    state().duplicateModule('reverb-1')
+
+    expect(state().paramValue('reverb-2', 'size')).toBe(0.63)
+    expect(state().paramValue('reverb-2', 'damp')).toBe(0.11)
+  })
+
+  it('copies pattern data rather than sharing the array', () => {
+    // Nothing mutates a patch in place today, and "today" is the problem: a shared array is a trap laid
+    // for whoever writes the first in-place edit.
+    state().setLane('tracker-1', 0, [1, 2, 3, 4])
+    state().duplicateModule('tracker-1')
+
+    expect(state().lane('tracker-2', 0)).toEqual([1, 2, 3, 4])
+    state().setLane('tracker-1', 0, [9, 9, 9, 9])
+    expect(state().lane('tracker-2', 0)).toEqual([1, 2, 3, 4])
+  })
+
+  it('arrives unpatched, because copying a cable would unpatch the original', () => {
+    // One cable per inlet and the later one wins, so a copied outgoing cable would take the original's
+    // destination away from it — the opposite of what "duplicate" means.
+    const before = state().patch.cables.length
+    state().duplicateModule('reverb-1')
+
+    expect(state().patch.cables).toHaveLength(before)
+    expect(state().patch.cables.some((c) => c.from[0] === 'reverb-2' || c.to[0] === 'reverb-2')).toBe(
+      false,
+    )
+  })
+
+  it('does not copy the routings that drive it', () => {
+    // A routing names its target by module id, so a copied one would aim at what the original already
+    // drives and the two panels would fight over every knob.
+    const before = state().patch.modulation?.length ?? 0
+    state().duplicateModule('combi-1')
+    expect(state().patch.modulation ?? []).toHaveLength(before)
+  })
+
+  it('gives the copy its own id, so a duplicated Noise is a different noise', () => {
+    // Anything random in the rack seeds from the module id. Two Noise modules sharing one would be a
+    // single source 6dB louder rather than two uncorrelated ones.
+    useRack.setState({ patch: { modules: [{ id: 'noise-1', type: 'noise' }], cables: [] } })
+    state().duplicateModule('noise-1')
+    expect(state().patch.modules.map((m) => m.id)).toEqual(['noise-1', 'noise-2'])
+  })
+
+  it('rebuilds the graph, and one undo takes it back', () => {
+    const revision = state().revision
+    const before = state().patch.modules.length
+
+    state().duplicateModule('reverb-1')
+    expect(state().revision).toBe(revision + 1)
+
+    state().undo()
+    expect(state().patch.modules).toHaveLength(before)
+  })
+
+  it('declines quietly for a module that is not there', () => {
+    const patch = state().patch
+    state().duplicateModule('nobody')
+    expect(state().patch).toBe(patch)
+    expect(state().history.past).toHaveLength(0)
+  })
+})

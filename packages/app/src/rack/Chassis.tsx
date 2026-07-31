@@ -38,6 +38,7 @@ export function Chassis({ layout }: Props) {
   const setParam = useRack((s) => s.setParam)
   const paramValue = useRack((s) => s.paramValue)
   const removeModule = useRack((s) => s.removeModule)
+  const duplicateModule = useRack((s) => s.duplicateModule)
   const moveModule = useRack((s) => s.moveModule)
   const dropModule = useRack((s) => s.dropModule)
 
@@ -223,6 +224,16 @@ export function Chassis({ layout }: Props) {
                 </button>
                 <button type="button" onClick={() => moveModule(placement.id, 1)} aria-label="Move down">
                   ↓
+                </button>
+                {/* Next to Remove rather than next to the arrows: both of these change what is in the
+                    rack, while the arrows only change where it sits. */}
+                <button
+                  type="button"
+                  onClick={() => duplicateModule(placement.id)}
+                  aria-label="Duplicate"
+                  title="Duplicate — a copy with the same settings, unpatched"
+                >
+                  ⧉
                 </button>
                 <button type="button" onClick={() => removeModule(placement.id)} aria-label="Remove">
                   ✕

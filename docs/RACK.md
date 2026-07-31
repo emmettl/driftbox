@@ -830,6 +830,31 @@ The risk is all in the first item. Do it first and alone.
      The clamp keeps the tab alive; it does not un-poison a biquad, which would otherwise stay silent for
      ever. The test proves the recovery by feeding it an infinity and then a tone.
 
+   **Duplicate a module** ✅ — and the pre-existing bug it walked into.
+
+   - **The copy lands beside the original, not at the end.** The module list *is* the layout, so a copy
+     appended to the bottom is one you have to go and find and then move back up past everything else.
+   - **It arrives unpatched, and that is not laziness.** Copying the outgoing cables would aim them at the
+     same inlets, and one cable per inlet means the later one wins — so duplicating a module would silently
+     *unpatch* the original, which is the opposite of what the word means. Combinator routings are left for
+     the same reason: a routing names its target by module id, so copies would drive what the original
+     already drives and the two panels would fight over every knob.
+   - **A fresh id, from the same numbering `addModule` uses.** Anything random in the rack seeds from the
+     id, so the copy of a Noise is a different noise rather than the same one 6dB louder — the same
+     reasoning `poly.test.ts` records one level up, where later voices get a suffixed id.
+   - **Params and data are copied a level deeper than the spread reaches.** Nothing mutates a patch in
+     place today, and "today" is the problem: two modules whose lane array is the same reference is a trap
+     laid for whoever writes the first in-place edit.
+
+   **And the bug.** Adding a fourth button to the module tools found that none of the other three could be
+   clicked. `.rk-grip` is a transparent overlay across the whole title bar at `z-index: 2`, and
+   `.rk-module-tools` sits inside that band at `top: 6px` with no z-index at all — so ↑, ↓ and ✕ had been
+   covered since the grip arrived. The keyboard could still reach them, which is exactly why nobody
+   noticed, and it inverts the promise this file makes two sections up: the arrows exist so that reordering
+   is available to anybody who cannot drag, and they were working for those people and for nobody else.
+   One line of CSS. **Only driving the page finds this**, which is now the fourth time that sentence has
+   had to be written here.
+
 ## The visualiser, and why it is not on the rack yet
 
 The sequencer has seventeen 3D scenes and the obvious next move is to put one behind the rack. Measured

@@ -155,6 +155,22 @@ interface RackState {
    * how a chunk containing a Sampler gets a break loaded into the right one.
    */
   addChunk: (chunk: Chunk) => Inserted
+  /**
+   * Copy one module, with everything you have turned on it, and drop it in beside the original.
+   *
+   * The thing `addChunk` is not. A chunk is a *recipe* — a group of modules wired the way somebody wrote
+   * them down — and there was no way at all to take a module you had spent five minutes dialling in and
+   * have a second one like it. The commonest thing anybody wants two of is the one they just tuned.
+   *
+   * **The copy arrives unpatched, and that is not laziness.** Copying the outgoing cables would aim them
+   * at the same inlets, and one cable per inlet means the later one wins — so duplicating a module would
+   * silently *unpatch* the original, which is the opposite of what the word means. Copying the incoming
+   * ones is safe but half an answer, and an edit that does half of a thing is worse than one that does
+   * none of it and says so. Combinator routings are left alone for the same reason: a routing names its
+   * target by module id, so copied ones would aim at the targets the original already drives and the two
+   * panels would fight over every knob.
+   */
+  duplicateModule: (moduleId: string) => void
   removeModule: (moduleId: string) => void
   moveModule: (moduleId: string, by: number) => void
   /**
@@ -527,6 +543,36 @@ export const useRack = create<RackState>((set, get) => {
         ...patch,
         modules: [...patch.modules, { id: freshId(patch, type), type }],
       })),
+
+    duplicateModule: (moduleId) =>
+      structural((patch) => {
+        const at = patch.modules.findIndex((m) => m.id === moduleId)
+        // The same decline-by-identity convention every other structural edit follows, so a duplicate of
+        // something that is not there is not an undo step that appears to do nothing.
+        if (at < 0) return patch
+        const source = patch.modules[at]
+
+        const modules = [...patch.modules]
+        // **Beside the original, not at the end of the rack.** The module list is the layout, so a copy
+        // appended to the bottom is a copy you have to go and find — and then move back up past everything
+        // else. This is also why it is `splice` rather than `push`: order is the document here.
+        modules.splice(at + 1, 0, {
+          ...source,
+          // Anything random in the rack seeds from the module id, so the copy of a Noise is a *different*
+          // noise rather than the same one twice as loud. That is the right answer and it comes for free
+          // from numbering the way `addModule` does.
+          id: freshId(patch, source.type),
+          // Copied a level deeper than the spread reaches. Nothing mutates a patch in place today, so a
+          // shared `params` object would not corrupt anything yet — and "yet" is the whole problem: two
+          // modules whose data array is the same reference is a trap laid for whoever writes the first
+          // in-place edit.
+          ...(source.params ? { params: { ...source.params } } : {}),
+          ...(source.data
+            ? { data: Object.fromEntries(Object.entries(source.data).map(([k, v]) => [k, [...v]])) }
+            : {}),
+        })
+        return { ...patch, modules }
+      }),
 
     removeModule: (moduleId) =>
       structural((patch) => {
