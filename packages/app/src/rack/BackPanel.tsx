@@ -32,11 +32,7 @@ interface CablePathsProps {
   disconnect?: (cable: PatchCable) => void
 }
 
-/**
- * The drawn leads, shared by the interactive back panel and the copy visible during the first half
- * of a turn. Keeping one renderer matters here: a transition cable that hangs or swings differently
- * from the one it becomes at 90 degrees would visibly jump at the hand-off.
- */
+/** The drawn leads, kept separate from the panel furniture so their geometry has one implementation. */
 export function CablePaths({ all, cables, delayed, swing, disconnect }: CablePathsProps) {
   return cables.map((cable) => {
     const from = jackAt(all, cable.from[0], cable.from[1])
@@ -72,40 +68,6 @@ export function CablePaths({ all, cables, delayed, swing, disconnect }: CablePat
       </g>
     )
   })
-}
-
-/**
- * A cable-only copy which is allowed to show its reverse during the first half of a turn.
- *
- * The actual back panel must keep `backface-visibility: hidden`, otherwise its jacks and labels show
- * mirrored through the front. That also used to hide every lead until the rack had almost finished
- * turning. This copy sits outside that hidden face, is never interactive, and hands off to the real
- * cables as soon as the back face becomes visible.
- */
-export function TurningCables({ layout, flipped }: Props & { flipped: boolean }) {
-  const patch = useRack((s) => s.patch)
-  const notes = useRack((s) => s.notes)
-  const swing = useSwing(flipped)
-  const all = useMemo(() => jacks(layout.placements, MODULES), [layout])
-  const delayed = new Set(
-    notes.flatMap((note) => (note.kind === 'delayed' && note.module ? [note.module] : [])),
-  )
-
-  return (
-    <svg
-      className={flipped ? 'rk-turn-wires rk-turn-wires-on' : 'rk-turn-wires'}
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <CablePaths
-        all={all}
-        cables={patch.cables}
-        delayed={delayed}
-        swing={swing}
-      />
-    </svg>
-  )
 }
 
 /** A cable being dragged, before it lands anywhere. */

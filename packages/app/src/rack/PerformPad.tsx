@@ -69,6 +69,30 @@ export function PerformPad({ kaoss, flipped }: Props) {
   }, [lift])
 
   const readout = point ? kaossReadout(point.x, point.y) : null
+  const controls = () => (
+    <>
+      {/* Drawn from the point rather than from the filter, so the dot is under the finger even while the
+          filter is still gliding towards it. Both faces get one; backface visibility makes the hand-off
+          at the middle of the turn without leaving an unrotated overlay behind. */}
+      {point && (
+        <span
+          className="rk-pad-dot"
+          style={{ left: `${point.x * 100}%`, top: `${(1 - point.y) * 100}%` }}
+        />
+      )}
+      <span className="rk-pad-axis rk-pad-axis-x">cutoff</span>
+      <span className="rk-pad-axis rk-pad-axis-y">resonance</span>
+      <span className="rk-pad-readout">
+        {readout === null
+          ? kaoss
+            ? 'open'
+            : 'start audio to play the filter'
+          : readout.mode === 'open'
+            ? 'open'
+            : `${readout.mode === 'low' ? 'LP' : 'HP'} ${Math.round(readout.hz)}Hz · Q ${readout.q.toFixed(1)}`}
+      </span>
+    </>
+  )
 
   return (
     <div
@@ -90,52 +114,38 @@ export function PerformPad({ kaoss, flipped }: Props) {
       onPointerUp={lift}
       onPointerCancel={lift}
     >
-      {/* There is no patch panel behind an insert that lives outside the rack graph. A switch that visibly
-          does nothing is still broken, though, so the pad has a deliberately unserious back side instead:
-          the little creature living behind it. Purely decorative and pointer-transparent, leaving the
-          filter exactly as playable as it is on the front. */}
-      {flipped && (
-        <div className="rk-pad-mascot" aria-hidden="true">
-          <svg viewBox="0 0 240 220">
-            <g className="rk-pad-mascot-dancer">
-              <path className="rk-pad-mascot-wire" d="M84 74 C54 45 45 23 65 13 C82 5 87 28 74 38" />
-              <path className="rk-pad-mascot-wire" d="M156 74 C186 45 195 23 175 13 C158 5 153 28 166 38" />
-              <path className="rk-pad-mascot-arm" d="M78 105 C47 94 38 73 23 77" />
-              <path className="rk-pad-mascot-arm" d="M162 105 C193 94 202 73 217 77" />
-              <path
-                className="rk-pad-mascot-body"
-                d="M120 53 C82 53 62 82 68 125 C72 158 91 176 120 176 C149 176 168 158 172 125 C178 82 158 53 120 53 Z"
-              />
-              <circle className="rk-pad-mascot-eye" cx="101" cy="105" r="8" />
-              <circle className="rk-pad-mascot-eye" cx="139" cy="105" r="8" />
-              <path className="rk-pad-mascot-mouth" d="M101 132 Q120 147 139 132" />
-              <path className="rk-pad-mascot-leg" d="M102 170 Q91 195 73 198" />
-              <path className="rk-pad-mascot-leg" d="M138 170 Q149 195 167 198" />
-            </g>
-          </svg>
-          <strong>backstage creature</strong>
-          <span>still filtering · now vibing</span>
+      <div className="rk-pad-turn">
+        <div className="rk-pad-face rk-pad-face-front" aria-hidden={flipped}>
+          {controls()}
         </div>
-      )}
-      {/* Drawn from the point rather than from the filter, so the dot is under the finger even while the
-          filter is still gliding towards it. */}
-      {point && (
-        <span
-          className="rk-pad-dot"
-          style={{ left: `${point.x * 100}%`, top: `${(1 - point.y) * 100}%` }}
-        />
-      )}
-      <span className="rk-pad-axis rk-pad-axis-x">cutoff</span>
-      <span className="rk-pad-axis rk-pad-axis-y">resonance</span>
-      <span className="rk-pad-readout">
-        {readout === null
-          ? kaoss
-            ? 'open'
-            : 'start audio to play the filter'
-          : readout.mode === 'open'
-            ? 'open'
-            : `${readout.mode === 'low' ? 'LP' : 'HP'} ${Math.round(readout.hz)}Hz · Q ${readout.q.toFixed(1)}`}
-      </span>
+        {/* There is no patch panel behind an insert that lives outside the rack graph. The pad therefore
+            has a deliberately unserious back side: the little creature living behind it. Both faces stay
+            mounted so Back/Front is a physical turn rather than an image swap at the start of one. */}
+        <div className="rk-pad-face rk-pad-face-back" aria-hidden={!flipped}>
+          <div className="rk-pad-mascot" aria-hidden="true">
+            <svg viewBox="0 0 240 220">
+              <g className="rk-pad-mascot-dancer">
+                <path className="rk-pad-mascot-wire" d="M84 74 C54 45 45 23 65 13 C82 5 87 28 74 38" />
+                <path className="rk-pad-mascot-wire" d="M156 74 C186 45 195 23 175 13 C158 5 153 28 166 38" />
+                <path className="rk-pad-mascot-arm" d="M78 105 C47 94 38 73 23 77" />
+                <path className="rk-pad-mascot-arm" d="M162 105 C193 94 202 73 217 77" />
+                <path
+                  className="rk-pad-mascot-body"
+                  d="M120 53 C82 53 62 82 68 125 C72 158 91 176 120 176 C149 176 168 158 172 125 C178 82 158 53 120 53 Z"
+                />
+                <circle className="rk-pad-mascot-eye" cx="101" cy="105" r="8" />
+                <circle className="rk-pad-mascot-eye" cx="139" cy="105" r="8" />
+                <path className="rk-pad-mascot-mouth" d="M101 132 Q120 147 139 132" />
+                <path className="rk-pad-mascot-leg" d="M102 170 Q91 195 73 198" />
+                <path className="rk-pad-mascot-leg" d="M138 170 Q149 195 167 198" />
+              </g>
+            </svg>
+            <strong>backstage creature</strong>
+            <span>still filtering · now vibing</span>
+          </div>
+          {controls()}
+        </div>
+      </div>
     </div>
   )
 }
