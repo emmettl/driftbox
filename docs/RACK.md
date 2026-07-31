@@ -659,7 +659,7 @@ The risk is all in the first item. Do it first and alone.
      a persistent × beside its inlet, where controls cannot stack because an inlet accepts one cable;
      outlets still fan out freely. The midpoint shortcut and Delete on a focused jack remain. A deleted
      cable leaves the patch and audio graph immediately, while a snapshot of its old cubic frays into
-     nine deterministic smoke wisps over 900ms; reduced-motion users get an effectively instant exit.
+     fifteen deterministic smoke wisps over 1.25s; reduced-motion users get an effectively instant exit.
    - **The sequencer's oscilloscope, reused.** That took *removing* a dependency rather than adding a
      fallback: it read its analyser from the sequencer's store, so importing it would have dragged the
      engine, the songs and the scenes into a 37kB page. It takes the analyser as a prop now and both

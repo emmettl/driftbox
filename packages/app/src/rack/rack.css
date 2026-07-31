@@ -2284,7 +2284,7 @@ kbd {
  * The group owns the lifetime so React can discard the snapshot on one animationend event. */
 .rk-cable-evaporation {
   pointer-events: none;
-  animation: rk-cable-evaporation-life 900ms linear forwards;
+  animation: rk-cable-evaporation-life 1250ms linear forwards;
 }
 .rk-cable-evaporation-glow,
 .rk-cable-evaporation-line {
@@ -2292,9 +2292,9 @@ kbd {
   stroke-linecap: round;
 }
 .rk-cable-evaporation-glow {
-  stroke: rgba(232, 228, 255, 0.28);
-  stroke-width: 9;
-  animation: rk-cable-glow-out 460ms ease-out forwards;
+  stroke: rgba(232, 228, 255, 0.42);
+  stroke-width: 11;
+  animation: rk-cable-glow-out 560ms ease-out forwards;
 }
 .rk-cable-evaporation-line {
   stroke: var(--ink);
@@ -2302,13 +2302,13 @@ kbd {
   animation: rk-cable-fray 720ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
 }
 .rk-cable-smoke {
-  fill: rgba(157, 149, 200, 0.48);
-  filter: blur(1.4px);
+  fill: rgba(190, 180, 230, 0.76);
+  filter: blur(1.7px);
   mix-blend-mode: screen;
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: rk-cable-smoke 760ms ease-out var(--rk-smoke-delay) forwards;
+  animation: rk-cable-smoke 1050ms ease-out var(--rk-smoke-delay) forwards;
 }
 
 @keyframes rk-cable-evaporation-life {
@@ -2327,7 +2327,7 @@ kbd {
   }
   to {
     opacity: 0;
-    stroke-width: 14;
+    stroke-width: 17;
   }
 }
 
@@ -2355,11 +2355,11 @@ kbd {
     transform: translate(0, 0) scale(0.45);
   }
   12% {
-    opacity: 0.42;
+    opacity: 0.72;
   }
   100% {
     opacity: 0;
-    transform: translate(var(--rk-smoke-drift), var(--rk-smoke-rise)) scale(3.2);
+    transform: translate(var(--rk-smoke-drift), var(--rk-smoke-rise)) scale(4.2);
   }
 }
 
