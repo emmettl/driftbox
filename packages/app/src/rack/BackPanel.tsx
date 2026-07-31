@@ -112,6 +112,66 @@ export function CablePaths({
   })
 }
 
+interface CableUnplugsProps {
+  all: Jack[]
+  cables: PatchCable[]
+  disconnect: (cable: PatchCable) => void
+}
+
+/**
+ * One visible unplug control per cable, beside the inlet it occupies.
+ *
+ * Outlets may fan out to several destinations, so putting controls there would stack several buttons
+ * on one jack. An inlet accepts exactly one cable, which gives every lead one stable, unambiguous place
+ * to be removed. These sit above the jacks in the SVG rather than inside `CablePaths`: the drawn cable
+ * belongs below the panel furniture, while a button has to remain visible and clickable above it.
+ */
+export function CableUnplugs({ all, cables, disconnect }: CableUnplugsProps) {
+  return cables.map((cable) => {
+    const from = jackAt(all, cable.from[0], cable.from[1])
+    const to = jackAt(all, cable.to[0], cable.to[1])
+    if (!from || !to) return null
+
+    const key = `${cable.from.join('.')}>${cable.to.join('.')}`
+    const label = `Unplug ${from.module} ${from.name} from ${to.module} ${to.name}`
+
+    return (
+      <g
+        key={key}
+        className="rk-cable-unplug"
+        transform={`translate(${to.x - 18} ${to.y})`}
+        role="button"
+        tabIndex={0}
+        aria-label={label}
+        onPointerDown={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          disconnect(cable)
+        }}
+        onKeyDown={(event) => {
+          if (
+            event.key !== 'Enter' &&
+            event.key !== ' ' &&
+            event.key !== 'Delete' &&
+            event.key !== 'Backspace'
+          ) {
+            return
+          }
+          event.preventDefault()
+          event.stopPropagation()
+          disconnect(cable)
+        }}
+      >
+        <circle className="rk-cable-unplug-hit" r="13" />
+        <circle className="rk-cable-unplug-button" r="7" />
+        <path className="rk-cable-unplug-icon" d="M -2.5 -2.5 L 2.5 2.5 M 2.5 -2.5 L -2.5 2.5" />
+        <title>{label}</title>
+      </g>
+    )
+  })
+}
+
 /** A cable being dragged, before it lands anywhere. */
 interface CableDragging {
   from: Jack
@@ -484,6 +544,8 @@ export function BackPanel({ layout }: Props) {
             <title>{`${jack.module}.${jack.port}`}</title>
           </g>
         ))}
+
+        <CableUnplugs all={visibleJacks} cables={patch.cables} disconnect={disconnect} />
       </svg>
     </div>
   )

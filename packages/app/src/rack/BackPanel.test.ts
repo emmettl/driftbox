@@ -2,7 +2,7 @@ import { MODULES } from '@driftbox/rack'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { CablePaths } from './BackPanel.js'
+import { CablePaths, CableUnplugs } from './BackPanel.js'
 import { cablePath } from './cable.js'
 import { jackAt, jacks, layout, withDraggedPlacement } from './layout.js'
 
@@ -41,6 +41,21 @@ describe('the shared cable renderer', () => {
     expect(passive).toContain('rk-cable-line')
     expect(passive).not.toContain('rk-cable-grab')
     expect(interactive).toContain('rk-cable-grab')
+  })
+
+  it('gives every cable a visible, keyboard-accessible unplug control at its inlet', () => {
+    const drawn = renderToStaticMarkup(
+      createElement(CableUnplugs, {
+        all: jacks(geometry.placements, MODULES),
+        cables: patch.cables,
+        disconnect: () => {},
+      }),
+    )
+
+    expect(drawn).toContain('rk-cable-unplug-button')
+    expect(drawn).toContain('role="button"')
+    expect(drawn).toContain('tabindex="0"')
+    expect(drawn).toContain('aria-label="Unplug osc Out from speaker In"')
   })
 
   it('marks a cable that loses its right channel', () => {

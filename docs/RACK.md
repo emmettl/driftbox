@@ -632,6 +632,10 @@ The risk is all in the first item. Do it first and alone.
    - **Keyboard patching.** Enter arms a jack, Enter on a compatible one completes the cable, Escape
      lets go, Delete pulls one out. It shares `connect` with the drag so there is one definition of a
      legal cable. A modular whose whole point is the cables is a poor thing to make mouse-only.
+   - **Unplugging is visible at every occupied inlet.** The original cable midpoint was an invisible
+     click target which only announced itself after somebody happened to hover it. Every cable now has
+     a persistent × beside its inlet, where controls cannot stack because an inlet accepts one cable;
+     outlets still fan out freely. The midpoint shortcut and Delete on a focused jack remain.
    - **The sequencer's oscilloscope, reused.** That took *removing* a dependency rather than adding a
      fallback: it read its analyser from the sequencer's store, so importing it would have dragged the
      engine, the songs and the scenes into a 37kB page. It takes the analyser as a prop now and both
