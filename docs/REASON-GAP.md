@@ -53,16 +53,34 @@ Two halves, and only one of them is in the parity ledger:
   automation needs the message ABI to grow a frame, which is the one growth `RACK.md` says to
   resist and the one that would earn it.
 
-### 3. There is no undo
+### 3. ~~There is no undo~~ — landed
 
-Nowhere in the app, and the sequencer admits it in `ui/PatternBar.tsx`. The rack raises the
-stakes on it: `removeModule` deliberately drops every cable *and* every Combinator routing that
-touched the module, for good reasons written down next to the code — a stale cable that comes
-back when a module is re-added under the same id looks like a haunting. The consequence is that
-one click on a wired Combinator destroys work that took ten minutes to patch, and there is no
-way back.
+It was nowhere in the app, and the rack raised the stakes on it: `removeModule` deliberately
+drops every cable *and* every Combinator routing that touched the module, so one click on a
+wired Combinator destroyed ten minutes of patching with no way back.
 
-Cheapest of the three by a wide margin, and the only one that is a store change and nothing else.
+`history.ts` is now that, and three decisions in it are worth keeping:
+
+- **A stack of whole patches, not a log of inverse operations.** The usual argument for a log
+  does not survive the measurement `RACK.md` already made for the URL: a forty-module patch is
+  under a thousand characters, so sixty-four of them is less than one loaded break. What a log
+  would cost is an inverse per action forever, and the day somebody forgets one, undo does not
+  fail loudly — it restores a document that never existed.
+- **Coalescing is keyed by what was edited, not by a clock.** `setParam` fires on every pointer
+  move, so one drag would otherwise fill the entire history. Keying by module and param makes
+  the rule pure and testable in Node; a 300 ms window would need a clock and is wrong in both
+  directions — a slow deliberate drag becomes many steps and two quick edits to different knobs
+  become one.
+- **A restore asks the document whether the graph has to be rebuilt.** Forward edits know,
+  because they know what they did; a restore does not. `needsRebuild` compares modules, cables
+  and the voice count and deliberately ignores params and pattern data, both of which reach the
+  audio thread as messages — so undoing a knob does not reset every oscillator's phase.
+
+It also fixed a latent bug either side of it. The push subscription in `RackApp` skipped
+structural edits, on the grounds that a rebuild re-seeds from the plan — but data is the one
+thing a rebuild does not re-seed, because `pushed` beats `seeded` so a recompile cannot throw
+away a loaded break. Undoing a removed Tracker would have brought it back playing the pattern it
+had before the undo.
 
 ## Everything else, rack-wide
 
@@ -74,6 +92,7 @@ Cheapest of the three by a wide margin, and the only one that is a store change 
 | Bypass | On / Bypass / Off on every effect | Terminal only | `Out` has mute and solo; no other module can be taken out of circuit |
 | Device patches | A browser and a factory bank per device | Patch-level | The library saves whole racks; `PATCHES` and `CHUNKS` are whole-rack and multi-module |
 | Multi-select | Rubber-band a group of devices | Absent | Reordering and removal are one module at a time |
+| Undo | Full history | **Landed** | `history.ts` — sixty-four steps, a drag is one of them |
 
 None of these is architectural. All of them are the difference between a rack you demonstrate
 and a rack you work in for an afternoon.
@@ -125,7 +144,7 @@ Worth writing down so nobody builds them twice.
 
 ## The order
 
-1. Undo. Cheapest, and it makes everything after it safer to try.
+1. ~~Undo.~~ Landed. Cheapest, and it makes everything after it safer to try.
 2. Stereo cables. Rising cost; do it before the module count rises again.
 3. Recorded automation, once the ABI carries a frame.
 4. EQ, then a complete voice — the two the picker most obviously cannot offer anybody.

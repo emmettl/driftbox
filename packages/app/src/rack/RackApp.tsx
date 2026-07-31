@@ -79,6 +79,13 @@ export default function RackApp() {
   const revision = useRack((s) => s.revision)
   const flipped = useRack((s) => s.flipped)
   const flip = useRack((s) => s.flip)
+  const undo = useRack((s) => s.undo)
+  const redo = useRack((s) => s.redo)
+  // The depth rather than the history, so this re-renders when undo becomes available and not on every
+  // step taken while it already was. A selector returning an object would hand zustand a new snapshot
+  // every call, which is the infinite-render trap the note further down this file records.
+  const canUndo = useRack((s) => s.history.past.length > 0)
+  const canRedo = useRack((s) => s.history.future.length > 0)
   const load = useRack((s) => s.load)
   const addModule = useRack((s) => s.addModule)
   const addChunk = useRack((s) => s.addChunk)
@@ -523,6 +530,30 @@ export default function RackApp() {
   }, [flip])
 
   /**
+   * Undo and redo, on the keys every other program puts them on.
+   *
+   * Both accents are accepted — Cmd on a Mac, Ctrl elsewhere, plus Ctrl+Y for redo, which is what
+   * Windows habits reach for. Kept off inputs so a rename or a tempo field keeps the browser's own undo,
+   * which is a different history about a different thing and would be very confusing to hijack.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!event.metaKey && !event.ctrlKey) return
+      const key = event.key.toLowerCase()
+      const back = key === 'z' && !event.shiftKey
+      const forward = (key === 'z' && event.shiftKey) || key === 'y'
+      if (!back && !forward) return
+      const target = event.target as HTMLElement | null
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return
+      event.preventDefault()
+      if (back) undo()
+      else redo()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo])
+
+  /**
    * Push the patch at the audio thread when the GRAPH changes, and never when a knob moves.
    *
    * `revision` and not `patch`. A knob turn produces a new patch object — it has to, so React re-renders
@@ -688,7 +719,15 @@ export default function RackApp() {
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
       const live = rack.current
-      if (!live || state.patch === previous.patch || state.revision !== previous.revision) return
+      // **Deliberately not `state.revision === previous.revision`.** That guard was here because a
+      // structural edit rebuilds the graph anyway, and a rebuild seeds params and data from the plan —
+      // so pushing them too was redundant. Undo made it wrong: a restore can change the structure *and*
+      // a module's data in one step, and data is the one thing a rebuild does not re-seed, because the
+      // Graph keeps pushed data in `pushed` and `pushed` beats `seeded` — the rule that stops a
+      // recompile throwing away a loaded break. Without this push, undoing a removed Tracker brings the
+      // module back playing the pattern it had *before* the undo. Pushing on every patch change costs a
+      // walk of the module list against references that are usually identical.
+      if (!live || state.patch === previous.patch) return
       for (const module of state.patch.modules) {
         const before = previous.patch.modules.find((m) => m.id === module.id)
         if (!before) continue
@@ -751,6 +790,24 @@ export default function RackApp() {
         <button type="button" onClick={() => flip()} aria-pressed={flipped}>
           {flipped ? 'Front' : 'Back'} <kbd>Tab</kbd>
         </button>
+
+        {/* Buttons as well as the shortcut, the same standard the back panel holds itself to — where
+            Enter arms a jack because a rack whose whole point is the cables is a poor thing to make
+            mouse-only. This is the other direction: a keyboard-only undo is invisible, and undo is the
+            one feature nobody looks for until they need it in a hurry. */}
+        <span className="rk-undo">
+          <button type="button" onClick={() => undo()} disabled={!canUndo} title="Undo — Ctrl/Cmd+Z">
+            ↶ Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => redo()}
+            disabled={!canRedo}
+            title="Redo — Ctrl/Cmd+Shift+Z"
+          >
+            ↷ Redo
+          </button>
+        </span>
 
         <button
           type="button"

@@ -25,6 +25,16 @@ import {
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takeRackDocumentFromUrl } from './persistence.js'
 import { forget, learn, loadBindings, saveBindings, type CcBinding } from './cc.js'
+import {
+  dataKey,
+  needsRebuild,
+  NO_HISTORY,
+  paramKey,
+  remember,
+  stepBack,
+  stepForward,
+  type History,
+} from './history.js'
 import { reordered } from './layout.js'
 import { tempoForBars } from './sample.js'
 
@@ -62,6 +72,22 @@ interface RackState {
   patch: Patch
   /** Bumped only when the graph needs rebuilding. Never by a knob. */
   revision: number
+  /**
+   * Where you have been, and where you have stepped back from. See `history.ts`.
+   *
+   * Held as data rather than as `canUndo`/`canRedo` flags so a component can subscribe to the depth it
+   * cares about and nothing has to keep two representations agreeing.
+   */
+  history: History
+  /**
+   * Step back, or forward again. Both decline silently when there is nowhere to go, which is what lets
+   * a keyboard shortcut call them without first asking.
+   *
+   * A restore is an ordinary document change: it settles, it autosaves, and it rebuilds the graph only
+   * if the structure actually differs — see `needsRebuild`. Undoing a knob must not click.
+   */
+  undo: () => void
+  redo: () => void
   /** Which module is selected, for keyboard editing and for dimming the rest. */
   selected: string | null
   flipped: boolean
@@ -316,42 +342,53 @@ export const useRack = create<RackState>((set, get) => {
   const settle = (patch: Patch): Patch => applyModulation(patch, MODULES)
 
   /**
-   * Every structural edit goes through here, so nothing can forget the revision or the autosave.
+   * **Every write to the document goes through here.** Settling, autosave, undo and the revision are all
+   * decided in one place, so no edit can forget one of them.
    *
-   * **An edit that changed nothing does not bump the revision.** The revision is what makes `RackApp`
-   * recompile, and recompiling rebuilds every processor — resetting each oscillator's phase and each
-   * filter's history, which is an audible click. Several edits here can legitimately be no-ops: moving the
-   * first module up, dropping a dragged module back where it started, removing an id that is not there.
-   * Before this they all rebuilt the graph to achieve nothing.
+   * That was already the argument for `structural`, and undo is what made it worth extending to the
+   * edits that are *not* structural. A knob, a pattern cell, the tempo and a retained groovebox pattern
+   * each used to call `set` themselves; each would have had to remember to record history, and the one
+   * that forgot would not fail loudly — it would silently make undo skip a step.
    *
-   * Reference identity is the test, which is why the operations above are careful to hand back the very
-   * same patch when they decline — the same convention `applyModulation` and `reordered` follow.
+   * **An edit that changed nothing changes nothing.** The revision is what makes `RackApp` recompile,
+   * and recompiling rebuilds every processor, resetting each oscillator's phase and each filter's
+   * history — an audible click. Several edits here can legitimately be no-ops: moving the first module
+   * up, dropping a dragged module back where it started, removing an id that is not there. Reference
+   * identity is the test, which is why the operations below are careful to hand back the very same patch
+   * when they decline — the convention `applyModulation` and `reordered` already follow. A declined edit
+   * must not land in the history either, or undo would appear to do nothing.
+   *
+   * `key` is the coalescing key from `history.ts`: null for an edit that stands alone, a string for one
+   * that continues a gesture. `rebuild` is whether the graph has to be rebuilt.
    */
-  const structural = (change: (patch: Patch) => Patch) => {
+  const write = (key: string | null, rebuild: boolean, change: (patch: Patch) => Patch) => {
     set((state) => {
       const patch = settle(change(state.patch))
       if (patch === state.patch) return {}
       autosavePatch(patch)
-      return { patch, revision: state.revision + 1 }
+      const history = remember(state.history, state.patch, key)
+      return rebuild ? { patch, history, revision: state.revision + 1 } : { patch, history }
     })
   }
 
+  /** A structural edit: what modules or cables exist. Never coalesces — each one is its own step. */
+  const structural = (change: (patch: Patch) => Patch) => write(null, true, change)
+
   /** A routing edit: the document changes, the graph does not. Same path a knob takes. */
-  const routing = (change: (routes: ModRoute[]) => ModRoute[]) => {
-    set((state) => {
-      const routes = change([...(state.patch.modulation ?? [])])
+  const routing = (key: string | null, change: (routes: ModRoute[]) => ModRoute[]) => {
+    write(key, false, (current) => {
+      const routes = change([...(current.modulation ?? [])])
       // Absent rather than an empty array, so removing the last routing leaves a patch byte-identical to
       // one that never had any — the same standard `voices` and `tempo` hold themselves to.
-      const { modulation: _drop, ...rest } = state.patch
-      const patch = settle(routes.length > 0 ? { ...rest, modulation: routes } : rest)
-      autosavePatch(patch)
-      return { patch }
+      const { modulation: _drop, ...rest } = current
+      return routes.length > 0 ? { ...rest, modulation: routes } : rest
     })
   }
 
   return {
     patch: EMPTY_PATCH,
     revision: 0,
+    history: NO_HISTORY,
     selected: null,
     flipped: false,
     notes: [],
@@ -370,22 +407,20 @@ export const useRack = create<RackState>((set, get) => {
 
     setParam: (moduleId, paramId, value) => {
       // No revision bump. See the note at the top of this file — this is the whole reason it exists.
-      set((state) => {
-        // Settled, so turning a Combinator rotary moves everything it drives in the same edit. That also
-        // means grabbing a *routed* knob directly is undone the moment its rotary next moves, which is
-        // what Reason does and is the honest behaviour: the routing owns the knob, and the faceplate
-        // marks it so rather than disabling it.
-        const patch = settle({
-          ...state.patch,
-          modules: state.patch.modules.map((module) =>
-            module.id === moduleId
-              ? { ...module, params: { ...module.params, [paramId]: value } }
-              : module,
-          ),
-        })
-        autosavePatch(patch)
-        return { patch }
-      })
+      // Coalesced by module and param, so one drag of one knob is one undo rather than four hundred.
+      //
+      // Settled by `write`, so turning a Combinator rotary moves everything it drives in the same edit.
+      // That also means grabbing a *routed* knob directly is undone the moment its rotary next moves,
+      // which is what Reason does and is the honest behaviour: the routing owns the knob, and the
+      // faceplate marks it so rather than disabling it.
+      write(paramKey(moduleId, paramId), false, (patch) => ({
+        ...patch,
+        modules: patch.modules.map((module) =>
+          module.id === moduleId
+            ? { ...module, params: { ...module.params, [paramId]: value } }
+            : module,
+        ),
+      }))
     },
 
     setLane: (moduleId, lane, values) => get().setData(moduleId, `lane${lane + 1}`, values),
@@ -393,18 +428,16 @@ export const useRack = create<RackState>((set, get) => {
     lane: (moduleId, lane) => get().data(moduleId, `lane${lane + 1}`),
 
     setData: (moduleId, slot, values) => {
-      set((state) => {
-        const patch = {
-          ...state.patch,
-          modules: state.patch.modules.map((module) =>
-            module.id === moduleId
-              ? { ...module, data: { ...module.data, [slot]: [...values] } }
-              : module,
-          ),
-        }
-        autosavePatch(patch)
-        return { patch }
-      })
+      // Coalesced by module and slot, for the same reason a knob is: painting a Tracker lane writes the
+      // whole lane on every pointer move, so one drag across eight cells is one undo.
+      write(dataKey(moduleId, slot), false, (patch) => ({
+        ...patch,
+        modules: patch.modules.map((module) =>
+          module.id === moduleId
+            ? { ...module, data: { ...module.data, [slot]: [...values] } }
+            : module,
+        ),
+      }))
     },
 
     data: (moduleId, slot) =>
@@ -414,10 +447,12 @@ export const useRack = create<RackState>((set, get) => {
       // A fresh route sweeps the target end to end, which it says by leaving both limits absent rather
       // than by writing the numbers down. That way the patch does not hardcode a range a later version of
       // that module might widen, and the panel can show the real limits by looking them up.
-      routing((routes) => [...routes, { from, to }]),
+      routing(null, (routes) => [...routes, { from, to }]),
 
     setRoute: (index, change) =>
-      routing((routes) => {
+      // Coalesced per routing rather than globally: the limits are number fields, and typing `1200` in
+      // one fires four edits. Undo should step over the number, not over each digit of it.
+      routing(`route:${index}`, (routes) => {
         if (index < 0 || index >= routes.length) return routes
         const next = { ...routes[index], ...change }
         // An erased number field means "the target's own limit", and is stored as absence. `in` rather
@@ -432,7 +467,7 @@ export const useRack = create<RackState>((set, get) => {
       }),
 
     removeRoute: (index) =>
-      routing((routes) => {
+      routing(null, (routes) => {
         if (index < 0 || index >= routes.length) return routes
         routes.splice(index, 1)
         return routes
@@ -567,38 +602,36 @@ export const useRack = create<RackState>((set, get) => {
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
 
     setTempo: (tempo) => {
-      set((state) => {
+      // One key for the whole control: a tempo field is dragged or typed into, and either way the
+      // gesture is "set the tempo" rather than one edit per intermediate number.
+      write('tempo', false, (patch) => {
         const wanted = Math.max(20, Math.min(400, tempo))
-        const patch =
-          wanted === 120
-            ? (({ tempo: _drop, ...rest }) => rest)(state.patch)
-            : { ...state.patch, tempo: wanted }
-        autosavePatch(patch)
-        return { patch }
+        return wanted === 120
+          ? (({ tempo: _drop, ...rest }) => rest)(patch)
+          : { ...patch, tempo: wanted }
       })
     },
     setBreak: (id) =>
-      set((state) => {
-        if ((id ?? undefined) === state.patch.break) return {}
-        const { break: _drop, ...rest } = state.patch
-        const patch = id ? { ...rest, break: id } : rest
-        autosavePatch(patch)
-        return { patch }
+      write('break', false, (patch) => {
+        if ((id ?? undefined) === patch.break) return patch
+        const { break: _drop, ...rest } = patch
+        return id ? { ...rest, break: id } : rest
       }),
 
     setGrooveboxPattern: (pattern) =>
-      set((state) => {
-        const song = grooveboxSong(state.patch)
-        if (!song || !song.patterns.some((candidate) => candidate.id === pattern.id)) return {}
+      // Keyed by the pattern, so painting a drum lane in the retained song coalesces the way painting a
+      // Tracker lane does. Undoing it re-encodes the previous song, which the hosted engine picks up on
+      // its next step — the same live handoff a forward edit uses, and no graph rebuild either way.
+      write(`groovebox:${pattern.id}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song || !song.patterns.some((candidate) => candidate.id === pattern.id)) return patch
         const next: Song = {
           ...song,
           patterns: song.patterns.map((candidate) =>
             candidate.id === pattern.id ? pattern : candidate,
           ),
         }
-        const patch = { ...state.patch, groovebox: encodeSong(next) }
-        autosavePatch(patch)
-        return { patch }
+        return { ...patch, groovebox: encodeSong(next) }
       }),
 
     setRunning: (running) => set({ running }),
@@ -683,7 +716,38 @@ export const useRack = create<RackState>((set, get) => {
         }
         return { ...patch, voices: wanted }
       }),
-    load: (patch) => structural(() => withGrooveboxSource(patch)),
+    load: (patch) => {
+      structural(() => withGrooveboxSource(patch))
+      // **Opening a document is where undo stops.** A history that spanned a load would let one press
+      // resurrect the patch somebody had deliberately left — and the thing they left is not gone: it is
+      // in the library, in storage, or in the link they arrived by. Reason draws the line in the same
+      // place, and so does every editor with a File menu.
+      set({ history: NO_HISTORY })
+    },
+
+    undo: () =>
+      set((state) => {
+        const step = stepBack(state.history, state.patch)
+        if (!step) return {}
+        autosavePatch(step.patch)
+        // Settling is not needed and would be wrong: the stored patch was settled when it was current,
+        // and running the routings again against a *restored* Combinator would re-derive the targets
+        // from the rotary we are in the middle of putting back.
+        return needsRebuild(state.patch, step.patch)
+          ? { ...step, revision: state.revision + 1 }
+          : step
+      }),
+
+    redo: () =>
+      set((state) => {
+        const step = stepForward(state.history, state.patch)
+        if (!step) return {}
+        autosavePatch(step.patch)
+        return needsRebuild(state.patch, step.patch)
+          ? { ...step, revision: state.revision + 1 }
+          : step
+      }),
+
     select: (moduleId) => set({ selected: moduleId }),
     flip: (flipped) => set((state) => ({ flipped: flipped ?? !state.flipped })),
   }
