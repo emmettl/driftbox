@@ -26,6 +26,13 @@ devices added around it. This does not mean exploding a song into anonymous prim
 modules. First-class groovebox devices and an additive document bridge preserve the
 authored patterns, arrangement and compatibility boundary.
 
+The first live audio boundary is four authored-machine outputs on `DriftboxEngine`:
+`tr808`, `tr909`, `303.a` and `303.b`, deliberately the same identities the shared clip
+model uses. They are unity dry outputs before the groovebox master and shared effect
+returns. Left alone they feed the original mix exactly as before; a host may divert one
+to another `AudioNode`. That is the seam for patchable rack devices: retain and schedule
+one Song, route its machines separately, and never maintain a second 303 or drum engine.
+
 [REBIRTH-PARITY.md](REBIRTH-PARITY.md) holds the capability ledger, document states and
 render-equivalence completion test. This file continues to describe how the persistent
 graph works. The distinction matters: two execution engines can serve one product without

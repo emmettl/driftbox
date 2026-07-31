@@ -55,7 +55,7 @@ user could approximate it from oscillators.
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted shared transport plus Arranger | Expose the shared primitives in rack mode |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted shared timeline plus Combinator/MIDI | Expose the shared recorder in rack mode |
-| Section mixer | Per voice | Mixer/Out | Four section buses with mute, pan, level, meter and routes |
+| Section mixer | Per voice | Four live authored-machine outputs | Add rack strips with mute, pan, level, meter and routes |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Keyboard audition only | Yes | Extract the rack MIDI host for both modes |
 | Stereo mix and stems export | Stems | Patch render | Both exports from both modes |
@@ -111,8 +111,10 @@ versioned song envelope opaquely, `grooveboxSong` returns it only when this engi
 decode it, and the patch codec preserves even a future unknown song exactly. The next
 half has begun: rack mode hosts understood retained songs with the existing groovebox
 engine and routes their complete mix through the same final performance bus, analyser and
-destination as the rack graph. Next, derive first-class patchable rack devices and editor
-controls from that retained document. Do
+destination as the rack graph. The shared engine also exposes stable live outputs for
+303 A, 303 B, 808 and 909; a host can divert one machine pre-master without copying its
+synthesis, patterns or scheduler. Next, terminate those outputs in first-class patchable
+rack devices and add their editor controls. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
