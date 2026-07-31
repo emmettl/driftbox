@@ -56,8 +56,10 @@ mutating the arrangement, edit the full retained control set for every drum voic
 seek or loop sections and arbitrary whole-bar ranges on the hosted transport, rotate or
 transform focused retained lanes, program 909 flams, record tempo, global swing and authored
 instrument, per-voice swing, send and shared effect automation against the hosted engine
-clock, quantise keyboard taps into the focused authored clip, and return to the sequencer
-without losing that document. Next, expose focused cut/copy/paste; do not
+clock, quantise keyboard taps into the focused authored clip, cut/copy/paste a focused lane
+or machine without losing articulation, and return to the sequencer without losing that
+document. Next, reuse the shared clipboard transforms in the original editor and continue
+interchange; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

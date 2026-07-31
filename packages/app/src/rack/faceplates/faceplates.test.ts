@@ -182,6 +182,10 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Groovebox loop length in bars"')
   expect(markup).toContain('aria-label="Groovebox pattern transforms"')
   expect(markup).toContain('aria-label="Arm Groovebox tap recording"')
+  expect(markup).toContain('aria-label="Groovebox focused clipboard"')
+  expect(markup).toContain('aria-label="Cut Bass Drum"')
+  expect(markup).toContain('aria-label="Copy Bass Drum"')
+  expect(markup).toContain('aria-label="Paste into Bass Drum"')
   expect(markup).toContain('aria-label="Groovebox automation recorder"')
   expect(markup).toContain('aria-label="Arm Groovebox automation recording"')
   expect(markup).toContain('aria-label="Groovebox swing"')
@@ -199,7 +203,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(13)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(14)
 })
 
 it('shows every retained 303 instrument control', () => {

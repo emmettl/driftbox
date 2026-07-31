@@ -1597,6 +1597,7 @@ kbd {
 .rk-groovebox-live button,
 .rk-groovebox-transport button,
 .rk-groovebox-tools button,
+.rk-groovebox-clipboard button,
 .rk-groovebox-automation button {
   min-width: 24px;
   height: 24px;
@@ -1699,6 +1700,34 @@ kbd {
 
 .rk-groovebox-tools input {
   width: 100px;
+}
+
+.rk-groovebox-clipboard {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-clipboard strong {
+  min-width: 72px;
+  overflow: hidden;
+  color: rgba(95, 240, 208, 0.78);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-groovebox-clipboard > span {
+  margin-left: auto;
+  overflow: hidden;
+  color: rgba(95, 240, 208, 0.65);
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .rk-groovebox-automation {
