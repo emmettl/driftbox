@@ -6,7 +6,7 @@ import { portSummary } from './layout.js'
 // Choosing something to add.
 //
 // **The flat list this replaces was the single biggest thing between the rack and somebody enjoying it.**
-// Twenty-eight names in a row — `Offset`, `S&H`, `Alligator`, `Combi` — assume you already know what they
+// Twenty-nine names in a row — `Offset`, `S&H`, `Alligator`, `Combi` — assume you already know what they
 // are, which is exactly what a person opening a modular for the first time does not. Reason's browser was
 // a picture and a sentence per device for the same reason: the picker is where you find out what the
 // instrument can do, so a picker that only names things teaches nothing and the rack stays a puzzle.
@@ -32,6 +32,7 @@ import { portSummary } from './layout.js'
 interface Props {
   onModule: (type: string) => void
   onChunk: (chunk: Chunk) => void
+  onClose: () => void
 }
 
 function ModuleLogo({ logo }: { logo: ModuleLogoDef }) {
@@ -46,7 +47,7 @@ function ModuleLogo({ logo }: { logo: ModuleLogoDef }) {
   )
 }
 
-export function Palette({ onModule, onChunk }: Props) {
+export function Palette({ onModule, onChunk, onClose }: Props) {
   const [query, setQuery] = useState('')
   const search = useRef<HTMLInputElement>(null)
 
@@ -57,76 +58,105 @@ export function Palette({ onModule, onChunk }: Props) {
     search.current?.focus()
   }, [])
 
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
   const { chunks, shelves } = useMemo(() => browse(query), [query])
   const empty = chunks.length === 0 && shelves.length === 0
+  const moduleCount = shelves.reduce((total, shelf) => total + shelf.modules.length, 0)
 
   return (
-    <div className="rk-palette">
-      <div className="rk-palette-search">
-        <input
-          ref={search}
-          type="search"
-          value={query}
-          placeholder="Search modules…"
-          aria-label="Search modules"
-          onChange={(event) => setQuery(event.target.value)}
-        />
+    <div className="rk-palette" role="dialog" aria-modal="true" aria-labelledby="rk-palette-title">
+      <header className="rk-palette-heading">
+        <div>
+          <h2 id="rk-palette-title">Module catalog</h2>
+          <p>Choose a device or a pre-wired chunk without losing your place in the rack.</p>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close module catalog">
+          Close <kbd>Esc</kbd>
+        </button>
+      </header>
+
+      <div className="rk-palette-scroll">
+        <div className="rk-palette-search">
+          <input
+            ref={search}
+            type="search"
+            value={query}
+            placeholder="Search modules…"
+            aria-label="Search modules"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+
+        {chunks.length > 0 && (
+          <section className="rk-shelf">
+            <h2>Chunks</h2>
+            {/* Marked as chunks rather than merely listed first: dropping one adds several modules, some
+                cables and its own channel, which is a bigger thing to have happen than adding a VCO and
+                should not look identical to it. */}
+            <p className="rk-shelf-note">Pre-wired groups, each on its own channel.</p>
+            <div className="rk-cards">
+              {chunks.map((chunk) => (
+                <button
+                  key={chunk.id}
+                  type="button"
+                  className="rk-card rk-card-chunk"
+                  onClick={() => onChunk(chunk)}
+                >
+                  <span className="rk-card-name">{chunk.name}</span>
+                  <span className="rk-card-blurb">{chunk.blurb}</span>
+                  <span className="rk-card-ports">
+                    {chunk.modules.length} modules{chunk.needsSample ? ' · needs a break' : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {shelves.map((shelf) => (
+          <section key={shelf.group} className="rk-shelf">
+            <h2>{shelf.group}</h2>
+            <div className="rk-cards">
+              {shelf.modules.map((def) => (
+                <button
+                  key={def.type}
+                  type="button"
+                  className="rk-card"
+                  data-group={def.group}
+                  onClick={() => onModule(def.type)}
+                >
+                  <span className="rk-card-top">
+                    {def.logo && <ModuleLogo logo={def.logo} />}
+                    <span className="rk-card-copy">
+                      <span className="rk-card-name">{def.name}</span>
+                      <span className="rk-card-blurb">{def.blurb}</span>
+                    </span>
+                  </span>
+                  <span className="rk-card-ports">{portSummary(def)}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {/* Said out loud, because an empty panel reads as broken rather than as a search with no hits. */}
+        {empty && <p className="rk-shelf-note">Nothing matches “{query}”.</p>}
       </div>
 
-      {chunks.length > 0 && (
-        <section className="rk-shelf">
-          <h2>Chunks</h2>
-          {/* Marked as chunks rather than merely listed first: dropping one adds several modules, some
-              cables and its own channel, which is a bigger thing to have happen than adding a VCO and
-              should not look identical to it. */}
-          <p className="rk-shelf-note">Pre-wired groups, each on its own channel.</p>
-          <div className="rk-cards">
-            {chunks.map((chunk) => (
-              <button
-                key={chunk.id}
-                type="button"
-                className="rk-card rk-card-chunk"
-                onClick={() => onChunk(chunk)}
-              >
-                <span className="rk-card-name">{chunk.name}</span>
-                <span className="rk-card-blurb">{chunk.blurb}</span>
-                <span className="rk-card-ports">
-                  {chunk.modules.length} modules{chunk.needsSample ? ' · needs a break' : ''}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {shelves.map((shelf) => (
-        <section key={shelf.group} className="rk-shelf">
-          <h2>{shelf.group}</h2>
-          <div className="rk-cards">
-            {shelf.modules.map((def) => (
-              <button
-                key={def.type}
-                type="button"
-                className="rk-card"
-                data-group={def.group}
-                onClick={() => onModule(def.type)}
-              >
-                <span className="rk-card-top">
-                  {def.logo && <ModuleLogo logo={def.logo} />}
-                  <span className="rk-card-copy">
-                    <span className="rk-card-name">{def.name}</span>
-                    <span className="rk-card-blurb">{def.blurb}</span>
-                  </span>
-                </span>
-                <span className="rk-card-ports">{portSummary(def)}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-
-      {/* Said out loud, because an empty panel reads as broken rather than as a search with no hits. */}
-      {empty && <p className="rk-shelf-note">Nothing matches “{query}”.</p>}
+      <footer className="rk-palette-footer">
+        <span>
+          {moduleCount} {moduleCount === 1 ? 'module' : 'modules'}
+          {chunks.length > 0 && ` · ${chunks.length} ${chunks.length === 1 ? 'chunk' : 'chunks'}`}
+        </span>
+        <span>Scroll to browse ↓</span>
+      </footer>
     </div>
   )
 }

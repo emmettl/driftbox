@@ -88,7 +88,7 @@ const escaped = (text: string) =>
 
 describe('what the picker draws', () => {
   const markup = renderToStaticMarkup(
-    createElement(Palette, { onModule: () => {}, onChunk: () => {} }),
+    createElement(Palette, { onModule: () => {}, onChunk: () => {}, onClose: () => {} }),
   )
 
   it('gives every module a card with its name and its sentence', () => {
@@ -115,5 +115,12 @@ describe('what the picker draws', () => {
 
   it('marks chunks as chunks, because dropping one does more than adding a module', () => {
     expect(markup).toContain('rk-card-chunk')
+  })
+
+  it('is an explicit, dismissible catalog with a scroll cue', () => {
+    expect(markup).toContain('role="dialog"')
+    expect(markup).toContain('aria-modal="true"')
+    expect(markup).toContain('aria-label="Close module catalog"')
+    expect(markup).toContain('Scroll to browse')
   })
 })
