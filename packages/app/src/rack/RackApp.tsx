@@ -40,6 +40,7 @@ export default function RackApp() {
   const addChunk = useRack((s) => s.addChunk)
   const setNotes = useRack((s) => s.setNotes)
   const name = useRack((s) => s.name)
+  const setName = useRack((s) => s.setName)
   const setMidi = useRack((s) => s.setMidi)
   const midiInputs = useRack((s) => s.midiInputs)
   const setVoices = useRack((s) => s.setVoices)
@@ -47,6 +48,7 @@ export default function RackApp() {
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
   const tempo = useRack((s) => s.patch.tempo ?? 120)
   const setTempo = useRack((s) => s.setTempo)
+  const setBreak = useRack((s) => s.setBreak)
   const playing = useRack((s) => s.running)
   const setRunning = useRack((s) => s.setRunning)
   const ensureSampler = useRack((s) => s.ensureSampler)
@@ -150,6 +152,7 @@ export default function RackApp() {
       // which meant choosing a break-backed patch from the picker and exporting it produced a file with the
       // bass and no drums — the same early-return-before-recording-the-fact shape as the bug above.
       setIntendedBreak(entry.id)
+      setBreak(entry.id)
 
       const live = rack.current
       if (!live) return
@@ -183,7 +186,7 @@ export default function RackApp() {
       // And it should be playing. Loading a break and hearing nothing is the same failure as the stop button.
       setRunning(true)
     },
-    [ensureSampler, setTempo, setRunning],
+    [ensureSampler, setBreak, setTempo, setRunning],
   )
 
   loadBreakRef.current = loadBreak
@@ -297,10 +300,15 @@ export default function RackApp() {
     void openingPatch().then((result) => {
       opening.current = result
       load(result.patch)
+      // A shipped patch is a named piece of work, not an anonymous graph. This matters most in Perform
+      // mode, where the rack is hidden: before this, the hero demo's only visible identity became the
+      // sample it happened to load ("Chopper"), which made a complete song read like a break preset.
+      if (result.preset) setName(result.preset.name)
       // Recorded before anything is played, so an export straight off the page still has its drums.
-      if (result.preset?.needsBreak) setIntendedBreak(result.preset.needsBreak)
+      const wanted = result.patch.break ?? result.preset?.needsBreak
+      if (wanted) setIntendedBreak(wanted)
     })
-  }, [load])
+  }, [load, setName])
 
   /**
    * The audio behind every loaded sample, by module id.
@@ -366,7 +374,8 @@ export default function RackApp() {
    */
   const exportPatch = useCallback(async () => {
     const patch = useRack.getState().patch
-    const entry = intendedBreak ? BREAKS.find((b) => b.id === intendedBreak) : undefined
+    const breakId = patch.break ?? intendedBreak
+    const entry = breakId ? BREAKS.find((b) => b.id === breakId) : undefined
 
     const data: Record<string, Record<string, Float32Array>> = {}
     // A loaded file wins over a shipped break, per sampler. Rendering the break over the top would silently
@@ -481,7 +490,7 @@ export default function RackApp() {
     // The reward for the gesture, and `docs/DNB.md` calls this the most important thing in it: a beat, not a
     // bleep. The opening patch is a chopped break for a first-time visitor, and a break is silent until one
     // has been rendered into it — so the gesture that starts audio is also the one that fills the Sampler.
-    const wanted = opening.current?.preset?.needsBreak
+    const wanted = useRack.getState().patch.break ?? opening.current?.preset?.needsBreak
     if (wanted) void loadBreakRef.current(wanted)
   }, [setRunning])
 
@@ -605,7 +614,7 @@ export default function RackApp() {
           Driftbox <span>Rack</span>
         </h1>
         {name && <span className="rk-open">{name}</span>}
-        {loadedBreak && <span className="rk-open">{loadedBreak.name}</span>}
+        {loadedBreak && <span className="rk-open">Break · {loadedBreak.name}</span>}
 
         {!started && !failed && (
           <button type="button" className="rk-primary" onClick={start}>

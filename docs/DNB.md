@@ -329,10 +329,10 @@ gets it: `openingPatch` now returns whether this is a *fresh* arrival, and only 
 own is given a demo. A shared link or a saved session is somebody's work, and replacing it because that makes a
 better first impression would be the worst thing this page could do.
 
-For a fresh arrival the starter patch is now `Cut Up` rather than `Acid` — a beat, not a bleep — and the one
-gesture that starts audio also renders the break into it, because a Sampler with no data is silent. Measured
-end to end: from the click to a playing break is about 2.6 seconds, and the level arrives at roughly double
-what the old acid starter produced.
+For a fresh arrival the starter patch moved first from `Acid` to `Cut Up` — a beat, not a bleep — and now to
+`Pressure System`, the full song described below. The one gesture that starts audio also renders the break
+into it, because a Sampler with no data is silent. The principle did not change when the ambition did: the
+first reward for pressing Start is music.
 
 **D3. Shipped D&B patches.** ✅ Built: `Cut Up`, `Ducked` and `Wobbler`.
 
@@ -350,9 +350,36 @@ Two things they demonstrate that nothing else does:
 - **The sidechain.** `Ducked`'s Compressor takes its key from the Sampler rather than from its own input, so
   every hit of the break pushes the bass down. One cable, and it is the pump the genre is built on.
 
-A preset can now name the break it was written around (`needsBreak`). The break itself cannot live in
-`@driftbox/rack` — a rendered bar is about 700kB against a patch's few hundred bytes — so the preset names one
-and the host resolves it; that package deliberately does not know what the string means.
+A preset names the break it was written around (`needsBreak`), and the patch document carries the same
+host-resolved id as `break`. The audio itself still cannot live in `@driftbox/rack` — a rendered bar is about
+700kB against a patch's few hundred bytes — but the small id can. That distinction is load-bearing: catalogue
+metadata is enough on first load, while document metadata is what keeps the drums in a saved, downloaded or
+shared copy.
+
+**D4. The record in the box.** ✅ Built: `Pressure System`.
+
+The first D&B patches were useful proofs and poor shop windows: one repeated bar, one trick each, everything
+present from the downbeat. `Pressure System` treats the rack like a song-making environment instead. One
+Arranger moves two eight-pattern Tracker banks through a 38-bar form: intro, lift, first drop, turn,
+breakdown, second drop, final and outro. Its 39 modules and 57 cables are not breadth for its own sake; the
+layers have different jobs and enter at different points:
+
+- the generated break is chopped, compressed and given only a short room;
+- a triangle sub carries the fundamental and ducks under the break;
+- detuned saws make the Reese, with a delayed right side for width and a sidechained compressor for space;
+- Alligator gates a parallel copy of that bass into a second rhythm;
+- three oscillators feed a Vocoder carrier while the break supplies its consonants, then delay and reverb
+  turn the result into the atmospheric pad.
+
+The Combinator is the playable surface over the arrangement. Its four rotaries are Pressure, Space, Motion
+and Weight; four buttons change vocoder resolution and mute or thicken whole musical roles. Eighteen routes
+make those controls musical rather than exposing a wall of unrelated knobs.
+
+The journey also closed two presentation gaps that a compile test could not reveal. A pristine shipped patch
+now recovers its title after storage or URL round-trip, while the header distinguishes the song from the
+break it loaded. And the hero has a real browser-audio render test: twelve bars must remain audible, the drop
+must lift above the intro, the stereo field must be meaningfully different, and the limiter must keep the
+peak in bounds. Those are guardrails, not a claim that a metric can replace listening.
 
 ## Not in this plan
 

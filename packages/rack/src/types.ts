@@ -281,6 +281,17 @@ export interface Patch {
   modules: PatchModule[]
   cables: PatchCable[]
   /**
+   * The portable generated break this patch was written around.
+   *
+   * The audio itself never belongs in a patch — even one rendered bar is hundreds of kilobytes — so this is
+   * a small host-resolved id. The current rack loads the same break into every Sampler, matching its break
+   * picker; somebody's own sample file remains session-only because a URL cannot carry it.
+   *
+   * Absent means no built-in break. Optional rather than a format bump because an older reader can safely
+   * ignore it and still preserve every part of the synthesis graph.
+   */
+  break?: string
+  /**
    * Combinator routings. Absent means none, which is what every patch written before this existed means.
    *
    * At the top level rather than on the Combinator module, deliberately, and it is the decision that kept

@@ -1,6 +1,6 @@
-import { MODULES, compile, encodePatch, patchPresetById, type Patch } from '@driftbox/rack'
+import { MODULES, compile, decodePatch, encodePatch, patchPresetById, type Patch } from '@driftbox/rack'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { STARTER, useRack } from './store.js'
+import { matchingPreset, STARTER, useRack } from './store.js'
 
 /** A small, stable fixture for tests that need *a* patch rather than *the* starter — the starter is now a
  *  three-Out drum-and-bass patch, and tests that assumed its shape broke when it changed. */
@@ -18,10 +18,11 @@ describe('turning a knob', () => {
   it('changes the value without bumping the revision', () => {
     // `revision` is what tells RackApp to recompile. A knob must never do that: recompiling rebuilds every
     // processor, which resets each oscillator's phase and each filter's history.
+    // The hero's ladder cutoff is intentionally owned by its Combinator, so use an ordinary unrouted knob.
     const before = useRack.getState().revision
-    useRack.getState().setParam('ladder-1', 'cutoff', 2400)
+    useRack.getState().setParam('reverb-1', 'size', 0.6)
 
-    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(2400)
+    expect(useRack.getState().paramValue('reverb-1', 'size')).toBe(0.6)
     expect(useRack.getState().revision).toBe(before)
   })
 
@@ -29,7 +30,7 @@ describe('turning a knob', () => {
     // The two requirements pull in opposite directions, which is why the revision counter exists at all
     // rather than a comparison of the patch.
     const before = useRack.getState().patch
-    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().setParam('reverb-1', 'size', 0.7)
     expect(useRack.getState().patch).not.toBe(before)
   })
 
@@ -137,6 +138,23 @@ describe('the starter patch', () => {
   it('is a fresh object each time, so editing it cannot corrupt the shipped patch', () => {
     expect(STARTER()).not.toBe(STARTER())
     expect(STARTER()).toEqual(STARTER())
+  })
+
+  it('recovers its catalogue identity after a save and loses it after an edit', () => {
+    // Decoding rebuilds object fields in canonical order, which is not the order a preset factory writes
+    // them. Identity is about the document, not JSON insertion order.
+    const reopened = decodePatch(encodePatch(STARTER()))!
+    expect(matchingPreset(reopened)?.name).toBe('Pressure System')
+
+    const edited = {
+      ...reopened,
+      modules: reopened.modules.map((module) =>
+        module.id === 'reverb-1'
+          ? { ...module, params: { ...module.params, size: 0.61 } }
+          : module,
+      ),
+    }
+    expect(matchingPreset(edited)).toBeUndefined()
   })
 
   it('only uses modules and ports this build actually has', () => {
@@ -563,7 +581,8 @@ describe('writing a pattern', () => {
   })
 
   it('is an empty array for a lane nothing has written', () => {
-    expect(useRack.getState().lane('tracker-1', 3)).toEqual([])
+    // The hero's musical Tracker uses all four lanes; its second Tracker uses three for the Alligator.
+    expect(useRack.getState().lane('tracker-2', 3)).toEqual([])
     expect(useRack.getState().lane('nobody', 0)).toEqual([])
   })
 

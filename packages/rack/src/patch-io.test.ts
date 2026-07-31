@@ -8,6 +8,7 @@ import type { Patch } from './types.js'
 // patch, saving it, and finding it demolished.
 
 const FULL: Patch = {
+  break: 'amenish',
   modules: [
     { id: 'osc', type: 'vco', version: 1, params: { tune: -12, shape: 1, width: 0.3 }, pos: [0, 0] },
     { id: 'filter', type: 'ladder', version: 1, params: { cutoff: 940, resonance: 0.72 }, pos: [1, 0] },
@@ -59,6 +60,12 @@ describe('writing and reading a patch', () => {
         cables: [],
       }),
     ).toEqual({ modules: [{ id: 'a', type: 'vco' }], cables: [] })
+  })
+
+  it('keeps a portable break id but drops an unusable one', () => {
+    expect(decode({ modules: [], cables: [], break: 'amenish' })?.break).toBe('amenish')
+    expect(decode({ modules: [], cables: [], break: '' })?.break).toBeUndefined()
+    expect(decode({ modules: [], cables: [], break: 7 })?.break).toBeUndefined()
   })
 
   it('refuses a format from the future rather than guessing at it', () => {

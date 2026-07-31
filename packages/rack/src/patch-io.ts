@@ -206,8 +206,11 @@ export function decodePatch(text: string): Patch | null {
   }
 
   const patch: Patch = { modules, cables }
+  // A short host-resolved id, never the audio itself. Empty or non-string values cannot name anything and
+  // are dropped rather than being turned into a break the host has to guess at.
+  if (isName(body.break)) patch.break = body.break
   // Absent means none, so a patch written before the Combinator existed round-trips byte-identically —
-  // the same standard `voices` and `tempo` hold themselves to.
+  // the same standard `break`, `voices` and `tempo` hold themselves to.
   if (modulation.length > 0) patch.modulation = modulation
   // Absent means one, which is what every patch written before polyphony existed means — so this stays
   // absent rather than being written as 1, and an old patch round-trips byte-identically.

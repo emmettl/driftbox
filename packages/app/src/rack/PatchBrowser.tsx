@@ -13,7 +13,7 @@ import {
 import { downloadPatch, pickPatchFile, pickVcvFile } from './persistence.js'
 import { useRack } from './store.js'
 
-// The patch picker: four shipped patches, whatever has been saved, and the file in and out.
+// The patch picker: shipped patches, whatever has been saved, and the file in and out.
 //
 // Named `PatchBrowser` rather than `Library`, which is what it was for about a minute. `library.ts` holds the
 // storage layer, and on a case-insensitive filesystem — which macOS is by default — `Library.tsx` and
