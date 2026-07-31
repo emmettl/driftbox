@@ -4,6 +4,7 @@ import { useBox } from '../store'
 import { PatternBar } from './PatternBar'
 import { PatternTools } from './PatternTools'
 import { buildLabel, buildTitle } from '../version'
+import { rackLink } from '../persistence'
 
 /** Confirmation that lives for a moment and then goes away. Sharing and saving both
  *  succeed silently otherwise, and a button that appears to do nothing gets pressed
@@ -241,6 +242,17 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
       </label>
 
       <div className="song-tools">
+        <a
+          className="ghost"
+          href="./rack.html"
+          onClick={(event) => {
+            event.preventDefault()
+            void rackLink(useBox.getState().song).then((url) => window.location.assign(url))
+          }}
+          title="Open this complete song in rack mode"
+        >
+          rack
+        </a>
         <button
           className="ghost"
           onClick={() => void copyShareLink().then(() => showFlash('link copied'))}

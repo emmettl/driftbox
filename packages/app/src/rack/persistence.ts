@@ -1,5 +1,5 @@
 import { decodePatch, encodePatch, type Patch } from '@driftbox/rack'
-import { fromHash, linkTo, takeFromUrl, toHash } from '../hash.js'
+import { fromHash, linkTo, takeDocumentFromUrl, takeFromUrl, toHash } from '../hash.js'
 
 // Where a patch is kept. `@driftbox/rack` owns the format (`rack/patch-io.ts`); this owns the
 // three places a patch can live, all of which are browser APIs the rack may not touch. It is
@@ -131,8 +131,34 @@ export async function patchFromHash(hash: string): Promise<Patch | null> {
   return found?.kind === 'patch' ? decodePatch(found.text) : null
 }
 
+function asRackDocument(
+  found: { kind: 'patch' | 'song'; text: string } | null,
+): Patch | null {
+  if (!found) return null
+  if (found.kind === 'patch') return decodePatch(found.text)
+  return { modules: [], cables: [], groovebox: found.text }
+}
+
+/**
+ * Turn either document kind the rack can host into a Patch.
+ *
+ * A song is wrapped as its exact encoded text, without decoding and re-encoding it. That
+ * is what lets this build import a future song safely even when it cannot edit it.
+ */
+export async function rackDocumentFromHash(hash: string): Promise<Patch | null> {
+  return asRackDocument(await fromHash(hash))
+}
+
 export function patchShareLink(patch: Patch): Promise<string> {
   return linkTo('patch', encodePatch(patch))
+}
+
+/** A sequencer link carrying the retained groovebox document, or null for a native patch. */
+export async function sequencerLink(patch: Patch): Promise<string | null> {
+  if (!patch.groovebox) return null
+  const url = new URL('./index.html', window.location.href)
+  url.hash = await toHash('song', patch.groovebox)
+  return url.toString()
 }
 
 /**
@@ -144,4 +170,14 @@ export function patchShareLink(patch: Patch): Promise<string> {
 export async function takePatchFromUrl(): Promise<Patch | null> {
   const text = await takeFromUrl('patch')
   return text === null ? null : decodePatch(text)
+}
+
+/**
+ * Take either a native patch or a groovebox song from the rack URL.
+ *
+ * Kept beside `takePatchFromUrl` rather than changing that function's meaning: callers
+ * which specifically validate patch links should continue to reject songs.
+ */
+export async function takeRackDocumentFromUrl(): Promise<Patch | null> {
+  return asRackDocument(await takeDocumentFromUrl(['patch', 'song']))
 }

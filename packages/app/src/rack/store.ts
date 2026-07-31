@@ -16,7 +16,7 @@ import {
   type PlanNote,
 } from '@driftbox/rack'
 import { create } from 'zustand'
-import { autosavePatch, loadStoredPatch, takePatchFromUrl } from './persistence.js'
+import { autosavePatch, loadStoredPatch, takeRackDocumentFromUrl } from './persistence.js'
 import { forget, learn, loadBindings, saveBindings, type CcBinding } from './cc.js'
 import { reordered } from './layout.js'
 import { tempoForBars } from './sample.js'
@@ -658,7 +658,7 @@ export const useRack = create<RackState>((set, get) => {
 })
 
 /**
- * What to open with: a shared link, then the last session, then something that makes a noise.
+ * What to open with: a shared rack document, then the last session, then something that makes a noise.
  *
  * The starter patch matters more than it looks. An empty rack is a correct empty state and a terrible
  * first impression — a modular with nothing in it does not hint at what it is for, and the first thing
@@ -666,7 +666,7 @@ export const useRack = create<RackState>((set, get) => {
  * is also the shortest description of what this rack can do.
  */
 export async function openingPatch(): Promise<Opening> {
-  const shared = await takePatchFromUrl()
+  const shared = await takeRackDocumentFromUrl()
   if (shared) return { patch: shared, fresh: false, preset: matchingPreset(shared) }
   const stored = loadStoredPatch()
   if (stored) return { patch: stored, fresh: false, preset: matchingPreset(stored) }

@@ -161,6 +161,10 @@ button {
   justify-content: flex-end;
 }
 
+.song-tools a.ghost {
+  text-decoration: none;
+}
+
 .pattern-tools {
   display: flex;
   align-items: center;

@@ -134,6 +134,10 @@ kbd {
 .rk-away:hover {
   color: var(--nine);
 }
+.rk-away-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
 
 .rk-voices {
   display: flex;
@@ -426,6 +430,19 @@ kbd {
 }
 .rk-shared {
   color: var(--dim);
+}
+
+.rk-document {
+  margin: 0;
+  padding: 8px 16px;
+  border-block: 1px solid rgba(95, 240, 208, 0.2);
+  background: rgba(95, 240, 208, 0.05);
+  color: var(--dim);
+  font: 11px var(--mono);
+}
+.rk-document strong {
+  color: var(--nine);
+  text-transform: uppercase;
 }
 
 .rk-scope {

@@ -165,6 +165,13 @@ export function shareLink(song: Song): Promise<string> {
   return linkTo('song', encodeSong(song))
 }
 
+/** Open this exact song in rack mode, where it is retained inside the rack document. */
+export async function rackLink(song: Song): Promise<string> {
+  const url = new URL('./rack.html', window.location.href)
+  url.hash = await songToHash(song)
+  return url.toString()
+}
+
 /**
  * Take the song out of the current URL, if there is one, and clear the hash.
  *

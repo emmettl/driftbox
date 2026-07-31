@@ -1,7 +1,8 @@
 import type { Patch } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
+import { toHash } from '../hash.js'
 import { songFromHash, songToHash } from '../persistence.js'
-import { patchFromHash, patchToHash } from './persistence.js'
+import { patchFromHash, patchToHash, rackDocumentFromHash } from './persistence.js'
 
 // The storage and file halves are browser plumbing and are tested by using them. What is worth
 // testing here is the part where the two documents meet: a patch link and a song link travel in
@@ -73,6 +74,24 @@ describe('a patch in a URL', () => {
     // could in principle survive. The marker means neither has to be lucky.
     expect(await songFromHash(await patchToHash(PATCH))).toBeNull()
     expect(await patchFromHash(await songToHash(SONG as never))).toBeNull()
+  })
+
+  it('wraps a song link as an exact groovebox-compatible rack document', async () => {
+    const hash = await songToHash(SONG as never)
+    const document = await rackDocumentFromHash(hash)
+
+    expect(document).toEqual({
+      modules: [],
+      cables: [],
+      groovebox: expect.any(String),
+    })
+    expect(document?.groovebox && JSON.parse(document.groovebox).song).toEqual(SONG)
+  })
+
+  it('retains a future song from a link without decoding or rewriting it', async () => {
+    const future = '{"v":999,"song":{"future":true,"unknown":["kept",7]}}'
+    const document = await rackDocumentFromHash(await toHash('song', future))
+    expect(document?.groovebox).toBe(future)
   })
 
   it('is null rather than a throw when the link is not one at all', async () => {

@@ -114,6 +114,12 @@ not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
 
+The product entry path uses the same boundary: the groovebox can open its current song
+in `rack.html`, the rack consumes either a song or patch link, shows the compatibility
+state, and returns the retained song to the sequencer without a decode/re-encode cycle.
+Until hosted playback lands, the rack says so rather than presenting the imported song
+as an empty native patch.
+
 Unknown future data follows the repository's existing rule: preserve it or refuse it,
 never delete it during a round trip.
 
