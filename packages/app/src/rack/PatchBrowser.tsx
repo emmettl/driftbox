@@ -1,6 +1,6 @@
 import { PATCHES, importVcv, type ImportNote } from '@driftbox/rack'
-import { BREAKS } from './breaks.js'
 import { useState } from 'react'
+import { BREAKS } from './breaks.js'
 import {
   deletePatch,
   freshName,
@@ -13,38 +13,34 @@ import {
 import { downloadPatch, pickPatchFile, pickVcvFile } from './persistence.js'
 import { useRack } from './store.js'
 
-// The patch picker: shipped patches, whatever has been saved, and the file in and out.
-//
-// Named `PatchBrowser` rather than `Library`, which is what it was for about a minute. `library.ts` holds the
-// storage layer, and on a case-insensitive filesystem — which macOS is by default — `Library.tsx` and
-// `library.ts` are the same path. TypeScript resolved `./Library.js` to the storage module and reported that
-// two file names differed only in casing. It would have worked on Linux and failed here, or the reverse.
-//
-// One thing here is worth more than it looks: **loading a patch is one of the two operations that can lose
-// work**, so both of them ask. Overwriting a save asks too. Everything else in the rack is either
-// reversible or autosaved, and these are not.
-
 interface Props {
   onClose: () => void
-  /** Note which break a patch wants, and load it if there is a live rack to load it into. Always present:
-   *  the export needs to know which break a patch was written around whether or not audio is running. */
   onLoadBreak?: (id: string) => void
 }
 
+type BrowserTab = 'showcase' | 'saved' | 'breaks' | 'files'
+
+const TABS: readonly { id: BrowserTab; label: string }[] = [
+  { id: 'showcase', label: 'Showcase' },
+  { id: 'saved', label: 'My patches' },
+  { id: 'breaks', label: 'Breaks' },
+  { id: 'files', label: 'Import / export' },
+]
+
+/** A deliberate preset browser, not a settings dump: every factory patch says what it proves before it
+ * replaces the rack, while personal storage and file plumbing stay one tab away instead of competing
+ * with the things somebody came here to hear. */
 export function PatchBrowser({ onClose, onLoadBreak }: Props) {
   const patch = useRack((s) => s.patch)
   const name = useRack((s) => s.name)
   const load = useRack((s) => s.load)
   const setName = useRack((s) => s.setName)
 
+  const [tab, setTab] = useState<BrowserTab>('showcase')
   const [saved, setSaved] = useState<SavedPatch[]>(() => listPatches())
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
-  /** What the VCV importer did, shown in full. The port index table it uses is best effort — `patch.json`
-   *  identifies a port by number and that ordering is not part of any published format — so showing every
-   *  mapping is what turns a wrong index into one obviously wrong line rather than a patch that sounds
-   *  subtly wrong for reasons nobody can find. */
   const [report, setReport] = useState<ImportNote[] | null>(null)
 
   const refresh = () => setSaved(listPatches())
@@ -55,233 +51,316 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
     onClose()
   }
 
-  return (
-    <div className="rk-library">
-      <section>
-        <h2>Shipped</h2>
-        <ul>
-          {PATCHES.map((preset) => (
-            <li key={preset.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  adopt(preset.build(), preset.name)
-                  // A patch built on a break arrives silent without one, which is the "nothing happened"
-                  // failure this app keeps having to fix. The preset names the break; the host renders it.
-                  if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
-                }}
-              >
-                <strong>{preset.name}</strong>
-                <span>{preset.blurb}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+  const saveCurrent = () => {
+    const target = name ?? freshName('Patch')
+    const clash = name === null && listPatches().some((entry) => entry.name === target)
+    if (clash && !confirm(`Replace “${target}”?`)) return
+    if (!savePatch(target, patch)) {
+      setProblem('Could not save — storage is unavailable or full.')
+      return
+    }
+    setName(target)
+    setProblem(null)
+    refresh()
+  }
 
-      <section>
-        <h2>Saved</h2>
-        {saved.length === 0 && <p className="rk-empty">Nothing yet.</p>}
-        <ul>
-          {saved.map((entry) => (
-            <li key={entry.name}>
-              {renaming === entry.name ? (
-                <form
-                  className="rk-rename"
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    if (!renamePatch(entry.name, draft)) {
-                      setProblem(`Could not rename to “${draft.trim()}” — that name is taken.`)
-                      return
-                    }
-                    if (name === entry.name) setName(draft.trim())
-                    setRenaming(null)
-                    setProblem(null)
-                    refresh()
+  const saveCurrentAs = () => {
+    const wanted = prompt('Save as', freshName(name ?? 'Patch'))
+    if (wanted === null) return
+    if (!savePatch(wanted, patch)) {
+      setProblem('Could not save under that name.')
+      return
+    }
+    setName(wanted.trim())
+    setProblem(null)
+    refresh()
+  }
+
+  return (
+    <div className="rk-library" aria-label="Patch browser">
+      <header className="rk-library-head">
+        <div>
+          <span className="rk-library-kicker">Factory signal archive</span>
+          <h2>Choose a system, not just a preset.</h2>
+          <p>Each one is wired to demonstrate a different side of the rack and opens ready to move.</p>
+        </div>
+        <button type="button" className="rk-library-close" onClick={onClose} aria-label="Close patch browser">
+          ×
+        </button>
+      </header>
+
+      <nav className="rk-library-tabs" role="tablist" aria-label="Patch browser sections">
+        {TABS.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === entry.id}
+            aria-controls={`rk-library-${entry.id}`}
+            onClick={() => setTab(entry.id)}
+          >
+            {entry.label}
+            {entry.id === 'saved' && <span>{saved.length}</span>}
+          </button>
+        ))}
+      </nav>
+
+      <div
+        className="rk-library-panel"
+        id={`rk-library-${tab}`}
+        role="tabpanel"
+        aria-label={TABS.find((entry) => entry.id === tab)?.label}
+      >
+        {tab === 'showcase' && (
+          <section className="rk-showcase">
+            <div className="rk-preset-grid">
+              {PATCHES.map((preset) => {
+                const built = preset.build()
+                const meters = built.modules.filter((module) => module.type === 'meter').length
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`rk-preset-card rk-preset-${preset.accent}${preset.featured ? ' rk-preset-featured' : ''}`}
+                    onClick={() => {
+                      adopt(built, preset.name)
+                      if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
+                    }}
+                  >
+                    <span className="rk-preset-topline">
+                      <span>{preset.kicker}</span>
+                      {preset.featured && <em>editor’s pick</em>}
+                    </span>
+                    <span className="rk-preset-visual" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <b>VU—{meters}</b>
+                    </span>
+                    <strong>{preset.name}</strong>
+                    <span className="rk-preset-blurb">{preset.blurb}</span>
+                    <span className="rk-preset-tags">
+                      {preset.features.map((feature) => (
+                        <i key={feature}>{feature}</i>
+                      ))}
+                    </span>
+                    <span className="rk-preset-meta">
+                      <span>
+                        {built.modules.length} modules · {built.cables.length} cables
+                        {built.tempo ? ` · ${built.tempo} bpm` : ''}
+                      </span>
+                      <b>{name === preset.name ? 'open' : 'load →'}</b>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {tab === 'saved' && (
+          <section className="rk-saved">
+            <div className="rk-current-patch">
+              <div>
+                <span>Current rack</span>
+                <strong>{name ?? 'Untitled patch'}</strong>
+                <small>
+                  {patch.modules.length} modules · {patch.cables.length} cables
+                </small>
+              </div>
+              <button type="button" className="rk-primary" onClick={saveCurrent}>
+                {name ? 'Save changes' : 'Save patch'}
+              </button>
+              <button type="button" onClick={saveCurrentAs}>
+                Save as…
+              </button>
+            </div>
+
+            {saved.length === 0 && (
+              <div className="rk-library-empty">
+                <strong>Your patch shelf is empty.</strong>
+                <span>Save the current rack and it will appear here.</span>
+              </div>
+            )}
+
+            <ul className="rk-saved-list">
+              {saved.map((entry) => (
+                <li key={entry.name}>
+                  {renaming === entry.name ? (
+                    <form
+                      className="rk-rename"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        if (!renamePatch(entry.name, draft)) {
+                          setProblem(`Could not rename to “${draft.trim()}” — that name is taken.`)
+                          return
+                        }
+                        if (name === entry.name) setName(draft.trim())
+                        setRenaming(null)
+                        setProblem(null)
+                        refresh()
+                      }}
+                    >
+                      <input
+                        autoFocus
+                        value={draft}
+                        aria-label="New name"
+                        onChange={(event) => setDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Escape') setRenaming(null)
+                        }}
+                      />
+                      <button type="submit">Rename</button>
+                    </form>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="rk-saved-load"
+                        onClick={() => {
+                          const next = loadPatch(entry.name)
+                          if (!next) {
+                            setProblem(`“${entry.name}” could not be read.`)
+                            return
+                          }
+                          adopt(next, entry.name)
+                        }}
+                      >
+                        <strong>{entry.name}</strong>
+                        <span>{name === entry.name ? 'Open now' : 'Load patch →'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="rk-tiny"
+                        aria-label={`Rename ${entry.name}`}
+                        onClick={() => {
+                          setRenaming(entry.name)
+                          setDraft(entry.name)
+                        }}
+                      >
+                        rename
+                      </button>
+                      <button
+                        type="button"
+                        className="rk-tiny"
+                        aria-label={`Delete ${entry.name}`}
+                        onClick={() => {
+                          if (!confirm(`Delete “${entry.name}”?`)) return
+                          deletePatch(entry.name)
+                          if (name === entry.name) setName(null)
+                          refresh()
+                        }}
+                      >
+                        delete
+                      </button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {tab === 'breaks' && (
+          <section className="rk-breaks">
+            <div className="rk-library-section-head">
+              <div>
+                <span>Drum source</span>
+                <h3>Freshly synthesised breaks</h3>
+              </div>
+              <p>No sample pack: each bar is rendered from the 909 when you load it.</p>
+            </div>
+            {!patch.modules.some((module) => module.type === 'sampler') && (
+              <p className="rk-library-callout">Add a Sampler first, or choose a showcase patch that includes one.</p>
+            )}
+            <div className="rk-break-grid">
+              {BREAKS.map((entry, index) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  disabled={!onLoadBreak}
+                  onClick={() => {
+                    onLoadBreak?.(entry.id)
+                    onClose()
                   }}
                 >
-                  <input
-                    autoFocus
-                    value={draft}
-                    aria-label="New name"
-                    onChange={(event) => setDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Escape') setRenaming(null)
-                    }}
-                  />
-                  <button type="submit">OK</button>
-                </form>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = loadPatch(entry.name)
-                      if (!next) {
-                        setProblem(`“${entry.name}” could not be read.`)
-                        return
-                      }
-                      adopt(next, entry.name)
-                    }}
-                  >
-                    <strong>{entry.name}</strong>
-                    {name === entry.name && <span>open</span>}
-                  </button>
-                  <button
-                    type="button"
-                    className="rk-tiny"
-                    aria-label={`Rename ${entry.name}`}
-                    onClick={() => {
-                      setRenaming(entry.name)
-                      setDraft(entry.name)
-                    }}
-                  >
-                    rename
-                  </button>
-                  <button
-                    type="button"
-                    className="rk-tiny"
-                    aria-label={`Delete ${entry.name}`}
-                    onClick={() => {
-                      // Asks, because it is not reversible and not autosaved.
-                      if (!confirm(`Delete “${entry.name}”?`)) return
-                      deletePatch(entry.name)
-                      if (name === entry.name) setName(null)
-                      refresh()
-                    }}
-                  >
-                    delete
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Breaks</h2>
-        {!onLoadBreak && <p className="rk-empty">Start audio first.</p>}
-        {onLoadBreak && !patch.modules.some((m) => m.type === 'sampler') && (
-          <p className="rk-empty">Add a Sampler to load one into.</p>
+                  <span className="rk-break-number">{String(index + 1).padStart(2, '0')}</span>
+                  <strong>{entry.name}</strong>
+                  <span>{entry.blurb}</span>
+                  <b>{entry.tempo} bpm →</b>
+                </button>
+              ))}
+            </div>
+          </section>
         )}
-        <ul>
-          {BREAKS.map((entry) => (
-            <li key={entry.id}>
+
+        {tab === 'files' && (
+          <section className="rk-files">
+            <div className="rk-file-card">
+              <span>Driftbox patch</span>
+              <strong>Portable and editable</strong>
+              <p>Move this rack between browsers or keep a local backup.</p>
+              <div>
+                <button type="button" onClick={() => downloadPatch(patch, name ?? 'driftbox-patch')}>
+                  Export current
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const next = await pickPatchFile()
+                    if (next) adopt(next, null)
+                  }}
+                >
+                  Import file
+                </button>
+              </div>
+            </div>
+            <div className="rk-file-card">
+              <span>VCV Rack bridge</span>
+              <strong>Bring the patching across</strong>
+              <p>Module and port mapping is best effort; the import report shows every decision.</p>
               <button
                 type="button"
-                disabled={!onLoadBreak}
-                onClick={() => {
-                  onLoadBreak?.(entry.id)
-                  onClose()
+                onClick={async () => {
+                  const bytes = await pickVcvFile()
+                  if (!bytes) return
+                  const result = await importVcv(bytes)
+                  if (!result) {
+                    setProblem('That is not a VCV Rack patch.')
+                    return
+                  }
+                  setProblem(null)
+                  setReport(result.notes)
+                  if (result.patch.modules.length > 0) {
+                    load(result.patch)
+                    setName(null)
+                  }
                 }}
               >
-                <strong>{entry.name}</strong>
-                <span>
-                  {entry.blurb} · {entry.tempo}bpm
-                </span>
+                Import .vcv
               </button>
-            </li>
-          ))}
-        </ul>
-        {/* Said here rather than buried in a doc, because it is the one thing about these that is not obvious:
-            they are synthesised from the 909 when you click, not shipped as audio. */}
-        <p className="rk-empty">Synthesised from the 909 on load — no samples shipped.</p>
-      </section>
+            </div>
+          </section>
+        )}
 
-      <section className="rk-library-actions">
-        <button
-          type="button"
-          onClick={() => {
-            // Overwrites silently only when it is the patch already open under that name; anything else asks.
-            const target = name ?? freshName('Patch')
-            const clash = name === null && listPatches().some((entry) => entry.name === target)
-            if (clash && !confirm(`Replace “${target}”?`)) return
-            if (!savePatch(target, patch)) {
-              setProblem('Could not save — storage is unavailable or full.')
-              return
-            }
-            setName(target)
-            setProblem(null)
-            refresh()
-          }}
-        >
-          {name ? `Save “${name}”` : 'Save'}
-        </button>
+        {problem && <p className="rk-warn rk-library-problem">{problem}</p>}
 
-        <button
-          type="button"
-          onClick={() => {
-            const wanted = prompt('Save as', freshName(name ?? 'Patch'))
-            if (wanted === null) return
-            if (!savePatch(wanted, patch)) {
-              setProblem('Could not save under that name.')
-              return
-            }
-            setName(wanted.trim())
-            setProblem(null)
-            refresh()
-          }}
-        >
-          Save as…
-        </button>
-
-        <button type="button" onClick={() => downloadPatch(patch, name ?? 'driftbox-patch')}>
-          Export file
-        </button>
-
-        <button
-          type="button"
-          onClick={async () => {
-            const next = await pickPatchFile()
-            if (next) adopt(next, null)
-          }}
-        >
-          Import file
-        </button>
-
-        <button
-          type="button"
-          onClick={async () => {
-            const bytes = await pickVcvFile()
-            if (!bytes) return
-            const result = await importVcv(bytes)
-            if (!result) {
-              setProblem('That is not a VCV Rack patch.')
-              return
-            }
-            setProblem(null)
-            setReport(result.notes)
-            // Only adopt a patch with something in it. An archive with no patch.json comes back with a note
-            // explaining itself and an empty patch, and replacing somebody's work with nothing is not a
-            // reasonable outcome for opening the wrong file.
-            if (result.patch.modules.length > 0) {
-              load(result.patch)
-              setName(null)
-            }
-          }}
-        >
-          Import .vcv
-        </button>
-      </section>
-
-      {problem && <p className="rk-warn">{problem}</p>}
-
-      {report && (
-        <section className="rk-report">
-          <h2>
-            From VCV Rack — knobs are not carried over, and the port mapping is best effort. Check these.
-          </h2>
-          <ul>
-            {report.map((note, index) => (
-              <li key={index} className={`rk-note rk-note-${note.kind}`}>
-                <span>{note.kind}</span>
-                {note.detail}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {report && tab === 'files' && (
+          <section className="rk-report">
+            <h2>VCV import report · knob values are not carried over, so check these mappings.</h2>
+            <ul>
+              {report.map((note, index) => (
+                <li key={index} className={`rk-note rk-note-${note.kind}`}>
+                  <span>{note.kind}</span>
+                  {note.detail}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
     </div>
   )
 }

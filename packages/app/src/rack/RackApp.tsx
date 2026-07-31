@@ -1335,15 +1335,19 @@ export default function RackApp() {
         </div>
       )}
 
-      <RackKeys
-        open={keyboardOpen}
-        onOpenChange={setKeyboardOpen}
-        wake={wake}
-        down={keysDown}
-        up={keysUp}
-        allOff={keysAllOff}
-        sounding={sounding}
-      />
+      {/* The sticky keyboard otherwise sits over the lower row of the patch browser. It has no useful
+          action while choosing a replacement system, so let the browser own the viewport until it closes. */}
+      {!browsing && (
+        <RackKeys
+          open={keyboardOpen}
+          onOpenChange={setKeyboardOpen}
+          wake={wake}
+          down={keysDown}
+          up={keysUp}
+          allOff={keysAllOff}
+          sounding={sounding}
+        />
+      )}
 
       <footer className="rk-footer">
         <span>
