@@ -8,6 +8,7 @@ import { COMPRESSOR_MODULE } from './compressor.js'
 import { DELAY_MODULE } from './delay.js'
 import { DRIVE_MODULE } from './drive.js'
 import { FOLLOWER_MODULE } from './follower.js'
+import { GROOVEBOX_MODULE } from './groovebox.js'
 import { LADDER_MODULE } from './ladder.js'
 import { LFO_MODULE } from './lfo.js'
 import { MIDI_MODULE } from './midi.js'
@@ -27,7 +28,7 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 
-// Twenty-seven modules: enough to make a track, something to play it with, something that knows what a bar
+// Twenty-eight modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -58,7 +59,7 @@ import { VOCODER_MODULE } from './vocoder.js'
  * In the order a picker would sensibly show them, and **grouped**, which is new.
  *
  * The order always implied these groups — sources, then filters, then shapers, then control, then the
- * output — but nothing stated them and nothing could read them, so a picker got twenty-seven names in a
+ * output — but nothing stated them and nothing could read them, so a picker got twenty-eight names in a
  * row. Each def now carries its own `group`, and this list is sorted to agree: every module of a group is
  * contiguous, and the groups run in signal order. `modules.test.ts` holds it to that, because a list that
  * has drifted out of group order reads as a bug in the picker rather than as a bug here.
@@ -67,6 +68,7 @@ import { VOCODER_MODULE } from './vocoder.js'
  * not have to sort.
  */
 export const MODULE_LIST: readonly ModuleDef[] = [
+  GROOVEBOX_MODULE,
   VCO_MODULE,
   NOISE_MODULE,
   SAMPLER_MODULE,
@@ -116,6 +118,7 @@ export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from '
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
 export { DRIVE_MODULE, DriveProcessor } from './drive.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './follower.js'
+export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './groovebox.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'

@@ -1,4 +1,4 @@
-import { decodePatch, encodePatch, type Patch } from '@driftbox/rack'
+import { decodePatch, encodePatch, withGrooveboxSource, type Patch } from '@driftbox/rack'
 import { fromHash, linkTo, takeDocumentFromUrl, takeFromUrl, toHash } from '../hash.js'
 
 // Where a patch is kept. `@driftbox/rack` owns the format (`rack/patch-io.ts`); this owns the
@@ -136,7 +136,7 @@ function asRackDocument(
 ): Patch | null {
   if (!found) return null
   if (found.kind === 'patch') return decodePatch(found.text)
-  return { modules: [], cables: [], groovebox: found.text }
+  return withGrooveboxSource({ modules: [], cables: [], groovebox: found.text })
 }
 
 /**

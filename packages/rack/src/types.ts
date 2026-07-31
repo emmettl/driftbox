@@ -111,6 +111,14 @@ export interface Processor {
     params: Float32Array[],
     frames: number,
     transport?: Transport,
+    /**
+     * Audio supplied by the host to the rack node, grouped as input then channel.
+     *
+     * Almost every module ignores this. A first-class host source such as the Groovebox
+     * device copies it into ordinary rack outlets; from there it is indistinguishable
+     * from any oscillator or sampler signal and travels down normal cables.
+     */
+    hostInputs?: Float32Array[][],
   ): void
 }
 
@@ -160,7 +168,7 @@ export interface ModuleDef {
   /**
    * Which shelf of the picker this sits on — "Sources", "Filters" and so on.
    *
-   * A flat list of twenty-seven names is a list you read rather than a place you look. Grouping is the
+   * A flat list of twenty-eight names is a list you read rather than a place you look. Grouping is the
    * cheapest fix and it has to be stated rather than inferred: `MODULE_LIST`'s order has always implied
    * these groups, but nothing enforced it and nothing could read it.
    */

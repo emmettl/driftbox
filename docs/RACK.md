@@ -10,7 +10,7 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 27 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 28 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -42,8 +42,9 @@ The additive document bridge is now concrete. A `Patch` may carry the exact enco
 groovebox song; it is kept opaque by the patch codec so a rack build can preserve a song
 from a future engine version without pretending it can edit it. Public helpers embed and
 decode understood songs and classify documents as `groovebox-compatible`,
-`rack-extended`, or `rack-native`. First-class devices and shared playback still have to
-be derived from that retained song—the bridge is the stable place for them to attach.
+`rack-extended`, or `rack-native`. The derived Groovebox source is representational:
+its presence alone remains compatible, while its first cable is rack-authored intent and
+makes the document extended.
 The two app entry points now exercise it: “rack” carries the current song into
 `rack.html`, which accepts both document kinds and can send the retained song back to the
 sequencer unchanged.
@@ -51,8 +52,11 @@ sequencer unchanged.
 An understood retained song is now audible in rack mode through the existing
 `DriftboxEngine`, not a second rendering implementation. `EngineOptions.destination`
 puts that complete mix on the rack's final Kaoss/analyser bus beside the worklet graph,
-and the rack transport starts and stops both. This is hosting, not yet patchability:
-first-class 303/808/909 devices and rack-side clip editing remain the next layer.
+and the rack transport starts and stops both. Four stereo host inputs now feed the
+Groovebox source module. Its 808, 909, 303 A and 303 B outlets are ordinary rack signals;
+patching either side of a section diverts it from the original master without rebuilding
+or restarting the hosted engine. Rack-side clip and instrument editing remains the next
+layer.
 
 ## What this is not
 
@@ -206,12 +210,13 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Twenty-seven modules
+## Twenty-eight modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
 | | |
 |---|---|
+| **Groovebox** | Retained 808, 909 and two 303s as four stereo host-fed rack sources |
 | **VCO** | saw / pulse / tri, PWM, linear FM inlet, hard sync inlet |
 | **Noise** | white and pink |
 | **Sampler** | loaded or generated audio, sliced and retriggered from CV |
@@ -663,7 +668,7 @@ The risk is all in the first item. Do it first and alone.
      state the store was *created* with, so a component that subscribes draws an empty patch.
 
    **A picker that explains itself** ✅ — a card and a sentence per thing, shelved by what it does, with a
-   search over both. What it replaced was twenty-seven names in a row — `Offset`, `S&H`, `Alligator`,
+   search over both. What it replaced was twenty-eight names in a row — `Offset`, `S&H`, `Alligator`,
    `Combi` — which assumes you already know what they are, and that is exactly what somebody opening a
    modular for the first time does not. Reason's browser was a picture and a sentence per device for the
    same reason: the picker is where you find out what the instrument can do.

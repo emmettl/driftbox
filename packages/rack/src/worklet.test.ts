@@ -67,11 +67,15 @@ function instantiate(registry: Registry): { instance: Instance; posted: unknown[
   return { instance: new Processor!(), posted }
 }
 
-function render(instance: Instance, blocks: number): Float64Array {
+function render(
+  instance: Instance,
+  blocks: number,
+  inputs: Float32Array[][] = [],
+): Float64Array {
   const out = new Float64Array(blocks * FRAMES)
   for (let block = 0; block < blocks; block++) {
     const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
-    expect(instance.process([], [channels])).toBe(true)
+    expect(instance.process(inputs, [channels])).toBe(true)
     out.set(channels[0], block * FRAMES)
   }
   return out
@@ -124,6 +128,24 @@ describe('the assembled worklet', () => {
     const fromHere = locally(PATCH, MODULES, 16)
     expect([...fromWorklet]).toEqual([...fromHere])
     expect(rms(fromHere)).toBeGreaterThan(0.05)
+  })
+
+  it('turns a host input into an ordinary patchable groovebox outlet', () => {
+    const patch: Patch = {
+      modules: [
+        { id: 'song', type: 'groovebox' },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [{ from: ['song', 'tr808-l'], to: ['out', 'in'] }],
+    }
+    const { instance } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(patch, MODULES) } })
+    const left = new Float32Array(FRAMES).fill(0.25)
+    const right = new Float32Array(FRAMES).fill(0.5)
+
+    expect([...render(instance, 1, [[left, right]])]).toEqual(
+      new Array(FRAMES).fill(0.25),
+    )
   })
 
   it('carries the ladder across without the ladder knowing its own name', () => {

@@ -6,7 +6,7 @@ import { portSummary } from './layout.js'
 // Choosing something to add.
 //
 // **The flat list this replaces was the single biggest thing between the rack and somebody enjoying it.**
-// Twenty-seven names in a row — `Offset`, `S&H`, `Alligator`, `Combi` — assume you already know what they
+// Twenty-eight names in a row — `Offset`, `S&H`, `Alligator`, `Combi` — assume you already know what they
 // are, which is exactly what a person opening a modular for the first time does not. Reason's browser was
 // a picture and a sentence per device for the same reason: the picker is where you find out what the
 // instrument can do, so a picker that only names things teaches nothing and the rack stays a puzzle.

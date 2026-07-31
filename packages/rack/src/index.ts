@@ -79,8 +79,10 @@ export { applyModulation, routeValue, routedParams, sourcePosition } from './mod
 export {
   embedGrooveboxSong,
   grooveboxSong,
+  GROOVEBOX_SOURCE_ID,
   isGrooveboxEditable,
   patchCompatibility,
+  withGrooveboxSource,
   type PatchCompatibility,
 } from './groovebox.js'
 export { PATCH_FORMAT, decodePatch, encodePatch } from './patch-io.js'
@@ -92,6 +94,11 @@ export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './modules/arranger.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './modules/combi.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './modules/follower.js'
+export {
+  GROOVEBOX_MODULE,
+  GROOVEBOX_PORTS,
+  GrooveboxProcessor,
+} from './modules/groovebox.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './modules/midi.js'
 export { LADDER_MODULE, LadderProcessor } from './modules/ladder.js'
 export { OUT_MODULE, OutProcessor } from './modules/out.js'
@@ -108,6 +115,8 @@ export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './workle
 export { renderLength, renderPatch, type RenderOptions } from './render.js'
 
 export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
+/** Four stereo host inputs: 808, 909, 303 A and 303 B. */
+export const RACK_HOST_INPUTS = 4
 
 /**
  * The host side of a rack.
@@ -119,6 +128,7 @@ export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
 export class Rack {
   private readonly ctx: BaseAudioContext
   private readonly registry: Registry
+  private readonly hostInputs: GainNode[]
   private node: AudioWorkletNode | null = null
   private current: Patch = EMPTY_PATCH
   private compiled: Plan | null = null
@@ -133,6 +143,7 @@ export class Rack {
   constructor(ctx: BaseAudioContext, registry: Registry = MODULES) {
     this.ctx = ctx
     this.registry = registry
+    this.hostInputs = Array.from({ length: RACK_HOST_INPUTS }, () => ctx.createGain())
   }
 
   /**
@@ -147,9 +158,9 @@ export class Rack {
     if (!(await loadRack(this.ctx, this.registry))) return false
 
     const node = new AudioWorkletNode(this.ctx, RACK_PROCESSOR, {
-      // No inputs: everything the rack makes, it makes. Sampling the outside world is a
-      // module (and a permission prompt), not a property of the rack.
-      numberOfInputs: 0,
+      // Four stereo host inputs. They make no sound by themselves: the Groovebox source
+      // module is what turns one into ordinary patchable rack outlets.
+      numberOfInputs: RACK_HOST_INPUTS,
       numberOfOutputs: 1,
       outputChannelCount: [2],
       // Handed over at construction rather than posted afterwards. A port message is delivered on the audio
@@ -162,6 +173,9 @@ export class Rack {
         data: this.pending,
       },
     })
+    for (let input = 0; input < this.hostInputs.length; input++) {
+      this.hostInputs[input].connect(node, 0, input)
+    }
     this.pending = []
     node.port.onmessage = (event: MessageEvent) => {
       const message = event.data as { kind?: string; types?: string[] } | null
@@ -178,6 +192,14 @@ export class Rack {
    *  `start()` has resolved true. */
   get output(): AudioNode | null {
     return this.node
+  }
+
+  /**
+   * A stable destination for one host-fed source. It exists before `start()`, so another
+   * engine can be wired once; the gain is connected to the worklet when it becomes ready.
+   */
+  input(index: number): AudioNode | null {
+    return this.hostInputs[index] ?? null
   }
 
   get patch(): Patch {
@@ -282,6 +304,9 @@ export class Rack {
    *  `addModule` on an already-registered name throws, so unloading it is not possible and
    *  not worth pretending. */
   stop(): void {
+    if (this.node) {
+      for (const input of this.hostInputs) input.disconnect(this.node)
+    }
     this.node?.disconnect()
     this.node = null
   }

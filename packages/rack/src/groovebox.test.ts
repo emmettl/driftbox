@@ -5,6 +5,7 @@ import {
   grooveboxSong,
   isGrooveboxEditable,
   patchCompatibility,
+  withGrooveboxSource,
 } from './groovebox.js'
 import { decodePatch, encodePatch } from './patch-io.js'
 import type { Patch } from './types.js'
@@ -18,6 +19,9 @@ describe('the groovebox document bridge', () => {
     expect(saved).not.toBeNull()
     expect(saved && patchCompatibility(saved)).toBe('groovebox-compatible')
     expect(saved && isGrooveboxEditable(saved)).toBe(true)
+    expect(saved?.modules).toEqual([
+      { id: 'groovebox', type: 'groovebox', pos: [0, 0] },
+    ])
     expect(saved && grooveboxSong(saved)).toEqual(song)
     expect(saved && encodeSong(grooveboxSong(saved)!)).toBe(encodeSong(song))
   })
@@ -31,6 +35,36 @@ describe('the groovebox document bridge', () => {
     expect(patchCompatibility(saved)).toBe('groovebox-compatible')
     expect(grooveboxSong(saved)).toBeNull()
     expect(isGrooveboxEditable(saved)).toBe(false)
+  })
+
+  it('materialises one derived source for an old bridge document without changing compatibility', () => {
+    const old = {
+      modules: [],
+      cables: [],
+      groovebox: encodeSong(SONGS[0].build()),
+    }
+    const once = withGrooveboxSource(old)
+
+    expect(once.modules).toEqual([{ id: 'groovebox', type: 'groovebox', pos: [0, 0] }])
+    expect(withGrooveboxSource(once)).toBe(once)
+    expect(patchCompatibility(once)).toBe('groovebox-compatible')
+    expect(isGrooveboxEditable(once)).toBe(true)
+  })
+
+  it('treats a duplicate or configured source as rack-authored state', () => {
+    const base = embedGrooveboxSong(SONGS[0].build())
+    expect(
+      patchCompatibility({
+        ...base,
+        modules: [...base.modules, { id: 'groovebox-2', type: 'groovebox' }],
+      }),
+    ).toBe('rack-extended')
+    expect(
+      patchCompatibility({
+        ...base,
+        modules: [{ ...base.modules[0], params: { future: 1 } }],
+      }),
+    ).toBe('rack-extended')
   })
 
   it.each([

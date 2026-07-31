@@ -28,8 +28,10 @@ const PROMISED = [
   'encodePatch',
   'embedGrooveboxSong',
   'grooveboxSong',
+  'GROOVEBOX_SOURCE_ID',
   'isGrooveboxEditable',
   'patchCompatibility',
+  'withGrooveboxSource',
   // The modules it ships with.
   'MODULES',
   'MODULE_LIST',
@@ -63,9 +65,13 @@ const UNSTABLE = [
   // The compiler and the audio thread. `compile` is exported because the app draws `plan.notes`.
   'compile',
   'Graph',
+  'GROOVEBOX_MODULE',
+  'GROOVEBOX_PORTS',
+  'GrooveboxProcessor',
   'loadRack',
   'rackSource',
   'RACK_PROCESSOR',
+  'RACK_HOST_INPUTS',
   // Individual module defs and processors, exported one by one as things needed them. The registry is the
   // supported way to reach a module; these are convenience that hardened into API.
   'ALLIGATOR_BANDS',

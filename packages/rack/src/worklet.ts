@@ -134,7 +134,7 @@ class RackProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs) {
-    this.graph.process(outputs[0])
+    this.graph.process(outputs[0], inputs)
     // Never retire. A rack with a self-oscillating filter or a feedback patch makes sound
     // with no input at all, so the usual "no input, no output, shut down" optimisation
     // would silence exactly the patches this whole thing exists to allow.

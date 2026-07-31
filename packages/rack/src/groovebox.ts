@@ -1,5 +1,30 @@
 import { decodeSong, encodeSong, type Song } from '@driftbox/engine'
+import { GROOVEBOX_MODULE } from './modules/groovebox.js'
 import type { Patch } from './types.js'
+
+export const GROOVEBOX_SOURCE_ID = 'groovebox'
+
+/**
+ * Materialise the retained song's one derived rack device.
+ *
+ * Old bridge documents contain only `groovebox`; adding the source at the edge keeps them
+ * forward-compatible. The device is representational rather than rack-authored, so its
+ * presence alone does not make the document rack-extended. A cable from it does.
+ */
+export function withGrooveboxSource(patch: Patch): Patch {
+  if (!patch.groovebox || patch.modules.some((module) => module.type === GROOVEBOX_MODULE.type)) {
+    return patch
+  }
+
+  const taken = new Set(patch.modules.map((module) => module.id))
+  let id = GROOVEBOX_SOURCE_ID
+  for (let suffix = 2; taken.has(id); suffix++) id = `${GROOVEBOX_SOURCE_ID}-${suffix}`
+
+  return {
+    ...patch,
+    modules: [{ id, type: GROOVEBOX_MODULE.type, pos: [0, 0] }, ...patch.modules],
+  }
+}
 
 /**
  * The three document states in the rack-over-groovebox compatibility contract.
@@ -24,7 +49,7 @@ export function embedGrooveboxSong(
   song: Song,
   patch: Patch = { modules: [], cables: [] },
 ): Patch {
-  return { ...patch, groovebox: encodeSong(song) }
+  return withGrooveboxSource({ ...patch, groovebox: encodeSong(song) })
 }
 
 /**
@@ -47,8 +72,18 @@ export function grooveboxSong(patch: Patch): Song | null {
 export function patchCompatibility(patch: Patch): PatchCompatibility {
   if (!patch.groovebox) return 'rack-native'
 
+  const sourceModules = patch.modules.filter((module) => module.type === GROOVEBOX_MODULE.type)
+  const derivedSourceOnly =
+    sourceModules.length <= 1 &&
+    sourceModules.every(
+      (module) =>
+        Object.keys(module.params ?? {}).length === 0 &&
+        Object.keys(module.data ?? {}).length === 0,
+    )
+
   const hasRackState =
-    patch.modules.length > 0 ||
+    patch.modules.some((module) => module.type !== GROOVEBOX_MODULE.type) ||
+    !derivedSourceOnly ||
     patch.cables.length > 0 ||
     patch.break !== undefined ||
     (patch.modulation?.length ?? 0) > 0 ||
