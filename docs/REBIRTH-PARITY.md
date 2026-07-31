@@ -45,16 +45,16 @@ user could approximate it from oscillators.
 
 | Capability | Groovebox now | Rack now | Required destination |
 |---|---:|---:|---|
-| Two authored 303 voices | Yes | Approximate patch | First-class dual-303 device or lossless imported devices |
-| Authored 808 and 909 kits | Yes | No | First-class generated drum devices; no ROM samples |
+| Two authored 303 voices | Yes | Hosted from retained song | First-class patchable dual-303 device |
+| Authored 808 and 909 kits | Yes | Hosted from retained song | First-class patchable generated drum devices; no ROM samples |
 | Independent machine pattern banks | Yes | Tracker/Seq primitives | Reuse the shared clip-bank model in rack mode |
 | Per-machine pattern length and launch | Arrangement selection | Possible manually | Add live quantised launch to the shared clip model |
 | 303 note/accent/slide/tie editing | Partial | Tracker primitives | One clip editor and equivalent rack lanes |
 | 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
-| Song transport | Section seek and arbitrary whole-bar loop ranges | Arranger transport | Reuse the shared primitives in rack mode |
-| Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Combinator/MIDI only | Reuse the shared timeline and recorder in rack mode |
+| Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted shared transport plus Arranger | Expose the shared primitives in rack mode |
+| Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted shared timeline plus Combinator/MIDI | Expose the shared recorder in rack mode |
 | Section mixer | Per voice | Mixer/Out | Four section buses with mute, pan, level, meter and routes |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Keyboard audition only | Yes | Extract the rack MIDI host for both modes |
@@ -109,7 +109,10 @@ states through `patchCompatibility`:
 The first half of the bridge is landed: `embedGrooveboxSong` stores the original
 versioned song envelope opaquely, `grooveboxSong` returns it only when this engine can
 decode it, and the patch codec preserves even a future unknown song exactly. The next
-half is to derive first-class rack devices and transport from that retained document. Do
+half has begun: rack mode hosts understood retained songs with the existing groovebox
+engine and routes their complete mix through the same final performance bus, analyser and
+destination as the rack graph. Next, derive first-class patchable rack devices and editor
+controls from that retained document. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
