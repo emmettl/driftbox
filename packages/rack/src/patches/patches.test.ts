@@ -63,6 +63,8 @@ describe.each(PATCHES.map((preset) => [preset.id, preset] as const))('the %s pat
     expect(preset.name).not.toBe('')
     expect(preset.blurb.length).toBeGreaterThan(10)
     expect(preset.blurb.length).toBeLessThan(60)
+    expect(preset.kicker.length).toBeGreaterThan(8)
+    expect(preset.features).toHaveLength(3)
   })
 })
 
@@ -73,7 +75,7 @@ describe('the patch library', () => {
   })
 
   it('finds a preset by id, and nothing by a wrong one', () => {
-    expect(patchPresetById('acid')?.name).toBe('Acid')
+    expect(patchPresetById('acid')?.name).toBe('Neon Acid')
     expect(patchPresetById('nonesuch')).toBeUndefined()
   })
 
@@ -83,14 +85,32 @@ describe('the patch library', () => {
     const uses = (id: string, type: string) =>
       patchPresetById(id)!.build().modules.some((m) => m.type === type)
 
-    expect(uses('drone', 'seq')).toBe(false)
     expect(uses('generative', 'seq')).toBe(false)
-    expect(uses('percussion', 'vco')).toBe(false)
+    expect(uses('signal-relay', 'seq')).toBe(false)
+    expect(uses('guitar-pedalboard', 'vco')).toBe(false)
     expect(uses('acid', 'seq')).toBe(true)
 
     // And between them they exercise most of the rack.
     const covered = new Set(PATCHES.flatMap((p) => p.build().modules.map((m) => m.type)))
     expect(covered.size).toBeGreaterThanOrEqual(12)
+  })
+
+  it('makes monitoring part of every factory demonstration', () => {
+    for (const preset of PATCHES) {
+      const patch = preset.build()
+      const meters = patch.modules.filter((module) => module.type === 'meter')
+      expect(meters.length, preset.id).toBeGreaterThan(0)
+      for (const meter of meters) {
+        expect(
+          patch.cables.some((cable) => cable.to[0] === meter.id && cable.to[1] === 'in'),
+          `${preset.id}/${meter.id} input`,
+        ).toBe(true)
+        expect(
+          patch.cables.some((cable) => cable.from[0] === meter.id),
+          `${preset.id}/${meter.id} output`,
+        ).toBe(true)
+      }
+    }
   })
 })
 
@@ -257,8 +277,8 @@ describe('the hero song', () => {
 
   it('leaves room instead of arranging every showcase device at once', () => {
     const patch = hero()
-    expect(patch.modules.length).toBeLessThanOrEqual(24)
-    expect(patch.cables.length).toBeLessThanOrEqual(30)
+    expect(patch.modules.length).toBeLessThanOrEqual(25)
+    expect(patch.cables.length).toBeLessThanOrEqual(31)
     expect(patch.modules.some((module) => module.type === 'alligator')).toBe(false)
     expect(patch.modules.some((module) => module.type === 'vocoder')).toBe(false)
 

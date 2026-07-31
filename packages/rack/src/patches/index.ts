@@ -18,6 +18,11 @@ export interface PatchPreset {
   name: string
   /** One line, for the picker. */
   blurb: string
+  /** Editorial context for the visual preset browser. */
+  kicker: string
+  features: readonly string[]
+  accent: 'mint' | 'pink' | 'amber' | 'violet'
+  featured?: boolean
   /**
    * The break this patch was written around, by id, for a host that can render one.
    *
@@ -127,6 +132,7 @@ const pressureSystem = (): Patch => ({
       type: 'reverb',
       params: { size: 0.42, decay: 0.5, damp: 0.72, mix: routed(0.01, 0.12, 24) },
     },
+    { id: 'meter-break', type: 'meter', params: { mode: 1, gain: 1.3, release: 0.22 } },
     { id: 'out-1', type: 'out', params: { level: 0.56 } },
 
     // A clean triangle sub, separately ducked by the break.
@@ -183,7 +189,8 @@ const pressureSystem = (): Patch => ({
     { from: ['tracker-1', 'cv1'], to: ['sampler-1', 'slice'] },
     { from: ['sampler-1', 'out'], to: ['compressor-1', 'in'] },
     { from: ['compressor-1', 'out'], to: ['reverb-1', 'in'] },
-    { from: ['reverb-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['meter-break', 'in'] },
+    { from: ['meter-break', 'thru'], to: ['out-1', 'in'] },
 
     { from: ['tracker-1', 'cv2'], to: ['vco-1', 'pitch'] },
     { from: ['tracker-1', 'gate2'], to: ['adsr-1', 'gate'] },
@@ -240,6 +247,9 @@ const acid = (): Patch => ({
     { id: 'adsr-1', type: 'adsr', params: { attack: 0.003, decay: 0.12, sustain: 0.15, release: 0.1 } },
     { id: 'ladder-1', type: 'ladder', params: { cutoff: 700, resonance: 0.72 } },
     { id: 'vca-1', type: 'vca', params: { gain: 0 } },
+    { id: 'drive-1', type: 'drive', params: { drive: 2.8, bias: 0.04 } },
+    { id: 'reverb-1', type: 'reverb', params: { size: 0.34, decay: 0.45, damp: 0.74, mix: 0.11 } },
+    { id: 'meter-1', type: 'meter', params: { mode: 2, gain: 1.4, release: 0.16 } },
     { id: 'out-1', type: 'out', params: { level: 0.7 } },
   ],
   cables: [
@@ -250,7 +260,10 @@ const acid = (): Patch => ({
     { from: ['adsr-1', 'out'], to: ['ladder-1', 'cutoff'] },
     { from: ['ladder-1', 'out'], to: ['vca-1', 'in'] },
     { from: ['adsr-1', 'out'], to: ['vca-1', 'cv'] },
-    { from: ['vca-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['vca-1', 'out'], to: ['drive-1', 'in'] },
+    { from: ['drive-1', 'out'], to: ['reverb-1', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['meter-1', 'in'] },
+    { from: ['meter-1', 'thru'], to: ['out-1', 'in'] },
   ],
 })
 
@@ -273,6 +286,7 @@ const generative = (): Patch => ({
     { id: 'vca-1', type: 'vca', params: { gain: 0, curve: 1 } },
     { id: 'delay-1', type: 'delay', params: { time: 0.3, feedback: 0.45 } },
     { id: 'mix-1', type: 'mixer', params: { level1: 0.9, level2: 0.5, level3: 0, level4: 0 } },
+    { id: 'meter-1', type: 'meter', params: { mode: 0, gain: 1.2, release: 0.5 } },
     { id: 'out-1', type: 'out', params: { level: 0.6 } },
   ],
   cables: [
@@ -290,76 +304,46 @@ const generative = (): Patch => ({
     { from: ['vca-1', 'out'], to: ['delay-1', 'in'] },
     { from: ['vca-1', 'out'], to: ['mix-1', 'in1'] },
     { from: ['delay-1', 'out'], to: ['mix-1', 'in2'] },
-    { from: ['mix-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['mix-1', 'out'], to: ['meter-1', 'in'] },
+    { from: ['meter-1', 'thru'], to: ['out-1', 'in'] },
   ],
 })
 
 /**
- * Two oscillators, detuned, under a slowly breathing filter. No sequencer, no envelope, no gate.
- *
- * Here to make a point about what the rack is: nothing about a modular says the sound has to be a note.
- * The oscillators run continuously and the only thing that changes is the filter, driven by an LFO through
- * an attenuverter — which is also the smallest useful demonstration of why the Offset module earns a slot.
+ * A monitor doing musical work: every noise pulse is visible on the first VU, and the same ballistic
+ * envelope leaves its Env jack to open the drone filter. The second monitor shows the combined result.
+ * It turns what can look like a decorative analyser into an obvious, patchable source of control voltage.
  */
-const drone = (): Patch => ({
+const signalRelay = (): Patch => ({
   modules: [
-    { id: 'vco-1', type: 'vco', params: { tune: -24 } },
-    { id: 'vco-2', type: 'vco', params: { tune: -23.88, shape: 2 } },
-    { id: 'lfo-1', type: 'lfo', params: { rate: 0.08, shape: 0 } },
-    { id: 'off-1', type: 'offset', params: { gain: 1.4, offset: 0.2 } },
-    { id: 'mix-1', type: 'mixer', params: { level1: 0.5, level2: 0.5, level3: 0, level4: 0 } },
-    { id: 'svf-1', type: 'svf', params: { cutoff: 320, resonance: 0.7 } },
-    { id: 'drive-1', type: 'drive', params: { drive: 4, bias: 0.12 } },
-    { id: 'out-1', type: 'out', params: { level: 0.55 } },
-  ],
-  cables: [
-    { from: ['vco-1', 'out'], to: ['mix-1', 'in1'] },
-    { from: ['vco-2', 'out'], to: ['mix-1', 'in2'] },
-    { from: ['mix-1', 'out'], to: ['svf-1', 'in'] },
-    { from: ['lfo-1', 'bi'], to: ['off-1', 'in'] },
-    { from: ['off-1', 'out'], to: ['svf-1', 'cutoff'] },
-    { from: ['svf-1', 'lp'], to: ['drive-1', 'in'] },
-    { from: ['drive-1', 'out'], to: ['out-1', 'in'] },
-  ],
-})
-
-/**
- * A hi-hat and a snare out of noise and two filters. No oscillator at all.
- *
- * The other half of the point the drone makes. It is also the patch that most resembles what the rest of
- * this repo does — the drum machines in `@driftbox/engine` are this idea with the knobs welded down.
- */
-const percussion = (): Patch => ({
-  modules: [
-    { id: 'clock-1', type: 'clock', params: { rate: 8, width: 0.1 } },
+    { id: 'clock-1', type: 'clock', params: { rate: 3, width: 0.12 } },
     { id: 'noise-1', type: 'noise' },
-    { id: 'hat-env', type: 'adsr', params: { attack: 0.0005, decay: 0.035, sustain: 0, release: 0.02 } },
-    { id: 'hat-filter', type: 'svf', params: { cutoff: 7000, resonance: 0.35 } },
-    { id: 'hat-vca', type: 'vca', params: { gain: 0, curve: 1 } },
-    { id: 'snare-env', type: 'adsr', params: { attack: 0.001, decay: 0.14, sustain: 0, release: 0.06 } },
-    { id: 'snare-filter', type: 'ladder', params: { cutoff: 1300, resonance: 0.5 } },
-    { id: 'snare-vca', type: 'vca', params: { gain: 0, curve: 1 } },
-    { id: 'div-1', type: 'seq', params: { length: 4, gate1: 1, gate2: 0, gate3: 0, gate4: 0 } },
-    { id: 'mix-1', type: 'mixer', params: { level1: 0.35, level2: 0.8, level3: 0, level4: 0 } },
-    { id: 'out-1', type: 'out', params: { level: 0.65 } },
+    { id: 'pulse-env', type: 'adsr', params: { attack: 0.001, decay: 0.16, sustain: 0, release: 0.12 } },
+    { id: 'pulse-vca', type: 'vca', params: { gain: 0, curve: 1 } },
+    { id: 'meter-pulse', type: 'meter', params: { mode: 0, gain: 2.2, release: 0.28 } },
+    { id: 'env-shape', type: 'offset', params: { gain: 1.7, offset: 0.06 } },
+    { id: 'vco-1', type: 'vco', params: { tune: -17, shape: 1, width: 0.42 } },
+    { id: 'ladder-1', type: 'ladder', params: { cutoff: 240, resonance: 0.68 } },
+    { id: 'drive-1', type: 'drive', params: { drive: 2.4, bias: 0.03 } },
+    { id: 'mix-1', type: 'mixer', params: { level1: 0.64, level2: 0.22, level3: 0, level4: 0 } },
+    { id: 'reverb-1', type: 'reverb', params: { size: 0.58, decay: 0.68, damp: 0.7, mix: 0.16 } },
+    { id: 'meter-main', type: 'meter', params: { mode: 2, gain: 1.25, release: 0.32 } },
+    { id: 'out-1', type: 'out', params: { level: 0.58 } },
   ],
   cables: [
-    // The hat on every tick.
-    { from: ['clock-1', 'trig'], to: ['hat-env', 'trig'] },
-    { from: ['noise-1', 'white'], to: ['hat-filter', 'in'] },
-    { from: ['hat-filter', 'hp'], to: ['hat-vca', 'in'] },
-    { from: ['hat-env', 'out'], to: ['hat-vca', 'cv'] },
-    { from: ['hat-vca', 'out'], to: ['mix-1', 'in1'] },
-    // The snare on one tick in four — a sequencer used as a clock divider, which is what it is when you
-    // switch every step but one off.
-    { from: ['clock-1', 'gate'], to: ['div-1', 'clock'] },
-    { from: ['div-1', 'trig'], to: ['snare-env', 'trig'] },
-    { from: ['noise-1', 'pink'], to: ['snare-filter', 'in'] },
-    { from: ['snare-env', 'out'], to: ['snare-filter', 'cutoff'] },
-    { from: ['snare-filter', 'out'], to: ['snare-vca', 'in'] },
-    { from: ['snare-env', 'out'], to: ['snare-vca', 'cv'] },
-    { from: ['snare-vca', 'out'], to: ['mix-1', 'in2'] },
-    { from: ['mix-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['clock-1', 'trig'], to: ['pulse-env', 'trig'] },
+    { from: ['noise-1', 'pink'], to: ['pulse-vca', 'in'] },
+    { from: ['pulse-env', 'out'], to: ['pulse-vca', 'cv'] },
+    { from: ['pulse-vca', 'out'], to: ['meter-pulse', 'in'] },
+    { from: ['meter-pulse', 'env'], to: ['env-shape', 'in'] },
+    { from: ['env-shape', 'out'], to: ['ladder-1', 'cutoff'] },
+    { from: ['vco-1', 'out'], to: ['ladder-1', 'in'] },
+    { from: ['ladder-1', 'out'], to: ['drive-1', 'in'] },
+    { from: ['drive-1', 'out'], to: ['mix-1', 'in1'] },
+    { from: ['meter-pulse', 'thru'], to: ['mix-1', 'in2'] },
+    { from: ['mix-1', 'out'], to: ['reverb-1', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['meter-main', 'in'] },
+    { from: ['meter-main', 'thru'], to: ['out-1', 'in'] },
   ],
 })
 
@@ -400,6 +384,7 @@ const cutUp = (): Patch => ({
       },
     },
     { id: 'sampler-1', type: 'sampler', params: { slices: 16 } },
+    { id: 'meter-break', type: 'meter', params: { mode: 2, gain: 1.25, release: 0.14 } },
     // A third of a semitone apart. Far enough to beat, close enough to still be one note.
     //
     // −12 and not lower: 0V on this VCO is C2 at 65.4Hz, and a lane value of 12 is another octave on top,
@@ -411,6 +396,8 @@ const cutUp = (): Patch => ({
     { id: 'adsr-1', type: 'adsr', params: { attack: 0.01, decay: 0.3, sustain: 0.8, release: 0.15 } },
     { id: 'vca-1', type: 'vca', params: { gain: 0 } },
     { id: 'vca-2', type: 'vca', params: { gain: 0 } },
+    { id: 'meter-left', type: 'meter', params: { mode: 1, gain: 1.4, release: 0.2 } },
+    { id: 'meter-right', type: 'meter', params: { mode: 1, gain: 1.4, release: 0.2 } },
     { id: 'out-1', type: 'out', params: { level: 0.8 } },
     { id: 'out-2', type: 'out', params: { level: 0.5, pan: -1 } },
     { id: 'out-3', type: 'out', params: { level: 0.5, pan: 1 } },
@@ -419,7 +406,8 @@ const cutUp = (): Patch => ({
     { from: ['transport-1', 'sixteenth'], to: ['tracker-1', 'clock'] },
     { from: ['tracker-1', 'trig1'], to: ['sampler-1', 'trig'] },
     { from: ['tracker-1', 'cv1'], to: ['sampler-1', 'slice'] },
-    { from: ['sampler-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['sampler-1', 'out'], to: ['meter-break', 'in'] },
+    { from: ['meter-break', 'thru'], to: ['out-1', 'in'] },
 
     { from: ['tracker-1', 'cv2'], to: ['vco-1', 'pitch'] },
     { from: ['tracker-1', 'cv2'], to: ['vco-2', 'pitch'] },
@@ -430,8 +418,10 @@ const cutUp = (): Patch => ({
     { from: ['ladder-2', 'out'], to: ['vca-2', 'in'] },
     { from: ['adsr-1', 'out'], to: ['vca-1', 'cv'] },
     { from: ['adsr-1', 'out'], to: ['vca-2', 'cv'] },
-    { from: ['vca-1', 'out'], to: ['out-2', 'in'] },
-    { from: ['vca-2', 'out'], to: ['out-3', 'in'] },
+    { from: ['vca-1', 'out'], to: ['meter-left', 'in'] },
+    { from: ['meter-left', 'thru'], to: ['out-2', 'in'] },
+    { from: ['vca-2', 'out'], to: ['meter-right', 'in'] },
+    { from: ['meter-right', 'thru'], to: ['out-3', 'in'] },
   ],
 })
 
@@ -462,6 +452,7 @@ const ducked = (): Patch => ({
       },
     },
     { id: 'sampler-1', type: 'sampler', params: { slices: 16 } },
+    { id: 'meter-key', type: 'meter', params: { mode: 0, gain: 1.35, release: 0.18 } },
     { id: 'reverb-1', type: 'reverb', params: { size: 0.6, decay: 0.75, damp: 0.6, mix: 0.14 } },
     { id: 'vco-1', type: 'vco', params: { tune: -12 } },
     { id: 'vco-2', type: 'vco', params: { tune: -11.85, shape: 1 } },
@@ -474,6 +465,7 @@ const ducked = (): Patch => ({
       type: 'compressor',
       params: { threshold: -26, ratio: 8, attack: 0.002, release: 0.11, makeup: 4, knee: 3 },
     },
+    { id: 'meter-duck', type: 'meter', params: { mode: 1, gain: 1.2, release: 0.36 } },
     { id: 'out-1', type: 'out', params: { level: 0.75 } },
     { id: 'out-2', type: 'out', params: { level: 0.6 } },
   ],
@@ -481,7 +473,8 @@ const ducked = (): Patch => ({
     { from: ['transport-1', 'sixteenth'], to: ['tracker-1', 'clock'] },
     { from: ['tracker-1', 'trig1'], to: ['sampler-1', 'trig'] },
     { from: ['tracker-1', 'cv1'], to: ['sampler-1', 'slice'] },
-    { from: ['sampler-1', 'out'], to: ['reverb-1', 'in'] },
+    { from: ['sampler-1', 'out'], to: ['meter-key', 'in'] },
+    { from: ['meter-key', 'thru'], to: ['reverb-1', 'in'] },
     { from: ['reverb-1', 'out'], to: ['out-1', 'in'] },
 
     { from: ['tracker-1', 'cv2'], to: ['vco-1', 'pitch'] },
@@ -492,8 +485,9 @@ const ducked = (): Patch => ({
     { from: ['adsr-1', 'out'], to: ['vca-1', 'cv'] },
     { from: ['vca-1', 'out'], to: ['compressor-1', 'in'] },
     // The whole point of the patch.
-    { from: ['sampler-1', 'out'], to: ['compressor-1', 'key'] },
-    { from: ['compressor-1', 'out'], to: ['out-2', 'in'] },
+    { from: ['meter-key', 'thru'], to: ['compressor-1', 'key'] },
+    { from: ['compressor-1', 'out'], to: ['meter-duck', 'in'] },
+    { from: ['meter-duck', 'thru'], to: ['out-2', 'in'] },
   ],
 })
 
@@ -533,6 +527,8 @@ const wobbler = (): Patch => ({
     { id: 'noise-1', type: 'noise' },
     { id: 'adsr-2', type: 'adsr', params: { attack: 0.001, decay: 0.045, sustain: 0, release: 0.03 } },
     { id: 'vca-2', type: 'vca', params: { gain: 0 } },
+    { id: 'meter-bass', type: 'meter', params: { mode: 2, gain: 1.15, release: 0.2 } },
+    { id: 'meter-hat', type: 'meter', params: { mode: 1, gain: 1.8, release: 0.09 } },
     { id: 'out-1', type: 'out', params: { level: 0.7 } },
     { id: 'out-2', type: 'out', params: { level: 0.28, pan: 0.4 } },
   ],
@@ -552,12 +548,14 @@ const wobbler = (): Patch => ({
     { from: ['ladder-1', 'out'], to: ['drive-1', 'in'] },
     { from: ['drive-1', 'out'], to: ['vca-1', 'in'] },
     { from: ['adsr-1', 'out'], to: ['vca-1', 'cv'] },
-    { from: ['vca-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['vca-1', 'out'], to: ['meter-bass', 'in'] },
+    { from: ['meter-bass', 'thru'], to: ['out-1', 'in'] },
 
     { from: ['tracker-1', 'trig2'], to: ['adsr-2', 'trig'] },
     { from: ['noise-1', 'white'], to: ['vca-2', 'in'] },
     { from: ['adsr-2', 'out'], to: ['vca-2', 'cv'] },
-    { from: ['vca-2', 'out'], to: ['out-2', 'in'] },
+    { from: ['vca-2', 'out'], to: ['meter-hat', 'in'] },
+    { from: ['meter-hat', 'thru'], to: ['out-2', 'in'] },
   ],
 })
 
@@ -572,6 +570,7 @@ const wobbler = (): Patch => ({
 const guitarPedalboard = (): Patch => ({
   modules: [
     { id: 'input-1', type: 'audio-input', params: { level: 1, channel: 0 } },
+    { id: 'meter-input', type: 'meter', params: { mode: 0, gain: 1.5, release: 0.34 } },
     { id: 'highpass-1', type: 'svf', params: { cutoff: 70, resonance: 0 } },
     { id: 'drive-1', type: 'drive', params: { drive: 4.5, bias: 0.04 } },
     {
@@ -595,10 +594,12 @@ const guitarPedalboard = (): Patch => ({
     { id: 'delay-1', type: 'delay', params: { time: 0.32, feedback: 0.24 } },
     { id: 'wet-dry-1', type: 'mixer', params: { level1: 1, level2: 0.2 } },
     { id: 'reverb-1', type: 'reverb', params: { size: 0.5, decay: 0.62, damp: 0.66, mix: 0.14 } },
+    { id: 'meter-output', type: 'meter', params: { mode: 1, gain: 1.2, release: 0.24 } },
     { id: 'out-1', type: 'out', params: { level: 0.75 } },
   ],
   cables: [
-    { from: ['input-1', 'out'], to: ['highpass-1', 'in'] },
+    { from: ['input-1', 'out'], to: ['meter-input', 'in'] },
+    { from: ['meter-input', 'thru'], to: ['highpass-1', 'in'] },
     { from: ['highpass-1', 'hp'], to: ['drive-1', 'in'] },
     { from: ['drive-1', 'out'], to: ['eq-1', 'in'] },
     { from: ['eq-1', 'out'], to: ['compressor-1', 'in'] },
@@ -606,7 +607,8 @@ const guitarPedalboard = (): Patch => ({
     { from: ['compressor-1', 'out'], to: ['delay-1', 'in'] },
     { from: ['delay-1', 'out'], to: ['wet-dry-1', 'in2'] },
     { from: ['wet-dry-1', 'out'], to: ['reverb-1', 'in'] },
-    { from: ['reverb-1', 'out'], to: ['out-1', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['meter-output', 'in'] },
+    { from: ['meter-output', 'thru'], to: ['out-1', 'in'] },
   ],
 })
 
@@ -628,35 +630,80 @@ export const PATCHES: readonly PatchPreset[] = [
     id: 'pressure-system',
     name: 'Pressure System',
     blurb: 'A focused D&B roller: break, sub and restrained Reese',
+    kicker: 'Featured performance',
+    features: ['arranged song', '4 macro controls', 'LED monitoring'],
+    accent: 'mint',
+    featured: true,
     needsBreak: 'roller',
     build: pressureSystem,
   },
-  { id: 'acid', name: 'Acid', blurb: 'A sequenced line through the 303 filter', build: acid },
-  { id: 'generative', name: 'Generative', blurb: 'Noise, sampled and quantized into a melody', build: generative },
-  { id: 'drone', name: 'Drone', blurb: 'Two oscillators breathing, no sequencer', build: drone },
-  { id: 'percussion', name: 'Percussion', blurb: 'A hat and a snare, and no oscillator', build: percussion },
+  {
+    id: 'signal-relay',
+    name: 'Signal Relay',
+    blurb: 'A beat becomes CV and animates its own harmonic drone',
+    kicker: 'Monitoring as an instrument',
+    features: ['VU envelope CV', 'self-running', 'wave monitor'],
+    accent: 'amber',
+    featured: true,
+    build: signalRelay,
+  },
+  {
+    id: 'acid',
+    name: 'Neon Acid',
+    blurb: 'A driven sequenced line with space and a live scope',
+    kicker: 'Classic signal path',
+    features: ['step sequencer', '303 filter', 'wave monitor'],
+    accent: 'pink',
+    build: acid,
+  },
+  {
+    id: 'generative',
+    name: 'Chance Garden',
+    blurb: 'Noise sampled and quantized into an endless melody',
+    kicker: 'Generative system',
+    features: ['sample & hold', 'quantizer', 'VU monitoring'],
+    accent: 'violet',
+    build: generative,
+  },
   // Named apart from the BREAKS deliberately. The breaks are already called Jungle, Chopper and Roller, and
   // the two pickers sit next to each other in the same UI — a patch called Chopper that loads a break called
   // Chopper reads as one thing with two names until it very much does not.
   {
     id: 'cutup',
     name: 'Cut Up',
-    blurb: 'A chopped break and a Reese, hard apart',
+    blurb: 'A chopped break and a Reese split hard across stereo',
+    kicker: 'Sampler workout',
+    features: ['sliced break', 'stereo Reese', '3 live monitors'],
+    accent: 'pink',
     needsBreak: 'amenish',
     build: cutUp,
   },
   {
     id: 'ducked',
-    name: 'Ducked',
-    blurb: 'The break straight, the bass ducking under it',
+    name: 'Sidechain Pressure',
+    blurb: 'Watch the break push a sustained bass out of its way',
+    kicker: 'Dynamics study',
+    features: ['sidechain key', 'before / after VU', 'rolling break'],
+    accent: 'mint',
     needsBreak: 'roller',
     build: ducked,
   },
-  { id: 'wobbler', name: 'Wobbler', blurb: 'No break at all: the bass does the work', build: wobbler },
+  {
+    id: 'wobbler',
+    name: 'Substation',
+    blurb: 'A snarling three-oscillator bass with synthetic hats',
+    kicker: 'No samples required',
+    features: ['modulated bass', 'synth drums', 'dual monitors'],
+    accent: 'amber',
+    build: wobbler,
+  },
   {
     id: 'guitar-pedalboard',
-    name: 'Guitar Pedalboard',
-    blurb: 'Live input through drive, dynamics, echo and room',
+    name: 'Live Wire',
+    blurb: 'Live guitar through drive, dynamics, echo and room',
+    kicker: 'External input chain',
+    features: ['input / output VU', 'parallel delay', 'tone shaping'],
+    accent: 'violet',
     build: guitarPedalboard,
   },
 ]
