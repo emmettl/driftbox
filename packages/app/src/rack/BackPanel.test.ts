@@ -2,7 +2,7 @@ import { MODULES } from '@driftbox/rack'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { CablePaths, TurningCables } from './BackPanel.js'
+import { CablePaths } from './BackPanel.js'
 import { jacks, layout } from './layout.js'
 
 const patch = {
@@ -15,15 +15,9 @@ const patch = {
 
 const geometry = layout(patch.modules, () => ({ span: 2, rows: 1 }))
 
-describe('cables during a rack turn', () => {
-  it('renders a non-interactive cable copy as soon as the turn to the back starts', () => {
-    const resting = renderToStaticMarkup(
-      createElement(TurningCables, { layout: geometry, flipped: false }),
-    )
-    const turning = renderToStaticMarkup(
-      createElement(TurningCables, { layout: geometry, flipped: true }),
-    )
-    const cables = renderToStaticMarkup(
+describe('the shared cable renderer', () => {
+  it('only includes interactive grab targets when given a disconnect action', () => {
+    const passive = renderToStaticMarkup(
       createElement(CablePaths, {
         all: jacks(geometry.placements, MODULES),
         cables: patch.cables,
@@ -31,12 +25,18 @@ describe('cables during a rack turn', () => {
         swing: { elapsed: null, direction: 1 },
       }),
     )
+    const interactive = renderToStaticMarkup(
+      createElement(CablePaths, {
+        all: jacks(geometry.placements, MODULES),
+        cables: patch.cables,
+        delayed: new Set<string>(),
+        swing: { elapsed: null, direction: 1 },
+        disconnect: () => {},
+      }),
+    )
 
-    expect(resting).toContain('class="rk-turn-wires"')
-    expect(resting).not.toContain('rk-turn-wires-on')
-    expect(turning).toContain('class="rk-turn-wires rk-turn-wires-on"')
-    expect(turning).toContain('aria-hidden="true"')
-    expect(cables).toContain('rk-cable-line')
-    expect(cables).not.toContain('rk-cable-grab')
+    expect(passive).toContain('rk-cable-line')
+    expect(passive).not.toContain('rk-cable-grab')
+    expect(interactive).toContain('rk-cable-grab')
   })
 })
