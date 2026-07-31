@@ -10,7 +10,7 @@ import {
   renderPatch,
   type Patch,
 } from '@driftbox/rack'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
@@ -206,6 +206,7 @@ export default function RackApp() {
    */
   const [rackView, setRackView] = useState<RackView>('rack')
   const performing = rackView !== 'rack'
+  const performanceSpace = useRef<HTMLDivElement>(null)
   const [keyboardOpen, setKeyboardOpen] = useState(true)
   const [started, setStarted] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -246,6 +247,13 @@ export default function RackApp() {
         if (root.dataset.rackViewTransition === motion) delete root.dataset.rackViewTransition
       })
       .catch(() => {})
+  }, [rackView])
+
+  /* The split grid is horizontally scrollable on narrow screens. Its DOM node survives all three views,
+     so a trip through full-pad mode otherwise remembers the pad-side scroll offset and reopens split with
+     the rack entirely off-screen. A layout effect restores the rack bay before the new frame is painted. */
+  useLayoutEffect(() => {
+    if (rackView === 'split' && performanceSpace.current) performanceSpace.current.scrollLeft = 0
   }, [rackView])
   /** Which break is loaded, by id as well as name — the id so an export can render it again.
    *  Keeping the audio itself would mean holding about 700kB for the life of the page, and `setData`
@@ -1420,7 +1428,7 @@ export default function RackApp() {
       {/* Three views of the same live instrument. In split view the stage and pad share one grid, which moves
           the rack left into its own bay instead of shrinking it — its design coordinates, knobs and cable
           hit targets therefore stay exact. On a narrow screen the pair remains horizontally scrollable. */}
-      <div className={`rk-performance-space rk-performance-space-${rackView}`}>
+      <div ref={performanceSpace} className={`rk-performance-space rk-performance-space-${rackView}`}>
         {rackView !== 'rack' && (
           <div className="rk-perform">
             <PerformPad kaoss={hasKaoss ? kaoss.current : null} flipped={flipped} />

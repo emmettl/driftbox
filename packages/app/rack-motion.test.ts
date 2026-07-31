@@ -39,6 +39,15 @@ describe('the performance view hand-off', () => {
     )
   })
 
+  it('reopens split at the rack bay and keeps the keyboard above transition snapshots', () => {
+    expect(rackApp).toContain(
+      "if (rackView === 'split' && performanceSpace.current) performanceSpace.current.scrollLeft = 0",
+    )
+    expect(rackApp).toContain('<div ref={performanceSpace} className={`rk-performance-space')
+    expect(styles).toContain('view-transition-name: rk-performance-keyboard;')
+    expect(styles).toContain('::view-transition-group(rk-performance-keyboard) {\n  z-index: 2;')
+  })
+
   it('keeps the hidden pad face out of flattened transition snapshots', () => {
     expect(styles).toContain('.rk-pad-face-front {\n  opacity: 1;')
     expect(styles).toContain('.rk-pad-face-back {\n  opacity: 0;')

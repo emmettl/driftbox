@@ -2468,6 +2468,10 @@ kbd {
   position: sticky;
   bottom: 0;
   z-index: 5;
+  /* A document view transition paints above ordinary z-index layers. Giving the keyboard its own named
+     snapshot lets its transition group remain above the moving rack and pad instead of being covered by
+     them while they cross the bottom of the viewport. */
+  view-transition-name: rk-performance-keyboard;
   display: flex;
   flex-direction: column;
   pointer-events: none;
@@ -2919,6 +2923,15 @@ kbd {
  * only choreograph surfaces which exist on one side of a transition. Unsupported browsers simply never
  * create these pseudo-elements and retain the immediate state change in `cycleRackView`.
  */
+::view-transition-group(rk-performance-rack),
+::view-transition-group(rk-performance-pad) {
+  z-index: 1;
+}
+
+::view-transition-group(rk-performance-keyboard) {
+  z-index: 2;
+}
+
 html[data-rack-view-transition='split-pad']::view-transition-group(rk-performance-pad) {
   animation-duration: 560ms;
   animation-timing-function: cubic-bezier(0.2, 0.78, 0.22, 1);
