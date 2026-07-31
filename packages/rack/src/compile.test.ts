@@ -398,3 +398,98 @@ describe('migrating a module', () => {
     expect(plan.nodes.map((n) => n.id)).toEqual(['osc'])
   })
 })
+
+describe('stereo ports', () => {
+  // A stereo port owns two consecutive buffers and occupies two slots in its processor's arrays. The rules
+  // themselves live in `stereo.ts` and are tested there; what matters here is that the compiler applies
+  // them, because a wrong slot is an undefined read inside the audio thread rather than a failed assertion.
+
+  const node = (plan: Plan, id: string) => plan.nodes.find((n) => n.id === id)!
+
+  it('gives a stereo outlet two buffers and a mono one still gets one', () => {
+    const plan = compiled([['rev', 'reverb']])
+    // Reverb: one mono inlet, one stereo outlet.
+    expect(node(plan, 'rev').inlets).toHaveLength(1)
+    expect(node(plan, 'rev').outlets).toHaveLength(2)
+    // Consecutive, so widening a port later moves only the numbers after it.
+    expect(node(plan, 'rev').outlets[1]).toBe(node(plan, 'rev').outlets[0] + 1)
+  })
+
+  it('carries both channels between two stereo ports', () => {
+    const plan = compiled(
+      [
+        ['rev', 'reverb'],
+        ['out-1', 'out'],
+      ],
+      [['rev', 'out', 'out-1', 'in']],
+    )
+    expect(node(plan, 'out-1').inlets).toEqual(node(plan, 'rev').outlets)
+  })
+
+  it('centres a mono source into a stereo inlet', () => {
+    // Every patch written before stereo existed is this case, and it has to sound exactly as it did.
+    const plan = compiled(
+      [
+        ['osc', 'vco'],
+        ['out-1', 'out'],
+      ],
+      [['osc', 'out', 'out-1', 'in']],
+    )
+    const [left, right] = node(plan, 'out-1').inlets
+    expect(left).toBe(node(plan, 'osc').outlets[0])
+    expect(right).toBe(left)
+  })
+
+  it('folds a stereo source into a mono inlet, and says so', () => {
+    const plan = compiled(
+      [
+        ['rev', 'reverb'],
+        ['lad', 'ladder'],
+      ],
+      [['rev', 'out', 'lad', 'in']],
+    )
+    expect(node(plan, 'lad').inlets[0]).toBe(node(plan, 'rev').outlets[0])
+    // Reported rather than silent: a patch that behaves unlike its picture is worse than one that admits it.
+    const folded = kinds(plan, 'mono-fold')
+    expect(folded).toHaveLength(1)
+    expect(folded[0].module).toBe('lad')
+    expect(folded[0].cable).toEqual({ from: ['rev', 'out'], to: ['lad', 'in'] })
+  })
+
+  it('says nothing about a cable that loses nothing', () => {
+    const plan = compiled(
+      [
+        ['osc', 'vco'],
+        ['lad', 'ladder'],
+        ['rev', 'reverb'],
+        ['out-1', 'out'],
+      ],
+      [
+        ['osc', 'out', 'lad', 'in'],
+        ['rev', 'out', 'out-1', 'in'],
+      ],
+    )
+    expect(kinds(plan, 'mono-fold')).toHaveLength(0)
+  })
+
+  it('leaves an unconnected stereo inlet reading silence on both channels', () => {
+    // The property the zero buffer exists to give: no module branches on whether it is patched.
+    expect(node(compiled([['out-1', 'out']]), 'out-1').inlets).toEqual([0, 0])
+  })
+
+  it('reaches the mix as a pair when the terminal outlet is stereo', () => {
+    const plan = compiled([['out-1', 'out']])
+    const output = plan.outputs[0]
+    expect(output.right).toBe(output.buffer + 1)
+  })
+
+  it('reaches the mix as one buffer when the terminal outlet is mono', () => {
+    // A terminal module type this build has never seen, or a future mono one, must still work.
+    const registry: Registry = {
+      ...MODULES,
+      sink: { ...MODULES.out, type: 'sink', inlets: [{ id: 'in', name: 'In' }], outlets: [{ id: 'out', name: 'Out' }] },
+    }
+    const plan = compile({ modules: [{ id: 's', type: 'sink' }], cables: [] }, registry)
+    expect(plan.outputs[0].right).toBeNull()
+  })
+})

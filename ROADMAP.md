@@ -25,7 +25,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
-| Rack | An unpublished work in progress with 29 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 29 modules, patching UI, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, stereo cables, performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -37,7 +37,7 @@ than an analogy.
 
 [docs/REASON-GAP.md](docs/REASON-GAP.md) is the other half of the comparison — what the rack
 still lacks measured against *Reason* rather than against the groovebox, which is a different
-list with a different order. Undo has landed; stereo cables and recorded automation now lead it.
+list with a different order. Undo and stereo cables have landed; recorded automation now leads it.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. It also fixes the implementation order:

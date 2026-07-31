@@ -1,4 +1,4 @@
-import type { ModuleDef, PatchModule } from '@driftbox/rack'
+import type { ModuleDef, PatchModule, Port } from '@driftbox/rack'
 
 // Where every module and every jack sits, in one coordinate system.
 //
@@ -143,6 +143,8 @@ export interface Jack {
   port: string
   name: string
   kind: 'in' | 'out'
+  /** Two channels on one jack. Drawn differently, because a cable out of one carries a pair. */
+  stereo: boolean
   x: number
   y: number
 }
@@ -166,7 +168,7 @@ export function jacks(placements: readonly Placement[], defs: Record<string, Mod
     const def = defs[placement.type]
     if (!def) continue
 
-    const column = (ports: readonly { id: string; name: string }[], kind: 'in' | 'out') => {
+    const column = (ports: readonly Port[], kind: 'in' | 'out') => {
       // Centred vertically in the module's slot, so a two-row module with one jack does not have it
       // clinging to the top edge.
       const span = (ports.length - 1) * JACK
@@ -176,6 +178,7 @@ export function jacks(placements: readonly Placement[], defs: Record<string, Mod
           module: placement.id,
           port: port.id,
           name: port.name,
+          stereo: port.stereo === true,
           kind,
           x:
             kind === 'in'

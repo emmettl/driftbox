@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MODULES, MODULE_LIST } from './index.js'
+import { channelCount, slotCount } from '../stereo.js'
 import type { ModuleDef, Processor } from '../types.js'
 
 // One suite that holds every module to the rules in `types.ts`, rather than sixteen suites each
@@ -27,11 +28,23 @@ function construct(def: ModuleDef, id = 'a-module'): Processor {
   return new def.processor(SR, deps(def), id, NO_DATA)
 }
 
+/** What each slot is called, so a failure names the channel rather than an index — `out (L)`, not `1`. */
+function slotNames(ports: readonly ModuleDef['inlets'][number][]): string[] {
+  return ports.flatMap((port) =>
+    channelCount(port) === 2 ? [`${port.id} (L)`, `${port.id} (R)`] : [port.id],
+  )
+}
+
 /** Buffers for one call: inlets holding a recognisable signal, outlets pre-filled with a value no
  *  module would produce, params at their defaults. */
 function buffers(def: ModuleDef, fill = 0.25) {
-  const inlets = def.inlets.map(() => new Float32Array(FRAMES).fill(fill))
-  const outlets = def.outlets.map(() => new Float32Array(FRAMES).fill(-999))
+  // Sized by SLOTS rather than by ports: a stereo port owns two buffers and its processor indexes them as
+  // two. Getting this wrong would hand a stereo module one array where it expects two, and the failure
+  // would be an undefined read inside the audio thread rather than a test that says so.
+  const inlets = Array.from({ length: slotCount(def.inlets) }, () => new Float32Array(FRAMES).fill(fill))
+  const outlets = Array.from({ length: slotCount(def.outlets) }, () =>
+    new Float32Array(FRAMES).fill(-999),
+  )
   const params = def.params.map((p) => new Float32Array(FRAMES).fill(p.default))
   return { inlets, outlets, params }
 }
@@ -75,7 +88,7 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     for (const [index, outlet] of outlets.entries()) {
       expect(
         firstBad(outlet, (x) => x !== -999 && Number.isFinite(x)),
-        `${def.outlets[index].id} was left unwritten`,
+        `${slotNames(def.outlets)[index]} was left unwritten`,
       ).toBe(-1)
     }
   })
@@ -88,7 +101,7 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     const before = inlets.map((buffer) => [...buffer])
     construct(def).process(inlets, outlets, params, FRAMES)
     for (const [index, inlet] of inlets.entries()) {
-      expect([...inlet], `${def.inlets[index].id} was modified`).toEqual(before[index])
+      expect([...inlet], `${slotNames(def.inlets)[index]} was modified`).toEqual(before[index])
     }
   })
 
@@ -109,8 +122,10 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     // module's output can carry any value the patch produced.
     for (const extreme of ['min', 'max'] as const) {
       for (const signal of [0, 1, -1, 8, -8]) {
-        const inlets = def.inlets.map(() => new Float32Array(FRAMES).fill(signal))
-        const outlets = def.outlets.map(() => new Float32Array(FRAMES))
+        const inlets = Array.from({ length: slotCount(def.inlets) }, () =>
+          new Float32Array(FRAMES).fill(signal),
+        )
+        const outlets = Array.from({ length: slotCount(def.outlets) }, () => new Float32Array(FRAMES))
         const params = def.params.map((p) => new Float32Array(FRAMES).fill(p[extreme]))
         const processor = construct(def)
         // Several blocks, because a feedback path inside a module takes more than one to diverge.

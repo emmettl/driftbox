@@ -22,6 +22,7 @@ describe('the shared cable renderer', () => {
         all: jacks(geometry.placements, MODULES),
         cables: patch.cables,
         delayed: new Set<string>(),
+        folded: new Set<string>(),
         swing: { elapsed: null, direction: 1 },
       }),
     )
@@ -30,6 +31,7 @@ describe('the shared cable renderer', () => {
         all: jacks(geometry.placements, MODULES),
         cables: patch.cables,
         delayed: new Set<string>(),
+        folded: new Set<string>(),
         swing: { elapsed: null, direction: 1 },
         disconnect: () => {},
       }),
@@ -38,5 +40,21 @@ describe('the shared cable renderer', () => {
     expect(passive).toContain('rk-cable-line')
     expect(passive).not.toContain('rk-cable-grab')
     expect(interactive).toContain('rk-cable-grab')
+  })
+
+  it('marks a cable that loses its right channel', () => {
+    // The compiler decides the fold and reports it; drawing it is the other half of that bargain. A patch
+    // that behaves unlike its picture is worse than one that admits it.
+    const key = 'osc.out>speaker.in'
+    const drawn = renderToStaticMarkup(
+      createElement(CablePaths, {
+        all: jacks(geometry.placements, MODULES),
+        cables: patch.cables,
+        delayed: new Set<string>(),
+        folded: new Set([key]),
+        swing: { elapsed: null, direction: 1 },
+      }),
+    )
+    expect(drawn).toContain('rk-cable-folded')
   })
 })

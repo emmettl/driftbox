@@ -132,7 +132,9 @@ path.
 
 ### How the graph runs
 
-One signal type. Audio and CV are the same `Float32Array` — Eurorack's choice, not Reason's.
+One signal type. Audio and CV are the same `Float32Array` — Eurorack's choice, not Reason's. A port may
+declare that it owns **two** of them, which is what a stereo cable is here; nothing else about the signal
+changes and nothing enforces which is which.
 1.0 means one octave on a pitch inlet, 0-or-1 on a gate inlet, and nothing anywhere
 enforces which is which. A patch that plays an envelope through a speaker is the user's
 business.
@@ -758,6 +760,47 @@ The risk is all in the first item. Do it first and alone.
    - **Opening a document is where undo stops.** A history spanning a load would let one press
      resurrect a patch somebody deliberately left, and that patch is not gone: it is in the library, in
      storage, or in the link they arrived by.
+
+   **Stereo cables** ✅ — second off [REASON-GAP.md](REASON-GAP.md), and the one this file and
+   `docs/DNB.md` had both talked themselves out of.
+
+   Both of them said the same thing: full stereo cables "would double every buffer and make every module
+   answer what it means to filter a stereo signal". **Neither was the price**, and the reason is one word
+   in the wrong place — the objection assumed stereo would be a property of the *cable* or of the *graph*.
+   It is a property of a **port**.
+
+   - **A stereo port owns two consecutive buffers and occupies two slots.** A def declaring
+     `[in(stereo), cv]` hands `process` three inlet buffers: left, right, cv. So a module that says
+     nothing sees exactly what it saw before, twenty-seven of the twenty-nine did not change at all, and
+     the Graph needed no change to how it wires inlets and outlets — because those were already flat
+     lists of buffer indices rather than one per port. The whole feature lands in `compile.ts`, plus the
+     mix stage in `graph.ts` where a terminal outlet can now be a pair.
+   - **Three rules, in `stereo.ts`, and all of them total.** stereo→stereo carries both; mono→stereo
+     feeds both channels from the one buffer; stereo→mono takes the **left**. Total matters as much as
+     correct here: an unconnected inlet arrives as the zero buffer and comes back as one or two of it,
+     which is the property that stops any module having to branch on whether it is patched.
+   - **Folding is the left channel, not the sum, and that is Reason's rule** — its jacks say "L (Mono)".
+     A sum would need a scratch buffer and a copy per folded inlet every block, which is the machinery
+     the polyphonic collapse already pays for, and it would add 6dB to any centred signal. The Mixer is
+     one module away for anybody who wants the sum, and it is then visible in the patch.
+   - **Adding a channel to a port is safe; renaming one is not.** Cables name ports, so widening `out`
+     moves no cable and every patch written before this is byte-identical and — where it fed something
+     mono — sample-identical. It is also why the Groovebox's four stereo pairs are still eight mono
+     jacks: collapsing them into four stereo ones is a rename, and a rename drops cables.
+   - **Out went first because nothing else could be heard without it.** Everything upstream can be as
+     stereo as it likes while the end of the rack takes one channel. Its pan param is unchanged and now
+     means balance on a pair, which is what a pan control on a stereo channel means on any mixer — one
+     knob, one name, rather than a second control that only sometimes applies.
+   - **The Reverb is the first real stereo source, and its left channel did not move.** One FDN, two
+     output mixing vectors: the left is the mean of the taps it always was, the right is the same taps
+     under an alternating sign. Uncorrelated, equal energy, full density on both sides — splitting the
+     eight lines four and four would also decorrelate and would halve the echo density on each side,
+     which is audibly sparser than the mono version was. Measured on the shipped hero patch, side/mid
+     went 0.0466 → 0.0492: the record is wider and nothing else about it moved.
+   - **The compiler reports a fold** as `plan.notes`, and the back panel draws those cables thinner with
+     the reason in their title. Same bargain the delayed cables strike: a patch that behaves unlike its
+     picture is worse than one that admits it. A stereo jack gets a second ring rather than a second
+     hole, because it is still one connection — dragged, snapped and pulled out like any other.
 
 ## The visualiser, and why it is not on the rack yet
 

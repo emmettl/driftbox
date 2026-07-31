@@ -1,4 +1,5 @@
 import { applyModulation } from './modulation.js'
+import { channelCount, wire } from './stereo.js'
 import type {
   PlanOutput,
   ModuleDef,
@@ -172,7 +173,8 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   // is the zero buffer, which a module is then writing to. Reusing buffers between
   // modules whose lifetimes do not overlap is a real optimisation and belongs later.
 
-  const outletBuffer = new Map<string, number>()
+  /** Per outlet, the buffers it owns: one, or two for a stereo port. See `stereo.ts`. */
+  const outletBuffer = new Map<string, number[]>()
   /** Per buffer: is it written per voice? Index 0 is the zero buffer, which belongs to nobody and is read by
    *  every unconnected inlet of every voice — mono is the only answer that makes sense for it. */
   const bufferPoly: boolean[] = [false]
@@ -183,9 +185,15 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     // the audio thread, because a question `process()` has to answer at run time is one it can get wrong.
     const poly = def.poly !== false
     for (const port of def.outlets) {
-      outletBuffer.set(key(module.id, port.id), buffers)
-      bufferPoly[buffers] = poly
-      buffers++
+      // Consecutive, so that a stereo port's two buffers are as cheap to talk about as one — and so that
+      // widening a port later moves only the numbers after it rather than reshaping the plan.
+      const channels: number[] = []
+      for (let channel = 0; channel < channelCount(port); channel++) {
+        bufferPoly[buffers] = poly
+        channels.push(buffers)
+        buffers++
+      }
+      outletBuffer.set(key(module.id, port.id), channels)
     }
   }
 
@@ -196,7 +204,8 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   // hidden mixer; the Mixer module is the visible one.
 
   interface Source {
-    buffer: number
+    /** The buffers the source port writes: one, or two when it is stereo. */
+    channels: number[]
     /** null when the cable comes from a placeholder. */
     from: number | null
     /** The destination, carried rather than parsed back out of the map key. Deriving it from
@@ -258,7 +267,7 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     inletSource.set(k, {
       // From a placeholder is silence rather than a dropped cable, so the patch keeps its
       // shape and only loses its sound.
-      buffer: source.index === null ? ZERO : outletBuffer.get(key(fromId, fromPort)) ?? ZERO,
+      channels: source.index === null ? [ZERO] : (outletBuffer.get(key(fromId, fromPort)) ?? [ZERO]),
       from: source.index,
       to: dest.index,
       toId,
@@ -350,8 +359,13 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     return {
       id: module.id,
       type: module.type,
-      inlets: def.inlets.map((port) => inletSource.get(key(module.id, port.id))?.buffer ?? ZERO),
-      outlets: def.outlets.map((port) => outletBuffer.get(key(module.id, port.id)) ?? ZERO),
+      // Slots, not ports: a stereo port occupies two consecutive entries, so a def declaring
+      // `[in(stereo), cv]` produces three inlet buffers. `wire` is the whole of the mono/stereo mapping and
+      // is total — an unconnected inlet arrives as the zero buffer and comes back as one or two of it.
+      inlets: def.inlets.flatMap((port) =>
+        wire(inletSource.get(key(module.id, port.id))?.channels ?? [ZERO], channelCount(port)),
+      ),
+      outlets: def.outlets.flatMap((port) => outletBuffer.get(key(module.id, port.id)) ?? [ZERO]),
       params: def.params.map((param) => slots[module.id][param.id]),
       poly: def.poly !== false,
       // Carried through untouched. `compile` has no opinion about what a module's data means — it is the module
@@ -367,16 +381,36 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     if (!def.terminal) continue
     const port = def.outlets[0]
     if (!port) continue
-    const buffer = outletBuffer.get(key(module.id, port.id))
-    if (buffer === undefined) continue
+    const channels = outletBuffer.get(key(module.id, port.id))
+    if (channels === undefined || channels[0] === undefined) continue
     // A slot, not a value: the Graph reads the pan buffer every sample, so turning the knob while the patch
     // runs works without recompiling — the same reason `setParam` does not bump the revision.
     const slot = (id: string | undefined) => (id ? (slots[module.id]?.[id] ?? null) : null)
     outputs.push({
-      buffer,
+      buffer: channels[0],
+      // A stereo terminal reaches the mix as a pair, and its pan param then means balance rather than
+      // placement — which is what a pan control on a stereo channel means on every mixer ever built.
+      right: channels[1] ?? null,
       pan: slot(def.terminalPan),
       mute: slot(def.terminalMute),
       solo: slot(def.terminalSolo),
+    })
+  }
+
+  // Cables that lost a channel. A stereo outlet reaching a mono inlet is heard as its left channel — see
+  // `stereo.ts` for why that is the rule rather than a sum — and reporting it is the same obligation that
+  // makes a delayed cable draw differently: a patch that behaves unlike its picture is worse than one that
+  // admits it. Not a warning. Patching one side of a stereo pair into a filter is an ordinary thing to do.
+  for (const [k, source] of inletSource) {
+    if (source.channels.length < 2) continue
+    const dest = live[source.to]
+    const port = registry[dest.type].inlets.find((p) => p.id === source.toPort)
+    if (!port || channelCount(port) > 1) continue
+    notes.push({
+      kind: 'mono-fold',
+      cable: replaced.get(k),
+      module: source.toId,
+      detail: `${source.toId}.${source.toPort} is mono: the left channel is heard and the right is not`,
     })
   }
 
