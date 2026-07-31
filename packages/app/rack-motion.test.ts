@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const styles = readFileSync(new URL('./src/rack/rack.css', import.meta.url), 'utf8')
+const rackApp = readFileSync(new URL('./src/rack/RackApp.tsx', import.meta.url), 'utf8')
 
 describe('the rack turn', () => {
   it('hands off both stable faces at the same edge in either direction', () => {
@@ -25,5 +26,26 @@ describe('the rack turn', () => {
 
   it('does not delay either face when reduced motion removes the turn', () => {
     expect(styles).toContain('.rk-side {\n    transition: none;\n  }')
+  })
+})
+
+describe('the performance view hand-off', () => {
+  it('uses the real pad as a shared element between split and full layouts', () => {
+    expect(rackApp).toContain('document.startViewTransition(() => flushSync(update))')
+    expect(styles).toContain('view-transition-name: rk-performance-pad;')
+    expect(styles).toContain('view-transition-name: rk-performance-rack;')
+    expect(styles).toContain(
+      "html[data-rack-view-transition='split-pad']::view-transition-group(rk-performance-pad)",
+    )
+  })
+
+  it('hands full-pad mode back to an animated rack without overriding reduced motion', () => {
+    expect(styles).toContain(
+      "html[data-rack-view-transition='pad-rack']::view-transition-old(rk-performance-pad)",
+    )
+    expect(styles).toContain(
+      "html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-rack)",
+    )
+    expect(rackApp).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)').matches")
   })
 })

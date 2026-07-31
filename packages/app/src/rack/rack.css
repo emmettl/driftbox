@@ -1092,6 +1092,7 @@ kbd {
 
 .rk-rack {
   position: relative;
+  view-transition-name: rk-performance-rack;
   transform-style: preserve-3d;
   transition: transform var(--spin) cubic-bezier(0.6, 0.05, 0.3, 1);
 }
@@ -2681,6 +2682,7 @@ kbd {
 
 .rk-pad {
   position: relative;
+  view-transition-name: rk-performance-pad;
   width: min(900px, 100%);
   /* Tall enough to have travel in both axes. A pad wider than it is tall makes resonance a twitch. */
   aspect-ratio: 3 / 2;
@@ -2851,6 +2853,72 @@ kbd {
   .rk-performance-space-split .rk-perform,
   .rk-pad-mascot-dancer {
     animation: none;
+  }
+}
+
+/* ---- performance view hand-offs ----------------------------------------------
+ *
+ * The View Transition API supplies the FLIP geometry for the named pad: its split and full rectangles are
+ * measured by the browser, so this stays exact across viewport sizes and keyboard states. The keyframes here
+ * only choreograph surfaces which exist on one side of a transition. Unsupported browsers simply never
+ * create these pseudo-elements and retain the immediate state change in `cycleRackView`.
+ */
+html[data-rack-view-transition='split-pad']::view-transition-group(rk-performance-pad) {
+  animation-duration: 560ms;
+  animation-timing-function: cubic-bezier(0.2, 0.78, 0.22, 1);
+}
+
+html[data-rack-view-transition='split-pad']::view-transition-old(rk-performance-pad),
+html[data-rack-view-transition='split-pad']::view-transition-new(rk-performance-pad) {
+  animation-duration: 560ms;
+  animation-timing-function: cubic-bezier(0.2, 0.78, 0.22, 1);
+}
+
+html[data-rack-view-transition='split-pad']::view-transition-old(rk-performance-rack) {
+  animation: rk-performance-rack-yield 300ms ease-in both;
+}
+
+html[data-rack-view-transition='pad-rack']::view-transition-old(rk-performance-pad) {
+  animation: rk-performance-pad-recede 360ms cubic-bezier(0.55, 0, 0.8, 0.25) both;
+  transform-origin: center;
+}
+
+html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-rack) {
+  animation: rk-performance-rack-return 440ms 100ms cubic-bezier(0.18, 0.78, 0.22, 1) both;
+  transform-origin: center;
+}
+
+@keyframes rk-performance-rack-yield {
+  to {
+    opacity: 0;
+    transform: translateX(-42px) scale(0.97);
+  }
+}
+
+@keyframes rk-performance-pad-recede {
+  to {
+    opacity: 0;
+    transform: scale(0.84);
+  }
+}
+
+@keyframes rk-performance-rack-return {
+  from {
+    opacity: 0;
+    transform: translateX(-56px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 1ms !important;
+    animation-delay: 0s !important;
   }
 }
 
