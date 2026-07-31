@@ -26,6 +26,13 @@ export interface StepEvent {
 
 export interface TransportOptions {
   /**
+   * Called at a bar boundary before `barLength` is read.
+   *
+   * A live clip launcher uses this ordering to commit every queued machine together,
+   * then let the longest newly selected clip decide the incoming bar's length.
+   */
+  onBar?: (bar: number) => void
+  /**
    * Bar length in steps, for the bar about to start.
    *
    * Read fresh at each bar boundary — and read for THAT bar, not for bar zero, or a
@@ -118,6 +125,7 @@ export class Transport {
   startAt(bar: number, index = 0): void {
     if (this.active) return
     this.bar = Math.max(0, Math.floor(bar))
+    this.options.onBar?.(this.bar)
     this.length = Math.max(1, Math.floor(this.options.barLength(this.bar)))
     this.absolute = 0
     this.index = Math.max(0, Math.min(this.length - 1, Math.floor(index)))
@@ -189,6 +197,7 @@ export class Transport {
         ) {
           this.bar = this.loopStart
         }
+        this.options.onBar?.(this.bar)
         this.length = this.options.barLength(this.bar)
       }
     }

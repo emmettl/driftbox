@@ -1,5 +1,7 @@
 import {
   chainSetClip,
+  type ClipLaunchEvent,
+  type ClipLaunchPhase,
   type Pattern,
   type Song,
   type GrooveboxSection,
@@ -264,6 +266,22 @@ interface RackState {
     patternId: string,
   ) => void
   /**
+   * Live clip launch is session performance state, never part of the patch or undo history.
+   *
+   * RackApp installs the engine callback after audio starts. The event map lets the
+   * faceplate distinguish a queued launch from the one active after the next bar.
+   */
+  grooveboxLauncher: ((
+    machine: GrooveboxSection,
+    patternId: string | null,
+  ) => boolean) | null
+  setGrooveboxLauncher: (launcher: RackState['grooveboxLauncher']) => void
+  grooveboxLaunches: Partial<
+    Record<GrooveboxSection, { patternId: string | null; phase: ClipLaunchPhase }>
+  >
+  setGrooveboxLaunch: (event: ClipLaunchEvent) => void
+  clearGrooveboxLaunches: () => void
+  /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
    * The audio itself is not here — only what a faceplate needs to say what it is holding. A break is
@@ -439,6 +457,8 @@ export const useRack = create<RackState>((set, get) => {
     midiNote: null,
     midiInputs: [],
     running: false,
+    grooveboxLauncher: null,
+    grooveboxLaunches: {},
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -724,23 +744,37 @@ export const useRack = create<RackState>((set, get) => {
       }),
 
     setGrooveboxClip: (section, machine, patternId) =>
-      set((state) => {
-        const song = grooveboxSong(state.patch)
-        if (!song || !song.patterns.some((pattern) => pattern.id === patternId)) return {}
+      write(`groovebox:clip:${section}:${machine}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song || !song.patterns.some((pattern) => pattern.id === patternId)) return patch
         const chain =
           song.chain.length > 0
             ? song.chain
             : [{ pattern: song.patterns[0]?.id ?? patternId, repeat: 1 }]
-        if (section < 0 || section >= chain.length) return {}
+        if (section < 0 || section >= chain.length) return patch
         const withChain = { ...song, chain }
         const next: Song = {
           ...withChain,
           chain: chainSetClip(withChain, section, machine, patternId),
         }
-        const patch = { ...state.patch, groovebox: encodeSong(next) }
-        autosavePatch(patch)
-        return { patch }
+        return { ...patch, groovebox: encodeSong(next) }
       }),
+
+    setGrooveboxLauncher: (grooveboxLauncher) => set({ grooveboxLauncher }),
+    setGrooveboxLaunch: (event) =>
+      set((state) => {
+        const grooveboxLaunches = { ...state.grooveboxLaunches }
+        if (event.phase === 'active' && event.patternId === null) {
+          delete grooveboxLaunches[event.section]
+        } else {
+          grooveboxLaunches[event.section] = {
+            patternId: event.patternId,
+            phase: event.phase,
+          }
+        }
+        return { grooveboxLaunches }
+      }),
+    clearGrooveboxLaunches: () => set({ grooveboxLaunches: {} }),
 
     setRunning: (running) => set({ running }),
 

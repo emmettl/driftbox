@@ -1177,7 +1177,8 @@ kbd {
 }
 
 .rk-groovebox-page button,
-.rk-groovebox-bass button {
+.rk-groovebox-bass button,
+.rk-groovebox-live button {
   min-width: 24px;
   height: 24px;
   padding: 0 5px;
@@ -1267,6 +1268,28 @@ kbd {
   margin: 0 0 5px auto;
   color: rgba(95, 240, 208, 0.58);
   text-transform: uppercase;
+}
+
+.rk-groovebox-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-groovebox-live span {
+  margin-left: auto;
+  color: rgba(255, 209, 102, 0.76);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rk-groovebox-live button:first-child:not(:disabled) {
+  color: #07120f;
+  background: var(--nine);
+  border-color: #cffff2;
 }
 
 .rk-groovebox-bass strong {

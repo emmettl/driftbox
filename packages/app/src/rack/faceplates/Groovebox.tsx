@@ -59,10 +59,22 @@ export function GrooveboxPatternEditor({
   encoded,
   setPattern,
   setClip,
+  launch,
+  launches,
 }: {
   encoded?: string
   setPattern: (pattern: Pattern) => void
   setClip: (section: number, machine: GrooveboxSection, patternId: string) => void
+  launch?: (
+    machine: GrooveboxSection,
+    patternId: string | null,
+  ) => boolean
+  launches?: Partial<
+    Record<
+      GrooveboxSection,
+      { patternId: string | null; phase: 'queued' | 'active' }
+    >
+  >
 }) {
   const song = encoded ? decodeSong(encoded) : null
   const [wantedPattern, setWantedPattern] = useState('')
@@ -98,6 +110,12 @@ export function GrooveboxPatternEditor({
   const shownSection = Math.min(arrangementSection, chain.length - 1)
   const chainStep = chain[shownSection]
   const clipPattern = chainStep.clips?.[section] ?? chainStep.pattern
+  const live = launches?.[section]
+  const livePattern =
+    live?.patternId === null
+      ? 'song'
+      : song.patterns.find((candidate) => candidate.id === live?.patternId)?.name ??
+        live?.patternId
 
   const save = (next: Pattern) => setPattern(next)
 
@@ -251,6 +269,26 @@ export function GrooveboxPatternEditor({
         )}
       </div>
 
+      <div className="rk-groovebox-live" aria-label={`${sectionName(section)} live clip`}>
+        <button
+          type="button"
+          disabled={!launch}
+          onClick={() => launch?.(section, pattern.id)}
+        >
+          Launch {pattern.name}
+        </button>
+        <button
+          type="button"
+          disabled={!launch}
+          onClick={() => launch?.(section, null)}
+        >
+          Follow song
+        </button>
+        <span aria-live="polite">
+          {live ? `${live.phase} ${livePattern}` : 'follows song'}
+        </span>
+      </div>
+
       {bass && (
         <div className="rk-groovebox-bass" aria-label={`${sectionName(section)} selected step`}>
           <strong>Step {selected + 1}</strong>
@@ -343,11 +381,15 @@ function PatternEditor() {
   const encoded = useRack((state) => state.patch.groovebox)
   const setPattern = useRack((state) => state.setGrooveboxPattern)
   const setClip = useRack((state) => state.setGrooveboxClip)
+  const launch = useRack((state) => state.grooveboxLauncher)
+  const launches = useRack((state) => state.grooveboxLaunches)
   return (
     <GrooveboxPatternEditor
       encoded={encoded}
       setPattern={setPattern}
       setClip={setClip}
+      launch={launch ?? undefined}
+      launches={launches}
     />
   )
 }
