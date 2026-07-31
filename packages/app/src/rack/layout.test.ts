@@ -1,6 +1,21 @@
 import { MODULES } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
-import { COLUMN, JACK, ROW, SNAP, dropIndex, jackAt, jacks, layout, nearestJack, reordered, rowsForJacks, type Size } from './layout.js'
+import {
+  COLUMN,
+  JACK,
+  ROW,
+  SNAP,
+  dragBounds,
+  dropIndex,
+  jackAt,
+  jacks,
+  layout,
+  nearestJack,
+  reordered,
+  rowsForJacks,
+  withDraggedPlacement,
+  type Size,
+} from './layout.js'
 
 // The front panel, the back panel and the cables are all positioned from these numbers, so if they are
 // wrong nothing lines up — a jack sits behind the wrong module, or a cable ends in mid-air. Being pure
@@ -184,6 +199,41 @@ describe('finding what a cable was dropped on', () => {
 })
 
 describe('dragging a module to a new place', () => {
+  it('keeps the lifted module under the exact point where it was grabbed', () => {
+    expect(
+      dragBounds({
+        id: 'wide',
+        at: { x: 410, y: 275 },
+        grab: { x: 185, y: 35 },
+        width: 480,
+        height: 100,
+      }),
+    ).toEqual({ x: 225, y: 240, width: 480, height: 100 })
+  })
+
+  it('moves only the lifted placement and preserves its own width', () => {
+    const placements = layout(
+      [module('wide', 'wide'), module('left', 'narrow'), module('right', 'narrow')],
+      sizes({ narrow: { span: 1 } }),
+    ).placements
+    const moved = withDraggedPlacement(placements, {
+      id: 'right',
+      at: { x: 160, y: 350 },
+      grab: { x: 40, y: 20 },
+      width: COLUMN,
+      height: ROW,
+    })
+
+    expect(moved.find((placement) => placement.id === 'right')).toMatchObject({
+      x: 120,
+      y: 330,
+      width: COLUMN,
+      height: ROW,
+    })
+    expect(moved.find((placement) => placement.id === 'wide')).toBe(placements[0])
+    expect(moved.find((placement) => placement.id === 'left')).toBe(placements[1])
+  })
+
   const stack = (...types: string[]) =>
     layout(types.map((type, i) => ({ id: `m${i}`, type })), () => ({ span: 2, rows: 1 }))
 

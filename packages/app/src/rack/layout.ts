@@ -75,6 +75,50 @@ export interface Layout {
   height: number
 }
 
+/** The geometry shared by the front and rear versions of a lifted module. */
+export interface ModuleDragGeometry {
+  id: string
+  /** Pointer position in rack design units. */
+  at: { x: number; y: number }
+  /** Where within the module it was picked up. */
+  grab: { x: number; y: number }
+  /** The lifted size. A preview pairing may stretch a slot, but not the thing in the hand. */
+  width: number
+  height: number
+}
+
+/** Where a lifted module actually is, rather than the slot it would occupy if released. */
+export function dragBounds(drag: ModuleDragGeometry): {
+  x: number
+  y: number
+  width: number
+  height: number
+} {
+  return {
+    x: drag.at.x - drag.grab.x,
+    y: drag.at.y - drag.grab.y,
+    width: drag.width,
+    height: drag.height,
+  }
+}
+
+/**
+ * Replace the preview slot for the lifted module with its pointer-following position.
+ *
+ * The rear panel feeds this result to `jacks`, which makes the bay, every jack on it and every attached
+ * cable endpoint move from the same geometry. Keeping it pure also checks the half-width case without
+ * trying to infer SVG positions from a browser screenshot.
+ */
+export function withDraggedPlacement(
+  placements: readonly Placement[],
+  drag: ModuleDragGeometry,
+): Placement[] {
+  const bounds = dragBounds(drag)
+  return placements.map((placement) =>
+    placement.id === drag.id ? { ...placement, ...bounds } : placement,
+  )
+}
+
 /**
  * Stack modules down the rack, in patch order.
  *

@@ -1,8 +1,22 @@
 import { MODULES, type PatchCable } from '@driftbox/rack'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { cableMiddle, cablePath, swingAngle, swingSeed, type Point } from './cable.js'
-import { SNAP, type Jack, jackAt, jacks, nearestJack, type Layout } from './layout.js'
+import { sizeFor } from './faceplates/index.js'
+import {
+  SNAP,
+  dropIndex,
+  type Jack,
+  jackAt,
+  jacks,
+  layout as rackLayout,
+  nearestJack,
+  reordered,
+  type Layout,
+  type ModuleDragGeometry,
+  withDraggedPlacement,
+} from './layout.js'
 import { useRack } from './store.js'
+import { useCableJiggle } from './useCableJiggle.js'
 import { useSwing } from './useSwing.js'
 
 // The back of the rack. Jacks, and cables hanging between them.
@@ -31,11 +45,20 @@ interface CablePathsProps {
   /** Cables whose source is stereo and whose destination is not, keyed as `from>to`. */
   folded: Set<string>
   swing: ReturnType<typeof useSwing>
+  jiggle?: { module: string; angle: number }
   disconnect?: (cable: PatchCable) => void
 }
 
 /** The drawn leads, kept separate from the panel furniture so their geometry has one implementation. */
-export function CablePaths({ all, cables, delayed, folded, swing, disconnect }: CablePathsProps) {
+export function CablePaths({
+  all,
+  cables,
+  delayed,
+  folded,
+  swing,
+  jiggle,
+  disconnect,
+}: CablePathsProps) {
   return cables.map((cable) => {
     const from = jackAt(all, cable.from[0], cable.from[1])
     const to = jackAt(all, cable.to[0], cable.to[1])
@@ -46,10 +69,16 @@ export function CablePaths({ all, cables, delayed, folded, swing, disconnect }: 
     // one connection — a module can take a stereo pair on one inlet and a folded one on another — whereas a
     // delayed cable is reported against the module the compiler had to run out of order.
     const isFolded = folded.has(key)
-    const angle =
+    const seed = swingSeed(key)
+    const flipAngle =
       swing.elapsed === null
         ? 0
-        : swingAngle(swing.elapsed, from, to, swing.direction, swingSeed(key))
+        : swingAngle(swing.elapsed, from, to, swing.direction, seed)
+    const attached =
+      jiggle && (cable.from[0] === jiggle.module || cable.to[0] === jiggle.module)
+    // Leads fixed to the moving bay share its overall lag, while their stable seed keeps the bundle
+    // from behaving like one rigid ribbon.
+    const angle = flipAngle + (attached ? jiggle.angle * (0.8 + seed * 0.4) : 0)
     const grab = cableMiddle(from, to, angle)
     const d = cablePath(from, to, angle)
 
@@ -84,9 +113,13 @@ export function CablePaths({ all, cables, delayed, folded, swing, disconnect }: 
 }
 
 /** A cable being dragged, before it lands anywhere. */
-interface Dragging {
+interface CableDragging {
   from: Jack
   at: Point
+}
+
+interface ModuleDragging extends ModuleDragGeometry {
+  index: number
 }
 
 export function BackPanel({ layout }: Props) {
@@ -95,12 +128,18 @@ export function BackPanel({ layout }: Props) {
   const disconnect = useRack((s) => s.disconnect)
   const notes = useRack((s) => s.notes)
   const flipped = useRack((s) => s.flipped)
+  const select = useRack((s) => s.select)
+  const dropModule = useRack((s) => s.dropModule)
 
   /** How long ago the rack was spun, and which way. Null between flips, and the cables hang still. */
   const swing = useSwing(flipped)
 
   const all = useMemo(() => jacks(layout.placements, MODULES), [layout])
-  const [dragging, setDragging] = useState<Dragging | null>(null)
+  const [cableDrag, setCableDrag] = useState<CableDragging | null>(null)
+  const [moduleDrag, setModuleDrag] = useState<ModuleDragging | null>(null)
+  /** Latest pointer position outside React's continuous-event batching, so every jiggle kick is a delta. */
+  const modulePoint = useRef<Point | null>(null)
+  const jiggle = useCableJiggle()
   /**
    * The jack picked with the keyboard, waiting for its other end.
    *
@@ -131,15 +170,15 @@ export function BackPanel({ layout }: Props) {
 
   /** The jack a drop would land on: nearest of the opposite kind, within a snap radius. */
   const dropTarget = useCallback(
-    (drag: Dragging | null, at: Point) =>
+    (drag: CableDragging | null, at: Point) =>
       drag ? nearestJack(all, at, SNAP, drag.from.kind === 'out' ? 'in' : 'out') : undefined,
     [all],
   )
 
-  const finish = useCallback(
+  const finishCable = useCallback(
     (at?: Point) => {
-      const drag = dragging
-      setDragging(null)
+      const drag = cableDrag
+      setCableDrag(null)
       if (!drag || !at) return
       const target = dropTarget(drag, at)
       if (!target) return
@@ -148,10 +187,10 @@ export function BackPanel({ layout }: Props) {
       // the time.
       joinRef.current(drag.from, target)
     },
-    [dragging, dropTarget],
+    [cableDrag, dropTarget],
   )
 
-  const over = dragging ? dropTarget(dragging, dragging.at) : undefined
+  const over = cableDrag ? dropTarget(cableDrag, cableDrag.at) : undefined
 
   /** Join two jacks, whichever order they were picked in. Shared by the drag and the keyboard. */
   const join = useCallback(
@@ -199,6 +238,57 @@ export function BackPanel({ layout }: Props) {
     [armed, join, patch.cables, disconnect],
   )
 
+  /**
+   * The rear preview uses the same reordered module list as the front. Its final extra step is replacing
+   * the dragged module's proposed slot with the pointer-following geometry; `jacks` then moves every
+   * socket on that bay, and the cable renderer inherits those endpoints without any DOM measurement.
+   */
+  const draggedId = moduleDrag?.id
+  const draggedIndex = moduleDrag?.index
+  const preview = useMemo(() => {
+    if (!draggedId || draggedIndex === undefined || draggedIndex < 0) return layout
+    const from = patch.modules.findIndex((module) => module.id === draggedId)
+    const modules = reordered(patch.modules, from, draggedIndex)
+    return modules === patch.modules ? layout : rackLayout(modules, sizeFor(MODULES))
+  }, [draggedId, draggedIndex, layout, patch.modules])
+  const displayedPlacements = useMemo(
+    () =>
+      moduleDrag
+        ? withDraggedPlacement(preview.placements, moduleDrag)
+        : preview.placements,
+    [moduleDrag, preview.placements],
+  )
+  const visibleJacks = useMemo(
+    () => jacks(displayedPlacements, MODULES),
+    [displayedPlacements],
+  )
+  const renderedPlacements = useMemo(
+    () =>
+      moduleDrag
+        ? [
+            ...displayedPlacements.filter((placement) => placement.id !== moduleDrag.id),
+            ...displayedPlacements.filter((placement) => placement.id === moduleDrag.id),
+          ]
+        : displayedPlacements,
+    [displayedPlacements, moduleDrag],
+  )
+  const renderedJacks = useMemo(
+    () =>
+      moduleDrag
+        ? [
+            ...visibleJacks.filter((jack) => jack.module !== moduleDrag.id),
+            ...visibleJacks.filter((jack) => jack.module === moduleDrag.id),
+          ]
+        : visibleJacks,
+    [moduleDrag, visibleJacks],
+  )
+  const ghostSlot = draggedId
+    ? preview.placements.find((placement) => placement.id === draggedId)
+    : undefined
+  const visibleArmed = armed
+    ? jackAt(visibleJacks, armed.module, armed.port) ?? armed
+    : null
+
   const delayed = new Set(
     notes.flatMap((note) => (note.kind === 'delayed' && note.module ? [note.module] : [])),
   )
@@ -213,61 +303,137 @@ export function BackPanel({ layout }: Props) {
   )
 
   return (
-    <div className="rk-back" data-dragging={dragging ? `${dragging.from.module}.${dragging.from.port}` : ''}>
+    <div
+      className="rk-back"
+      data-dragging={cableDrag ? `${cableDrag.from.module}.${cableDrag.from.port}` : ''}
+      data-module-dragging={moduleDrag?.id ?? ''}
+    >
       <svg
         ref={surface}
         className="rk-wires"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         preserveAspectRatio="none"
         onPointerMove={(event) => {
-          if (dragging) setDragging({ ...dragging, at: toDesign(event) })
+          if (moduleDrag) {
+            const at = toDesign(event)
+            jiggle.kick(modulePoint.current ?? moduleDrag.at, at)
+            modulePoint.current = at
+            setModuleDrag({
+              ...moduleDrag,
+              at,
+              index: dropIndex(layout.placements, at),
+            })
+            return
+          }
+          if (cableDrag) setCableDrag({ ...cableDrag, at: toDesign(event) })
         }}
-        onPointerUp={(event) => finish(toDesign(event))}
+        onPointerUp={(event) => {
+          if (moduleDrag) {
+            dropModule(moduleDrag.id, dropIndex(layout.placements, toDesign(event)))
+            window.getSelection()?.removeAllRanges()
+            setModuleDrag(null)
+            modulePoint.current = null
+            jiggle.reset()
+            return
+          }
+          finishCable(toDesign(event))
+        }}
         // Not onPointerLeave: with the pointer captured to this element the cable can be dragged outside
         // it and back, and cancelling on leave made a drag that strayed over the header die silently.
-        onPointerCancel={() => finish()}
+        onPointerCancel={() => {
+          if (moduleDrag) {
+            setModuleDrag(null)
+            modulePoint.current = null
+            jiggle.reset()
+            return
+          }
+          finishCable()
+        }}
       >
-        {/* The panel itself: one rectangle per module, so the back has the same divisions as the front
-            and it is obvious which jacks belong to which module. */}
-        {layout.placements.map((placement) => (
+        {ghostSlot && (
           <rect
-            key={placement.id}
-            className="rk-bay"
-            x={placement.x + 4}
-            y={placement.y + 4}
-            width={placement.width - 8}
-            height={placement.height - 8}
+            className="rk-back-drag-slot"
+            x={ghostSlot.x + 4}
+            y={ghostSlot.y + 4}
+            width={ghostSlot.width - 8}
+            height={ghostSlot.height - 8}
             rx="10"
           />
+        )}
+
+        {/* The panel itself: one rectangle per module, so the back has the same divisions as the front
+            and it is obvious which jacks belong to which module. The bay background is its drag handle;
+            jacks and cable grabs sit above it and stop propagation for their own gestures. */}
+        {renderedPlacements.map((placement) => (
+          <g key={placement.id}>
+            <rect
+              className={moduleDrag?.id === placement.id ? 'rk-bay rk-bay-ghost' : 'rk-bay'}
+              x={placement.x + 4}
+              y={placement.y + 4}
+              width={placement.width - 8}
+              height={placement.height - 8}
+              rx="10"
+              role="button"
+              aria-label={`Drag ${placement.id} to reorder`}
+              onPointerDown={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                surface.current?.setPointerCapture(event.pointerId)
+                select(placement.id)
+                const at = toDesign(event)
+                modulePoint.current = at
+                setModuleDrag({
+                  id: placement.id,
+                  index: -1,
+                  at,
+                  grab: { x: at.x - placement.x, y: at.y - placement.y },
+                  width: placement.width,
+                  height: placement.height,
+                })
+              }}
+            />
+            <text className="rk-bay-name" x={placement.x + 14} y={placement.y + 21}>
+              {MODULES[placement.type]?.name ?? placement.type}
+            </text>
+            <text
+              className="rk-bay-id"
+              x={placement.x + placement.width - 14}
+              y={placement.y + 21}
+              textAnchor="end"
+            >
+              {placement.id}
+            </text>
+          </g>
         ))}
 
         {/* A cable the compiler had to delay to break a cycle is drawn differently. A patch that
             behaves unlike its picture is worse than one that admits it — the compiler reports these
             for exactly this purpose. */}
         <CablePaths
-          all={all}
+          all={visibleJacks}
           cables={patch.cables}
           delayed={delayed}
           folded={folded}
           swing={swing}
+          jiggle={moduleDrag ? { module: moduleDrag.id, angle: jiggle.angle } : undefined}
           disconnect={disconnect}
         />
 
-        {armed && (
-          <circle className="rk-armed-halo" cx={armed.x} cy={armed.y} r="15" />
+        {visibleArmed && (
+          <circle className="rk-armed-halo" cx={visibleArmed.x} cy={visibleArmed.y} r="15" />
         )}
 
-        {dragging && (
+        {cableDrag && (
           <path
             className="rk-cable-line rk-cable-live"
             d={cablePath(
-              jackAt(all, dragging.from.module, dragging.from.port) ?? dragging.at,
-              dragging.at,
+              jackAt(all, cableDrag.from.module, cableDrag.from.port) ?? cableDrag.at,
+              cableDrag.at,
             )}
           />
         )}
 
-        {all.map((jack) => (
+        {renderedJacks.map((jack) => (
           <g
             key={`${jack.module}.${jack.port}`}
             className={[
@@ -296,7 +462,7 @@ export function BackPanel({ layout }: Props) {
               // then arrives at one element with usable coordinates, which is what makes the drag behave
               // the same for a mouse and a finger.
               surface.current?.setPointerCapture(event.pointerId)
-              setDragging({ from: jack, at: { x: jack.x, y: jack.y } })
+              setCableDrag({ from: jack, at: { x: jack.x, y: jack.y } })
             }}
           >
             {/* An invisible target wider than the jack it sits on. A 10px ring is fine for a mouse and
