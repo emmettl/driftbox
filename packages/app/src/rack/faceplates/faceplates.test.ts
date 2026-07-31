@@ -152,12 +152,15 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
     createElement(GrooveboxPatternEditor, {
       encoded: encodeSong(song),
       setPattern: () => {},
+      setClip: () => {},
     }),
   )
 
   expect(markup).toContain('aria-label="Groovebox pattern editor"')
   expect(markup).toContain('aria-label="Pattern to edit"')
   expect(markup).toContain('aria-label="Machine to edit"')
+  expect(markup).toContain('aria-label="Groovebox clip arrangement"')
+  expect(markup).toContain('aria-label="Arrangement section"')
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
   expect(sizeFor(MODULES)('groovebox').rows).toBe(7)
 })

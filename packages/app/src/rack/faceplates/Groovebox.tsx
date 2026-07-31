@@ -58,9 +58,11 @@ const stepState = (value: number): string =>
 export function GrooveboxPatternEditor({
   encoded,
   setPattern,
+  setClip,
 }: {
   encoded?: string
   setPattern: (pattern: Pattern) => void
+  setClip: (section: number, machine: GrooveboxSection, patternId: string) => void
 }) {
   const song = encoded ? decodeSong(encoded) : null
   const [wantedPattern, setWantedPattern] = useState('')
@@ -68,6 +70,7 @@ export function GrooveboxPatternEditor({
   const [wantedVoice, setWantedVoice] = useState('')
   const [page, setPage] = useState(0)
   const [selectedStep, setSelectedStep] = useState(0)
+  const [arrangementSection, setArrangementSection] = useState(0)
 
   if (!song || song.patterns.length === 0) {
     return <p className="rk-groovebox-editor-empty">Retained song unavailable.</p>
@@ -88,6 +91,13 @@ export function GrooveboxPatternEditor({
   const bass = section === '303.a' || section === '303.b'
   const selected = Math.min(pattern.length - 1, Math.max(0, selectedStep))
   const bassStep = bass ? bassStepAt(pattern, section, selected) : REST
+  const chain =
+    song.chain.length > 0
+      ? song.chain
+      : [{ pattern: song.patterns[0].id, repeat: 1 }]
+  const shownSection = Math.min(arrangementSection, chain.length - 1)
+  const chainStep = chain[shownSection]
+  const clipPattern = chainStep.clips?.[section] ?? chainStep.pattern
 
   const save = (next: Pattern) => setPattern(next)
 
@@ -205,6 +215,42 @@ export function GrooveboxPatternEditor({
         })}
       </div>
 
+      <div className="rk-groovebox-clip" aria-label="Groovebox clip arrangement">
+        <label>
+          Section
+          <select
+            aria-label="Arrangement section"
+            value={shownSection}
+            onChange={(event) => setArrangementSection(Number(event.target.value))}
+          >
+            {chain.map((step, index) => (
+              <option value={index} key={index}>
+                {index + 1} · {step.repeat} bar{step.repeat === 1 ? '' : 's'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {sectionName(section)} clip
+          <select
+            aria-label={`${sectionName(section)} clip in section ${shownSection + 1}`}
+            value={clipPattern}
+            onChange={(event) => setClip(shownSection, section, event.target.value)}
+          >
+            {song.patterns.map((candidate) => (
+              <option value={candidate.id} key={candidate.id}>
+                {candidate.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {clipPattern === chainStep.pattern ? (
+          <span>follows section</span>
+        ) : (
+          <span>machine override</span>
+        )}
+      </div>
+
       {bass && (
         <div className="rk-groovebox-bass" aria-label={`${sectionName(section)} selected step`}>
           <strong>Step {selected + 1}</strong>
@@ -296,7 +342,14 @@ export function GrooveboxPatternEditor({
 function PatternEditor() {
   const encoded = useRack((state) => state.patch.groovebox)
   const setPattern = useRack((state) => state.setGrooveboxPattern)
-  return <GrooveboxPatternEditor encoded={encoded} setPattern={setPattern} />
+  const setClip = useRack((state) => state.setGrooveboxClip)
+  return (
+    <GrooveboxPatternEditor
+      encoded={encoded}
+      setPattern={setPattern}
+      setClip={setClip}
+    />
+  )
 }
 
 /**
