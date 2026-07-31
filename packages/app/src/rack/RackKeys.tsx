@@ -19,6 +19,9 @@ import { useRack } from './store.js'
 // about why routing them through `setParam` would autosave the last key anybody pressed into the file.
 
 interface Props {
+  /** Whether the on-screen panel is taking up space. Computer and MIDI keyboards remain available. */
+  open: boolean
+  onOpenChange: (open: boolean) => void
   /** Make the rack able to sound before playing into it. Resolves true if it had to be started from cold. */
   wake: () => Promise<boolean>
   /** Notes go through the `KeyboardBank` owned above, so hardware and these keys share one allocator. */
@@ -59,7 +62,7 @@ function useOctaves(): number {
 /** Where the keyboard starts, in MIDI notes. 36 is C2, which is 0 V on every pitch inlet in this rack. */
 const ROOT = 36
 
-export function RackKeys({ wake, down, up, allOff, sounding }: Props) {
+export function RackKeys({ open, onOpenChange, wake, down, up, allOff, sounding }: Props) {
   const ensureMidi = useRack((s) => s.ensureMidi)
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
   const hasVco = useRack((s) => s.patch.modules.some((m) => m.type === 'vco'))
@@ -163,100 +166,133 @@ export function RackKeys({ wake, down, up, allOff, sounding }: Props) {
     dragging.current = null
   }, [release])
 
+  const toggle = useCallback(() => {
+    if (open) {
+      // A pointer or computer key can still be held when the panel starts moving. Release the shared
+      // allocator before hiding its feedback, otherwise a note could remain sounding with no lit key to
+      // explain it.
+      dragging.current = null
+      held.current.clear()
+      allOff()
+    }
+    onOpenChange(!open)
+  }, [allOff, onOpenChange, open])
+
   const noteFor = (semitone: number) => ROOT + semitone + octave * 12
 
   return (
-    <div className="rk-keys" data-armed={hasMidi ? 'yes' : 'no'}>
-      <div className="rk-keys-controls">
-        <button
-          type="button"
-          onClick={() => setOctave((o) => Math.max(-2, o - 1))}
-          aria-label="Octave down"
-        >
-          &minus;
-        </button>
-        <span className="rk-keys-octave">{noteName(noteFor(0))}</span>
-        <button
-          type="button"
-          onClick={() => setOctave((o) => Math.min(3, o + 1))}
-          aria-label="Octave up"
-        >
-          +
-        </button>
-        <label className="rk-keys-vel">
-          VEL
-          <input
-            type="range"
-            min="0.05"
-            max="1"
-            step="0.01"
-            value={velocity}
-            onChange={(event) => setVelocity(Number(event.target.value))}
-            aria-label="Velocity"
-          />
-        </label>
-      </div>
-
-      {/* No `preserveAspectRatio: none` here, unlike the back panel. The rack's cables can stretch with the
-          window because their shape is arbitrary; a piano's is not, and stretching it made near-square keys
-          with oval corners. Letting it letterbox instead keeps a key the shape of a key at any width. */}
-      <svg
-        className="rk-keys-board"
-        viewBox={`0 0 ${width} ${WHITE_HEIGHT}`}
-        role="group"
-        // The computer-key mapping is the accessible path rather than 25 tab stops, so it has to be
-        // discoverable by somebody who cannot see the hint next to it.
-        aria-label={`Keyboard, ${octaves === 1 ? 'one octave' : `${octaves} octaves`} from ${noteName(noteFor(0))}. Play with the Z and Q rows; comma and full stop change octave.`}
-        onPointerLeave={stop}
-        onPointerUp={stop}
-        onPointerCancel={stop}
+    <div className="rk-keys-dock" data-open={open ? 'yes' : 'no'}>
+      <button
+        type="button"
+        className="rk-keys-toggle"
+        aria-expanded={open}
+        aria-controls="rack-keyboard"
+        onClick={toggle}
       >
-        {keys.map((key) => {
-          const note = noteFor(key.semitone)
-          const lit = sounding.includes(note)
-          return (
-            <rect
-              key={key.semitone}
-              className={[
-                'rk-key',
-                key.black ? 'rk-key-black' : 'rk-key-white',
-                lit ? 'rk-key-lit' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              x={key.x}
-              y={0}
-              width={key.width}
-              height={key.black ? BLACK_HEIGHT : WHITE_HEIGHT}
-              rx={0.08}
-              onPointerDown={(event) => {
-                event.preventDefault()
-                slideTo(note)
-              }}
-              // Resolved per element rather than from coordinates: the keys are rectangles that already
-              // know which note they are, and `pointerenter` while a button is down is exactly a slide.
-              onPointerEnter={(event) => {
-                if (event.buttons !== 0 && dragging.current !== null) slideTo(note)
-              }}
-            >
-              <title>{noteName(note)}</title>
-            </rect>
-          )
-        })}
-      </svg>
+        <span aria-hidden="true">{open ? '↓' : '↑'}</span>
+        {open ? 'Hide keyboard' : 'Show keyboard'}
+      </button>
 
-      <p className="rk-keys-hint">
-        {!hasMidi && !hasVco
-          ? 'Add a VCO and these keys will have something to play.'
-          : !hasMidi
-            ? 'Playing a key patches a Keys module in, taking over the pitch and gate it lands on.'
-            : null}
-        {/* Real characters rather than `&hairsp;`: the build does not decode that entity and it came out
-            on screen as the literal text "z&hairsp;–&hairsp;m". */}
-        <span className="rk-keys-tip">
-          <kbd>z</kbd>–<kbd>m</kbd> and <kbd>q</kbd>–<kbd>u</kbd> · <kbd>,</kbd> <kbd>.</kbd> octave
-        </span>
-      </p>
+      <div className="rk-keys-reveal">
+        <div
+          id="rack-keyboard"
+          className="rk-keys"
+          data-armed={hasMidi ? 'yes' : 'no'}
+          aria-hidden={!open}
+          inert={!open}
+        >
+          <div className="rk-keys-controls">
+            <button
+              type="button"
+              onClick={() => setOctave((o) => Math.max(-2, o - 1))}
+              aria-label="Octave down"
+            >
+              &minus;
+            </button>
+            <span className="rk-keys-octave">{noteName(noteFor(0))}</span>
+            <button
+              type="button"
+              onClick={() => setOctave((o) => Math.min(3, o + 1))}
+              aria-label="Octave up"
+            >
+              +
+            </button>
+            <label className="rk-keys-vel">
+              VEL
+              <input
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.01"
+                value={velocity}
+                onChange={(event) => setVelocity(Number(event.target.value))}
+                aria-label="Velocity"
+              />
+            </label>
+          </div>
+
+          {/* No `preserveAspectRatio: none` here, unlike the back panel. The rack's cables can stretch with the
+              window because their shape is arbitrary; a piano's is not, and stretching it made near-square keys
+              with oval corners. Letting it letterbox instead keeps a key the shape of a key at any width. */}
+          <svg
+            className="rk-keys-board"
+            viewBox={`0 0 ${width} ${WHITE_HEIGHT}`}
+            role="group"
+            // The computer-key mapping is the accessible path rather than 25 tab stops, so it has to be
+            // discoverable by somebody who cannot see the hint next to it.
+            aria-label={`Keyboard, ${octaves === 1 ? 'one octave' : `${octaves} octaves`} from ${noteName(noteFor(0))}. Play with the Z and Q rows; comma and full stop change octave.`}
+            onPointerLeave={stop}
+            onPointerUp={stop}
+            onPointerCancel={stop}
+          >
+            {keys.map((key) => {
+              const note = noteFor(key.semitone)
+              const lit = sounding.includes(note)
+              return (
+                <rect
+                  key={key.semitone}
+                  className={[
+                    'rk-key',
+                    key.black ? 'rk-key-black' : 'rk-key-white',
+                    lit ? 'rk-key-lit' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  x={key.x}
+                  y={0}
+                  width={key.width}
+                  height={key.black ? BLACK_HEIGHT : WHITE_HEIGHT}
+                  rx={0.08}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    slideTo(note)
+                  }}
+                  // Resolved per element rather than from coordinates: the keys are rectangles that already
+                  // know which note they are, and `pointerenter` while a button is down is exactly a slide.
+                  onPointerEnter={(event) => {
+                    if (event.buttons !== 0 && dragging.current !== null) slideTo(note)
+                  }}
+                >
+                  <title>{noteName(note)}</title>
+                </rect>
+              )
+            })}
+          </svg>
+
+          <p className="rk-keys-hint">
+            {!hasMidi && !hasVco
+              ? 'Add a VCO and these keys will have something to play.'
+              : !hasMidi
+                ? 'Playing a key patches a Keys module in, taking over the pitch and gate it lands on.'
+                : null}
+            {/* Real characters rather than `&hairsp;`: the build does not decode that entity and it came out
+                on screen as the literal text "z&hairsp;–&hairsp;m". */}
+            <span className="rk-keys-tip">
+              <kbd>z</kbd>–<kbd>m</kbd> and <kbd>q</kbd>–<kbd>u</kbd> · <kbd>,</kbd> <kbd>.</kbd> octave
+            </span>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

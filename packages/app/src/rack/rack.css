@@ -22,9 +22,10 @@
    * place worth spending 520ms. */
   --spin: 520ms;
 
-  /* How much room the sticky keyboard takes at the bottom. Named because the stage has to leave exactly
-     this much space below the rack, and two numbers that must agree should be one number. */
+  /* How much room the keyboard and its always-reachable toggle take at the bottom. Named because the stage
+     has to leave exactly this much space below the rack, and numbers that must agree should be one number. */
   --keys-height: 134px;
+  --keys-toggle-height: 34px;
 }
 
 * {
@@ -45,6 +46,13 @@ body {
   user-select: none;
 }
 
+.rk {
+  --keys-offset: calc(var(--keys-height) + var(--keys-toggle-height));
+}
+.rk[data-keyboard='closed'] {
+  --keys-offset: var(--keys-toggle-height);
+}
+
 .rk-shared,
 .rk-note,
 .rk-warn,
@@ -59,7 +67,7 @@ html {
      clear of them. This is what `scrollIntoView` and focus-scrolling honour — without it, tabbing to a knob
      near the bottom of the rack parks it underneath the keys. */
   scroll-padding-top: 64px;
-  scroll-padding-bottom: var(--keys-height);
+  scroll-padding-bottom: calc(var(--keys-height) + var(--keys-toggle-height));
 }
 
 body {
@@ -663,7 +671,7 @@ kbd {
   /* The bottom padding clears the sticky keyboard. Without it the keys paint over the last module in the
      rack and it cannot be scrolled out from under them — found by screenshotting the bottom module and
      getting a picture of the keyboard. */
-  padding: 32px 16px calc(48px + var(--keys-height));
+  padding: 32px 16px calc(48px + var(--keys-offset));
   display: flex;
   justify-content: center;
   overflow-x: auto;
@@ -1684,10 +1692,63 @@ kbd {
  * The keys themselves are an SVG scaled with `preserveAspectRatio: none` — the same trick the back panel
  * uses, so the geometry in `keys.ts` is written once in white-key widths and the browser does the fitting.
  */
-.rk-keys {
+.rk-keys-dock {
   position: sticky;
   bottom: 0;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.rk-keys-toggle {
+  align-self: flex-end;
+  min-height: var(--keys-toggle-height);
+  margin-right: max(16px, env(safe-area-inset-right));
+  padding: 6px 12px;
+  color: var(--ink);
+  font: 11px var(--mono);
+  background: #0d0920;
+  border: 1px solid var(--edge);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.rk-keys-toggle:hover,
+.rk-keys-toggle:focus-visible {
+  color: var(--nine);
+  border-color: var(--nine);
+  outline: none;
+}
+.rk-keys-toggle span {
+  display: inline-block;
+  width: 1.25em;
+  color: var(--nine);
+}
+
+.rk-keys-reveal {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 160ms ease-out;
+  pointer-events: auto;
+}
+.rk-keys-dock[data-open='no'] .rk-keys-reveal {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(18px);
+  pointer-events: none;
+}
+
+.rk-keys {
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   align-items: stretch;
   gap: 12px;
@@ -1696,6 +1757,14 @@ kbd {
   /* Opaque rather than the translucent panel: the rack scrolls underneath it, and cables sliding about
      behind the keys makes both hard to read. */
   background: #0d0920;
+  transition:
+    padding-block 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 160ms ease-out;
+}
+.rk-keys-dock[data-open='no'] .rk-keys {
+  padding-block: 0;
+  border-top-width: 0;
+  border-color: transparent;
 }
 
 .rk-keys-controls {
@@ -1797,11 +1866,15 @@ kbd {
     display: none;
   }
   /* Taller here: the controls wrap onto their own row above the keys. */
-  .rk-keys {
+  :root {
     --keys-height: 176px;
   }
-  .rk-stage {
-    --keys-height: 176px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-keys-reveal,
+  .rk-keys {
+    transition: none;
   }
 }
 
@@ -1812,7 +1885,7 @@ kbd {
  */
 .rk-perform {
   display: flex;
-  padding: 24px max(16px, env(safe-area-inset-left)) calc(24px + var(--keys-height));
+  padding: 24px max(16px, env(safe-area-inset-left)) calc(24px + var(--keys-offset));
   justify-content: center;
 }
 
