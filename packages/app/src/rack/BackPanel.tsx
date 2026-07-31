@@ -183,7 +183,8 @@ interface SmokeParticle extends Point {
   delay: number
   drift: number
   rise: number
-  radius: number
+  radiusX: number
+  radiusY: number
 }
 
 interface CableEvaporation {
@@ -218,12 +219,13 @@ export function CableEvaporations({ items, finished }: CableEvaporationsProps) {
       <path className="rk-cable-evaporation-glow" d={item.d} />
       <path className="rk-cable-evaporation-line" d={item.d} />
       {item.smoke.map((particle, index) => (
-        <circle
+        <ellipse
           key={index}
           className="rk-cable-smoke"
           cx={particle.x}
           cy={particle.y}
-          r={particle.radius}
+          rx={particle.radiusX}
+          ry={particle.radiusY}
           style={
             {
               '--rk-smoke-delay': `${particle.delay}ms`,
@@ -243,15 +245,17 @@ function evaporation(cable: PatchCable, all: Jack[], id: number): CableEvaporati
   if (!from || !to) return null
 
   const key = `${cable.from.join('.')}>${cable.to.join('.')}`
-  const smoke = Array.from({ length: 9 }, (_, index): SmokeParticle => {
-    const point = cablePoint(from, to, 0.08 + index * 0.105)
+  const smoke = Array.from({ length: 15 }, (_, index): SmokeParticle => {
+    const point = cablePoint(from, to, 0.04 + index * 0.066)
     const seed = swingSeed(`${key}:smoke:${index}`)
+    const radiusX = 2.5 + seed * 2.8
     return {
       ...point,
-      delay: index * 16 + seed * 35,
-      drift: (seed - 0.5) * 26,
-      rise: -20 - seed * 28,
-      radius: 1.7 + seed * 1.8,
+      delay: index * 13 + seed * 32,
+      drift: (seed - 0.5) * 52,
+      rise: -36 - seed * 44,
+      radiusX,
+      radiusY: radiusX * (1.25 + seed * 0.5),
     }
   })
 

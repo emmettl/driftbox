@@ -37,7 +37,7 @@ describe('unplugging a cable from the back panel', () => {
       expect(useRack.getState().patch.cables).toEqual([])
       expect(host.querySelector('.rk-cable-unplug')).toBeNull()
       expect(host.querySelector('.rk-cable-evaporation')).toBeTruthy()
-      expect(host.querySelectorAll('.rk-cable-smoke')).toHaveLength(9)
+      expect(host.querySelectorAll('.rk-cable-smoke')).toHaveLength(15)
 
       flushSync(() =>
         host
