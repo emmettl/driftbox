@@ -26,13 +26,14 @@ import type { ModRoute, Patch, PatchCable, PatchModule } from './types.js'
 /**
  * Bumped when the shape changes in a way a reader cannot infer from the value alone.
  *
+ * 2 — a patch may retain an opaque, versioned groovebox song envelope.
  * 1 — the original.
  *
  * Old patches are migrated on the way in, never on the way out: everything is written in the
  * current format. Per-MODULE versions are a separate mechanism and live on each module — see
  * `ModuleDef.migrate`.
  */
-export const PATCH_FORMAT = 1
+export const PATCH_FORMAT = 2
 
 interface Envelope {
   v: number
@@ -209,8 +210,15 @@ export function decodePatch(text: string): Patch | null {
   // A short host-resolved id, never the audio itself. Empty or non-string values cannot name anything and
   // are dropped rather than being turned into a break the host has to guess at.
   if (isName(body.break)) patch.break = body.break
+  // Deliberately opaque. `@driftbox/engine` owns this envelope and may be newer than the
+  // engine installed beside this rack. Parsing and rebuilding it here would turn a safe
+  // open-and-save into data loss; the document bridge decodes it only when a caller asks
+  // to edit the song.
+  if (typeof body.groovebox === 'string' && body.groovebox !== '') {
+    patch.groovebox = body.groovebox
+  }
   // Absent means none, so a patch written before the Combinator existed round-trips byte-identically —
-  // the same standard `break`, `voices` and `tempo` hold themselves to.
+  // the same standard `break`, `groovebox`, `voices` and `tempo` hold themselves to.
   if (modulation.length > 0) patch.modulation = modulation
   // Absent means one, which is what every patch written before polyphony existed means — so this stays
   // absent rather than being written as 1, and an old patch round-trips byte-identically.

@@ -26,6 +26,10 @@ const PROMISED = [
   'PATCH_FORMAT',
   'decodePatch',
   'encodePatch',
+  'embedGrooveboxSong',
+  'grooveboxSong',
+  'isGrooveboxEditable',
+  'patchCompatibility',
   // The modules it ships with.
   'MODULES',
   'MODULE_LIST',

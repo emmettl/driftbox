@@ -96,19 +96,23 @@ flattening the original whole-groove pattern pool.
 
 ## Document boundary
 
-A future shared document should distinguish three states:
+The rack patch now retains a complete encoded groovebox song and distinguishes three
+states through `patchCompatibility`:
 
-1. **Groovebox-compatible.** Fully editable in either mode.
+1. **Groovebox-compatible.** Fully editable in either mode when that build understands
+   the embedded song version; older builds preserve it but do not offer editing.
 2. **Rack-extended.** Contains the intact groovebox document plus additional rack
-   modules, cables or modulation. Groovebox mode may play it through the rack but must
-   not offer a lossy save.
+   modules, cables, modulation, generated breaks or overrides. Groovebox mode may play
+   it through the rack but must not offer a lossy save.
 3. **Rack-native.** A patch with no groovebox representation.
 
-The bridge should be additive: retain the original groovebox document inside the rack
-document and derive first-class rack devices from it. Do not compile a song into anonymous
-VCOs, steps and cables and then attempt to reverse-engineer it later. A dual-303 device
-can expose patch points and still retain “this is 303 A, pattern Acid 2” as authored
-structure.
+The first half of the bridge is landed: `embedGrooveboxSong` stores the original
+versioned song envelope opaquely, `grooveboxSong` returns it only when this engine can
+decode it, and the patch codec preserves even a future unknown song exactly. The next
+half is to derive first-class rack devices and transport from that retained document. Do
+not compile a song into anonymous VCOs, steps and cables and then attempt to
+reverse-engineer it later. A dual-303 device can expose patch points and still retain
+“this is 303 A, pattern Acid 2” as authored structure.
 
 Unknown future data follows the repository's existing rule: preserve it or refuse it,
 never delete it during a round trip.

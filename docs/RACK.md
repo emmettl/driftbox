@@ -31,6 +31,13 @@ render-equivalence completion test. This file continues to describe how the pers
 graph works. The distinction matters: two execution engines can serve one product without
 duplicating their DSP or making interchange lossy.
 
+The additive document bridge is now concrete. A `Patch` may carry the exact encoded
+groovebox song; it is kept opaque by the patch codec so a rack build can preserve a song
+from a future engine version without pretending it can edit it. Public helpers embed and
+decode understood songs and classify documents as `groovebox-compatible`,
+`rack-extended`, or `rack-native`. First-class devices and shared playback still have to
+be derived from that retained song—the bridge is the stable place for them to attach.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a

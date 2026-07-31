@@ -19,6 +19,7 @@ const FULL: Patch = {
     { from: ['filter', 'out'], to: ['out', 'in'] },
     { from: ['osc', 'out'], to: ['filter', 'cutoff'] },
   ],
+  groovebox: '{"v":5,"song":{"name":"retained exactly"}}',
 }
 
 const decode = (value: unknown) => decodePatch(JSON.stringify(value))
@@ -70,6 +71,12 @@ describe('writing and reading a patch', () => {
 
   it('refuses a format from the future rather than guessing at it', () => {
     expect(decodePatch(JSON.stringify({ v: PATCH_FORMAT + 1, patch: FULL }))).toBeNull()
+  })
+
+  it('retains an opaque future groovebox envelope without trying to understand it', () => {
+    const future = '{"v":999,"song":{"future":true,"unknown":["kept",7]}}'
+    const patch: Patch = { modules: [], cables: [], groovebox: future }
+    expect(decodePatch(encodePatch(patch))?.groovebox).toBe(future)
   })
 
   it('gives up only on things that are not patches', () => {
