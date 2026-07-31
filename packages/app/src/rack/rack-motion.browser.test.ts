@@ -219,3 +219,68 @@ describe('every module through a rack turn', () => {
     await expectFaceHandoff(patch, combinator.id, combinator.type)
   })
 })
+
+describe('the rack after a performance view cycle', () => {
+  it('still paints the rear face after the stationary shell participates in view transitions', async () => {
+    const host = document.createElement('div')
+    host.innerHTML = `
+      <div class="rk-stage" style="padding: 0">
+        <div class="rk-rack-snapshot" style="width: 240px; height: 240px">
+          <div class="rk-rack">
+            <div class="rk-side rk-side-front">front</div>
+            <div class="rk-side rk-side-back">rear</div>
+          </div>
+        </div>
+        <div class="rk-perform" hidden>
+          <div class="rk-pad" style="width: 240px; height: 240px"></div>
+        </div>
+      </div>
+    `
+    document.body.append(host)
+
+    const root = document.documentElement
+    const snapshot = host.querySelector<HTMLElement>('.rk-rack-snapshot')!
+    const perform = host.querySelector<HTMLElement>('.rk-perform')!
+    const rack = host.querySelector<HTMLElement>('.rk-rack')!
+    const front = host.querySelector<HTMLElement>('.rk-side-front')!
+    const rear = host.querySelector<HTMLElement>('.rk-side-back')!
+
+    try {
+      root.dataset.rackViewTransition = 'split-pad'
+      const toPad = document.startViewTransition(() => {
+        snapshot.hidden = true
+        perform.hidden = false
+      })
+      await toPad.finished
+
+      root.dataset.rackViewTransition = 'pad-rack'
+      const toRack = document.startViewTransition(() => {
+        perform.hidden = true
+        snapshot.hidden = false
+      })
+      await toRack.finished
+      delete root.dataset.rackViewTransition
+
+      rack.classList.add('rk-rack-flipped')
+      await frame()
+      const faceAnimations = [
+        ...rack.getAnimations(),
+        ...front.getAnimations(),
+        ...rear.getAnimations(),
+      ]
+      for (const animation of faceAnimations) {
+        animation.finish()
+      }
+      await frame()
+
+      expect(getComputedStyle(front).opacity).toBe('0')
+      expect(getComputedStyle(rear).opacity).toBe('1')
+      const bounds = rear.getBoundingClientRect()
+      const painted = document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + 20)
+      expect(painted === rear || rear.contains(painted)).toBe(true)
+    } finally {
+      delete root.dataset.rackViewTransition
+      host.remove()
+    }
+  })
+})
