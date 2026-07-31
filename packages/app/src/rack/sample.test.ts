@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
+import { guessBars, normalise, sampleName, tempoForBars, toMono, waveformPeaks } from './sample.js'
 
 // Loading somebody's own break. The whole thing turns on one question — how long is a bar of this file —
 // because the Sampler slices by equal division and a chop only lands on the beat if the answer is right.
@@ -120,6 +120,16 @@ describe('preparing the samples', () => {
   it('leaves silence alone rather than dividing by zero', () => {
     const silent = normalise(new Float32Array(8))
     for (const x of silent) expect(x).toBe(0)
+  })
+
+  it('reduces audio to a normalised waveform overview', () => {
+    const peaks = waveformPeaks(Float32Array.from([0, 0.25, -0.5, 0, 1, 0.5, 0, -0.25]), 4)
+    expect(peaks).toHaveLength(4)
+    expect(peaks).toEqual([0.25, 0.5, 1, 0.25])
+  })
+
+  it('keeps an empty waveform displayable', () => {
+    expect(waveformPeaks(new Float32Array(), 3)).toEqual([0, 0, 0])
   })
 
   it('names a patch after the file it came from', () => {

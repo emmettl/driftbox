@@ -1689,53 +1689,333 @@ kbd {
   }
 }
 
-/* ---- the sampler's own strip ---------------------------------------------------
+/* ---- Slice Lab sampler ---------------------------------------------------------
  *
- * What is loaded, and how to change it. The one thing a faceplate generated from the def could never show,
- * which is why the Sampler is hand-built at all.
+ * A file picker is plumbing; the waveform and its cuts are the instrument. The whole display remains DOM
+ * rather than canvas so every slice is keyboard-focusable and announces its number.
  */
-.rk-sample {
+.rk-sampler-title {
+  position: relative;
+  align-items: center;
+}
+
+.rk-sampler-model {
+  color: var(--three);
+  font: 8px var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.rk-sampler-state {
+  position: absolute;
+  top: 2px;
+  right: 64px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 var(--pad, 12px) 6px;
-  font: 11px var(--mono);
+  gap: 5px;
+  /* Module reorder/remove tools occupy the top-right corner of every device. Leave the status LED beside
+   * them instead of underneath them, where the working ready state would be invisible. */
+  color: rgba(232, 228, 255, 0.48);
+  font: 8px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.rk-sample-load {
-  padding: 3px 8px;
-  color: var(--ink);
-  background: transparent;
-  border: 1px solid var(--edge);
+
+.rk-sampler-state i {
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgba(232, 228, 255, 0.24);
+  border-radius: 50%;
+  background: rgba(232, 228, 255, 0.08);
+}
+
+.rk-sampler-state[data-ready='yes'] {
+  color: var(--nine);
+}
+
+.rk-sampler-state[data-ready='yes'] i {
+  border-color: #d6fff6;
+  background: var(--nine);
+  box-shadow: 0 0 8px rgba(95, 240, 208, 0.8);
+}
+
+.rk-sampler-display {
+  position: relative;
+  height: 66px;
+  flex: 0 0 66px;
+  overflow: hidden;
+  border: 1px solid rgba(95, 240, 208, 0.2);
   border-radius: 6px;
+  background:
+    linear-gradient(rgba(95, 240, 208, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95, 240, 208, 0.055) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(31, 83, 72, 0.3), rgba(2, 12, 11, 0.96));
+  background-size: 16px 16px, 16px 16px, auto;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.7);
+}
+
+.rk-sampler-display[data-empty='yes'] {
+  border-style: dashed;
+  border-color: rgba(157, 149, 200, 0.28);
+  background:
+    linear-gradient(135deg, rgba(157, 149, 200, 0.04), transparent 55%),
+    rgba(4, 3, 10, 0.8);
+}
+
+.rk-sampler-display[data-dragging='yes'] {
+  border-color: var(--nine);
+  box-shadow:
+    inset 0 0 24px rgba(95, 240, 208, 0.16),
+    0 0 0 1px rgba(95, 240, 208, 0.25);
+}
+
+.rk-sampler-wave {
+  position: absolute;
+  inset: 5px 6px;
+  width: calc(100% - 12px);
+  height: calc(100% - 10px);
+}
+
+.rk-sampler-wave line {
+  stroke: rgba(95, 240, 208, 0.16);
+  stroke-width: 0.7;
+}
+
+.rk-sampler-wave rect {
+  fill: var(--nine);
+  filter: drop-shadow(0 0 2px rgba(95, 240, 208, 0.72));
+}
+
+.rk-sampler-slices {
+  position: absolute;
+  inset: 0;
+  display: grid;
+}
+
+.rk-sampler-slice {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(95, 240, 208, 0.16);
+  border-radius: 0;
+  background: transparent;
   cursor: pointer;
 }
-.rk-sample-load:disabled {
+
+.rk-sampler-slice[data-beat='yes'] {
+  border-left-color: rgba(255, 176, 46, 0.48);
+}
+
+.rk-sampler-slice:hover {
+  background: rgba(95, 240, 208, 0.09);
+}
+
+.rk-sampler-slice-on {
+  background: linear-gradient(rgba(255, 176, 46, 0.06), rgba(255, 176, 46, 0.22));
+  box-shadow:
+    inset 2px 0 var(--three),
+    inset -1px 0 rgba(255, 176, 46, 0.5);
+}
+
+.rk-sampler-slice span {
+  position: absolute;
+  left: 2px;
+  bottom: 1px;
+  color: transparent;
+  font: 6px var(--mono);
+  pointer-events: none;
+}
+
+.rk-sampler-slice[data-beat='yes'] span,
+.rk-sampler-slice-on span {
+  color: rgba(255, 224, 153, 0.8);
+}
+
+.rk-sampler-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rk-sampler-empty strong {
+  font: 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rk-sampler-empty span {
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-sampler-drop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #071511;
+  background: rgba(95, 240, 208, 0.86);
+  font: 600 11px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.rk-sampler-info {
+  display: flex;
+  align-items: center;
+  min-height: 29px;
+  gap: 10px;
+}
+
+.rk-sampler-file {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  gap: 7px;
+}
+
+.rk-sampler-file > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rk-sampler-file strong {
+  overflow: hidden;
+  color: var(--ink);
+  font: 9px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-sampler-file small {
+  color: var(--dim);
+  font: 7px var(--mono);
+}
+
+.rk-sampler-load {
+  padding: 3px 7px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  font: 8px var(--mono);
+  cursor: pointer;
+}
+
+.rk-sampler-load:hover:not(:disabled) {
+  color: var(--nine);
+  border-color: rgba(95, 240, 208, 0.5);
+}
+
+.rk-sampler-load:disabled,
+.rk-sampler-empty:disabled {
   opacity: 0.45;
   cursor: default;
 }
-.rk-sample-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--dim);
-}
-.rk-sample-bars {
+
+.rk-sampler-bars {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
 }
-.rk-sample-bars button {
-  padding: 2px 6px;
+
+.rk-sampler-bars > span {
+  margin-right: 2px;
   color: var(--dim);
-  background: transparent;
+  font: 7px var(--mono);
+  text-transform: uppercase;
+}
+
+.rk-sampler-bar {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  color: var(--dim);
+  background: rgba(255, 255, 255, 0.025);
   border: 1px solid var(--edge);
-  border-radius: 5px;
+  border-radius: 3px;
+  font: 8px var(--mono);
   cursor: pointer;
 }
-.rk-sample-bars button:disabled {
-  opacity: 0.35;
-  cursor: default;
+
+.rk-sampler-bar-on {
+  color: #1d1100;
+  border-color: var(--three);
+  background: var(--three);
+  box-shadow: 0 0 7px rgba(255, 176, 46, 0.35);
+}
+
+.rk-sampler-controls {
+  display: grid;
+  grid-template-columns: 58px 116px repeat(3, 58px);
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid rgba(157, 149, 200, 0.12);
+  padding-top: 1px;
+}
+
+.rk-sampler-selected {
+  display: flex;
+  height: 62px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.rk-sampler-selected > span {
+  color: var(--dim);
+  font: 8px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rk-sampler-selected > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.rk-sampler-selected button {
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  color: var(--dim);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  font: 16px/1 var(--mono);
+  cursor: pointer;
+}
+
+.rk-sampler-selected button:hover {
+  color: var(--nine);
+  border-color: rgba(95, 240, 208, 0.5);
+}
+
+.rk-sampler-selected strong {
+  min-width: 42px;
+  color: var(--three);
+  font: 16px var(--mono);
+  text-align: center;
+  text-shadow: 0 0 8px rgba(255, 176, 46, 0.35);
+}
+
+.rk-sampler-selected small {
+  color: rgba(255, 176, 46, 0.45);
+  font: 8px var(--mono);
 }
 
 /* A patch holding somebody's own file cannot travel in a link, and saying so beats sharing a broken one. */

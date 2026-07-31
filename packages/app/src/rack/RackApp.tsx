@@ -23,7 +23,7 @@ import {
   Kaoss,
   toWav,
 } from '@driftbox/engine'
-import { guessBars, normalise, sampleName, tempoForBars, toMono } from './sample.js'
+import { guessBars, normalise, sampleName, tempoForBars, toMono, waveformPeaks } from './sample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
 import { publishMeters } from './meter.js'
 import { ccValue, targets as ccTargets } from './cc.js'
@@ -229,6 +229,7 @@ export default function RackApp() {
           name: entry.name,
           bars: 1,
           seconds: (4 * 60) / entry.tempo,
+          peaks: waveformPeaks(rendered),
           source: 'break',
         })
       }
@@ -401,6 +402,7 @@ export default function RackApp() {
       name: sampleName(file.name),
       bars,
       seconds,
+      peaks: waveformPeaks(samples),
       source: 'file',
     })
 
