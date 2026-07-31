@@ -118,6 +118,21 @@ body {
   color: var(--nine) !important;
 }
 
+/* One pair, so the two read as one control rather than as two more buttons in a row of them. */
+.rk-undo {
+  display: flex;
+  gap: 6px;
+}
+/* Dimmed rather than hidden. A button that disappears when there is nothing to undo moves everything
+   after it, and the header's wrap means that can reflow the whole row. */
+.rk-header button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.rk-header button:disabled:hover {
+  border-color: var(--edge);
+}
+
 kbd {
   font: 11px var(--mono);
   border: 1px solid var(--edge);

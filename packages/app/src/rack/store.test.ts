@@ -1,4 +1,5 @@
 import { SONGS, cycleStep } from '@driftbox/engine'
+import { NO_HISTORY } from './history.js'
 import {
   MODULES,
   compile,
@@ -22,7 +23,15 @@ const ACID = () => patchPresetById('acid')!.build()
 // crackle while somebody drags it.
 
 beforeEach(() => {
-  useRack.setState({ patch: STARTER(), revision: 0, selected: null, flipped: false, notes: [], name: null })
+  useRack.setState({
+    patch: STARTER(),
+    revision: 0,
+    history: NO_HISTORY,
+    selected: null,
+    flipped: false,
+    notes: [],
+    name: null,
+  })
 })
 
 describe('turning a knob', () => {
@@ -699,5 +708,108 @@ describe('editing a retained Groovebox pattern', () => {
     expect(grooveboxSong(useRack.getState().patch)?.chain).toEqual([
       { pattern: song.patterns[0].id, repeat: 1 },
     ])
+  })
+})
+
+describe('undo', () => {
+  const state = () => useRack.getState()
+
+  it('puts a knob back without bumping the revision', () => {
+    // The one behaviour worth protecting here, and it is the same one the top of this file protects for
+    // a forward edit: a restore that rebuilt the graph would reset every oscillator's phase and every
+    // filter's history, so undoing a knob would click.
+    const before = state().paramValue('reverb-1', 'size')
+    const revision = state().revision
+
+    state().setParam('reverb-1', 'size', 0.42)
+    state().undo()
+
+    expect(state().paramValue('reverb-1', 'size')).toBe(before)
+    expect(state().revision).toBe(revision)
+  })
+
+  it('collapses a knob drag into one step', () => {
+    const before = state().paramValue('reverb-1', 'size')
+    for (const value of [0.2, 0.3, 0.4, 0.5]) state().setParam('reverb-1', 'size', value)
+
+    state().undo()
+
+    expect(state().paramValue('reverb-1', 'size')).toBe(before)
+    expect(state().history.past).toHaveLength(0)
+  })
+
+  it('puts a removed module back, and rebuilds the graph for it', () => {
+    const before = state().patch.modules.length
+    const cables = state().patch.cables.length
+    const revision = state().revision
+
+    state().removeModule('reverb-1')
+    expect(state().patch.modules).toHaveLength(before - 1)
+    expect(state().patch.cables.length).toBeLessThan(cables)
+
+    state().undo()
+
+    expect(state().patch.modules).toHaveLength(before)
+    expect(state().patch.cables).toHaveLength(cables)
+    // Every cable that touched it comes back too, which is the whole reason undo matters more here than
+    // in the sequencer: removing a wired module is the most destructive thing in the rack.
+    expect(state().revision).toBe(revision + 2)
+  })
+
+  it('restores what a Combinator rotary drove, not just the rotary', () => {
+    // The stored patch was settled when it was current, so the driven knob is already in it. Re-settling
+    // on the way back would re-derive the target from the rotary being put back, one edit too late.
+    const cutoff = state().paramValue('ladder-1', 'cutoff')
+    state().setParam('combi-1', 'rotary1', 127)
+    expect(state().paramValue('ladder-1', 'cutoff')).not.toBe(cutoff)
+
+    state().undo()
+
+    expect(state().paramValue('ladder-1', 'cutoff')).toBe(cutoff)
+  })
+
+  it('redoes what it undid', () => {
+    state().setParam('reverb-1', 'size', 0.42)
+    state().undo()
+    state().redo()
+    expect(state().paramValue('reverb-1', 'size')).toBe(0.42)
+    expect(state().history.future).toHaveLength(0)
+  })
+
+  it('declines quietly at either end', () => {
+    const patch = state().patch
+    state().undo()
+    state().redo()
+    expect(state().patch).toBe(patch)
+  })
+
+  it('does not record an edit that changed nothing', () => {
+    // `moveModule` on the first module declines, and a history entry for it would be an undo that
+    // appears to do nothing at all.
+    state().moveModule(state().patch.modules[0].id, -1)
+    expect(state().history.past).toHaveLength(0)
+  })
+
+  it('forgets everything when another document is opened', () => {
+    state().setParam('reverb-1', 'size', 0.42)
+    expect(state().history.past).toHaveLength(1)
+
+    state().load(patchPresetById('acid')!.build())
+
+    expect(state().history.past).toHaveLength(0)
+    expect(state().history.future).toHaveLength(0)
+  })
+
+  it('undoes a retained groovebox pattern edit without rebuilding or losing compatibility', () => {
+    useRack.setState({ patch: embedGrooveboxSong(SONGS[0].build()), history: NO_HISTORY })
+    const song = grooveboxSong(state().patch)!
+    const revision = state().revision
+
+    state().setGrooveboxPattern(cycleStep(song.patterns[0], '808.bd', 3))
+    state().undo()
+
+    expect(grooveboxSong(state().patch)?.patterns[0]).toEqual(song.patterns[0])
+    expect(state().revision).toBe(revision)
+    expect(patchCompatibility(state().patch)).toBe('groovebox-compatible')
   })
 })

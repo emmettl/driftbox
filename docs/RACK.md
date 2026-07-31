@@ -724,6 +724,41 @@ The risk is all in the first item. Do it first and alone.
    - The generic faceplate and the picker now share one `portSummary`, which also stopped a Transport
      announcing itself as "0 in · 6 out".
 
+   **Undo** ✅ — sixty-four steps, on Ctrl/Cmd+Z and on two buttons in the header. First item off
+   [REASON-GAP.md](REASON-GAP.md), and the cheapest of the three that list leads with.
+
+   - **A stack of whole patches, not a log of inverse operations.** The usual argument — a patch is
+     large, an operation is small — does not survive the measurement step 2 already made for the URL:
+     a forty-module patch is under a thousand characters, so sixty-four of them is less than one loaded
+     break. What a log costs is an inverse for every action forever, and the failure mode when somebody
+     forgets one is the bad kind: undo does not break, it silently restores a document that never
+     existed. A stack of documents cannot have that bug because it never has to know what an edit meant.
+   - **One `write` helper, and every document edit goes through it.** That was already the argument for
+     `structural`; undo is what made it worth extending to the edits that are *not* structural. A knob,
+     a pattern cell, the tempo and a retained groovebox pattern each called `set` themselves, and each
+     would have had to remember to record history — the one that forgot would make undo skip a step
+     rather than fail. Settling, autosave, the revision and the history are now decided in one place.
+   - **Coalescing is keyed by what was edited, never by a clock.** `setParam` fires on every pointer
+     move, so without it one drag of one knob fills the entire history. A time window would need a fake
+     clock to test and is wrong in both directions: a slow deliberate drag becomes many steps, two quick
+     edits to different knobs become one. Keyed, the rule is pure — and driving the page confirmed it,
+     twenty pointer moves undone by one press.
+   - **A restore has to ask the document whether the graph needs rebuilding.** A forward edit knows,
+     because it knows what it did. `needsRebuild` compares modules, cables and the voice count, and
+     deliberately ignores params, pattern data and the retained song: the first two reach the audio
+     thread as messages, and the third belongs to a hosted engine that swaps its song live. Rebuilding
+     for an undone knob would reset every oscillator's phase and every filter's history, which is the
+     click the whole two-path design at the top of `store.ts` exists to avoid.
+   - **It found a latent bug either side of it.** The push subscription in `RackApp` skipped any edit
+     that bumped the revision, on the grounds that a rebuild re-seeds from the plan. Data is the one
+     thing a rebuild does *not* re-seed — `pushed` beats `seeded`, which is what stops a recompile
+     throwing away a loaded break — so undoing a removed Tracker would have brought it back playing the
+     pattern it had before the undo. The guard is gone; the walk it costs is over references that are
+     usually identical.
+   - **Opening a document is where undo stops.** A history spanning a load would let one press
+     resurrect a patch somebody deliberately left, and that patch is not gone: it is in the library, in
+     storage, or in the link they arrived by.
+
 ## The visualiser, and why it is not on the rack yet
 
 The sequencer has seventeen 3D scenes and the obvious next move is to put one behind the rack. Measured
