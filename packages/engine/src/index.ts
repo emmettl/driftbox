@@ -103,6 +103,8 @@ export class DriftboxEngine {
   private readonly bus: GainNode
   /** The one destination currently fed by each section output. */
   private readonly sectionDestinations: Partial<Record<GrooveboxSection, AudioNode>> = {}
+  /** Optional non-destructive observation route per section. */
+  private readonly sectionTaps: Partial<Record<GrooveboxSection, AudioNode>> = {}
   private readonly master: GainNode
   private readonly transport: Transport
   /** One ringing voice per choke group, so a closed hat can cut off an open one. */
@@ -286,6 +288,26 @@ export class DriftboxEngine {
     if (previous) output.disconnect(previous)
     output.connect(next)
     this.sectionDestinations[section] = next
+  }
+
+  /**
+   * Observe one dry authored machine without moving it off the mastered route.
+   *
+   * A rack uses this to keep its source meter alive before anybody patches the section.
+   * It is deliberately separate from `routeSection`: a tap cannot accidentally make an
+   * imported song disappear from its original mix. Passing null removes the observation.
+   */
+  tapSection(section: GrooveboxSection, destination: AudioNode | null): void {
+    const output = this.sectionOutputs[section]
+    const previous = this.sectionTaps[section]
+    if (previous === destination) return
+    if (previous) output.disconnect(previous)
+    if (destination) {
+      output.connect(destination)
+      this.sectionTaps[section] = destination
+    } else {
+      delete this.sectionTaps[section]
+    }
   }
 
   /** Build the 303s once their filter is available. Idempotent; the promise is the

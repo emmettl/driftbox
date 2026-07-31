@@ -48,11 +48,12 @@ import { routedGrooveboxSections } from './groovebox.js'
 // reimplement badly. `preserve-3d` and `backface-visibility` are the whole mechanism.
 
 /**
- * Hand only patched authored machines from the groovebox master into the rack graph.
+ * Keep every authored machine visible to the rack graph, diverting only patched ones.
  *
- * An unpatched source keeps the exact hosted mix #114 introduced. The first cable from
- * either stereo outlet diverts that whole machine through its matching worklet input;
- * removing the last cable restores the original route without restarting the song.
+ * An unpatched source keeps the exact hosted mix #114 introduced and adds a silent rack
+ * tap for its front-panel meter. The first cable removes that tap and diverts the whole
+ * machine through the same worklet input; removing the last cable restores the original
+ * route and tap without restarting the song.
  */
 function routeGrooveboxSources(
   hosted: DriftboxEngine,
@@ -62,7 +63,14 @@ function routeGrooveboxSources(
   const routed = new Set(routedGrooveboxSections(patch))
   for (const section of GROOVEBOX_SECTIONS) {
     const ports = GROOVEBOX_PORTS[section]
-    hosted.routeSection(section, routed.has(section) ? live.input(ports.input) : null)
+    const input = live.input(ports.input)
+    if (routed.has(section)) {
+      hosted.tapSection(section, null)
+      hosted.routeSection(section, input)
+    } else {
+      hosted.routeSection(section, null)
+      hosted.tapSection(section, input)
+    }
   }
 }
 

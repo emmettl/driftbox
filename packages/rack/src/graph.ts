@@ -188,6 +188,7 @@ export class Graph {
     for (const node of this.nodes) {
       const reading = node.processor.meter?.()
       if (reading) readings.push({ id: node.id, ...reading })
+      for (const child of node.processor.meters?.() ?? []) readings.push(child)
     }
     return readings
   }

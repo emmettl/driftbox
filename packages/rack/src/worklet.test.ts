@@ -212,6 +212,33 @@ describe('the assembled worklet', () => {
     expect(posted).toHaveLength(1)
   })
 
+  it('reports all four hosted groovebox strips without hidden meter modules', () => {
+    const patch: Patch = {
+      modules: [{ id: 'song', type: 'groovebox' }],
+      cables: [],
+    }
+    const inputs = Array.from({ length: 4 }, (_, section) => [
+      new Float32Array(FRAMES).fill((section + 1) * 0.1),
+      new Float32Array(FRAMES).fill((section + 1) * 0.1),
+    ])
+    const { instance, posted } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(patch, MODULES) } })
+    instance.port.onmessage?.({ data: { kind: 'monitor', enabled: true } })
+
+    render(instance, 8, inputs)
+
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({
+      kind: 'meters',
+      readings: [
+        { id: 'song:tr808' },
+        { id: 'song:tr909' },
+        { id: 'song:303.a' },
+        { id: 'song:303.b' },
+      ],
+    })
+  })
+
   it('ignores a message it does not understand', () => {
     // The port is reachable from anywhere with a handle on the node. A message from a future
     // build, or from nothing at all, must not take the audio thread down.

@@ -12,6 +12,7 @@ interface RenderOptions {
   voice?: string
   destinationGain?: number
   divert?: GrooveboxSection
+  tap?: GrooveboxSection
   sectionGain?: number
 }
 
@@ -26,7 +27,7 @@ async function render(options: RenderOptions = {}): Promise<number> {
     destination = bus
   }
   let diverted: AudioNode | null = null
-  if (options.divert) {
+  if (options.divert || options.tap) {
     const section = context.createGain()
     section.gain.value = options.sectionGain ?? 1
     section.connect(context.destination)
@@ -38,6 +39,7 @@ async function render(options: RenderOptions = {}): Promise<number> {
     destination,
   })
   if (options.divert) engine.routeSection(options.divert, diverted)
+  if (options.tap) engine.tapSection(options.tap, diverted)
   // No sends: this test is measuring the dry section route, not the shared effect return.
   engine.trigger(options.voice ?? '808.bd', 0.05, 1, undefined, { delay: 0, reverb: 0 })
   const buffer = await context.startRendering()
@@ -58,5 +60,12 @@ describe('a hosted engine output', () => {
   it('can divert one dry machine without taking another out of the mastered mix', async () => {
     expect(await render({ divert: 'tr808', sectionGain: 0 })).toBe(0)
     expect(await render({ voice: '909.bd', divert: 'tr808', sectionGain: 0 })).toBeGreaterThan(0.05)
+  })
+
+  it('can tap a dry machine without removing it from the mastered mix', async () => {
+    expect(await render({ tap: 'tr808', sectionGain: 0 })).toBeGreaterThan(0.05)
+    expect(
+      await render({ tap: 'tr808', destinationGain: 0, sectionGain: 1 }),
+    ).toBeGreaterThan(0.05)
   })
 })

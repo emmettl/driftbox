@@ -1,6 +1,8 @@
 import { GROOVEBOX_SECTIONS } from '@driftbox/engine'
 import { GROOVEBOX_PORTS } from '@driftbox/rack'
 import { ParamControl } from '../ParamControl.js'
+import { useMeter } from '../meter.js'
+import { meterLabel, meterPosition } from './meter-display.js'
 import type { FaceplateProps } from './types.js'
 
 const sectionName = (section: (typeof GROOVEBOX_SECTIONS)[number]): string =>
@@ -12,6 +14,29 @@ const sectionName = (section: (typeof GROOVEBOX_SECTIONS)[number]): string =>
         ? '303 A'
         : '303 B'
 
+function SectionMeter({ id, name }: { id: string; name: string }) {
+  const reading = useMeter(id)
+  const position = meterPosition(reading.envelope)
+  const db = reading.level > 0
+    ? Math.max(-48, 20 * Math.log10(reading.level))
+    : -48
+
+  return (
+    <div
+      className="rk-groovebox-meter"
+      data-clip={reading.peak > 1 ? 'yes' : 'no'}
+      role="meter"
+      aria-label={`${name} output level`}
+      aria-valuemin={-48}
+      aria-valuemax={3}
+      aria-valuenow={db}
+      title={meterLabel(reading.level)}
+    >
+      <i style={{ width: `${position * 100}%` }} />
+    </div>
+  )
+}
+
 /**
  * Four source strips for the authored machines retained inside a rack document.
  *
@@ -19,7 +44,7 @@ const sectionName = (section: (typeof GROOVEBOX_SECTIONS)[number]): string =>
  * second copy of the sequencer. Their unity defaults leave the original song untouched;
  * once a section is patched, the strip shapes the ordinary stereo rack signal.
  */
-export function Groovebox({ def, value, onChange, routed }: FaceplateProps) {
+export function Groovebox({ def, module, value, onChange, routed }: FaceplateProps) {
   const param = (id: string) => def.params.find((candidate) => candidate.id === id)!
 
   return (
@@ -39,6 +64,7 @@ export function Groovebox({ def, value, onChange, routed }: FaceplateProps) {
               key={section}
             >
               <strong>{name}</strong>
+              <SectionMeter id={`${module.id}:${section}`} name={name} />
               <ParamControl
                 def={param(ports.level)}
                 value={value(ports.level)}
