@@ -39,6 +39,14 @@ describe('the performance view hand-off', () => {
     )
   })
 
+  it('keeps the hidden pad face out of flattened transition snapshots', () => {
+    expect(styles).toContain('.rk-pad-face-front {\n  opacity: 1;')
+    expect(styles).toContain('.rk-pad-face-back {\n  opacity: 0;')
+    expect(styles).toContain(".rk-pad[data-side='back'] .rk-pad-face-front {\n  opacity: 0;")
+    expect(styles).toContain(".rk-pad[data-side='back'] .rk-pad-face-back {\n  opacity: 1;")
+    expect(styles).toContain('.rk-pad-face {\n    transition: none;\n  }')
+  })
+
   it('hands full-pad mode back to an animated rack without overriding reduced motion', () => {
     expect(styles).toContain(
       "html[data-rack-view-transition='pad-rack']::view-transition-old(rk-performance-pad)",
