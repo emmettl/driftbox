@@ -61,7 +61,9 @@ const FACEPLATES: Record<string, Entry> = {
   midi: { component: Midi, span: 1, rows: 2 },
   meter: { component: Meter, rows: 3 },
   out: { component: Out, span: 1 },
-  sampler: { component: Sampler, rows: 3 },
+  // The waveform, direct slice picker and sample interpretation controls make this an instrument rather
+  // than a file-name strip. Four rows keep those controls touchable without overflowing the fixed rack slot.
+  sampler: { component: Sampler, rows: 4 },
   // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.
   // The Tracker was the tallest module in the rack and the least use — a pattern you could not see.
   tracker: { component: Tracker, rows: 7 },

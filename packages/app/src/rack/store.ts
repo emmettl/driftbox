@@ -299,6 +299,8 @@ export interface SampleInfo {
   /** How many bars the file was taken to be — the number the derived tempo rests on. */
   bars: number
   seconds: number
+  /** Display-only peak envelope. Small enough for state; the audio buffer itself deliberately stays out. */
+  peaks: readonly number[]
   /** A shipped break can be re-rendered from its id; somebody's own file cannot travel in a link. */
   source: 'break' | 'file'
 }

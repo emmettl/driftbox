@@ -88,6 +88,38 @@ export function normalise(samples: Float32Array, peak = 0.9): Float32Array {
   return samples
 }
 
+/**
+ * A small, display-only envelope for the sampler faceplate.
+ *
+ * Keeping the decoded buffer in React state would mean diffing megabytes whenever anything in the rack
+ * changes. One peak per horizontal bucket preserves the shape somebody needs for slicing while keeping the
+ * store entry smaller than a short file name. Values are normalised so quiet files still produce a legible
+ * overview; playback gain is deliberately untouched.
+ */
+export function waveformPeaks(samples: Float32Array, buckets = 96): number[] {
+  const count = Math.max(1, Math.round(buckets))
+  const peaks = Array.from({ length: count }, () => 0)
+  if (samples.length === 0) return peaks
+
+  let loudest = 0
+  for (let bucket = 0; bucket < count; bucket++) {
+    const from = Math.floor((bucket * samples.length) / count)
+    const to = Math.max(from + 1, Math.floor(((bucket + 1) * samples.length) / count))
+    let peak = 0
+    for (let i = from; i < Math.min(samples.length, to); i++) {
+      const magnitude = Math.abs(samples[i])
+      if (magnitude > peak) peak = magnitude
+    }
+    peaks[bucket] = peak
+    if (peak > loudest) loudest = peak
+  }
+
+  if (loudest > 0) {
+    for (let i = 0; i < peaks.length; i++) peaks[i] /= loudest
+  }
+  return peaks
+}
+
 /** A file's name without its extension, for naming the patch after what was loaded. */
 export function sampleName(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, '').slice(0, 60) || 'sample'
