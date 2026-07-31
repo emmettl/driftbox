@@ -39,6 +39,14 @@ describe('the performance view hand-off', () => {
     )
   })
 
+  it('captures a non-rotating shell so cycling views cannot flatten the rack turn', () => {
+    expect(rackApp).toContain('className="rk-rack-snapshot"')
+    expect(styles).toContain(
+      '.rk-rack-snapshot {\n  position: relative;\n  view-transition-name: rk-performance-rack;',
+    )
+    expect(styles).not.toContain('.rk-rack {\n  position: relative;\n  view-transition-name:')
+  })
+
   it('reopens split at the rack bay and keeps the keyboard above transition snapshots', () => {
     expect(rackApp).toContain(
       "if (rackView === 'split' && performanceSpace.current) performanceSpace.current.scrollLeft = 0",
