@@ -59,7 +59,8 @@ instrument, per-voice swing, send and shared effect automation against the hoste
 clock, quantise keyboard taps into the focused authored clip, cut/copy/paste a focused lane
 or machine without losing articulation, and return to the sequencer without losing that
 document. The original editor now uses those same clipboard transforms for lane and machine
-focus. Next, continue interchange; do not
+focus. Both modes now expose the same mastered retained-song WAV, while rack mode keeps its
+patch render explicit and separate. Next, continue MIDI and library interchange; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

@@ -23,6 +23,7 @@ import {
   DriftboxEngine,
   GROOVEBOX_SECTIONS,
   Kaoss,
+  renderMix,
   songBars,
   toWav,
 } from '@driftbox/engine'
@@ -268,7 +269,7 @@ export default function RackApp() {
    * exporting the wrong file silently is worse. So there are two facts and they are both recorded.
    */
   const [intendedBreak, setIntendedBreak] = useState<string | null>(null)
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting] = useState<'patch' | 'song' | null>(null)
   /** Selected as the object, filtered outside. A selector that builds a new array returns a different
    *  reference every call and re-renders for ever — this app has had that bug once already. */
   const samples = useRack((s) => s.samples)
@@ -739,6 +740,26 @@ export default function RackApp() {
     // been handled cancels the download in some browsers.
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }, [intendedBreak])
+
+  /**
+   * Export the retained authored document without flattening rack-only changes into it.
+   *
+   * Rack mode remains a strict superset of the sequencer: opening a song here must not
+   * take its original mastered WAV away. This is deliberately separate from Patch WAV;
+   * the latter renders rack modules and cables, while this recalls the intact Groovebox
+   * song that can travel back to the sequencer.
+   */
+  const exportGrooveboxMix = useCallback(async () => {
+    if (!retainedSong) return
+    const buffer = await renderMix(retainedSong)
+    const url = URL.createObjectURL(toWav(buffer))
+    const link = document.createElement('a')
+    link.href = url
+    const documentName = (useRack.getState().name ?? 'driftbox-song').replace(/[^\w-]+/g, '-')
+    link.download = `${documentName}-mix.wav`
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }, [retainedSong])
 
   /**
    * Keep the allocator agreeing with the graph about how many voices exist.
@@ -1276,19 +1297,37 @@ export default function RackApp() {
 
         <button
           type="button"
-          disabled={exporting}
+          disabled={exporting !== null}
           title="Render this patch to a WAV file"
           onClick={async () => {
-            setExporting(true)
+            setExporting('patch')
             try {
               await exportPatch()
             } finally {
-              setExporting(false)
+              setExporting(null)
             }
           }}
         >
-          {exporting ? 'Rendering…' : 'Export'}
+          {exporting === 'patch' ? 'Rendering patch…' : 'Patch WAV'}
         </button>
+
+        {retainedSong && (
+          <button
+            type="button"
+            disabled={exporting !== null}
+            title="Render the retained Groovebox song through its mastered stereo bus"
+            onClick={async () => {
+              setExporting('song')
+              try {
+                await exportGrooveboxMix()
+              } finally {
+                setExporting(null)
+              }
+            }}
+          >
+            {exporting === 'song' ? 'Rendering song…' : 'Song WAV'}
+          </button>
+        )}
 
         {patch.groovebox && !retainedSong ? (
           <span

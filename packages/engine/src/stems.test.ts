@@ -69,6 +69,10 @@ describe('how long a stem is', () => {
     const steps = planSong(song, songBars(song)).length
     expect(bare).toBeCloseTo((steps * 60) / song.bpm / 4, 5)
   })
+
+  it('gives an empty arrangement the fallback pattern bar the live transport plays', () => {
+    expect(songSeconds({ ...defaultSong(), chain: [] }, 0)).toBeGreaterThan(0)
+  })
 })
 
 describe('the WAV header', () => {
