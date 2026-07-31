@@ -625,6 +625,33 @@ kbd {
   grid-template-columns: repeat(3, 58px);
 }
 
+/* Four authored machines, visually kept as four channel strips rather than twelve anonymous knobs.
+ * Their height stays inside the five rows the Groovebox device's eight outlets already require. */
+.rk-groovebox-strips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.rk-groovebox-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-left: 1px solid var(--edge);
+}
+
+.rk-groovebox-strip:first-child {
+  border-left: 0;
+}
+
+.rk-groovebox-strip strong {
+  font: 10px var(--mono);
+  color: var(--three);
+  letter-spacing: 0.06em;
+  margin: 2px 0;
+}
+
 /* Emphasis without a transform. `scale()` moved the label out of its own grid cell and into the next
  * one, where it collided with the shape selector — the grid is what keeps the height arithmetic honest,
  * so nothing on a faceplate may escape its cell. */

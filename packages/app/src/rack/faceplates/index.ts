@@ -3,6 +3,7 @@ import { CELL_HEIGHT, PAD, ROW, TITLE, columnsFor, rowsForJacks, type Size, type
 import { Arranger } from './Arranger.js'
 import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
+import { Groovebox } from './Groovebox.js'
 import { Ladder } from './Ladder.js'
 import { Midi } from './Midi.js'
 import { Out } from './Out.js'
@@ -49,6 +50,8 @@ const FACEPLATES: Record<string, Entry> = {
   // just as well: a row of four rotaries, a row of four buttons and a way through to the routing list is
   // about that tall, and a Combinator is a big device in Reason too.
   combi: { component: Combinator, rows: 5 },
+  // Four vertical source strips fit in the height already required by the eight stereo jacks.
+  groovebox: { component: Groovebox, rows: 5 },
   // These hand-built panels still fit the same three-control half-width grid as a small generic panel.
   // Declared here because custom panels opt out of the automatic generic sizing below.
   vco: { component: Vco, span: 1, rows: 2 },

@@ -62,7 +62,7 @@ describe('the groovebox document bridge', () => {
     expect(
       patchCompatibility({
         ...base,
-        modules: [{ ...base.modules[0], params: { future: 1 } }],
+        modules: [{ ...base.modules[0], params: { 'tr808-level': 0.5 } }],
       }),
     ).toBe('rack-extended')
   })
