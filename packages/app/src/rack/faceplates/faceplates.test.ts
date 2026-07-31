@@ -166,12 +166,17 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="808 live clip"')
   expect(markup).toContain('Launch ')
   expect(markup).toContain('Follow song')
+  expect(markup).toContain('aria-label="Groovebox transport"')
+  expect(markup).toContain('aria-label="Play from section 1"')
+  expect(markup).toContain('aria-label="Loop section 1"')
+  expect(markup).toContain('aria-label="Groovebox loop start bar"')
+  expect(markup).toContain('aria-label="Groovebox loop length in bars"')
   expect(markup).toContain('aria-label="Bass Drum instrument controls"')
   for (const control of ['Level', 'Tune', 'Decay', 'Tone', 'Colour', 'Pan']) {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(9)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(10)
 })
 
 it('shows every retained 303 instrument control', () => {

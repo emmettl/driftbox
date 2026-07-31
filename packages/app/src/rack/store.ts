@@ -298,6 +298,18 @@ interface RackState {
   setGrooveboxLaunch: (event: ClipLaunchEvent) => void
   clearGrooveboxLaunches: () => void
   /**
+   * Hosted song navigation is session state. The engine owns the clock; the store only
+   * gives the faceplate a host callback and the loop range it needs to draw.
+   */
+  grooveboxTransport: {
+    startAt: (bar: number) => boolean
+    setLoop: (start: number, bars: number) => boolean
+    clearLoop: () => void
+  } | null
+  setGrooveboxTransport: (transport: RackState['grooveboxTransport']) => void
+  grooveboxLoop: { start: number; bars: number } | null
+  setGrooveboxLoop: (loop: RackState['grooveboxLoop']) => void
+  /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
    * The audio itself is not here — only what a faceplate needs to say what it is holding. A break is
@@ -475,6 +487,8 @@ export const useRack = create<RackState>((set, get) => {
     running: false,
     grooveboxLauncher: null,
     grooveboxLaunches: {},
+    grooveboxTransport: null,
+    grooveboxLoop: null,
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -831,6 +845,8 @@ export const useRack = create<RackState>((set, get) => {
         return { grooveboxLaunches }
       }),
     clearGrooveboxLaunches: () => set({ grooveboxLaunches: {} }),
+    setGrooveboxTransport: (grooveboxTransport) => set({ grooveboxTransport }),
+    setGrooveboxLoop: (grooveboxLoop) => set({ grooveboxLoop }),
 
     setRunning: (running) => set({ running }),
 

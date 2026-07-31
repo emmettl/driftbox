@@ -33,6 +33,8 @@ beforeEach(() => {
     name: null,
     grooveboxLauncher: null,
     grooveboxLaunches: {},
+    grooveboxTransport: null,
+    grooveboxLoop: null,
   })
 })
 
@@ -788,6 +790,29 @@ describe('editing a retained Groovebox pattern', () => {
       phase: 'active',
     })
     expect(useRack.getState().grooveboxLaunches.tr808).toBeUndefined()
+  })
+
+  it('keeps hosted transport controls and loop state out of the document', () => {
+    const patch = useRack.getState().patch
+    const history = useRack.getState().history
+    const transport = {
+      startAt: () => true,
+      setLoop: () => true,
+      clearLoop: () => {},
+    }
+
+    useRack.getState().setGrooveboxTransport(transport)
+    useRack.getState().setGrooveboxLoop({ start: 3, bars: 4 })
+
+    expect(useRack.getState().grooveboxTransport).toBe(transport)
+    expect(useRack.getState().grooveboxLoop).toEqual({ start: 3, bars: 4 })
+    expect(useRack.getState().patch).toBe(patch)
+    expect(useRack.getState().history).toBe(history)
+
+    useRack.getState().setGrooveboxLoop(null)
+    useRack.getState().setGrooveboxTransport(null)
+    expect(useRack.getState().grooveboxLoop).toBeNull()
+    expect(useRack.getState().grooveboxTransport).toBeNull()
   })
 })
 

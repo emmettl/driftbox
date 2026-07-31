@@ -53,7 +53,7 @@ user could approximate it from oscillators.
 | 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
-| Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted shared transport plus Arranger | Expose the shared primitives in rack mode |
+| Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted section seek, section loop and arbitrary whole-bar loop ranges plus Arranger | Landed |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted shared timeline plus Combinator/MIDI | Expose the shared recorder in rack mode |
 | Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
@@ -125,7 +125,9 @@ on the device. The selected retained pattern can now be queued independently for
 and becomes active at the next bar boundary; following the authored song again uses the same
 quantised path, and neither action mutates the document. Contextual voice controls now edit
 the complete retained drum or bass parameter block and reach following scheduled hits without
-rebuilding the rack. Next, expose the shared transport and remaining fast pattern tools. Do
+rebuilding the rack. The selected section can now seek or loop on the hosted transport, and
+arbitrary whole-bar loop ranges may cross section boundaries without entering the document.
+Next, expose automation recording and the remaining fast pattern tools. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

@@ -5,9 +5,11 @@ import {
   GROOVEBOX_SECTIONS,
   REST,
   bassStepAt,
+  chainBarAt,
   cycleStep,
   decodeSong,
   setBassStep,
+  songBars,
   stepAt,
   type BassParams,
   type GrooveboxSection,
@@ -15,7 +17,7 @@ import {
   type VoiceParams,
 } from '@driftbox/engine'
 import { GROOVEBOX_PORTS } from '@driftbox/rack'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ParamControl } from '../ParamControl.js'
 import { Knob } from '../../ui/Knob.js'
 import { useMeter } from '../meter.js'
@@ -95,6 +97,8 @@ export function GrooveboxPatternEditor({
   setBassParam,
   launch,
   launches,
+  transport,
+  loop,
   initialSection = 'tr808',
 }: {
   encoded?: string
@@ -120,6 +124,12 @@ export function GrooveboxPatternEditor({
       { patternId: string | null; phase: 'queued' | 'active' }
     >
   >
+  transport?: {
+    startAt: (bar: number) => boolean
+    setLoop: (start: number, bars: number) => boolean
+    clearLoop: () => void
+  }
+  loop?: { start: number; bars: number } | null
   /** Initial machine for static hosts and focused tests; the live faceplate starts on 808. */
   initialSection?: GrooveboxSection
 }) {
@@ -130,6 +140,13 @@ export function GrooveboxPatternEditor({
   const [page, setPage] = useState(0)
   const [selectedStep, setSelectedStep] = useState(0)
   const [arrangementSection, setArrangementSection] = useState(0)
+  const [loopStart, setLoopStart] = useState(1)
+  const [loopBars, setLoopBars] = useState(1)
+  useEffect(() => {
+    if (!loop) return
+    setLoopStart(loop.start + 1)
+    setLoopBars(loop.bars)
+  }, [loop])
 
   if (!song || song.patterns.length === 0) {
     return <p className="rk-groovebox-editor-empty">Retained song unavailable.</p>
@@ -156,6 +173,10 @@ export function GrooveboxPatternEditor({
       : [{ pattern: song.patterns[0].id, repeat: 1 }]
   const shownSection = Math.min(arrangementSection, chain.length - 1)
   const chainStep = chain[shownSection]
+  const sectionStart = chainBarAt(song, shownSection)
+  const totalBars = Math.max(1, songBars(song))
+  const sectionLooping =
+    loop?.start === sectionStart && loop.bars === Math.max(1, chainStep.repeat)
   const clipPattern = chainStep.clips?.[section] ?? chainStep.pattern
   const live = launches?.[section]
   const livePattern =
@@ -342,6 +363,66 @@ export function GrooveboxPatternEditor({
         </span>
       </div>
 
+      <div className="rk-groovebox-transport" aria-label="Groovebox transport">
+        <button
+          type="button"
+          disabled={!transport}
+          onClick={() => transport?.startAt(sectionStart)}
+          aria-label={`Play from section ${shownSection + 1}`}
+        >
+          ▶ section
+        </button>
+        <button
+          type="button"
+          disabled={!transport}
+          aria-pressed={sectionLooping}
+          onClick={() =>
+            sectionLooping
+              ? transport?.clearLoop()
+              : transport?.setLoop(sectionStart, chainStep.repeat)
+          }
+          aria-label={`Loop section ${shownSection + 1}`}
+        >
+          loop section
+        </button>
+        <label>
+          From
+          <input
+            type="number"
+            min={1}
+            max={totalBars}
+            value={loopStart}
+            onChange={(event) => setLoopStart(Number(event.target.value))}
+            aria-label="Groovebox loop start bar"
+          />
+        </label>
+        <label>
+          Bars
+          <input
+            type="number"
+            min={1}
+            max={Math.max(1, totalBars - loopStart + 1)}
+            value={loopBars}
+            onChange={(event) => setLoopBars(Number(event.target.value))}
+            aria-label="Groovebox loop length in bars"
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!transport}
+          onClick={() => transport?.setLoop(loopStart - 1, loopBars)}
+        >
+          set
+        </button>
+        <button
+          type="button"
+          disabled={!transport || !loop}
+          onClick={() => transport?.clearLoop()}
+        >
+          clear
+        </button>
+      </div>
+
       <div
         className="rk-groovebox-instrument"
         aria-label={`${bass ? sectionName(section) : voice?.name ?? sectionName(section)} instrument controls`}
@@ -468,6 +549,8 @@ function PatternEditor() {
   const setBassParam = useRack((state) => state.setGrooveboxBassParam)
   const launch = useRack((state) => state.grooveboxLauncher)
   const launches = useRack((state) => state.grooveboxLaunches)
+  const transport = useRack((state) => state.grooveboxTransport)
+  const loop = useRack((state) => state.grooveboxLoop)
   return (
     <GrooveboxPatternEditor
       encoded={encoded}
@@ -477,6 +560,8 @@ function PatternEditor() {
       setBassParam={setBassParam}
       launch={launch ?? undefined}
       launches={launches}
+      transport={transport ?? undefined}
+      loop={loop}
     />
   )
 }
