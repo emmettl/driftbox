@@ -42,7 +42,7 @@ import {
 } from '@driftbox/rack'
 import { create } from 'zustand'
 import { autosavePatch, loadStoredPatch, takeRackDocumentFromUrl } from './persistence.js'
-import { forget, learn, loadBindings, saveBindings, type CcBinding } from './cc.js'
+import { forget, learn, loadBindings, saveBindings, type CcBinding } from '../midi-cc.js'
 import {
   dataKey,
   needsRebuild,

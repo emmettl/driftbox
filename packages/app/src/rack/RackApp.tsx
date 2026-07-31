@@ -28,9 +28,9 @@ import {
   toWav,
 } from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono, waveformPeaks } from './sample.js'
-import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from './midi.js'
+import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from '../midi.js'
 import { publishMeters } from './meter.js'
-import { ccValue, targets as ccTargets } from './cc.js'
+import { ccValue, targets as ccTargets } from '../midi-cc.js'
 import { PerformPad } from './PerformPad.js'
 import { RackKeys } from './RackKeys.js'
 import { Modulation } from './Modulation.js'
@@ -502,6 +502,7 @@ export default function RackApp() {
         onVoice: (state, channel) => playVoice(state, channel),
         onMod: (value, channel) => sendMidi(channel, { mod: value }),
         onControl,
+        onInputs: (inputs) => setMidi(null, inputs),
       },
       bank.current,
     )

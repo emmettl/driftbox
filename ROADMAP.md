@@ -60,8 +60,11 @@ clock, quantise keyboard taps into the focused authored clip, cut/copy/paste a f
 or machine without losing articulation, and return to the sequencer without losing that
 document. The original editor now uses those same clipboard transforms for lane and machine
 focus. Both modes now expose the same mastered retained-song WAV, while rack mode keeps its
-patch render explicit and separate. Next, continue MIDI and library interchange; do not
-duplicate its authored patterns into anonymous rack primitives.
+patch render explicit and separate. They also share the browser MIDI host, monophonic note
+allocator and hardware mapping store: the original editor can play its focused 303 or pitched
+drum and learn every authored control, while rack mode adds polyphony, channels, modulation
+and Combinator routing. Next, continue named-library interchange; do not duplicate authored
+patterns into anonymous rack primitives.
 
 ## What is deliberate
 
