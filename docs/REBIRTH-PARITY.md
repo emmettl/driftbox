@@ -45,11 +45,11 @@ user could approximate it from oscillators.
 
 | Capability | Groovebox now | Rack now | Required destination |
 |---|---:|---:|---|
-| Two authored 303 voices | Yes | Patchable stereo outputs from retained song | Add rack-side 303 editor controls |
-| Authored 808 and 909 kits | Yes | Patchable stereo outputs from retained song | Add rack-side drum editor controls; no ROM samples |
-| Independent machine pattern banks | Yes | Tracker/Seq primitives | Reuse the shared clip-bank model in rack mode |
+| Two authored 303 voices | Yes | Patchable stereo outputs and pitched/accented/sliding retained-pattern editor | Add instrument controls |
+| Authored 808 and 909 kits | Yes | Patchable stereo outputs and retained rest/hit/accent pattern editor | Add instrument controls; no ROM samples |
+| Independent machine pattern banks | Yes | Retained pattern and machine selectors plus Tracker/Seq primitives | Add arrangement clip selection and launch |
 | Per-machine pattern length and launch | Arrangement selection | Possible manually | Add live quantised launch to the shared clip model |
-| 303 note/accent/slide/tie editing | Partial | Tracker primitives | One clip editor and equivalent rack lanes |
+| 303 note/accent/slide/tie editing | Partial | Retained 303 step editor plus Tracker primitives | Add faster sequential and keyboard entry |
 | 909 flam | Step plus width control | Possible manually | Reuse the articulation in the rack clip editor |
 | Pattern transforms | Rotate, transpose, randomise and alter | No compact workflow | Add focused clip cut/copy/paste in both modes |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
@@ -86,8 +86,9 @@ work is ordered by dependency:
    ReBirth signal path: distortion, pattern-controlled filter and compressor as inserts,
    delay as a send. Keep Driftbox's reverb and per-voice controls.
 4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise,
-   material-preserving alter and 909 flam are present. Add sequential 303 entry,
-   keyboard tap recording and focused cut/copy/paste.
+   material-preserving alter and 909 flam are present. Rack mode now exposes retained drum
+   steps and pitched/accented/sliding 303 steps without restarting playback. Add keyboard
+   tap recording and focused cut/copy/paste.
 5. **Interchange.** Bring the rack's MIDI host and learn mappings to the groovebox, add
    full-mix rendering and put songs and patches in one named library.
 
@@ -118,8 +119,9 @@ pairs inside the rack worklet, where ordinary cables can send them through any r
 device. Adding the device alone remains groovebox-compatible; the first cable makes the
 document explicitly rack-extended. Each source now has a rack strip with level, balance
 pan, mute and a live post-strip meter; its unity defaults preserve the retained mix, while
-saving a strip adjustment correctly marks the document as rack-extended. Next, add
-rack-side clip and instrument editor controls. Do
+saving a strip adjustment correctly marks the document as rack-extended. Retained drum
+and 303 pattern editing is now available directly on the device. Next, add rack-side clip
+arrangement and instrument controls. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

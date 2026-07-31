@@ -425,9 +425,22 @@ export default function RackApp() {
     const pad = kaoss.current
     if (!live || !pad || hostedGroovebox.current === patch.groovebox) return
 
-    groovebox.current?.dispose()
-    groovebox.current = null
+    const current = groovebox.current
     hostedGroovebox.current = patch.groovebox
+
+    // Pattern edits replace the immutable retained envelope, but they do not replace
+    // the instrument. The sequencer uses this same live-song handoff: the scheduler
+    // reads the new pattern on the next step, preserving the playhead, ringing voices,
+    // source routes and meter taps.
+    if (current && retainedSong) {
+      current.song = retainedSong
+      current.bpm = patch.tempo ?? retainedSong.bpm
+      current.syncFx()
+      return
+    }
+
+    current?.dispose()
+    groovebox.current = null
     if (!retainedSong) return
 
     const hosted = new DriftboxEngine(retainedSong, {
@@ -437,7 +450,7 @@ export default function RackApp() {
     groovebox.current = hosted
     routeGrooveboxSources(hosted, live, useRack.getState().patch)
     if (playing) void hosted.start()
-  }, [patch.groovebox, playing, retainedSong])
+  }, [patch.groovebox, patch.tempo, playing, retainedSong])
 
   /**
    * Render the patch to a WAV and hand it over.

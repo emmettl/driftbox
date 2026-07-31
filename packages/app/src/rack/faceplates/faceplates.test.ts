@@ -1,9 +1,11 @@
+import { SONGS, encodeSong } from '@driftbox/engine'
 import { MODULES } from '@driftbox/rack'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { rowsForJacks } from '../layout.js'
 import { Generic, faceplateFor, genericRows, sizeFor } from './index.js'
+import { GrooveboxPatternEditor } from './Groovebox.js'
 
 // The registry is sparse and there is a fallback, and that is the whole design. These are the properties
 // that make it worth having rather than sixteen hand-written components.
@@ -142,4 +144,20 @@ it('shows a live meter for every Groovebox source strip', () => {
   for (const name of ['808', '909', '303 A', '303 B']) {
     expect(markup).toContain(`aria-label="${name} output level"`)
   }
+})
+
+it('shows a 16-step editor for a retained Groovebox pattern', () => {
+  const song = SONGS[0].build()
+  const markup = renderToStaticMarkup(
+    createElement(GrooveboxPatternEditor, {
+      encoded: encodeSong(song),
+      setPattern: () => {},
+    }),
+  )
+
+  expect(markup).toContain('aria-label="Groovebox pattern editor"')
+  expect(markup).toContain('aria-label="Pattern to edit"')
+  expect(markup).toContain('aria-label="Machine to edit"')
+  expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(7)
 })

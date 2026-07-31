@@ -1,6 +1,12 @@
 import {
+  type Pattern,
+  type Song,
+  encodeSong,
+} from '@driftbox/engine'
+import {
   applyModulation,
   EMPTY_PATCH,
+  grooveboxSong,
   insertChunk,
   type Chunk,
   type Inserted,
@@ -190,6 +196,14 @@ interface RackState {
   setTempo: (tempo: number) => void
   /** Change the generated break the patch asks its host to load. The id travels; the rendered audio does not. */
   setBreak: (id: string | null) => void
+  /**
+   * Replace one pattern inside the retained Groovebox song.
+   *
+   * This is document data, but not rack graph data: the hosted engine reads the next
+   * immutable song at the following scheduled step, so a step edit must not rebuild the
+   * worklet graph or restart the arrangement.
+   */
+  setGrooveboxPattern: (pattern: Pattern) => void
   /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
    *
@@ -566,6 +580,21 @@ export const useRack = create<RackState>((set, get) => {
         if ((id ?? undefined) === state.patch.break) return {}
         const { break: _drop, ...rest } = state.patch
         const patch = id ? { ...rest, break: id } : rest
+        autosavePatch(patch)
+        return { patch }
+      }),
+
+    setGrooveboxPattern: (pattern) =>
+      set((state) => {
+        const song = grooveboxSong(state.patch)
+        if (!song || !song.patterns.some((candidate) => candidate.id === pattern.id)) return {}
+        const next: Song = {
+          ...song,
+          patterns: song.patterns.map((candidate) =>
+            candidate.id === pattern.id ? pattern : candidate,
+          ),
+        }
+        const patch = { ...state.patch, groovebox: encodeSong(next) }
         autosavePatch(patch)
         return { patch }
       }),
