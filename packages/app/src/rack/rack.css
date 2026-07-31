@@ -1832,7 +1832,8 @@ kbd {
   border-color: #cffff2;
 }
 
-.rk-groovebox-instrument {
+.rk-groovebox-instrument,
+.rk-groovebox-mix {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   align-items: start;
@@ -1841,24 +1842,36 @@ kbd {
   border-top: 1px solid rgba(95, 240, 208, 0.12);
 }
 
-.rk-groovebox-instrument .knob {
+.rk-groovebox-instrument .knob,
+.rk-groovebox-mix .knob {
   min-width: 0;
   width: 100%;
   height: 58px;
 }
 
-.rk-groovebox-instrument .knob-dial {
+.rk-groovebox-instrument .knob-dial,
+.rk-groovebox-mix .knob-dial {
   width: 34px;
   height: 34px;
 }
 
 .rk-groovebox-instrument .knob-label,
-.rk-groovebox-instrument .knob-readout {
+.rk-groovebox-instrument .knob-readout,
+.rk-groovebox-mix .knob-label,
+.rk-groovebox-mix .knob-readout {
   max-width: 46px;
   overflow: hidden;
   font-size: 7px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rk-groovebox-mix {
+  border-top-color: rgba(157, 149, 200, 0.22);
+}
+
+.rk-groovebox-mix .knob:nth-child(4) {
+  border-left: 1px solid rgba(157, 149, 200, 0.28);
 }
 
 .rk-groovebox-bass strong {

@@ -118,6 +118,12 @@ provider are session state; recorded lanes remain versioned retained song data, 
 stays Groovebox-compatible and returns to the sequencer without loss. Clearing all lanes is
 an ordinary non-structural rack edit and can be undone.
 
+The contextual mix row completes that recorder surface without translating authored song
+data into generic rack modules. The selected drum or 303 exposes its delay/reverb sends and
+offset from global swing beside the five shared delay/reverb controls. Those base values and
+their automation targets are the same ones the sequencer uses; selecting another voice only
+changes which authored send/swing lane is in focus, while the effects remain song-wide.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a

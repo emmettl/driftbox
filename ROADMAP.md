@@ -55,9 +55,9 @@ without restarting playback, launch each machine's selected clip on the next bar
 mutating the arrangement, edit the full retained control set for every drum voice and 303,
 seek or loop sections and arbitrary whole-bar ranges on the hosted transport, rotate or
 transform focused retained lanes, program 909 flams, record tempo, global swing and authored
-instrument automation against the hosted engine clock, and return to the sequencer without
-losing that document. Next, expose retained per-voice swing, send and effect controls,
-keyboard tap recording and focused cut/copy/paste; do not
+instrument, per-voice swing, send and shared effect automation against the hosted engine
+clock, and return to the sequencer without losing that document. Next, expose keyboard tap
+recording and focused cut/copy/paste; do not
 duplicate its authored patterns into anonymous rack primitives.
 
 ## What is deliberate

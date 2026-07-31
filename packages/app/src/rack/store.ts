@@ -1,12 +1,16 @@
 import {
   AUTOMATION_TARGET,
   DEFAULT_BASS_PARAMS,
+  DEFAULT_FX,
   DEFAULT_PARAMS,
+  DEFAULT_SENDS,
   chainSetClip,
   type BassParams,
   type ClipLaunchEvent,
   type ClipLaunchPhase,
   type Pattern,
+  type FxParams,
+  type SendLevels,
   type Song,
   type GrooveboxSection,
   type VoiceParams,
@@ -282,6 +286,16 @@ interface RackState {
   setGrooveboxFlamWidth: (value: number) => void
   /** Edit the retained song's global swing and record it when automation is active. */
   setGrooveboxSwing: (value: number) => void
+  /** Edit and optionally record one voice's offset from global song swing. */
+  setGrooveboxVoiceSwing: (voiceId: string, value: number) => void
+  /** Edit and optionally record one voice's delay or reverb send. */
+  setGrooveboxSend: (
+    voiceId: string,
+    key: keyof SendLevels,
+    value: number,
+  ) => void
+  /** Edit and optionally record one shared Groovebox effect control. */
+  setGrooveboxFx: (key: keyof FxParams, value: number) => void
   /** Remove every retained automation lane as one undoable document edit. */
   clearGrooveboxAutomation: () => void
   /** Assign one retained machine clip to one arrangement section. */
@@ -850,6 +864,78 @@ export const useRack = create<RackState>((set, get) => {
           edited,
           AUTOMATION_TARGET.swing,
           swing,
+        )
+        if (next === song) return patch
+        return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    setGrooveboxVoiceSwing: (voiceId, value) =>
+      write(`groovebox:voice-swing:${voiceId}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const swing = Math.max(0, Math.min(1, value))
+        const current = song.kit.swing?.[voiceId] ?? 0.5
+        const edited: Song =
+          current === swing
+            ? song
+            : {
+                ...song,
+                kit: {
+                  ...song.kit,
+                  swing: { ...song.kit.swing, [voiceId]: swing },
+                },
+              }
+        const next = recordGrooveboxPoint(
+          edited,
+          AUTOMATION_TARGET.voiceSwing(voiceId),
+          swing,
+        )
+        if (next === song) return patch
+        return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    setGrooveboxSend: (voiceId, key, value) =>
+      write(`groovebox:send:${voiceId}:${key}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const nextValue = Math.max(0, Math.min(1, value))
+        const current = song.kit.sends?.[voiceId] ?? DEFAULT_SENDS
+        const edited: Song =
+          current[key] === nextValue
+            ? song
+            : {
+                ...song,
+                kit: {
+                  ...song.kit,
+                  sends: {
+                    ...song.kit.sends,
+                    [voiceId]: { ...current, [key]: nextValue },
+                  },
+                },
+              }
+        const next = recordGrooveboxPoint(
+          edited,
+          AUTOMATION_TARGET.send(voiceId, key),
+          nextValue,
+        )
+        if (next === song) return patch
+        return { ...patch, groovebox: encodeSong(next) }
+      }),
+
+    setGrooveboxFx: (key, value) =>
+      write(`groovebox:fx:${key}`, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        const nextValue = Math.max(0, Math.min(1, value))
+        const current = song.fx ?? DEFAULT_FX
+        const edited: Song =
+          current[key] === nextValue
+            ? song
+            : { ...song, fx: { ...current, [key]: nextValue } }
+        const next = recordGrooveboxPoint(
+          edited,
+          AUTOMATION_TARGET.fx(key),
+          nextValue,
         )
         if (next === song) return patch
         return { ...patch, groovebox: encodeSong(next) }

@@ -716,6 +716,9 @@ describe('editing a retained Groovebox pattern', () => {
     useRack.getState().setGrooveboxSwing(0.42)
     useRack.getState().setGrooveboxVoiceParam('808.bd', 'decay', 0.23)
     useRack.getState().setGrooveboxBassParam('303.a', 'cutoff', 0.81)
+    useRack.getState().setGrooveboxVoiceSwing('808.ch', 0.67)
+    useRack.getState().setGrooveboxSend('808.bd', 'reverb', 0.38)
+    useRack.getState().setGrooveboxFx('delayTone', 0.29)
 
     const patch = useRack.getState().patch
     const song = grooveboxSong(patch)!
@@ -732,6 +735,15 @@ describe('editing a retained Groovebox pattern', () => {
     expect(lanes.get(AUTOMATION_TARGET.bass('303.a', 'cutoff'))).toEqual([
       { bar: 2, index: 3, value: 0.81 },
     ])
+    expect(lanes.get(AUTOMATION_TARGET.voiceSwing('808.ch'))).toEqual([
+      { bar: 2, index: 3, value: 0.67 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.send('808.bd', 'reverb'))).toEqual([
+      { bar: 2, index: 3, value: 0.38 },
+    ])
+    expect(lanes.get(AUTOMATION_TARGET.fx('delayTone'))).toEqual([
+      { bar: 2, index: 3, value: 0.29 },
+    ])
     expect(patch.tempo).toBeUndefined()
     expect(patchCompatibility(patch)).toBe('groovebox-compatible')
     expect(useRack.getState().revision).toBe(0)
@@ -743,11 +755,17 @@ describe('editing a retained Groovebox pattern', () => {
     useRack.getState().setTempo(132)
     useRack.getState().setGrooveboxSwing(0.37)
     useRack.getState().setGrooveboxVoiceParam('909.sd', 'tone', 0.64)
+    useRack.getState().setGrooveboxVoiceSwing('909.sd', 0.26)
+    useRack.getState().setGrooveboxSend('909.sd', 'delay', 0.48)
+    useRack.getState().setGrooveboxFx('reverbSize', 0.73)
 
     const song = grooveboxSong(useRack.getState().patch)!
     expect(song.bpm).toBe(132)
     expect(song.swing).toBe(0.37)
     expect(song.kit.params['909.sd'].tone).toBe(0.64)
+    expect(song.kit.swing?.['909.sd']).toBe(0.26)
+    expect(song.kit.sends?.['909.sd'].delay).toBe(0.48)
+    expect(song.fx?.reverbSize).toBe(0.73)
     expect(song.automation).toBeUndefined()
     expect(useRack.getState().patch.tempo).toBeUndefined()
   })

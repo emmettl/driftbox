@@ -157,6 +157,9 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
       setBassParam: () => {},
       setFlamWidth: () => {},
       setSwing: () => {},
+      setVoiceSwing: () => {},
+      setSend: () => {},
+      setFx: () => {},
       toggleAutomationRecording: () => {},
       clearAutomation: () => {},
     }),
@@ -180,6 +183,10 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Arm Groovebox automation recording"')
   expect(markup).toContain('aria-label="Groovebox swing"')
   expect(markup).toContain('aria-label="Clear Groovebox automation"')
+  expect(markup).toContain('aria-label="Bass Drum sends and shared effects"')
+  for (const control of ['Delay', 'Reverb', 'Swing', 'Time', 'F.back', 'FX Tone', 'Size', 'Damp']) {
+    expect(markup).toContain(`aria-label="${control}"`)
+  }
   expect(markup).toContain('aria-label="Rotate Bass Drum left"')
   expect(markup).toContain('aria-label="Rotate Bass Drum right"')
   expect(markup).toContain('random')
@@ -189,7 +196,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(12)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(13)
 })
 
 it('shows every retained 303 instrument control', () => {
@@ -203,6 +210,9 @@ it('shows every retained 303 instrument control', () => {
       setBassParam: () => {},
       setFlamWidth: () => {},
       setSwing: () => {},
+      setVoiceSwing: () => {},
+      setSend: () => {},
+      setFx: () => {},
       toggleAutomationRecording: () => {},
       clearAutomation: () => {},
       initialSection: '303.a',
@@ -210,6 +220,7 @@ it('shows every retained 303 instrument control', () => {
   )
 
   expect(markup).toContain('aria-label="303 A instrument controls"')
+  expect(markup).toContain('aria-label="303 A sends and shared effects"')
   expect(markup).toContain('aria-label="Transpose 303 A down"')
   expect(markup).toContain('aria-label="Transpose 303 A up"')
   for (const control of [
@@ -237,6 +248,9 @@ it('shows retained 909 flam programming controls', () => {
       setBassParam: () => {},
       setFlamWidth: () => {},
       setSwing: () => {},
+      setVoiceSwing: () => {},
+      setSend: () => {},
+      setFx: () => {},
       toggleAutomationRecording: () => {},
       clearAutomation: () => {},
       initialSection: 'tr909',
