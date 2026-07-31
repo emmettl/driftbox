@@ -10,6 +10,10 @@ import {
   alterTrack,
   bassStepAt,
   chainBarAt,
+  clearBassLine,
+  clearTrack,
+  copyBassLine,
+  copyDrumLane,
   cycleStep,
   decodeSong,
   delayDivision,
@@ -18,6 +22,8 @@ import {
   randomizeTrack,
   rotateBassLine,
   rotateTrack,
+  pasteBassLine,
+  pasteDrumLane,
   setBassStep,
   songBars,
   stepAt,
@@ -25,6 +31,8 @@ import {
   toggleFlam,
   transposeBassLine,
   type BassParams,
+  type BassLineClipboard,
+  type DrumLaneClipboard,
   type FxParams,
   type GrooveboxSection,
   type Pattern,
@@ -121,6 +129,15 @@ const pan = (value: number): string => {
 }
 const wave = (value: number): string => (value < 0.5 ? 'saw' : 'sqr')
 
+type FocusClipboard =
+  | {
+      kind: 'drum'
+      label: string
+      section: GrooveboxSection
+      lanes: DrumLaneClipboard[]
+    }
+  | { kind: 'bass'; label: string; line: BassLineClipboard }
+
 export function GrooveboxPatternEditor({
   encoded,
   setPattern,
@@ -200,6 +217,7 @@ export function GrooveboxPatternEditor({
   const [loopBars, setLoopBars] = useState(1)
   const [wholeMachine, setWholeMachine] = useState(false)
   const [flamMode, setFlamMode] = useState(false)
+  const [clipboard, setClipboard] = useState<FocusClipboard | null>(null)
   useEffect(() => {
     if (!loop) return
     setLoopStart(loop.start + 1)
@@ -305,6 +323,51 @@ export function GrooveboxPatternEditor({
         ? nextSection
         : voiceId ?? ALL_VOICES.find((candidate) => candidate.machine === nextSection)?.id ?? '',
   })
+  const focusedDrums = wholeMachine ? voices : voice ? [voice] : []
+  const copyFocused = (): FocusClipboard | null => {
+    if (bass) {
+      const copied: FocusClipboard = {
+        kind: 'bass',
+        label: sectionName(section),
+        line: copyBassLine(pattern, section),
+      }
+      setClipboard(copied)
+      return copied
+    }
+    if (focusedDrums.length === 0) return null
+    const copied: FocusClipboard = {
+      kind: 'drum',
+      label: wholeMachine ? `whole ${sectionName(section)}` : focusedDrums[0].name,
+      section,
+      lanes: focusedDrums.map((candidate) => copyDrumLane(pattern, candidate.id)),
+    }
+    setClipboard(copied)
+    return copied
+  }
+  const cutFocused = () => {
+    if (!copyFocused()) return
+    let next = pattern
+    if (bass) next = clearBassLine(next, section)
+    else for (const candidate of focusedDrums) next = clearTrack(next, candidate.id)
+    save(next, true)
+  }
+  const canPaste =
+    clipboard?.kind === (bass ? 'bass' : 'drum') &&
+    (clipboard?.kind !== 'drum' || clipboard.lanes.length === 1 || clipboard.section === section)
+  const pasteFocused = () => {
+    if (!clipboard || !canPaste) return
+    let next = pattern
+    if (clipboard.kind === 'bass' && bass) {
+      next = pasteBassLine(next, section, clipboard.line)
+    } else if (clipboard.kind === 'drum' && !bass) {
+      const targets = clipboard.lanes.length > 1 ? voices : focusedDrums.slice(0, 1)
+      targets.forEach((candidate, index) => {
+        const lane = clipboard.lanes[index]
+        if (lane) next = pasteDrumLane(next, candidate.id, lane)
+      })
+    }
+    save(next, true)
+  }
 
   return (
     <section className="rk-groovebox-editor" aria-label="Groovebox pattern editor">
@@ -536,6 +599,34 @@ export function GrooveboxPatternEditor({
             </button>
           </>
         )}
+      </div>
+
+      <div className="rk-groovebox-clipboard" aria-label="Groovebox focused clipboard">
+        <strong>{rotateTarget}</strong>
+        <button type="button" onClick={cutFocused} aria-label={`Cut ${rotateTarget}`}>
+          cut
+        </button>
+        <button type="button" onClick={copyFocused} aria-label={`Copy ${rotateTarget}`}>
+          copy
+        </button>
+        <button
+          type="button"
+          disabled={!canPaste}
+          onClick={pasteFocused}
+          aria-label={`Paste into ${rotateTarget}`}
+          title={
+            canPaste && clipboard
+              ? `Paste ${clipboard.label} into ${rotateTarget}`
+              : clipboard?.kind === 'drum' && clipboard.lanes.length > 1
+                ? 'A whole-machine clipboard pastes into the same drum machine'
+              : `Copy a ${bass ? '303 line' : 'drum lane or machine'} first`
+          }
+        >
+          paste
+        </button>
+        <span aria-live="polite">
+          {clipboard ? `${clipboard.label} copied` : 'clipboard empty'}
+        </span>
       </div>
 
       <div className="rk-groovebox-automation" aria-label="Groovebox automation recorder">

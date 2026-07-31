@@ -300,6 +300,57 @@ export function clearTrack(pattern: Pattern, voiceId: string): Pattern {
   return { ...pattern, tracks, flams }
 }
 
+export interface DrumLaneClipboard {
+  kind: 'drum'
+  steps: StepValue[]
+  flams?: boolean[]
+}
+
+export interface BassLineClipboard {
+  kind: 'bass'
+  steps: BassStep[]
+}
+
+/** Snapshot one authored drum lane, including 909 articulation, as detached clipboard data. */
+export function copyDrumLane(pattern: Pattern, voiceId: string): DrumLaneClipboard {
+  const steps = Array.from(
+    { length: pattern.length },
+    (_, index) => pattern.tracks[voiceId]?.[index] ?? 0,
+  )
+  const marks = Array.from(
+    { length: pattern.length },
+    (_, index) => pattern.flams?.[voiceId]?.[index] === true,
+  )
+  return marks.some(Boolean) ? { kind: 'drum', steps, flams: marks } : { kind: 'drum', steps }
+}
+
+/** Replace one drum lane from detached clipboard data, fitting it to the destination length. */
+export function pasteDrumLane(
+  pattern: Pattern,
+  voiceId: string,
+  clipboard: DrumLaneClipboard,
+): Pattern {
+  const tracks = {
+    ...pattern.tracks,
+    [voiceId]: Array.from(
+      { length: pattern.length },
+      (_, index) => clipboard.steps[index] ?? 0,
+    ),
+  }
+  const flams = { ...pattern.flams }
+  if (clipboard.flams?.some(Boolean)) {
+    flams[voiceId] = Array.from(
+      { length: pattern.length },
+      (_, index) => clipboard.flams?.[index] === true,
+    )
+  } else {
+    delete flams[voiceId]
+  }
+  return Object.keys(flams).length > 0
+    ? { ...pattern, tracks, flams }
+    : { ...pattern, tracks, flams: undefined }
+}
+
 export function flamAt(pattern: Pattern, voiceId: string, step: number): boolean {
   return pattern.flams?.[voiceId]?.[step % pattern.length] === true
 }
@@ -524,6 +575,35 @@ export function clearBassLine(pattern: Pattern, voiceId: string): Pattern {
   const bass = { ...pattern.bass }
   delete bass[voiceId]
   return { ...pattern, bass }
+}
+
+/** Snapshot a complete 303 line, with note, accent and slide detached from the song. */
+export function copyBassLine(pattern: Pattern, voiceId: string): BassLineClipboard {
+  return {
+    kind: 'bass',
+    steps: Array.from(
+      { length: pattern.length },
+      (_, index) => ({ ...(pattern.bass?.[voiceId]?.[index] ?? REST) }),
+    ),
+  }
+}
+
+/** Replace one 303 line from clipboard data, fitting it to the destination length. */
+export function pasteBassLine(
+  pattern: Pattern,
+  voiceId: string,
+  clipboard: BassLineClipboard,
+): Pattern {
+  return {
+    ...pattern,
+    bass: {
+      ...pattern.bass,
+      [voiceId]: Array.from(
+        { length: pattern.length },
+        (_, index) => ({ ...(clipboard.steps[index] ?? REST) }),
+      ),
+    },
+  }
 }
 
 // ---- the arrangement ----------------------------------------------------------

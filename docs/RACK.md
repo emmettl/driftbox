@@ -132,6 +132,14 @@ taps audition the authored machine instead of also reaching the generic MIDI gra
 entire take coalesces into one rack undo step. The arm, focus and held notes remain session
 state; only the resulting pattern steps enter the compatible song envelope.
 
+Focused cut/copy/paste stays at that authored-data boundary too. A drum clipboard carries
+its hit/accent states and any 909 flam marks; a 303 clipboard carries pitch, accent and
+slide. The lane/all focus used by rotate also decides whether one drum voice or the whole
+machine is copied, and pasting fits detached data to the destination clip length. The
+clipboard is session state, while cut and paste are discrete, undoable pattern edits. The
+copy/paste transforms live in the engine rather than this faceplate so the original editor
+can expose exactly the same operation without translating song data through the rack.
+
 ## What this is not
 
 It is not an extension of `@driftbox/engine`. That engine is trigger-shaped — a voice is a

@@ -3,12 +3,16 @@ import {
   addPattern,
   alterBassLine,
   alterTrack,
+  copyBassLine,
+  copyDrumLane,
   defaultKit,
   duplicatePattern,
   emptyPattern,
   flamAt,
   randomizeBassLine,
   randomizeTrack,
+  pasteBassLine,
+  pasteDrumLane,
   removePattern,
   renamePattern,
   rotateBassLine,
@@ -250,6 +254,41 @@ describe('pattern transforms', () => {
     const before = pattern()
     expect(rotateTrack(before, '808.bd', 1)).toBe(before)
     expect(alterBassLine(before, '303.b', () => 0)).toBe(before)
+  })
+
+  it('copies and pastes a drum lane with its flam marks and destination length', () => {
+    const source = toggleFlam(pattern(), '909.bd', 2)
+    const clipboard = copyDrumLane(source, '909.bd')
+    source.tracks['909.bd'][0] = 0
+
+    const destination: Pattern = {
+      id: 'short',
+      name: 'Short',
+      length: 3,
+      tracks: { '808.sd': [2, 2, 2] },
+      flams: { '808.sd': [true, true, true] },
+    }
+    const pasted = pasteDrumLane(destination, '808.sd', clipboard)
+
+    expect(pasted.tracks['808.sd']).toEqual([1, 0, 2])
+    expect(pasted.flams?.['808.sd']).toEqual([false, false, true])
+  })
+
+  it('copies and pastes a detached 303 line, filling a longer destination with rests', () => {
+    const source = pattern()
+    const clipboard = copyBassLine(source, '303.a')
+    source.bass!['303.a'][0].note = 19
+    const destination = { ...emptyPattern('long', 'Long', 6), bass: {} }
+    const pasted = pasteBassLine(destination, '303.b', clipboard)
+
+    expect(pasted.bass?.['303.b']).toEqual([
+      { note: 2, accent: true, slide: false },
+      { note: null, accent: false, slide: false },
+      { note: 12, accent: false, slide: true },
+      { note: 24, accent: false, slide: false },
+      { note: null, accent: false, slide: false },
+      { note: null, accent: false, slide: false },
+    ])
   })
 })
 
