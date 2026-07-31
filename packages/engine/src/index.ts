@@ -6,7 +6,14 @@ import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
-import { barLengthForBar, patternForBar, type Song } from './pattern.js'
+import {
+  CLIP_SLOTS,
+  barLengthForBar,
+  clipSlotForVoice,
+  patternForBar,
+  type ClipSlot,
+  type Song,
+} from './pattern.js'
 import { buildVoice, voiceById } from './kit.js'
 import { planStep } from './schedule.js'
 import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams } from './types.js'
@@ -44,6 +51,16 @@ export { TR909_VOICES } from './voices/tr909.js'
  *  short enough that a lost key-up cannot leave a 303 droning for the rest of the day. */
 const HELD_SECONDS = 30
 
+/**
+ * The four authored machines that make one groovebox song.
+ *
+ * This deliberately aliases the arrangement's clip slots. A section output and the clip
+ * selected for it must never acquire competing identities: `tr808` means the same machine
+ * in a scene, an automation target and a host's audio routing.
+ */
+export type GrooveboxSection = ClipSlot
+export const GROOVEBOX_SECTIONS: readonly GrooveboxSection[] = CLIP_SLOTS
+
 export interface EngineOptions {
   /** Supply your own context to share one with other audio in the host app. */
   context?: AudioContext
@@ -55,16 +72,37 @@ export interface EngineOptions {
    * outputs. The node must belong to `context`.
    */
   destination?: AudioNode
+  /**
+   * Replace the dry destination of any authored machine.
+   *
+   * Unspecified sections continue through the engine's complete mastered mix. A supplied
+   * destination receives that section pre-master and pre-send-return, while the section's
+   * delay and reverb sends still return through the engine destination. This is the live
+   * equivalent of a drum machine's individual outputs: a host can put the 909 through its
+   * own rack chain without reimplementing a single voice or flattening the song.
+   *
+   * Every node must belong to `context`.
+   */
+  sectionDestinations?: Partial<Record<GrooveboxSection, AudioNode>>
   /** Master level, 0..1. */
   gain?: number
 }
 
 export class DriftboxEngine {
   readonly ctx: AudioContext
-  /** Tap for visualisers. Everything audible passes through it. */
+  /** Tap for visualisers. Everything left on the engine's mastered route passes through it. */
   readonly analyser: AnalyserNode
+  /**
+   * One unity output per authored machine, before the shared bus and effect returns.
+   *
+   * Public as a read-only routing surface rather than as four more engines. The engine
+   * still owns their lifetime and the song still owns everything they play.
+   */
+  readonly sectionOutputs: Readonly<Record<GrooveboxSection, GainNode>>
 
   private readonly bus: GainNode
+  /** The one destination currently fed by each section output. */
+  private readonly sectionDestinations: Partial<Record<GrooveboxSection, AudioNode>> = {}
   private readonly master: GainNode
   private readonly transport: Transport
   /** One ringing voice per choke group, so a closed hat can cut off an open one. */
@@ -118,6 +156,16 @@ export class DriftboxEngine {
 
     this.bus = this.ctx.createGain()
     this.bus.gain.value = 0.9
+    this.sectionOutputs = Object.fromEntries(
+      GROOVEBOX_SECTIONS.map((section) => {
+        const output = this.ctx.createGain()
+        output.gain.value = 1
+        return [section, output]
+      }),
+    ) as Record<GrooveboxSection, GainNode>
+    for (const section of GROOVEBOX_SECTIONS) {
+      this.routeSection(section, options.sectionDestinations?.[section] ?? null)
+    }
 
     // A gentle bus compressor. Drum machines are all transient, and without something
     // holding the peaks the master has to sit so low that everything sounds thin.
@@ -217,13 +265,36 @@ export class DriftboxEngine {
     }
   }
 
+  /** Unknown future voices keep reaching the complete mix rather than disappearing. */
+  private outputFor(voiceId: string): AudioNode {
+    const section = clipSlotForVoice(voiceId)
+    return section ? this.sectionOutputs[section] : this.bus
+  }
+
+  /**
+   * Move one dry authored machine between the engine master and a host-owned route.
+   *
+   * This changes one Web Audio connection and nothing about the song or transport, so
+   * patching a hosted 909 through a rack effect does not restart the bar it is playing.
+   * Passing null restores the original mastered route.
+   */
+  routeSection(section: GrooveboxSection, destination: AudioNode | null): void {
+    const output = this.sectionOutputs[section]
+    const previous = this.sectionDestinations[section]
+    const next = destination ?? this.bus
+    if (previous === next) return
+    if (previous) output.disconnect(previous)
+    output.connect(next)
+    this.sectionDestinations[section] = next
+  }
+
   /** Build the 303s once their filter is available. Idempotent; the promise is the
    *  latch, so concurrent callers all wait on the same load. */
   private ensureBass(): Promise<void> {
     this.bassReady ??= (async () => {
       for (const voice of BASS_VOICES) {
         const { bassline, usingLadder } = await Bassline.create(this.ctx)
-        bassline.output.connect(this.bus)
+        bassline.output.connect(this.outputFor(voice.id))
         this.basslines.set(voice.id, bassline)
         this.usingLadder = usingLadder
       }
@@ -358,7 +429,7 @@ export class DriftboxEngine {
       }
     }
 
-    const handle = renderVoice(this.ctx, spec, this.bus, time)
+    const handle = renderVoice(this.ctx, spec, this.outputFor(voiceId), time)
     this.routeSends(voiceId, handle.output, sends, time)
     if (voice.choke) this.choking.set(voice.choke, handle)
   }
@@ -424,7 +495,7 @@ export class DriftboxEngine {
 
     const params = { ...(this.song.kit.params[voiceId] ?? DEFAULT_PARAMS), tune }
     const spec = buildVoice(voice, params, accent ? 1 : 0.6)
-    const handle = renderVoice(this.ctx, spec, this.bus, this.ctx.currentTime + 0.01)
+    const handle = renderVoice(this.ctx, spec, this.outputFor(voiceId), this.ctx.currentTime + 0.01)
     this.routeSends(voiceId, handle.output)
     // Whether the note actually landed where it was asked, so the UI can grey out the
     // keys this voice cannot reach rather than lighting them and lying.
@@ -476,6 +547,7 @@ export class DriftboxEngine {
     for (const gain of this.sendGains.values()) gain.disconnect()
     this.sendGains.clear()
     this.sends.dispose()
+    for (const output of Object.values(this.sectionOutputs)) output.disconnect()
     this.bus.disconnect()
     this.master.disconnect()
     this.analyser.disconnect()
