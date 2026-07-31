@@ -17,6 +17,7 @@ export * from './timing.js'
 export * from './bass.js'
 export * from './effects.js'
 export * from './song-io.js'
+export * from './automation.js'
 export * from './kaoss.js'
 // The shipped patterns ship WITH the engine, not with the app. Driftlings wants the
 // patterns as much as the machines — an adaptive soundtrack that has to author its own
@@ -321,12 +322,11 @@ export class DriftboxEngine {
     this.trigger(voiceId, this.ctx.currentTime + 0.01, accent)
   }
 
-  trigger(voiceId: string, time: number, accent: number): void {
+  trigger(voiceId: string, time: number, accent: number, params?: VoiceParams): void {
     const voice = voiceById(voiceId)
     if (!voice) return
 
-    const params = this.song.kit.params[voiceId] ?? DEFAULT_PARAMS
-    const spec = buildVoice(voice, params, accent)
+    const spec = buildVoice(voice, params ?? this.song.kit.params[voiceId] ?? DEFAULT_PARAMS, accent)
 
     if (voice.choke) {
       const previous = this.choking.get(voice.choke)
@@ -432,7 +432,11 @@ export class DriftboxEngine {
     // What this step plays is worked out by `planStep`, which the stem renderer uses
     // too — the two must never disagree about which voice sounds when.
     const plan = planStep(this.song, event)
-    for (const hit of plan.drums) this.trigger(hit.voiceId, hit.time, hit.accent)
+    if (this.transport.bpm !== plan.bpm) {
+      this.transport.bpm = plan.bpm
+      this.syncFx()
+    }
+    for (const hit of plan.drums) this.trigger(hit.voiceId, hit.time, hit.accent, hit.params)
     for (const hit of plan.bass) {
       const bassline = this.basslines.get(hit.voiceId)
       if (!bassline) continue

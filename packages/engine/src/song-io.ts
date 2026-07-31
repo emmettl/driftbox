@@ -2,6 +2,8 @@ import { DEFAULT_BASS_PARAMS, type BassParams, type BassStep } from './bass.js'
 import { DEFAULT_FX, DEFAULT_SENDS, type SendLevels } from './effects.js'
 import {
   CLIP_SLOTS,
+  type AutomationLane,
+  type AutomationPoint,
   type ChainStep,
   type ClipSlot,
   type Kit,
@@ -32,6 +34,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 /**
  * Bumped when the shape changes in a way a reader cannot infer from the value alone.
  *
+ * 5 — songs may carry recordable parameter automation lanes.
  * 4 — patterns may carry 909 flam marks and the kit may carry their global width.
  * 3 — chain entries may independently select an 808, 909 and each 303 clip.
  * 2 — the chain became a list of `{ pattern, repeat }` rather than a list of pattern ids,
@@ -43,7 +46,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
  * rather than against the version number, because a v1 file and a hand-written one with
  * no version at all are the same problem, and only one of them announces itself.
  */
-export const SONG_FORMAT = 4
+export const SONG_FORMAT = 5
 
 interface Envelope {
   v: number
@@ -191,6 +194,51 @@ function kit(value: unknown): Kit {
   return { params, bass, sends, swing, ...(flam === undefined ? {} : { flam }) }
 }
 
+function automation(value: unknown): AutomationLane[] {
+  if (!Array.isArray(value)) return []
+  const lanes: AutomationLane[] = []
+  const seen = new Set<string>()
+  // These bounds are generous for authored music and keep an imported file from turning
+  // one lookup per scheduled step into unbounded work.
+  for (const rawLane of value.slice(0, 256)) {
+    if (!isRecord(rawLane)) continue
+    const target =
+      typeof rawLane.target === 'string' && rawLane.target.trim() !== ''
+        ? rawLane.target.slice(0, 160)
+        : undefined
+    if (!target || seen.has(target) || !Array.isArray(rawLane.points)) continue
+    const byPosition = new Map<string, AutomationPoint>()
+    for (const rawPoint of rawLane.points.slice(0, 4096)) {
+      if (!isRecord(rawPoint) || typeof rawPoint.value !== 'number' || !Number.isFinite(rawPoint.value)) {
+        continue
+      }
+      const point: AutomationPoint = {
+        bar: Math.round(clamp(rawPoint.bar, 0, 4095, 0)),
+        index: Math.round(clamp(rawPoint.index, 0, 63, 0)),
+        value:
+          target === 'song/bpm'
+            ? clamp(rawPoint.value, 20, 300, 120)
+            : target.startsWith('song/') ||
+                target.startsWith('voice/') ||
+                target.startsWith('bass/') ||
+                target.startsWith('swing/')
+              ? clamp(rawPoint.value, 0, 1, 0)
+              : clamp(rawPoint.value, -1_000_000, 1_000_000, 0),
+      }
+      byPosition.set(`${point.bar}:${point.index}`, point)
+    }
+    const points = [...byPosition.values()].sort((a, b) => a.bar - b.bar || a.index - b.index)
+    if (points.length === 0) continue
+    seen.add(target)
+    lanes.push({
+      target,
+      interpolation: rawLane.interpolation === 'hold' ? 'hold' : 'linear',
+      points,
+    })
+  }
+  return lanes
+}
+
 /**
  * Read a song back. Returns `null` only when the input is not a song at all —
  * unparseable, the wrong shape, or with no usable pattern in it.
@@ -243,6 +291,7 @@ export function decodeSong(text: string): Song | null {
     // than nothing, because `patternForBar` falls back to the first pattern.
     .filter((entry): entry is ChainStep => entry !== null && ids.has(entry.pattern))
 
+  const lanes = automation(body.automation)
   return {
     bpm: Math.round(clamp(body.bpm, 20, 300, 120)),
     swing: clamp(body.swing, 0, 1, 0),
@@ -250,5 +299,6 @@ export function decodeSong(text: string): Song | null {
     chain,
     kit: kit(body.kit),
     fx: knobs(body.fx, DEFAULT_FX),
+    ...(lanes.length > 0 ? { automation: lanes } : {}),
   }
 }

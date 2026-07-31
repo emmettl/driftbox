@@ -91,6 +91,29 @@ export interface ChainStep {
   repeat: number
 }
 
+export type AutomationInterpolation = 'hold' | 'linear'
+
+export interface AutomationPoint {
+  /** Absolute arrangement bar, zero based. */
+  bar: number
+  /** Step within that bar, zero based. */
+  index: number
+  value: number
+}
+
+/**
+ * One recordable parameter over the song timeline.
+ *
+ * Targets are stable strings rather than object paths. Hosts may persist lanes they do
+ * not understand yet, while the helpers in `automation.ts` construct the targets this
+ * engine can currently play.
+ */
+export interface AutomationLane {
+  target: string
+  interpolation: AutomationInterpolation
+  points: AutomationPoint[]
+}
+
 export interface Song {
   bpm: number
   swing: number
@@ -102,6 +125,8 @@ export interface Song {
   /** Settings for the two send effects. Shared by everything, because the point of a
    *  send is that every voice lands in the same room. */
   fx?: FxParams
+  /** Optional so every song written before automation remains a valid Song. */
+  automation?: AutomationLane[]
 }
 
 export function emptyPattern(id: string, name: string, length = 16): Pattern {
