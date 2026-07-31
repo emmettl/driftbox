@@ -31,6 +31,8 @@ beforeEach(() => {
     flipped: false,
     notes: [],
     name: null,
+    grooveboxLauncher: null,
+    grooveboxLaunches: {},
   })
 })
 
@@ -724,6 +726,38 @@ describe('editing a retained Groovebox pattern', () => {
       { pattern: song.patterns[0].id, repeat: 1 },
     ])
   })
+
+  it('keeps queued and active clip launches out of the document and undo history', () => {
+    const patch = useRack.getState().patch
+    const history = useRack.getState().history
+    const patternId = grooveboxSong(patch)!.patterns[1].id
+
+    useRack.getState().setGrooveboxLaunch({
+      section: 'tr808',
+      patternId,
+      phase: 'queued',
+    })
+    expect(useRack.getState().grooveboxLaunches.tr808).toEqual({
+      patternId,
+      phase: 'queued',
+    })
+
+    useRack.getState().setGrooveboxLaunch({
+      section: 'tr808',
+      patternId,
+      phase: 'active',
+    })
+    expect(useRack.getState().grooveboxLaunches.tr808?.phase).toBe('active')
+    expect(useRack.getState().patch).toBe(patch)
+    expect(useRack.getState().history).toBe(history)
+
+    useRack.getState().setGrooveboxLaunch({
+      section: 'tr808',
+      patternId: null,
+      phase: 'active',
+    })
+    expect(useRack.getState().grooveboxLaunches.tr808).toBeUndefined()
+  })
 })
 
 describe('undo', () => {
@@ -826,6 +860,20 @@ describe('undo', () => {
     expect(grooveboxSong(state().patch)?.patterns[0]).toEqual(song.patterns[0])
     expect(state().revision).toBe(revision)
     expect(patchCompatibility(state().patch)).toBe('groovebox-compatible')
+  })
+
+  it('undoes a retained machine clip assignment without rebuilding', () => {
+    useRack.setState({ patch: embedGrooveboxSong(SONGS[0].build()), history: NO_HISTORY })
+    const song = grooveboxSong(state().patch)!
+    const before = song.chain[0].clips?.tr909
+    const wanted = song.patterns.find((pattern) => pattern.id !== song.chain[0].pattern)!.id
+    const revision = state().revision
+
+    state().setGrooveboxClip(0, 'tr909', wanted)
+    state().undo()
+
+    expect(grooveboxSong(state().patch)?.chain[0].clips?.tr909).toBe(before)
+    expect(state().revision).toBe(revision)
   })
 })
 

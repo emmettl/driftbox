@@ -104,6 +104,26 @@ describe('the times it emits', () => {
 })
 
 describe('bar lengths', () => {
+  it('commits a boundary before asking how long its bar is', () => {
+    const calls: string[] = []
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      onBar: (bar) => calls.push(`bar:${bar}`),
+      barLength: (bar) => {
+        calls.push(`length:${bar}`)
+        return 2
+      },
+      onStep: (event) => events.push(event),
+    })
+    transport.start()
+    run(clock, 0.8)
+    transport.stop()
+
+    expect(calls.slice(0, 2)).toEqual(['bar:0', 'length:0'])
+    const next = calls.indexOf('bar:1')
+    expect(next).toBeGreaterThan(0)
+    expect(calls[next + 1]).toBe('length:1')
+  })
+
   it('asks for the length of the bar about to start, not bar zero', () => {
     const asked: number[] = []
     const transport = start((bar) => {

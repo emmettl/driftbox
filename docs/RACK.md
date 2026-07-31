@@ -93,8 +93,11 @@ without recompiling the rack graph, restarting the arrangement or turning a comp
 into a rack-extended document. A section selector beside the steps assigns any pattern from
 the retained bank to the selected machine in that arrangement section. Selecting the
 section's fallback removes the redundant override, preserving the old whole-pattern song
-shape where possible. Live quantised launch and instrument controls remain the next editor
-layers.
+shape where possible. Each machine can also launch the selected retained pattern on the
+next bar or return to following the authored arrangement. Queued and active launch state is
+explicit on the faceplate but remains session-only: it never rewrites the retained envelope,
+enters undo history or changes a groovebox-compatible document into a rack extension.
+Instrument controls remain the next editor layer.
 
 ## What this is not
 

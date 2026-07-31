@@ -121,6 +121,25 @@ export default function RackApp() {
   const groovebox = useRef<DriftboxEngine | null>(null)
   /** Exact envelope currently hosted, so rack-only edits do not rebuild the song engine. */
   const hostedGroovebox = useRef<string | undefined>(undefined)
+  /** Detach launch observations before replacing the hosted engine. */
+  const grooveboxLaunchObserver = useRef<(() => void) | null>(null)
+  const bindGrooveboxLauncher = useCallback((hosted: DriftboxEngine | null) => {
+    grooveboxLaunchObserver.current?.()
+    grooveboxLaunchObserver.current = null
+
+    const state = useRack.getState()
+    state.clearGrooveboxLaunches()
+    state.setGrooveboxLauncher(
+      hosted
+        ? (section, patternId) => hosted.queueClip(section, patternId)
+        : null,
+    )
+    if (hosted) {
+      grooveboxLaunchObserver.current = hosted.onClipLaunch((event) =>
+        useRack.getState().setGrooveboxLaunch(event),
+      )
+    }
+  }, [])
   /**
    * The rack's own analyser.
    *
@@ -539,6 +558,7 @@ export default function RackApp() {
       return
     }
 
+    bindGrooveboxLauncher(null)
     current?.dispose()
     groovebox.current = null
     if (!retainedSong) return
@@ -548,9 +568,10 @@ export default function RackApp() {
       destination: pad.input,
     })
     groovebox.current = hosted
+    bindGrooveboxLauncher(hosted)
     routeGrooveboxSources(hosted, live, useRack.getState().patch)
     if (playing) void hosted.start()
-  }, [patch.groovebox, patch.tempo, playing, retainedSong])
+  }, [bindGrooveboxLauncher, patch.groovebox, patch.tempo, playing, retainedSong])
 
   /**
    * Render the patch to a WAV and hand it over.
@@ -771,6 +792,7 @@ export default function RackApp() {
       : null
     groovebox.current = hosted
     hostedGroovebox.current = currentPatch.groovebox
+    bindGrooveboxLauncher(hosted)
 
     const scope = ctx.createAnalyser()
     scope.fftSize = 2048
@@ -802,7 +824,7 @@ export default function RackApp() {
     // has been rendered into it — so the gesture that starts audio is also the one that fills the Sampler.
     const wanted = useRack.getState().patch.break ?? opening.current?.preset?.needsBreak
     if (wanted) void loadBreakRef.current(wanted)
-  }, [connectAudioInput, setRunning])
+  }, [bindGrooveboxLauncher, connectAudioInput, setRunning])
 
 
   /**
@@ -838,9 +860,10 @@ export default function RackApp() {
     () => () => {
       midi.current?.close()
       audioInput.current?.close()
+      bindGrooveboxLauncher(null)
       groovebox.current?.dispose()
     },
-    [],
+    [bindGrooveboxLauncher],
   )
 
   // The keyboards have to agree with the graph about how many voices there are, or a note lands on a voice

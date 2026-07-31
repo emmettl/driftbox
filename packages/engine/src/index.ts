@@ -2,20 +2,20 @@ import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, type BassStep } from './bas
 import { Bassline } from './bassline.js'
 import { DEFAULT_FX, DEFAULT_SENDS, Sends, type SendLevels } from './effects.js'
 import { Kaoss } from './kaoss.js'
+import { ClipLauncher, type ClipLaunchEvent } from './clip-launch.js'
 import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
 import {
   CLIP_SLOTS,
-  barLengthForBar,
   clipSlotForVoice,
   patternForBar,
   type ClipSlot,
   type Song,
 } from './pattern.js'
 import { buildVoice, voiceById } from './kit.js'
-import { planStep } from './schedule.js'
+import { barLengthForSelection, planStep } from './schedule.js'
 import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams } from './types.js'
 
 export * from './types.js'
@@ -26,6 +26,7 @@ export * from './effects.js'
 export * from './song-io.js'
 export * from './automation.js'
 export * from './kaoss.js'
+export * from './clip-launch.js'
 // The shipped patterns ship WITH the engine, not with the app. Driftlings wants the
 // patterns as much as the machines — an adaptive soundtrack that has to author its own
 // haze/drift/neon before it can play anything is not much of a soundtrack — and the
@@ -107,6 +108,8 @@ export class DriftboxEngine {
   private readonly sectionTaps: Partial<Record<GrooveboxSection, AudioNode>> = {}
   private readonly master: GainNode
   private readonly transport: Transport
+  /** Session performance state: never written into `song`. */
+  private readonly clipLauncher = new ClipLauncher()
   /** One ringing voice per choke group, so a closed hat can cut off an open one. */
   private readonly choking = new Map<string, VoiceHandle>()
   /** One persistent monosynth per 303, built once the ladder worklet has loaded. */
@@ -216,7 +219,9 @@ export class DriftboxEngine {
     this.analyser.connect(destination)
 
     this.transport = new Transport(this.ctx, {
-      barLength: (bar) => barLengthForBar(this.song, bar),
+      onBar: () => this.clipLauncher.activate(),
+      barLength: (bar) =>
+        barLengthForSelection(this.song, bar, this.clipLauncher.selection),
       onStep: (event) => this.playStep(event),
     })
     this.transport.bpm = song.bpm
@@ -397,6 +402,24 @@ export class DriftboxEngine {
     return this.transport.loop
   }
 
+  /**
+   * Launch one machine's pattern at the next bar, or pass null to follow the song again.
+   *
+   * Returns false for an unknown pattern without disturbing an already queued launch.
+   */
+  queueClip(section: GrooveboxSection, patternId: string | null): boolean {
+    if (patternId !== null && !this.song.patterns.some((pattern) => pattern.id === patternId)) {
+      return false
+    }
+    this.clipLauncher.queue(section, patternId)
+    return true
+  }
+
+  /** Observe queued and active launch state without coupling the engine to a UI store. */
+  onClipLaunch(listener: (event: ClipLaunchEvent) => void): () => void {
+    return this.clipLauncher.onChange(listener)
+  }
+
   /** Whether the transport is currently counting in rather than playing the song. */
   get countingIn(): boolean {
     return this.transport.running && this.transport.position.bar < this.countInUntil
@@ -544,7 +567,7 @@ export class DriftboxEngine {
 
     // What this step plays is worked out by `planStep`, which the stem renderer uses
     // too — the two must never disagree about which voice sounds when.
-    const plan = planStep(this.song, event)
+    const plan = planStep(this.song, event, this.clipLauncher.selection)
     if (this.transport.bpm !== plan.bpm) {
       this.transport.bpm = plan.bpm
     }
@@ -569,6 +592,7 @@ export class DriftboxEngine {
     for (const gain of this.sendGains.values()) gain.disconnect()
     this.sendGains.clear()
     this.sends.dispose()
+    this.clipLauncher.clear()
     for (const output of Object.values(this.sectionOutputs)) output.disconnect()
     this.bus.disconnect()
     this.master.disconnect()

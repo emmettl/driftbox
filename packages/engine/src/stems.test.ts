@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { songSeconds, toWav, voicesUsed } from './stems.js'
 import { acidSong, defaultSong } from './songs/index.js'
-import { planSong, planStep } from './schedule.js'
+import { barLengthForSelection, planSong, planStep } from './schedule.js'
 import { songBars, type Pattern } from './pattern.js'
 
 // The parts of stem rendering that do not need an audio context. The rendering itself is
@@ -196,6 +196,34 @@ describe('the shared step planner', () => {
     })
     expect(second.drums.map((hit) => hit.voiceId)).toEqual(['909.bd'])
     expect(second.bass.map((hit) => hit.voiceId)).toEqual(['303.a'])
+  })
+
+  it('lets a live selection override one machine without changing the song', () => {
+    const base = defaultSong()
+    const primary: Pattern = {
+      id: 'primary',
+      name: 'Primary',
+      length: 4,
+      tracks: { '808.bd': [1, 0, 0, 0] },
+    }
+    const alternate: Pattern = {
+      id: 'alternate',
+      name: 'Alternate',
+      length: 8,
+      tracks: { '808.bd': [0, 1, 0, 0, 0, 0, 0, 0] },
+    }
+    const song = {
+      ...base,
+      patterns: [primary, alternate],
+      chain: [{ pattern: 'primary', repeat: 1 }],
+    }
+    const event = { absolute: 1, index: 1, bar: 0, time: 0.1, stepSeconds: 0.1 }
+
+    expect(planStep(song, event).drums).toHaveLength(0)
+    expect(planStep(song, event, { tr808: 'alternate' }).drums.map((hit) => hit.voiceId))
+      .toEqual(['808.bd'])
+    expect(barLengthForSelection(song, 0, { tr808: 'alternate' })).toBe(8)
+    expect(song.chain[0]).toEqual({ pattern: 'primary', repeat: 1 })
   })
 
   it('schedules a 909 flam as a second strike at the configured width', () => {

@@ -10,13 +10,16 @@ import {
 import {
   CLIP_SLOTS,
   barLengthForBar,
+  clipSlotForVoice,
   flamAt,
   patternForBar,
   patternForClip,
-  patternForVoice,
   stepAt,
+  type ClipSlot,
+  type Pattern,
   type Song,
 } from './pattern.js'
+import type { ClipSelection } from './clip-launch.js'
 import { swingDelay } from './timing.js'
 import type { StepEvent } from './transport.js'
 import type { VoiceParams } from './types.js'
@@ -61,6 +64,32 @@ export interface StepPlan {
   bass: BassHit[]
 }
 
+/** Resolve one machine through a session launch, falling back to the authored section. */
+function selectedPattern(
+  song: Song,
+  bar: number,
+  slot: ClipSlot,
+  selection: ClipSelection,
+): Pattern | undefined {
+  const patternId = selection[slot]
+  return (
+    (patternId ? song.patterns.find((pattern) => pattern.id === patternId) : undefined) ??
+    patternForClip(song, bar, slot)
+  )
+}
+
+/** A launched polymetric clip may lengthen the incoming bar. */
+export function barLengthForSelection(
+  song: Song,
+  bar: number,
+  selection: ClipSelection = {},
+): number {
+  return Math.max(
+    barLengthForBar(song, bar),
+    ...CLIP_SLOTS.map((slot) => selectedPattern(song, bar, slot, selection)?.length ?? 0),
+  )
+}
+
 /**
  * Everything one step of the song plays, at absolute times.
  *
@@ -68,7 +97,11 @@ export interface StepPlan {
  * point of the transport emitting straight times. Hats shuffling against a kick that stays
  * on the grid is a groove you cannot get from one global setting.
  */
-export function planStep(song: Song, event: StepEvent): StepPlan {
+export function planStep(
+  song: Song,
+  event: StepEvent,
+  selection: ClipSelection = {},
+): StepPlan {
   const bpm = bpmAt(song, event.bar, event.index)
   const stepSeconds = 60 / bpm / 4
   const fx = fxParamsAt(song, event.bar, event.index)
@@ -87,15 +120,22 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
   // slots fall back to the same whole-groove pattern.
   const sources = [
     pattern,
-    ...CLIP_SLOTS.map((slot) => patternForClip(song, event.bar, slot)).filter(
+    ...CLIP_SLOTS.map((slot) => selectedPattern(song, event.bar, slot, selection)).filter(
       (source) => source !== undefined,
     ),
   ]
 
+  const forVoice = (voiceId: string): Pattern | undefined => {
+    const slot = clipSlotForVoice(voiceId)
+    return slot
+      ? selectedPattern(song, event.bar, slot, selection)
+      : patternForBar(song, event.bar)
+  }
+
   const drumVoices = new Set(sources.flatMap((source) => Object.keys(source.tracks)))
   const drums: DrumHit[] = []
   for (const voiceId of drumVoices) {
-    const source = patternForVoice(song, event.bar, voiceId)
+    const source = forVoice(voiceId)
     if (!source) continue
     const value = stepAt(source, voiceId, event.index)
     if (value === 0) continue
@@ -117,7 +157,7 @@ export function planStep(song: Song, event: StepEvent): StepPlan {
   )
   const bass: BassHit[] = []
   for (const voiceId of bassVoices) {
-    const source = patternForVoice(song, event.bar, voiceId)
+    const source = forVoice(voiceId)
     const line = source?.bass?.[voiceId]
     if (!source || !line) continue
     const step = line[event.index % source.length]
