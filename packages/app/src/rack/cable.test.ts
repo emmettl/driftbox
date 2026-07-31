@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { SWING_MS, cableMiddle, cablePath, sag, swingAngle, swingPeriod, swingSeed } from './cable.js'
+import {
+  SWING_MS,
+  cableMiddle,
+  cablePath,
+  cablePoint,
+  sag,
+  swingAngle,
+  swingPeriod,
+  swingSeed,
+} from './cable.js'
 
 // A cable is decoration, so what is worth testing is not the curve family but the behaviour that makes
 // it read as a cable rather than a diagram: it always hangs BELOW both of its ends, and pulling the ends
@@ -65,6 +74,17 @@ describe('a hanging cable', () => {
     const middle = cableMiddle(from, to)
     expect(middle.x).toBe(200)
     expect(middle.y).toBeCloseTo(50 + drop * 0.75, 5)
+  })
+
+  it('samples the exact curve used to draw it', () => {
+    const from = at(10, 20)
+    const to = at(410, 120)
+    expect(cablePoint(from, to, 0)).toEqual(from)
+    expect(cablePoint(from, to, 1)).toEqual(to)
+    expect(cablePoint(from, to, 0.5)).toEqual(cableMiddle(from, to))
+    // Progress is clamped so a particle calculation cannot escape past a plug.
+    expect(cablePoint(from, to, -1)).toEqual(from)
+    expect(cablePoint(from, to, 2)).toEqual(to)
   })
 
   it('rounds its coordinates so the path string stays short', () => {

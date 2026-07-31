@@ -185,6 +185,16 @@ function belly(from: Point, to: Point, angle: number): { across: number; down: n
   }
 }
 
+/** The two control points shared by drawing, hit testing and deletion particles. */
+function controls(from: Point, to: Point, angle: number): [Point, Point] {
+  const { across, down } = belly(from, to, angle)
+  const dx = to.x - from.x
+  return [
+    { x: from.x + dx * 0.25 + across, y: from.y + down },
+    { x: to.x - dx * 0.25 + across, y: to.y + down },
+  ]
+}
+
 /**
  * An SVG path for a cable between two jacks, optionally mid-swing.
  *
@@ -193,11 +203,33 @@ function belly(from: Point, to: Point, angle: number): { across: number; down: n
  * keeps the ends leaving the jacks at a shallower angle, as though the plug were pointing outward.
  */
 export function cablePath(from: Point, to: Point, angle = 0): string {
-  const { across, down } = belly(from, to, angle)
-  const dx = to.x - from.x
-  const c1 = { x: from.x + dx * 0.25 + across, y: from.y + down }
-  const c2 = { x: to.x - dx * 0.25 + across, y: to.y + down }
+  const [c1, c2] = controls(from, to, angle)
   return `M ${round(from.x)} ${round(from.y)} C ${round(c1.x)} ${round(c1.y)}, ${round(c2.x)} ${round(c2.y)}, ${round(to.x)} ${round(to.y)}`
+}
+
+/**
+ * A point on the cable's cubic curve.
+ *
+ * Deletion smoke is emitted along the lead rather than from its bounding box, so it needs the same
+ * geometry as the path. Keeping the cubic arithmetic here prevents the particles drifting off a cable
+ * when the sag or swing model changes.
+ */
+export function cablePoint(from: Point, to: Point, progress: number, angle = 0): Point {
+  const t = Math.max(0, Math.min(1, progress))
+  const remaining = 1 - t
+  const [c1, c2] = controls(from, to, angle)
+  return {
+    x:
+      remaining ** 3 * from.x +
+      3 * remaining ** 2 * t * c1.x +
+      3 * remaining * t ** 2 * c2.x +
+      t ** 3 * to.x,
+    y:
+      remaining ** 3 * from.y +
+      3 * remaining ** 2 * t * c1.y +
+      3 * remaining * t ** 2 * c2.y +
+      t ** 3 * to.y,
+  }
 }
 
 /**
@@ -210,11 +242,7 @@ export function cablePath(from: Point, to: Point, angle = 0): string {
  * second and a half after a flip would look detached from the thing it belongs to.
  */
 export function cableMiddle(from: Point, to: Point, angle = 0): Point {
-  const { across, down } = belly(from, to, angle)
-  return {
-    x: (from.x + to.x) / 2 + across * 0.75,
-    y: (from.y + to.y) / 2 + down * 0.75,
-  }
+  return cablePoint(from, to, 0.5, angle)
 }
 
 const round = (value: number) => Math.round(value * 10) / 10

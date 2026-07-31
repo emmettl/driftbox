@@ -2147,6 +2147,90 @@ kbd {
   stroke-width: 5;
 }
 
+/* The cable is already gone from the patch when this appears. What remains is a frozen copy of its
+ * old curve: the lead breaks into hot fragments while smoke seeded along that same cubic rises away.
+ * The group owns the lifetime so React can discard the snapshot on one animationend event. */
+.rk-cable-evaporation {
+  pointer-events: none;
+  animation: rk-cable-evaporation-life 900ms linear forwards;
+}
+.rk-cable-evaporation-glow,
+.rk-cable-evaporation-line {
+  fill: none;
+  stroke-linecap: round;
+}
+.rk-cable-evaporation-glow {
+  stroke: rgba(232, 228, 255, 0.28);
+  stroke-width: 9;
+  animation: rk-cable-glow-out 460ms ease-out forwards;
+}
+.rk-cable-evaporation-line {
+  stroke: var(--ink);
+  stroke-width: 4;
+  animation: rk-cable-fray 720ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.rk-cable-smoke {
+  fill: rgba(157, 149, 200, 0.48);
+  filter: blur(1.4px);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rk-cable-smoke 760ms ease-out var(--rk-smoke-delay) forwards;
+}
+
+@keyframes rk-cable-evaporation-life {
+  0%,
+  98% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes rk-cable-glow-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    stroke-width: 14;
+  }
+}
+
+@keyframes rk-cable-fray {
+  0% {
+    opacity: 1;
+    stroke-dasharray: 1 0;
+    stroke-dashoffset: 0;
+  }
+  38% {
+    opacity: 0.82;
+    stroke-dasharray: 11 5;
+  }
+  100% {
+    opacity: 0;
+    stroke-width: 1;
+    stroke-dasharray: 2 19;
+    stroke-dashoffset: -52;
+  }
+}
+
+@keyframes rk-cable-smoke {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.45);
+  }
+  12% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--rk-smoke-drift), var(--rk-smoke-rise)) scale(3.2);
+  }
+}
+
 /* A real unplug affordance, one per occupied inlet.
  *
  * Cable middles remain quick click targets, but a transparent target is something an existing user can
@@ -2183,6 +2267,18 @@ kbd {
 .rk-cable-unplug:hover .rk-cable-unplug-icon,
 .rk-cable-unplug:focus-visible .rk-cable-unplug-icon {
   stroke: var(--bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-cable-evaporation {
+    animation-duration: 1ms;
+  }
+  .rk-cable-evaporation-glow,
+  .rk-cable-evaporation-line,
+  .rk-cable-smoke {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* ---- the on-screen keyboard ---------------------------------------------------

@@ -36,6 +36,20 @@ describe('unplugging a cable from the back panel', () => {
 
       expect(useRack.getState().patch.cables).toEqual([])
       expect(host.querySelector('.rk-cable-unplug')).toBeNull()
+      expect(host.querySelector('.rk-cable-evaporation')).toBeTruthy()
+      expect(host.querySelectorAll('.rk-cable-smoke')).toHaveLength(9)
+
+      flushSync(() =>
+        host
+          .querySelector('.rk-cable-evaporation')!
+          .dispatchEvent(
+            new AnimationEvent('animationend', {
+              animationName: 'rk-cable-evaporation-life',
+              bubbles: true,
+            }),
+          ),
+      )
+      expect(host.querySelector('.rk-cable-evaporation')).toBeNull()
     } finally {
       flushSync(() => root.unmount())
       host.remove()
