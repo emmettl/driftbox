@@ -1298,6 +1298,12 @@ kbd {
   right: 8px;
   display: flex;
   gap: 4px;
+  /* **Above the drag grip, which it was not.** The grip is a transparent overlay across the whole title
+     bar at `z-index: 2`, and these buttons sit inside that band at `top: 6px` — so every one of them has
+     been covered since the grip arrived, and a pointer could not reach any of them. The keyboard could,
+     which is why it went unnoticed: `RACK.md` argues the arrows exist so that reordering is available to
+     anybody who cannot drag, and they were working for exactly those people and nobody else. */
+  z-index: 3;
 }
 .rk-module-tools button {
   padding: 1px 6px;

@@ -100,7 +100,7 @@ had before the undo.
 
 | | Reason | Here | Notes |
 |---|---|---|---|
-| Duplicate a device | Copy, paste, duplicate, with settings | Absent | Chunks insert *recipes*; nothing copies a module you have already tuned |
+| Duplicate a device | Copy, paste, duplicate, with settings | **Landed** | Copies params and pattern data, lands beside the original, arrives unpatched |
 | Auto-routing | A new device connects to the next mixer channel | Chunks only | `addModule` appends an unpatched module; `insertChunk` wires a fresh Out, which is the same idea |
 | CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
 | Bypass | On / Bypass / Off on every effect | Terminal only | `Out` has mute and solo; no other module can be taken out of circuit |
@@ -170,7 +170,8 @@ Worth writing down so nobody builds them twice.
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
 3. Recorded automation, once the ABI carries a frame.
 4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
-5. The rack-wide table above, in whatever order the annoyance surfaces.
+5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate is done; the
+   next cheapest are per-device bypass and auto-routing a bare module onto its own Out.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.
