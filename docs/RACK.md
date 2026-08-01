@@ -54,6 +54,12 @@ The two app entry points now exercise it: “rack” carries the current song in
 `rack.html`, which accepts both document kinds and can send the retained song back to the
 sequencer unchanged.
 
+Performance state follows the same boundary. A recognised retained Song owns its opaque
+visual scene id, so changing scenes in rack mode remains groovebox-compatible and returns
+to the sequencer intact. A rack-native document stores that id on the Patch instead. The
+scene host is mounted only in split or full-pad view, over the existing master XY filter;
+the readable front/back patching surface never receives a moving backdrop.
+
 An understood retained song is now audible in rack mode through the existing
 `DriftboxEngine`, not a second rendering implementation. `EngineOptions.destination`
 puts that complete mix on the rack's final Kaoss/analyser bus beside the worklet graph,
@@ -740,10 +746,10 @@ The risk is all in the first item. Do it first and alone.
    - **Past the end of the data is a rest, not a wrap.** An empty bank slot is what an unfinished song
      looks like; wrapping would make it secretly repeat bar one and be very hard to debug.
 
-   Still to do: shipped songs and a player mode. **The visualiser
-   question below is settled by that last one** — the objection was that a moving scene competes with a
-   back panel you are trying to *read*, and in a player you are not reading anything. Scenes belong behind
-   the player, not the patcher.
+   Shipped rack-native songs remain future work. The performance mode is now present, and it settles the
+   visualiser question below: a moving scene competes with a back panel you are trying to *read*, while in
+   split/full-pad performance views it has its own surface. Scenes belong on that player, not behind the
+   patcher.
 
    **The Arranger** ✅ — a list of sections, each a pattern and a count of bars, driving a Tracker's pattern
    inlet. The mechanism was already there; this is the thing that made a song something you can *see*.
@@ -952,9 +958,9 @@ The risk is all in the first item. Do it first and alone.
    One line of CSS. **Only driving the page finds this**, which is now the fourth time that sentence has
    had to be written here.
 
-## The visualiser, and why it is not on the rack yet
+## The visualiser, and why it lives on the performance pad
 
-The sequencer has seventeen 3D scenes and the obvious next move is to put one behind the rack. Measured
+The sequencer has seventeen 3D scenes and the obvious first move was to put one behind the rack. Measured
 rather than assumed, that costs more than it looks:
 
 | | |
@@ -962,15 +968,16 @@ rather than assumed, that costs more than it looks:
 | rack page today | **40 kB** |
 | `three` + `@react-three/fiber` | ~600 kB |
 
-Fifteen times the page, for something decorative. It is also the wrong decoration: the back panel is a
+Fifteen times the original page, for something decorative. It is also the wrong decoration: the back panel is a
 picture you are trying to *read* — which cable goes where, which one is dashed — and a moving scene behind
 it competes with exactly the thing it would be sitting behind.
 
 The oscilloscope was worth it and cost nothing extra, because it is diagnostic: a VCA left shut reads as a
 flat line and a patch clipping into the Out reads as a flattened top, and neither is visible any other way.
 
-If the scenes do arrive, the shape is a **dynamic import** behind a switch that is off by default, so the
-600 kB is paid by whoever asks for it. Worth deciding deliberately rather than drifting into.
+The shipped shape therefore keeps that original constraint: the scene code is a **dynamic import** mounted
+only when the user chooses split or full-pad view. The 600 kB is paid by whoever asks for the performance
+surface, and the rack and back panel remain visually quiet.
 
 **The third obstacle is now gone** ✅, and it was the only one that was an accident rather than a decision.
 Every scene did `useBox((s) => s.engine)` and handed it to `readLevels`, which only ever wanted
@@ -990,9 +997,11 @@ to reach one `AnalyserNode`. The rack could not have used a scene at any price.
 - **A test sweeps the directory** for an import of the store or the engine, because copying an existing
   scene as the start of a new one is exactly how this comes back, and it would come back silently.
 
-Cost: 0.26 kB on the sequencer's bundle, nothing on the rack's. What remains between here and a scene
-behind the rack is the 600 kB and the argument about reading a back panel — a decision and a taste
-question, which is where it should be.
+The host-neutral boundary now pays off in rack mode. `PerformPad` supplies the rack analyser, transport
+state and tempo to the same `Visualiser`, forwards pad gestures to both the master Kaoss filter and shared
+scene touch state, and exposes the same scene cycle control. Scene choice is document state: retained songs
+keep it within the song envelope, while rack-native patches use their optional top-level field. This avoids
+both bundle cost on the editing-only path and visual competition with a readable patch panel.
 5. **Playing it, then polyphony.** Decided rather than guessed at, in this order — and two things
    fell out of the deciding that make the work smaller than it looked.
 

@@ -278,6 +278,9 @@ interface RackState {
   setTempo: (tempo: number) => void
   /** Change the generated break the patch asks its host to load. The id travels; the rendered audio does not. */
   setBreak: (id: string | null) => void
+  /** Save a host-resolved performance scene. Compatible Groovebox documents keep the
+   * hint inside their retained song; rack-native documents keep it on the patch. */
+  setVisual: (scene: string) => void
   /**
    * Replace one pattern inside the retained Groovebox song.
    *
@@ -847,6 +850,18 @@ export const useRack = create<RackState>((set, get) => {
         if ((id ?? undefined) === patch.break) return patch
         const { break: _drop, ...rest } = patch
         return id ? { ...rest, break: id } : rest
+      }),
+    setVisual: (scene) =>
+      write('visual', false, (patch) => {
+        const wanted = scene.trim().slice(0, 120)
+        if (wanted === '') return patch
+        const song = grooveboxSong(patch)
+        if (song) {
+          if (song.visual === wanted && patch.visual === undefined) return patch
+          const { visual: _drop, ...rest } = patch
+          return { ...rest, groovebox: encodeSong({ ...song, visual: wanted }) }
+        }
+        return patch.visual === wanted ? patch : { ...patch, visual: wanted }
       }),
 
     setGrooveboxPattern: (pattern, discrete = false) =>

@@ -2795,6 +2795,21 @@ kbd {
     radial-gradient(120% 100% at 100% 100%, rgba(255, 122, 217, 0.16), transparent 60%),
     var(--panel);
 }
+.rk-pad-visualiser {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+.rk-pad-visual-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 4, 15, 0.34), transparent 28%),
+    radial-gradient(90% 70% at 50% 100%, rgba(7, 4, 15, 0.5), transparent 70%);
+  pointer-events: none;
+}
 .rk-pad-face-back {
   opacity: 0;
   transform: rotateY(180deg);
@@ -2818,6 +2833,7 @@ kbd {
 
 .rk-pad-dot {
   position: absolute;
+  z-index: 2;
   width: 26px;
   height: 26px;
   margin: -13px 0 0 -13px;
@@ -2905,6 +2921,7 @@ kbd {
 
 .rk-pad-axis {
   position: absolute;
+  z-index: 2;
   font: 10px var(--mono);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2925,11 +2942,35 @@ kbd {
 
 .rk-pad-readout {
   position: absolute;
+  z-index: 2;
   top: 12px;
   right: 14px;
   font: 12px var(--mono);
   color: var(--ink);
   pointer-events: none;
+}
+
+.rk-pad-scene {
+  position: absolute;
+  z-index: 3;
+  top: 11px;
+  left: 13px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(7, 4, 15, 0.68);
+  color: var(--ink);
+  font: 10px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: auto;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.rk-pad-scene:hover,
+.rk-pad-scene:focus-visible {
+  border-color: var(--nine);
+  color: var(--nine);
 }
 
 @media (prefers-reduced-motion: reduce) {
