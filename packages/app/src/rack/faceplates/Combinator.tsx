@@ -1,7 +1,7 @@
 import { COMBI_CONTROLS, COMBI_ROTARY_MAX, MODULES } from '@driftbox/rack'
 import { Knob } from '../../ui/Knob.js'
 import { useRack } from '../store.js'
-import { bindingsFor, describeBinding } from '../cc.js'
+import { bindingsFor, describeBinding } from '../../midi-cc.js'
 import type { FaceplateProps } from './types.js'
 
 // Reason's Combinator front panel: four rotaries, four buttons, and a way through to what they drive.

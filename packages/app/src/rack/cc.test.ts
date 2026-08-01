@@ -124,6 +124,10 @@ describe('storage', () => {
     expect(loadBindings(store)).toEqual(bindings)
   })
 
+  it('reads bindings saved under the former rack-only key', () => {
+    expect(loadBindings(memory(JSON.stringify([binding()])))).toEqual([binding()])
+  })
+
   it('is no bindings rather than an error when storage is unavailable', () => {
     // Private browsing, a blocked third-party context. Not worth a broken page in front of somebody who
     // just opened a synth.

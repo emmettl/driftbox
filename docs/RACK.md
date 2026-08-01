@@ -1165,7 +1165,8 @@ question, which is where it should be.
    hats 0.64, and Break 0.0000 exactly, which is what makes its `needsSample` flag a real distinction
    rather than a precaution.
 
-   **5b⅞. Playing the Combinator from hardware.** ✅ Built — MIDI learn, in `app/src/rack/cc.ts`.
+   **5b⅞. Playing the Combinator from hardware.** ✅ Built — MIDI learn, now shared with the
+   original editor in `app/src/midi-cc.ts` while rack targets keep their module identities.
 
    The Combinator is a **performance** idea: one gesture moving a dozen parameters. Performing it with a
    mouse is one gesture at a time, so until this it was a macro panel you configured rather than one you

@@ -1,6 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BASS_VOICES, voiceById } from '@driftbox/engine'
 import { useBox } from '../store'
+import { KeyboardBank, openMidi, type MidiHandle, type VoiceState } from '../midi.js'
+import {
+  bindingsFor,
+  ccValue,
+  describeBinding,
+  forget,
+  learn,
+  loadBindings,
+  saveBindings,
+  targets as ccTargets,
+  type CcBinding,
+} from '../midi-cc.js'
+import {
+  applyGrooveboxMidiTarget,
+  GROOVEBOX_MIDI_MODULE,
+  grooveboxMidiTargetRange,
+  grooveboxMidiTargets,
+} from '../groovebox-midi.js'
 
 // A keyboard for the 303s — and for the toms, which are pitched percussion and have
 // wanted playing chromatically since the day they were added.
@@ -66,9 +84,12 @@ export function Keys() {
   const selectedBass = useBox((s) => s.selectedBass)
   const selectBass = useBox((s) => s.selectBass)
   const selectedVoice = useBox((s) => s.selectedVoice)
+  const view = useBox((s) => s.view)
   // Which instrument the keys drive. The 303s, or whichever pitched drum voice is
   // selected in the grid — you pick Low Tom over there and it becomes playable here.
   const [target, setTarget] = useState<string | null>(null)
+  const targetRef = useRef<string | null>(null)
+  targetRef.current = target
   const collapsed = useBox((s) => s.collapsed.keys ?? false)
   const toggleCollapsed = useBox((s) => s.toggleCollapsed)
   const init = useBox((s) => s.init)
@@ -85,10 +106,156 @@ export function Keys() {
   // to light every held key, even though only the last one is audible.
   const [held, setHeld] = useState<number[]>([])
   const heldRef = useRef<number[]>([])
+  const [midiHeld, setMidiHeld] = useState<number[]>([])
+
+  // Hardware bindings describe the controller on this desk, not the song. Rack and
+  // groovebox share the file, with a namespace keeping their stable targets separate.
+  const [bindings, setBindings] = useState<CcBinding[]>(() => loadBindings())
+  const bindingsRef = useRef(bindings)
+  bindingsRef.current = bindings
+  const [learning, setLearning] = useState<string | null>(null)
+  const learningRef = useRef<string | null>(null)
+  learningRef.current = learning
+  const learnTargets = useMemo(
+    () => grooveboxMidiTargets(view === 'bass', selectedVoice, selectedBass),
+    [view, selectedVoice, selectedBass],
+  )
+  const [mapping, setMapping] = useState(learnTargets[0].param)
+  const activeMapping = learnTargets.some((candidate) => candidate.param === mapping)
+    ? mapping
+    : learnTargets[0].param
+  const learned = bindingsFor(bindings, GROOVEBOX_MIDI_MODULE).get(activeMapping)
+
+  const bank = useRef(new KeyboardBank())
+  const midi = useRef<MidiHandle | null>(null)
+  const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
+  const [midiInputs, setMidiInputs] = useState<string[]>([])
+  /** Bass voice a channel started on. A selection change while a key is held must not
+   * send the eventual note-off to a different 303. */
+  const midiBass = useRef(new Map<number, string>())
+  /** Pitched drums are hits, not sustained voices. Remember a channel's passage so the
+   * mono allocator returning to an older held key does not strike that tom twice. */
+  const midiDrums = useRef(
+    new Map<number, { id: string; played: Set<number>; current: number }>(),
+  )
 
   // The grid's selected voice, if the keyboard could play it.
   const pitchedVoice = voiceById(selectedVoice)?.pitched ? voiceById(selectedVoice) : undefined
   const drum = target ? voiceById(target) : undefined
+
+  const playMidiVoice = useCallback(
+    (state: VoiceState, channel: number) => {
+      init()
+      const box = useBox.getState()
+      const capturedBass = midiBass.current.get(channel)
+      const capturedDrum = midiDrums.current.get(channel)
+
+      if (state.gate === 0) {
+        if (capturedBass) {
+          box.engine?.bassNoteOff(capturedBass)
+          midiBass.current.delete(channel)
+        }
+        midiDrums.current.delete(channel)
+        setMidiHeld(bank.current.sounding().map((note) => note - 33))
+        return
+      }
+
+      // Once a legato passage starts on a 303 it stays there until its gate closes,
+      // even if the editor selection changes while the player's fingers are down.
+      if (capturedBass) {
+        box.engine?.bassNoteOn(capturedBass, state.note - 33, state.velocity >= 0.8, true)
+      } else if (capturedDrum) {
+        // A repeated note-on should retrigger; a fallback to an older held note should
+        // not. The allocator reports both as gate-on, so the held passage disambiguates.
+        if (!capturedDrum.played.has(state.note) || capturedDrum.current === state.note) {
+          box.engine?.auditionPitched(capturedDrum.id, state.note - 33, state.velocity >= 0.8)
+        }
+        capturedDrum.played.add(state.note)
+        capturedDrum.current = state.note
+      } else {
+        const selectedTarget = targetRef.current
+        const selectedDrum = selectedTarget ? voiceById(selectedTarget) : undefined
+        if (selectedDrum?.pitched) {
+          box.engine?.auditionPitched(selectedDrum.id, state.note - 33, state.velocity >= 0.8)
+          midiDrums.current.set(channel, {
+            id: selectedDrum.id,
+            played: new Set([state.note]),
+            current: state.note,
+          })
+        } else {
+          midiBass.current.set(channel, box.selectedBass)
+          box.engine?.bassNoteOn(box.selectedBass, state.note - 33, state.velocity >= 0.8, false)
+        }
+      }
+      setMidiHeld(bank.current.sounding().map((note) => note - 33))
+    },
+    [init],
+  )
+
+  const onControl = useCallback((cc: number, raw: number, _channel: number) => {
+    const armed = learningRef.current
+    if (armed) {
+      const next = learn(bindingsRef.current, {
+        cc,
+        channel: 0,
+        module: GROOVEBOX_MIDI_MODULE,
+        param: armed,
+      })
+      bindingsRef.current = next
+      saveBindings(next)
+      setBindings(next)
+      setLearning(null)
+      return
+    }
+
+    for (const binding of ccTargets(bindingsRef.current, cc, _channel)) {
+      if (binding.module !== GROOVEBOX_MIDI_MODULE) continue
+      const range = grooveboxMidiTargetRange(binding.param)
+      if (!range) continue
+      applyGrooveboxMidiTarget(binding.param, ccValue(raw, range), useBox.getState())
+    }
+  }, [])
+
+  const toggleMidi = useCallback(async () => {
+    if (midi.current) {
+      for (const { state, channel } of bank.current.allOff()) playMidiVoice(state, channel)
+      midi.current.close()
+      midi.current = null
+      setMidiInputs([])
+      setMidiState('off')
+      setLearning(null)
+      return
+    }
+
+    const handle = await openMidi(
+      {
+        onVoice: playMidiVoice,
+        // The mod wheel is an ordinary learnable CC in the groovebox. Rack mode adds
+        // the dedicated modulation output, one of the ways it remains the superset.
+        onMod: () => {},
+        onControl,
+        onInputs: setMidiInputs,
+      },
+      bank.current,
+    )
+    if (!handle) {
+      setMidiState('unavailable')
+      return
+    }
+    midi.current = handle
+    setMidiInputs(handle.inputs)
+    setMidiState('on')
+  }, [onControl, playMidiVoice])
+
+  useEffect(
+    () => () => {
+      midi.current?.close()
+      for (const voice of midiBass.current.values()) useBox.getState().engine?.bassNoteOff(voice)
+      midiBass.current.clear()
+      midiDrums.current.clear()
+    },
+    [],
+  )
 
   const press = useCallback(
     (semitone: number) => {
@@ -189,7 +356,11 @@ export function Keys() {
     drum?.pitched ? drum.pitched.low * Math.pow(2, semitone / 12) > drum.pitched.high : false
 
   return (
-    <section className={`keys${collapsed ? ' collapsed' : ''}${held.length ? ' sounding' : ''}`}>
+    <section
+      className={`keys${collapsed ? ' collapsed' : ''}${
+        held.length || midiHeld.length ? ' sounding' : ''
+      }`}
+    >
       <div className="keys-head">
         <button
           className="fold-toggle"
@@ -200,57 +371,134 @@ export function Keys() {
           <h3>Keys</h3>
         </button>
 
-        {!collapsed && (
-          <div className="keys-tools">
-            <div className="bass-pick">
-              {BASS_VOICES.map((v) => (
-                <button
-                  key={v.id}
-                  className={!target && v.id === selectedBass ? 'on' : ''}
-                  onClick={() => {
-                    setTarget(null)
-                    selectBass(v.id)
-                  }}
-                  title={`Play ${v.name}`}
-                >
-                  {v.id.slice(-1).toUpperCase()}
-                </button>
-              ))}
-              {/* Only offered when the voice selected in the grid is one the tune knob
+        <div className="keys-head-tools">
+          <button
+            className={`ghost keys-midi${midiState === 'on' ? ' on' : ''}`}
+            onClick={() => void toggleMidi()}
+            aria-pressed={midiState === 'on'}
+            title={
+              midiState === 'unavailable'
+                ? 'Web MIDI is unavailable or permission was refused'
+                : midiState === 'on'
+                  ? `${midiInputs.length} MIDI input${midiInputs.length === 1 ? '' : 's'} connected`
+                  : 'Enable hardware MIDI input'
+            }
+          >
+            {midiState === 'unavailable'
+              ? 'MIDI unavailable'
+              : `MIDI${midiState === 'on' && midiInputs.length ? ` · ${midiInputs.length}` : ''}`}
+          </button>
+
+          {!collapsed && (
+            <div className="keys-tools">
+              <div className="bass-pick">
+                {BASS_VOICES.map((v) => (
+                  <button
+                    key={v.id}
+                    className={!target && v.id === selectedBass ? 'on' : ''}
+                    onClick={() => {
+                      setTarget(null)
+                      selectBass(v.id)
+                    }}
+                    title={`Play ${v.name}`}
+                  >
+                    {v.id.slice(-1).toUpperCase()}
+                  </button>
+                ))}
+                {/* Only offered when the voice selected in the grid is one the tune knob
                   actually moves the pitch of. A snare has a tune knob too, and playing
                   tunes on it is not a thing anybody wants. */}
-              {pitchedVoice && (
-                <button
-                  className={`keys-drum${target === pitchedVoice.id ? ' on' : ''}`}
-                  onClick={() => setTarget(target === pitchedVoice.id ? null : pitchedVoice.id)}
-                  title={`Play ${pitchedVoice.name}`}
-                >
-                  {pitchedVoice.name}
-                </button>
-              )}
-            </div>
-            <button
-              className={`ghost${accent ? ' on' : ''}`}
-              onClick={() => setAccent((a) => !a)}
-              title="Accent — or hold shift"
-            >
-              accent
-            </button>
-            <div className="keys-octave">
-              <button onClick={() => setOctave((o) => Math.max(-1, o - 1))} aria-label="Octave down">
-                −
-              </button>
-              <span>{octave > 0 ? `+${octave}` : octave}</span>
+                {pitchedVoice && (
+                  <button
+                    className={`keys-drum${target === pitchedVoice.id ? ' on' : ''}`}
+                    onClick={() => setTarget(target === pitchedVoice.id ? null : pitchedVoice.id)}
+                    title={`Play ${pitchedVoice.name}`}
+                  >
+                    {pitchedVoice.name}
+                  </button>
+                )}
+              </div>
               <button
-                onClick={() => setOctave((o) => Math.min(MAX_OCTAVE, o + 1))}
-                aria-label="Octave up"
+                className={`ghost${accent ? ' on' : ''}`}
+                onClick={() => setAccent((a) => !a)}
+                title="Accent — or hold shift"
               >
-                +
+                accent
               </button>
+              <div className="keys-octave">
+                <button
+                  onClick={() => setOctave((o) => Math.max(-1, o - 1))}
+                  aria-label="Octave down"
+                >
+                  −
+                </button>
+                <span>{octave > 0 ? `+${octave}` : octave}</span>
+                <button
+                  onClick={() => setOctave((o) => Math.min(MAX_OCTAVE, o + 1))}
+                  aria-label="Octave up"
+                >
+                  +
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {!collapsed && (
+        <div className="keys-midi-learn">
+          <label>
+            <span>MIDI map</span>
+            <select
+              value={activeMapping}
+              onChange={(event) => {
+                setMapping(event.target.value)
+                setLearning(null)
+              }}
+            >
+              {learnTargets.map((candidate) => (
+                <option key={candidate.param} value={candidate.param}>
+                  {candidate.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className={`ghost${learning === activeMapping ? ' on' : ''}`}
+            disabled={midiState !== 'on'}
+            onClick={() => setLearning((armed) => (armed === activeMapping ? null : activeMapping))}
+          >
+            {learning === activeMapping
+              ? 'turn a control…'
+              : learned
+                ? describeBinding(learned)
+                : 'learn'}
+          </button>
+          {learned && (
+            <button
+              className="ghost"
+              onClick={() => {
+                const next = forget(bindingsRef.current, GROOVEBOX_MIDI_MODULE, activeMapping)
+                bindingsRef.current = next
+                saveBindings(next)
+                setBindings(next)
+                setLearning(null)
+              }}
+            >
+              forget
+            </button>
+          )}
+          <span className="keys-midi-hint">
+            {midiState === 'on'
+              ? learning
+                ? 'Move the hardware knob to bind it'
+                : midiInputs.length
+                  ? midiInputs.join(', ')
+                  : 'Ready — connect a controller'
+              : 'Enable MIDI to play the selected Keys instrument and learn controls'}
+          </span>
+        </div>
+      )}
 
       {!collapsed && (
         <div
@@ -264,7 +512,7 @@ export function Keys() {
         >
           {LAYOUT.map((k) => {
             const semitone = semitoneOf(k)
-            const on = held.includes(semitone)
+            const on = held.includes(semitone) || midiHeld.includes(semitone)
             return (
               <button
                 key={k.key}
