@@ -682,7 +682,7 @@ The risk is all in the first item. Do it first and alone.
      pages pass their own. Diagnostic rather than decorative here — a VCA left shut reads as a flat
      line, and a patch clipping into the Out reads as a flattened top.
 
-   Then: **a patch library.**
+   Then: **a document library.**
 
    Four shipped patches live in `@driftbox/rack`, not in the app — the same reasoning that puts the songs
    in the engine: they are data about the rack rather than about the page showing it, so a headless
@@ -691,10 +691,13 @@ The risk is all in the first item. Do it first and alone.
    would demonstrate the opposite of what a modular is: one has no sequencer, one has no oscillator, and
    `patches.test.ts` asserts that rather than trusting it.
 
-   Named slots on top, in `app/src/rack/library.ts`. Storage is a **parameter** defaulting to
-   `localStorage`, which is what makes the whole thing testable in Node against a plain Map — the same
-   trade `compile` makes by taking a registry instead of importing one. A library nobody can test is a
-   library that quietly loses somebody's patches.
+   Named slots now live in shared `app/src/document-library.ts`; `app/src/rack/library.ts` is a
+   compatibility entry point. Songs and patches share a name namespace, and each encoded entry records
+   its type plus the rack/groovebox compatibility state so listing never has to decode the whole shelf.
+   The groovebox keeps rack-only entries visible but cannot load them; the rack can host either type.
+   The former `driftbox.patches.v1` shelf is read as a migration source and carried into the typed shelf
+   on first write without deleting the old key. Storage remains a **parameter** defaulting to
+   `localStorage`, which keeps the entire migration and CRUD surface testable against a plain Map.
 
    **Module drag-to-reorder** ✅ — by the title bar, with a drop line showing where it lands. Four things
    decided by building it:

@@ -63,8 +63,11 @@ focus. Both modes now expose the same mastered retained-song WAV, while rack mod
 patch render explicit and separate. They also share the browser MIDI host, monophonic note
 allocator and hardware mapping store: the original editor can play its focused 303 or pitched
 drum and learn every authored control, while rack mode adds polyphony, channels, modulation
-and Combinator routing. Next, continue named-library interchange; do not duplicate authored
-patterns into anonymous rack primitives.
+and Combinator routing. Songs and patches now also share one named local library with explicit
+document type and compatibility state; rack-only entries remain visible in the groovebox but
+cannot be flattened there, and the old patch shelf migrates on first write. Next, close the
+remaining authored effects and performance-scene gaps; do not duplicate authored patterns into
+anonymous rack primitives.
 
 ## What is deliberate
 
@@ -660,12 +663,13 @@ that is the only reason to export a set.
 What is left of the original idea is live multi-channel output for the rare machine with an
 interface attached. Not built, and not verifiable here.
 
-### 3. Somewhere to put your own songs
+### 3. Somewhere to put your own songs — landed
 
-Sixteen shipped songs demonstrate the range. What is missing is anywhere to keep your own. The obvious next
-step is user songs saved by name rather than one autosave slot and a file dialog — the
-storage layer already round-trips a whole Song, so this is a list and a picker rather than
-new machinery.
+The original editor now saves songs by name into the same local shelf as rack patches. Entries
+carry their document kind and groovebox/rack compatibility without decoding the entire library.
+Both editors can load songs, while the groovebox shows rack-extended and rack-native work without
+offering a lossy load. Existing `driftbox.patches.v1` entries are read in place and copied into the
+typed shelf on the first new save; the legacy key is not deleted.
 
 ## Known limitations
 

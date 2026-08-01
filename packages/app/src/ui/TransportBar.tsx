@@ -6,6 +6,7 @@ import { PatternTools } from './PatternTools'
 import { buildLabel, buildTitle } from '../version'
 import { rackLink } from '../persistence'
 import { StemTray } from './StemTray'
+import { SongLibrary } from './SongLibrary'
 
 /** Confirmation that lives for a moment and then goes away. Sharing and saving both
  *  succeed silently otherwise, and a button that appears to do nothing gets pressed
@@ -57,6 +58,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const [flash, showFlash] = useFlash()
   const [more, setMore] = useState(false)
   const [stems, setStems] = useState(false)
+  const [library, setLibrary] = useState(false)
 
   const pattern = song.patterns.find((p) => p.id === editing)
   const automationLanes = song.automation?.length ?? 0
@@ -244,6 +246,13 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
       </label>
 
       <div className="song-tools">
+        <button
+          className="ghost"
+          onClick={() => setLibrary(true)}
+          title="Open the local song and rack library"
+        >
+          library
+        </button>
         <a
           className="ghost"
           href="./rack.html"
@@ -320,6 +329,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
           }}
         />
       )}
+      {library && <SongLibrary onClose={() => setLibrary(false)} />}
     </header>
   )
 }

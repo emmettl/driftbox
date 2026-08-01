@@ -1,14 +1,14 @@
-import { PATCHES, importVcv, type ImportNote } from '@driftbox/rack'
+import { PATCHES, embedGrooveboxSong, importVcv, type ImportNote } from '@driftbox/rack'
 import { useState } from 'react'
 import { BREAKS } from './breaks.js'
 import {
-  deletePatch,
+  deleteDocument,
   freshName,
-  listPatches,
-  loadPatch,
-  renamePatch,
+  listDocuments,
+  loadDocument,
+  renameDocument,
   savePatch,
-  type SavedPatch,
+  type SavedDocument,
 } from './library.js'
 import { downloadPatch, pickPatchFile, pickVcvFile } from './persistence.js'
 import { useRack } from './store.js'
@@ -22,7 +22,7 @@ type BrowserTab = 'showcase' | 'saved' | 'breaks' | 'files'
 
 const TABS: readonly { id: BrowserTab; label: string }[] = [
   { id: 'showcase', label: 'Showcase' },
-  { id: 'saved', label: 'My patches' },
+  { id: 'saved', label: 'My library' },
   { id: 'breaks', label: 'Breaks' },
   { id: 'files', label: 'Import / export' },
 ]
@@ -37,13 +37,13 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
   const setName = useRack((s) => s.setName)
 
   const [tab, setTab] = useState<BrowserTab>('showcase')
-  const [saved, setSaved] = useState<SavedPatch[]>(() => listPatches())
+  const [saved, setSaved] = useState<SavedDocument[]>(() => listDocuments())
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
   const [report, setReport] = useState<ImportNote[] | null>(null)
 
-  const refresh = () => setSaved(listPatches())
+  const refresh = () => setSaved(listDocuments())
 
   const adopt = (next: Parameters<typeof load>[0], as: string | null) => {
     load(next)
@@ -53,8 +53,6 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
 
   const saveCurrent = () => {
     const target = name ?? freshName('Patch')
-    const clash = name === null && listPatches().some((entry) => entry.name === target)
-    if (clash && !confirm(`Replace “${target}”?`)) return
     if (!savePatch(target, patch)) {
       setProblem('Could not save — storage is unavailable or full.')
       return
@@ -66,12 +64,15 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
 
   const saveCurrentAs = () => {
     const wanted = prompt('Save as', freshName(name ?? 'Patch'))
-    if (wanted === null) return
-    if (!savePatch(wanted, patch)) {
+    if (wanted === null || wanted.trim() === '') return
+    const target = wanted.trim()
+    const existing = saved.find((entry) => entry.name === target)
+    if (existing && !confirm(`Replace “${target}” (${existing.kind})?`)) return
+    if (!savePatch(target, patch)) {
       setProblem('Could not save under that name.')
       return
     }
-    setName(wanted.trim())
+    setName(target)
     setProblem(null)
     refresh()
   }
@@ -180,8 +181,8 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
 
             {saved.length === 0 && (
               <div className="rk-library-empty">
-                <strong>Your patch shelf is empty.</strong>
-                <span>Save the current rack and it will appear here.</span>
+                <strong>Your document shelf is empty.</strong>
+                <span>Save this rack or a groovebox song and it will appear here.</span>
               </div>
             )}
 
@@ -193,7 +194,7 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                       className="rk-rename"
                       onSubmit={(event) => {
                         event.preventDefault()
-                        if (!renamePatch(entry.name, draft)) {
+                        if (!renameDocument(entry.name, draft)) {
                           setProblem(`Could not rename to “${draft.trim()}” — that name is taken.`)
                           return
                         }
@@ -220,16 +221,30 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                         type="button"
                         className="rk-saved-load"
                         onClick={() => {
-                          const next = loadPatch(entry.name)
+                          const next = loadDocument(entry.name)
                           if (!next) {
                             setProblem(`“${entry.name}” could not be read.`)
                             return
                           }
-                          adopt(next, entry.name)
+                          adopt(
+                            next.kind === 'song' ? embedGrooveboxSong(next.song) : next.patch,
+                            entry.name,
+                          )
                         }}
                       >
-                        <strong>{entry.name}</strong>
-                        <span>{name === entry.name ? 'Open now' : 'Load patch →'}</span>
+                        <strong>
+                          <i className={`rk-document-kind rk-document-kind-${entry.kind}`}>
+                            {entry.kind}
+                          </i>
+                          {entry.name}
+                        </strong>
+                        <span>
+                          {name === entry.name
+                            ? 'Open now'
+                            : entry.kind === 'song'
+                              ? 'Load song →'
+                              : `${entry.compatibility.replace('-', ' ')} →`}
+                        </span>
                       </button>
                       <button
                         type="button"
@@ -248,7 +263,7 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                         aria-label={`Delete ${entry.name}`}
                         onClick={() => {
                           if (!confirm(`Delete “${entry.name}”?`)) return
-                          deletePatch(entry.name)
+                          deleteDocument(entry.name)
                           if (name === entry.name) setName(null)
                           refresh()
                         }}

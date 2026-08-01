@@ -1,0 +1,238 @@
+.db-library-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 2, 8, 0.86);
+  backdrop-filter: blur(14px);
+}
+
+.db-library {
+  width: min(760px, 100%);
+  max-height: min(760px, calc(100dvh - 36px));
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid rgba(157, 149, 200, 0.35);
+  border-radius: 18px;
+  background: linear-gradient(155deg, #161121, #0d0a15 72%);
+  color: #f1edf8;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.62);
+  font: 12px var(--mono, ui-monospace, monospace);
+}
+
+.db-library button,
+.db-library input {
+  font: inherit;
+}
+
+.db-library-head,
+.db-library-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.db-library-head {
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.db-library-head span,
+.db-library-current span {
+  color: #9d95c8;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.db-library-head h2 {
+  margin: 5px 0;
+  font-size: clamp(20px, 4vw, 32px);
+  letter-spacing: -0.04em;
+}
+
+.db-library-head p {
+  margin: 0;
+  color: #938da0;
+  line-height: 1.5;
+}
+
+.db-library-head > button {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: transparent;
+  color: #938da0;
+}
+
+.db-library-current {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid rgba(95, 240, 208, 0.22);
+  border-radius: 12px;
+  background: rgba(95, 240, 208, 0.045);
+}
+
+.db-library-current > div {
+  display: grid;
+  gap: 3px;
+  margin-right: auto;
+}
+
+.db-library-current strong {
+  font-size: 15px;
+}
+
+.db-library-current small {
+  color: #938da0;
+}
+
+.db-library-current button,
+.db-library-list button,
+.db-library-list input {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #aaa3b8;
+}
+
+.db-library-current .db-library-primary {
+  border-color: rgba(95, 240, 208, 0.55);
+  color: #8cf5df;
+}
+
+.db-library-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.db-library-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+}
+
+.db-library-open {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-align: left;
+}
+
+.db-library-open strong {
+  overflow: hidden;
+  color: #f1edf8;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-library-open small,
+.db-library-open b {
+  color: #938da0;
+  font-size: 9px;
+  font-weight: 400;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.db-library-open:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.db-library-kind {
+  padding: 3px 6px;
+  border-radius: 999px;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.db-library-kind-song {
+  background: rgba(255, 176, 46, 0.14);
+  color: #ffc66f;
+}
+
+.db-library-kind-patch {
+  background: rgba(95, 240, 208, 0.12);
+  color: #7cebd3;
+}
+
+.db-library-tiny {
+  font-size: 9px !important;
+}
+
+.db-library-list form {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+}
+
+.db-library-list form input {
+  flex: 1;
+  min-width: 0;
+  color: #f1edf8;
+}
+
+.db-library-empty {
+  display: grid;
+  gap: 5px;
+  padding: 30px;
+  color: #938da0;
+  text-align: center;
+}
+
+.db-library-empty strong {
+  color: #f1edf8;
+}
+
+.db-library-problem {
+  margin: 14px 0 0;
+  color: #ff8ca0;
+}
+
+@media (max-width: 560px) {
+  .db-library-layer {
+    padding: 8px;
+  }
+
+  .db-library {
+    max-height: calc(100dvh - 16px);
+    padding: 15px;
+  }
+
+  .db-library-current {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .db-library-current > div {
+    flex-basis: 100%;
+  }
+
+  .db-library-list li {
+    grid-template-columns: 1fr auto;
+  }
+
+  .db-library-open {
+    grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .db-library-open b {
+    display: none;
+  }
+}

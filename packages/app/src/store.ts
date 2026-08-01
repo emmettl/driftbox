@@ -217,6 +217,10 @@ interface State {
   loadPreset: (id: string) => void
   /** Which shipped song is loaded, or null once it stops being one of them. */
   preset: string | null
+  /** Name of the open entry in the shared local document library, if it came from or
+   * has been saved to that shelf. Session state, never part of the Song envelope. */
+  libraryName: string | null
+  setLibraryName: (name: string | null) => void
   /** Move through the shipped songs. Returns the one landed on, for the UI to announce. */
   stepPreset: (delta: number) => string | null
   /** Whether the song on screen is still byte-identical to the preset it came from —
@@ -342,6 +346,7 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
     followPlayhead: true,
     loop: null,
     automationRecording: false,
+    libraryName: null,
   }
 }
 
@@ -361,6 +366,8 @@ function recordPoint(
 export const useBox = create<State>()((set, get) => ({
   song: initialSong,
   preset: initialPreset,
+  libraryName: null,
+  setLibraryName: (libraryName) => set({ libraryName }),
   engine: null,
   running: false,
   loop: null,
@@ -893,7 +900,7 @@ export const useBox = create<State>()((set, get) => ({
     set({ countIn })
   },
 
-  loadSong: (song) => set(adopt(song, get().engine)),
+  loadSong: (song) => set({ ...adopt(song, get().engine), preset: null }),
 
   loadPreset: (id) => {
     const preset = songPresetById(id)
@@ -928,14 +935,14 @@ export const useBox = create<State>()((set, get) => ({
   adoptSharedSong: async () => {
     const song = await takeSongFromUrl()
     if (!song) return false
-    set(adopt(song, get().engine))
+    set({ ...adopt(song, get().engine), preset: null })
     return true
   },
 
   importSong: async () => {
     const song = await pickSongFile()
     if (!song) return false
-    set(adopt(song, get().engine))
+    set({ ...adopt(song, get().engine), preset: null })
     return true
   },
 
@@ -990,7 +997,7 @@ export const useBox = create<State>()((set, get) => ({
   resetSong: () => {
     // The autosave has to go too, or the next reload restores what was just discarded.
     clearStoredSong()
-    set(adopt(defaultSong(), get().engine))
+    set({ ...adopt(defaultSong(), get().engine), preset: null })
   },
 }))
 
