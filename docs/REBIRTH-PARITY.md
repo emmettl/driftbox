@@ -59,7 +59,7 @@ user could approximate it from oscillators.
 | Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
 | MIDI play/control/learn | Hardware notes play the focused 303 or pitched drum; learn covers tempo, swing, authored controls, routing and effects | Shared host plus polyphony, channel routing, modulation and Combinator learn | Landed; rack remains the strict superset |
 | Stereo mix and stems export | Mastered song mix and pre-master stems | Retained mastered song mix plus patch render | Add stem export to rack mode when its review UI has a rack-native source model |
-| Named local song library | One autosave | Patch library | One document library with type and compatibility state |
+| Named local song library | Shared typed song/patch shelf plus autosave | Same shared shelf, including legacy patch migration | Landed; rack-only work stays visible but cannot be flattened in groovebox mode |
 | Visuals and performance pad | Yes | No | Same scene host and master performance controls |
 | Shareable, repairable documents | Yes | Yes | Versioned bridge preserving unknown rack-only content |
 
@@ -98,8 +98,10 @@ work is ordered by dependency:
    mistaken for edits to the retained song. The browser MIDI host, monophonic allocator
    and hardware mapping store are now shared; the groovebox plays its focused Keys target
    and learns stable authored parameter identities, while the rack retains polyphony,
-   channel routing, modulation and Combinator fan-out. Next, put songs and patches in one
-   named library.
+   channel routing, modulation and Combinator fan-out. Songs and patches now occupy one
+   named local library whose entries record type and compatibility. Both editors can load
+   songs; the groovebox refuses rack-extended/native entries rather than flattening them,
+   and the rack migrates the former patch-only shelf on first write.
 
 The schema foundation is now present. Automation events still need stable section and
 parameter identities, but can record independent clip changes without splitting or
@@ -145,7 +147,10 @@ Both modes now export the same mastered retained-song WAV; rack mode labels that
 from its rack-graph render. Both modes now also use one browser MIDI host and one hardware
 mapping store: groovebox bindings address the shared automation identities and therefore
 still travel through visible, saveable, automation-aware edits, while rack mappings retain
-their module/parameter identities. Next, continue library interchange. Do
+their module/parameter identities. The local library is shared too: encoded songs and patches
+have one name namespace, explicit type and compatibility metadata, and the old rack patch shelf
+is migrated without deleting it. Next, close the remaining authored effects and performance
+scene gaps. Do
 not compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

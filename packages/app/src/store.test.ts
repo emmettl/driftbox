@@ -29,10 +29,23 @@ beforeEach(() => {
     loop: null,
     automationRecording: false,
     patternClipboard: null,
+    preset: null,
+    libraryName: null,
   })
 })
 
 const song = () => useBox.getState().song
+
+describe('loading a named document', () => {
+  it('clears shipped-preset identity and lets the library identity take over', () => {
+    useBox.setState({ preset: SONGS[0].id, libraryName: 'Old name' })
+    useBox.getState().loadSong(SONGS[1].build())
+    expect(useBox.getState().preset).toBeNull()
+    expect(useBox.getState().libraryName).toBeNull()
+    useBox.getState().setLibraryName('My tune')
+    expect(useBox.getState().libraryName).toBe('My tune')
+  })
+})
 
 describe('editing one thing does not disturb the others', () => {
   it('a drum knob leaves the 303 settings, sends and swing alone', () => {
