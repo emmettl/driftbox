@@ -295,7 +295,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
           onClick={() => setStems(true)}
           title="Preview or export one pre-master WAV per voice"
         >
-          {rendering && rendering !== 'mix' ? `rendering ${rendering}…` : 'stems'}
+          stems
         </button>
         <button
           className="ghost"

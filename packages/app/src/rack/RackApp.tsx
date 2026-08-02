@@ -40,6 +40,7 @@ import { patchShareLink, sequencerLink, storePatch } from './persistence.js'
 import { openingPatch, useRack, type GrooveboxTapHit, type Opening } from './store.js'
 import { buildLabel, buildTitle } from '../version.js'
 import { routedGrooveboxSections } from './groovebox.js'
+import { StemReviewTray } from '../ui/StemTray.js'
 import {
   enumerateAudioInputs,
   openAudioInput,
@@ -217,6 +218,7 @@ export default function RackApp() {
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
+  const [reviewingStems, setReviewingStems] = useState(false)
   /**
    * Move between the three arrangements with one shared-element transition when the browser can do it.
    *
@@ -1316,21 +1318,31 @@ export default function RackApp() {
         </button>
 
         {retainedSong && (
-          <button
-            type="button"
-            disabled={exporting !== null}
-            title="Render the retained Groovebox song through its mastered stereo bus"
-            onClick={async () => {
-              setExporting('song')
-              try {
-                await exportGrooveboxMix()
-              } finally {
-                setExporting(null)
-              }
-            }}
-          >
-            {exporting === 'song' ? 'Rendering song…' : 'Song WAV'}
-          </button>
+          <>
+            <button
+              type="button"
+              disabled={exporting !== null}
+              title="Render the retained Groovebox song through its mastered stereo bus"
+              onClick={async () => {
+                setExporting('song')
+                try {
+                  await exportGrooveboxMix()
+                } finally {
+                  setExporting(null)
+                }
+              }}
+            >
+              {exporting === 'song' ? 'Rendering song…' : 'Song WAV'}
+            </button>
+            <button
+              type="button"
+              disabled={exporting !== null}
+              title="Preview or export the retained song as one pre-master WAV per voice"
+              onClick={() => setReviewingStems(true)}
+            >
+              Song stems
+            </button>
+          </>
         )}
 
         {patch.groovebox && !retainedSong ? (
@@ -1528,6 +1540,17 @@ export default function RackApp() {
           up={keysUp}
           allOff={keysAllOff}
           sounding={sounding}
+        />
+      )}
+
+      {reviewingStems && retainedSong && (
+        <StemReviewTray
+          song={retainedSong}
+          running={playing}
+          stopTransport={() => setRunning(false)}
+          filePrefix={name ?? 'driftbox-song'}
+          onClose={() => setReviewingStems(false)}
+          onExported={() => setReviewingStems(false)}
         />
       )}
 

@@ -134,6 +134,16 @@ changes which authored send/swing lane is in focus, while the effects remain son
 Patchable Drive, SVF, Compressor and Delay modules are still available around the Groovebox
 device, making rack mode additive rather than an alternate, lossy representation.
 
+Export observes that same boundary. A retained Groovebox song gets the sequencer's complete
+stem review desk in rack mode: each authored voice can be auditioned around its first entrance,
+saved alone or exported as the full set of pre-master float WAVs. Those files deliberately
+describe the compatible song envelope, not later rack cables or modules. **Song WAV** renders
+the retained mastered mix, while **Patch WAV** renders the modular graph; keeping all three
+labels separate prevents a compatible export from silently flattening rack-only work or a
+rack render from masquerading as editable song stems. A future rack-native stem workflow must
+first define stable source ownership for arbitrary modules rather than borrowing Groovebox
+voice names.
+
 The pattern editor's tap arm gives the rack keyboard a second, explicit destination. While
 the hosted transport runs, computer, pointer and MIDI-keyboard note-ons are quantised to the
 current sequencer step in the focused retained clip. Drum velocity chooses hit or accent; a
