@@ -39,6 +39,13 @@ const SEND: readonly { key: keyof SendLevels; label: string }[] = [
   { key: 'reverb', label: 'Reverb send' },
 ]
 const FX: readonly { key: keyof FxParams; label: string }[] = [
+  { key: 'drive', label: 'Drive' },
+  { key: 'pcfAmount', label: 'PCF amount' },
+  { key: 'pcfCutoff', label: 'PCF cutoff' },
+  { key: 'pcfResonance', label: 'PCF resonance' },
+  { key: 'pcfEnv', label: 'PCF envelope' },
+  { key: 'pcfDecay', label: 'PCF decay' },
+  { key: 'compressor', label: 'Compressor' },
   { key: 'delayTime', label: 'Delay time' },
   { key: 'delayFeedback', label: 'Delay feedback' },
   { key: 'delayTone', label: 'Delay tone' },

@@ -1,13 +1,25 @@
-import { DEFAULT_FX, delayDivision, type FxParams } from '@driftbox/engine'
+import {
+  DEFAULT_FX,
+  delayDivision,
+  pcfDecaySeconds,
+  pcfFrequency,
+  type FxParams,
+} from '@driftbox/engine'
 import { useBox } from '../store'
 import { Knob } from './Knob'
 import { Panel } from './Panel'
 
-// The two effects themselves. One panel for the whole song rather than one per voice,
-// because these are sends: the per-voice knobs decide how much of each voice arrives,
-// and this decides what it arrives in.
+// The song-wide effect path: authored inserts first, then the two shared sends. One panel
+// because this is the part of the instrument every voice meets in common.
 
 const KNOBS: { key: keyof FxParams; label: string; format: (v: number) => string }[] = [
+  { key: 'drive', label: 'Drive', format: (v) => (v === 0 ? 'clean' : `${Math.round(v * 100)}`) },
+  { key: 'pcfAmount', label: 'PCF', format: (v) => (v === 0 ? 'off' : `${Math.round(v * 100)}`) },
+  { key: 'pcfCutoff', label: 'Cutoff', format: (v) => `${Math.round(pcfFrequency(v))}Hz` },
+  { key: 'pcfResonance', label: 'Reso', format: (v) => `${Math.round(v * 100)}` },
+  { key: 'pcfEnv', label: 'Env', format: (v) => `${Math.round(v * 100)}` },
+  { key: 'pcfDecay', label: 'Decay', format: (v) => `${Math.round(pcfDecaySeconds(v) * 1000)}ms` },
+  { key: 'compressor', label: 'Comp', format: (v) => (v === 0 ? 'off' : `${Math.round(v * 100)}`) },
   // Shown in steps rather than as a percentage, because the value is snapped to musical
   // divisions and a knob reading "62" would hide that entirely.
   { key: 'delayTime', label: 'Time', format: (v) => `${delayDivision(v)}/16` },
@@ -24,7 +36,7 @@ export function FxPanel() {
   const setFx = useBox((s) => s.setFx)
 
   return (
-    <Panel id="fx" className="scope fx" title="Delay · Reverb">
+    <Panel id="fx" className="scope fx" title="Master FX · Sends">
       <div className="knobs fx-knobs">
         {KNOBS.map(({ key, label, format }) => (
           <Knob

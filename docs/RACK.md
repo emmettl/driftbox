@@ -126,9 +126,13 @@ an ordinary non-structural rack edit and can be undone.
 
 The contextual mix row completes that recorder surface without translating authored song
 data into generic rack modules. The selected drum or 303 exposes its delay/reverb sends and
-offset from global swing beside the five shared delay/reverb controls. Those base values and
-their automation targets are the same ones the sequencer uses; selecting another voice only
+offset from global swing beside the song-wide drive, PCF, compressor, delay and reverb
+controls. The retained pattern has its own off/on/accent PCF lane, so the same authored
+filter strikes remain editable in both modes. Those base values, pattern states and
+automation targets are the same ones the sequencer uses; selecting another voice only
 changes which authored send/swing lane is in focus, while the effects remain song-wide.
+Patchable Drive, SVF, Compressor and Delay modules are still available around the Groovebox
+device, making rack mode additive rather than an alternate, lossy representation.
 
 The pattern editor's tap arm gives the rack keyboard a second, explicit destination. While
 the hosted transport runs, computer, pointer and MIDI-keyboard note-ons are quantised to the

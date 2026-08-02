@@ -890,6 +890,26 @@ aside {
   box-shadow: 0 0 14px rgba(255, 190, 70, 0.55);
 }
 
+.pcf-row {
+  margin-top: 3px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(95, 240, 208, 0.18);
+}
+
+.pcf-row .row-name {
+  color: var(--nine);
+  font-family: var(--mono);
+  letter-spacing: 0.12em;
+}
+
+.pcf-step.on {
+  background: linear-gradient(180deg, #9ffff0, #27b99f);
+}
+
+.pcf-step.accent {
+  background: linear-gradient(180deg, #fff2a2, #ff9f2e);
+}
+
 /* A second bright edge reads as the second 909 strike without inventing another lane. */
 .step.flam {
   box-shadow: inset -5px 0 rgba(255, 255, 255, 0.72);
@@ -1204,7 +1224,7 @@ aside {
 }
 
 .fx-knobs {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px 2px;
 }
 
@@ -1860,7 +1880,7 @@ aside {
   }
 
   .fx-knobs {
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

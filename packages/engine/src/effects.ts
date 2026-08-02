@@ -1,9 +1,10 @@
 import { secondsPerStep } from './timing.js'
 
-// Two send effects: one delay, one reverb.
+// Song-wide master inserts plus two send effects: one delay, one reverb.
 //
-// Sends rather than inserts, and that is the whole design. An insert per voice would be
-// eleven reverbs running at once for eleven drums, which is both wasteful and wrong —
+// The distortion/filter/compressor path is one shared insert, while delay and reverb are
+// sends. An effect per voice would mean eleven reverbs running at once for eleven drums,
+// which is both wasteful and wrong —
 // what makes a kit sound like it is in a room is that every voice is in the SAME room.
 // One reverb fed from eleven knobs gives you that; eleven reverbs give you eleven rooms
 // that happen to have similar settings.
@@ -12,8 +13,19 @@ import { secondsPerStep } from './timing.js'
 // nothing here is sampled: a knob that changes the size of the room is worth more than a
 // fixed recording of one room, and it keeps the whole thing to a few lines of code.
 
-/** Global settings for both effects. Everything 0..1, like every other knob. */
+/** Global settings for the master effects. Everything 0..1, like every other knob. */
 export interface FxParams {
+  /** Master saturation. Zero is a true bypass. */
+  drive: number
+  /** Parallel amount for the pattern-controlled master low-pass. */
+  pcfAmount: number
+  pcfCutoff: number
+  pcfResonance: number
+  /** How far an active PCF step opens the filter. */
+  pcfEnv: number
+  pcfDecay: number
+  /** Authored bus-compressor strength. 0.5 is the original Driftbox master. */
+  compressor: number
   /** Delay length, snapped to musical divisions — see `DELAY_DIVISIONS`. */
   delayTime: number
   delayFeedback: number
@@ -25,6 +37,15 @@ export interface FxParams {
 }
 
 export const DEFAULT_FX: FxParams = {
+  // The insert layer defaults byte-for-byte to the mix Driftbox shipped before it was
+  // authored: clean drive, PCF bypassed, original fixed master compressor.
+  drive: 0,
+  pcfAmount: 0,
+  pcfCutoff: 0.35,
+  pcfResonance: 0.3,
+  pcfEnv: 0.65,
+  pcfDecay: 0.3,
+  compressor: 0.5,
   // 0.25 lands on 3 — the dotted eighth. See DELAY_DIVISIONS.
   delayTime: 0.25,
   delayFeedback: 0.42,

@@ -123,6 +123,17 @@ describe('the shared step planner', () => {
     expect(planStep(song, event)).toEqual(planStep(song, event))
   })
 
+  it('carries the fallback pattern PCF strike into the shared plan', () => {
+    const base = defaultSong()
+    const song = {
+      ...base,
+      patterns: [{ ...base.patterns[0], pcf: [0, 2, ...Array(14).fill(0)] }],
+      chain: [{ pattern: base.patterns[0].id, repeat: 1 }],
+    }
+    expect(planStep(song, { absolute: 1, index: 1, bar: 0, time: 1, stepSeconds: 0.1 }).pcf)
+      .toBe(2)
+  })
+
   it('applies swing per voice rather than to the step', () => {
     const song = { ...defaultSong(), swing: 0.5 }
     const plan = planStep(song, { absolute: 1, index: 1, bar: 0, time: 10, stepSeconds: 0.1 })

@@ -30,6 +30,9 @@ export interface Pattern {
    * both as the original Driftbox pattern bank and as ReBirth-style machine sequences.
    */
   bass?: Record<string, BassStep[]>
+  /** ReBirth-style pattern-controlled filter strikes. Off, on and accent use the same
+   * three-state language as drum steps, but drive the song-wide PCF envelope. */
+  pcf?: StepValue[]
 }
 
 export interface Kit {
@@ -125,8 +128,8 @@ export interface Song {
    *  as it likes. An empty chain plays the first pattern forever. */
   chain: ChainStep[]
   kit: Kit
-  /** Settings for the two send effects. Shared by everything, because the point of a
-   *  send is that every voice lands in the same room. */
+  /** Song-wide master inserts and send effects. The inserts shape the shared mix; the
+   *  sends put every voice into the same delay and room. */
   fx?: FxParams
   /** Optional so every song written before automation remains a valid Song. */
   automation?: AutomationLane[]
@@ -203,6 +206,7 @@ export function duplicatePattern(song: Song, id: string): { song: Song; id: stri
     bass: Object.fromEntries(
       Object.entries(source.bass ?? {}).map(([v, line]) => [v, line.map((s) => ({ ...s }))]),
     ),
+    ...(source.pcf ? { pcf: [...source.pcf] } : {}),
   }
 
   const patterns = [...song.patterns]
@@ -253,6 +257,23 @@ export function stepAt(pattern: Pattern, voiceId: string, step: number): StepVal
   const track = pattern.tracks[voiceId]
   if (!track) return 0
   return track[step % pattern.length] ?? 0
+}
+
+export function pcfAt(pattern: Pattern, step: number): StepValue {
+  return pattern.pcf?.[step % pattern.length] ?? 0
+}
+
+export function setPcfStep(pattern: Pattern, step: number, value: StepValue): Pattern {
+  const pcf = Array.from(
+    { length: pattern.length },
+    (_, index) => pattern.pcf?.[index] ?? 0,
+  )
+  pcf[step] = value
+  return { ...pattern, pcf }
+}
+
+export function cyclePcfStep(pattern: Pattern, step: number): Pattern {
+  return setPcfStep(pattern, step, ((pcfAt(pattern, step) + 1) % 3) as StepValue)
 }
 
 /** Immutable step edit — cycles off → on → accent → off, which is how the hardware's

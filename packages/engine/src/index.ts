@@ -17,13 +17,15 @@ import {
 import { buildVoice, voiceById } from './kit.js'
 import { barLengthForSelection, planStep } from './schedule.js'
 import { DEFAULT_PARAMS, tuneForPitch, type Voice, type VoiceParams } from './types.js'
-import { configureMixCompressor, MIX_BUS_GAIN, MIX_MASTER_GAIN } from './master.js'
+import { MIX_BUS_GAIN, MIX_MASTER_GAIN } from './master.js'
+import { MasterEffects } from './master-effects.js'
 
 export * from './types.js'
 export * from './pattern.js'
 export * from './timing.js'
 export * from './bass.js'
 export * from './effects.js'
+export * from './master-effects.js'
 export * from './song-io.js'
 export * from './automation.js'
 export * from './kaoss.js'
@@ -108,6 +110,7 @@ export class DriftboxEngine {
   /** Optional non-destructive observation route per section. */
   private readonly sectionTaps: Partial<Record<GrooveboxSection, AudioNode>> = {}
   private readonly master: GainNode
+  private readonly inserts: MasterEffects
   private readonly transport: Transport
   /** Session performance state: never written into `song`. */
   private readonly clipLauncher = new ClipLauncher()
@@ -173,10 +176,7 @@ export class DriftboxEngine {
       this.routeSection(section, options.sectionDestinations?.[section] ?? null)
     }
 
-    // A gentle bus compressor. Drum machines are all transient, and without something
-    // holding the peaks the master has to sit so low that everything sounds thin.
-    const compressor = this.ctx.createDynamicsCompressor()
-    configureMixCompressor(compressor)
+    this.inserts = new MasterEffects(this.ctx)
 
     this.master = this.ctx.createGain()
     // 0.7, not 0.8. Measured by rendering the busiest shipped pattern through this
@@ -209,8 +209,8 @@ export class DriftboxEngine {
     // about to throw away, and a resonant peak cannot be pumped by it.
     this.kaoss = new Kaoss(this.ctx)
 
-    this.bus.connect(compressor)
-    compressor.connect(this.kaoss.input)
+    this.bus.connect(this.inserts.input)
+    this.inserts.output.connect(this.kaoss.input)
     this.kaoss.output.connect(this.master)
     this.master.connect(this.analyser)
     this.analyser.connect(destination)
@@ -231,10 +231,12 @@ export class DriftboxEngine {
     void this.ensureBass()
   }
 
-  /** Push the song's effect settings into the send buses. Call after changing `song.fx`
-   *  or the tempo — the delay is tempo-synced, so it has to be told. */
+  /** Push the song's effect settings into the master inserts and send buses. Call after
+   *  changing `song.fx` or the tempo — the delay is tempo-synced, so it has to be told. */
   syncFx(): void {
-    this.sends.update(this.song.fx ?? DEFAULT_FX, this.transport.bpm)
+    const fx = this.song.fx ?? DEFAULT_FX
+    this.sends.update(fx, this.transport.bpm)
+    this.inserts.update(fx)
   }
 
   /**
@@ -569,6 +571,7 @@ export class DriftboxEngine {
       this.transport.bpm = plan.bpm
     }
     this.sends.update(plan.fx, plan.bpm, event.time)
+    this.inserts.update(plan.fx, event.time, plan.pcf)
     for (const hit of plan.drums) {
       this.trigger(hit.voiceId, hit.time, hit.accent, hit.params, hit.sends)
     }
@@ -589,6 +592,7 @@ export class DriftboxEngine {
     for (const gain of this.sendGains.values()) gain.disconnect()
     this.sendGains.clear()
     this.sends.dispose()
+    this.inserts.dispose()
     this.clipLauncher.clear()
     for (const output of Object.values(this.sectionOutputs)) output.disconnect()
     this.bus.disconnect()
