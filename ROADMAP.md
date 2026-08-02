@@ -24,7 +24,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Visuals | Four meters, seventeen 3D scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
-| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
+| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.3.0, with provenance |
 | Rack | An unpublished work in progress with 31 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
