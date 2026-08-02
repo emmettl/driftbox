@@ -7,10 +7,10 @@ import { planSong, type StepPlan } from './schedule.js'
 import { buildVoice, voiceById } from './kit.js'
 import { Kaoss } from './kaoss.js'
 import {
-  configureMixCompressor,
   MIX_BUS_GAIN,
   MIX_MASTER_GAIN,
 } from './master.js'
+import { MasterEffects } from './master-effects.js'
 import type { VoiceHandle } from './render.js'
 
 // Stems. One audio file per voice, which is what "per-voice outputs" means in practice.
@@ -23,10 +23,10 @@ import type { VoiceHandle } from './render.js'
 //
 // **Stems are pre-master.** Each one is its voice, dry plus that voice's own delay and
 // reverb, summed at the same bus gain the live engine uses — and stopping there, before the
-// compressor. This is the decision that makes the set useful: a compressor is non-linear
-// and shared, so stems rendered through it do not add back up to the mix. Rendered
-// pre-compressor they sum to within rounding of the live pre-compressor bus, which is what
-// anybody importing them expects and what the test asserts.
+// authored drive, PCF and compressor. Those inserts are non-linear or shared, so stems
+// rendered through them do not add back up to the mix. Rendered pre-insert they sum to within
+// rounding of the live pre-insert bus, which is what anybody importing them expects and what
+// the test asserts.
 //
 // **Stems are not sample-reproducible, and cannot be.** Every noise voice — hats, claps,
 // snares, the rim — starts at a random offset into a per-context buffer of random floats,
@@ -242,10 +242,10 @@ export async function renderStems(song: Song, options: StemOptions = {}): Promis
 /**
  * Render the authored song through the same mastered stereo route as live playback.
  *
- * Unlike stems, every voice shares one send return and one compressor. Choke groups are
- * also shared, so a closed hat cuts the open hat in the file exactly as it does while the
- * transport is running. The Kaoss insert is neutral: an export recalls the document, not
- * a momentary finger performance that the document does not store.
+ * Unlike stems, every voice shares one send return and the authored master inserts. Choke
+ * groups are also shared, so a closed hat cuts the open hat in the file exactly as it does
+ * while the transport is running. The Kaoss insert is neutral: an export recalls the
+ * document, not a momentary finger performance that the document does not store.
  */
 export async function renderMix(song: Song, options: MixOptions = {}): Promise<AudioBuffer> {
   const sampleRate = options.sampleRate ?? 44100
@@ -259,13 +259,12 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
 
   const bus = ctx.createGain()
   bus.gain.value = MIX_BUS_GAIN
-  const compressor = ctx.createDynamicsCompressor()
-  configureMixCompressor(compressor)
+  const inserts = new MasterEffects(ctx)
   const kaoss = new Kaoss(ctx)
   const master = ctx.createGain()
   master.gain.value = MIX_MASTER_GAIN
-  bus.connect(compressor)
-  compressor.connect(kaoss.input)
+  bus.connect(inserts.input)
+  inserts.output.connect(kaoss.input)
   kaoss.output.connect(master)
   master.connect(ctx.destination)
 
@@ -276,7 +275,9 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
     openingStep = step
   }
   const sends = new Sends(ctx, bus)
-  sends.update(openingStep?.fx ?? song.fx ?? DEFAULT_FX, openingStep?.bpm ?? song.bpm, 0)
+  const openingFx = openingStep?.fx ?? song.fx ?? DEFAULT_FX
+  sends.update(openingFx, openingStep?.bpm ?? song.bpm, 0)
+  inserts.update(openingFx, 0, openingStep?.pcf ?? 0)
 
   // Plain node properties cannot be scheduled like AudioParams. Queue work in the render
   // quantum containing its time and execute every action there under one suspension.
@@ -306,10 +307,14 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
   for (const step of plan) {
     const time = step.time - start
     if (time <= 0 || time >= duration) continue
-    if (step.bpm === previousBpm && sameFx(step.fx, previousFx)) continue
+    const changed = step.bpm !== previousBpm || !sameFx(step.fx, previousFx)
+    if (!changed && step.pcf === 0) continue
     const fx = step.fx
     const bpm = step.bpm
-    at(time, () => sends.update(fx, bpm, time))
+    at(time, () => {
+      if (changed) sends.update(fx, bpm, time)
+      inserts.update(fx, time, step.pcf)
+    })
     previousFx = fx
     previousBpm = bpm
   }
@@ -404,8 +409,8 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
  * An AudioBuffer as a 32-bit float WAV.
  *
  * Float rather than 16-bit integer, and this is not a preference. A stem is PRE-MASTER by
- * design — it has not been through the bus compressor or the master gain — so it can and
- * does exceed full scale: the 909 closed hat comes out of the shipped chillwave song at
+ * design — it has not been through the authored master inserts or the master gain — so it
+ * can and does exceed full scale: the 909 closed hat comes out of the shipped chillwave song at
  * 1.11. Writing that as 16-bit means clamping it, which turns the loudest hat in the song
  * into a click, and the alternative of scaling everything down to fit changes the balance
  * between the files, which is the one thing a stem set exists to preserve.

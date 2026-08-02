@@ -52,8 +52,9 @@ const FACEPLATES: Record<string, Entry> = {
   // about that tall, and a Combinator is a big device in Reason too.
   combi: { component: Combinator, rows: 5 },
   // The four source strips stay above the retained pattern, transform, automation,
-  // clipboard, instrument, send and effect editors. Fourteen rows keep every control visible without a modal.
-  groovebox: { component: Groovebox, rows: 14 },
+  // clipboard, instrument, send and effect editors. The authored PCF lane and complete
+  // master-insert row need two more rows; keeping them visible is preferable to a modal.
+  groovebox: { component: Groovebox, rows: 16 },
   // These hand-built panels still fit the same three-control half-width grid as a small generic panel.
   // Declared here because custom panels opt out of the automatic generic sizing below.
   vco: { component: Vco, span: 1, rows: 2 },

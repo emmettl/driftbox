@@ -1,5 +1,5 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react'
-import { ALL_VOICES, flamAt, stepAt, type StepValue } from '@driftbox/engine'
+import { ALL_VOICES, flamAt, pcfAt, stepAt, type StepValue } from '@driftbox/engine'
 import { useBox } from '../store'
 import { useLiveStep } from './useLiveStep'
 
@@ -16,6 +16,7 @@ export function Sequencer() {
   const setDrumStep = useBox((s) => s.setDrumStep)
   const flamMode = useBox((s) => s.flamMode)
   const toggleFlamStep = useBox((s) => s.toggleFlamStep)
+  const togglePcfStep = useBox((s) => s.togglePcfStep)
   const audition = useBox((s) => s.audition)
   const selectVoice = useBox((s) => s.selectVoice)
 
@@ -161,6 +162,26 @@ export function Sequencer() {
           </div>
         </div>
       ))}
+      <div className="row pcf-row">
+        <span className="row-name" title="Pattern-controlled master filter">PCF</span>
+        <div
+          className="row-steps"
+          style={{ gridTemplateColumns: `repeat(${pattern.length}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: pattern.length }, (_, step) => {
+            const value = pcfAt(pattern, step)
+            return (
+              <button
+                key={step}
+                className={`step pcf-step${value === 1 ? ' on' : ''}${value === 2 ? ' accent' : ''}${step % 4 === 0 ? ' downbeat' : ''}${live === step ? ' live' : ''}`}
+                onClick={() => togglePcfStep(step)}
+                aria-label={`PCF step ${step + 1}: ${value === 0 ? 'off' : value === 1 ? 'on' : 'accent'}`}
+                aria-pressed={value !== 0}
+              />
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

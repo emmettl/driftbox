@@ -15,8 +15,12 @@ import {
   copyBassLine,
   copyDrumLane,
   cycleStep,
+  cyclePcfStep,
   decodeSong,
   delayDivision,
+  pcfAt,
+  pcfDecaySeconds,
+  pcfFrequency,
   flamAt,
   randomizeBassLine,
   randomizeTrack,
@@ -115,6 +119,13 @@ const FX_KNOBS: readonly {
   label: string
   format: (value: number) => string
 }[] = [
+  { key: 'drive', label: 'Drive', format: (value) => value === 0 ? 'clean' : percent(value) },
+  { key: 'pcfAmount', label: 'PCF', format: (value) => value === 0 ? 'off' : percent(value) },
+  { key: 'pcfCutoff', label: 'Cutoff', format: (value) => `${Math.round(pcfFrequency(value))}Hz` },
+  { key: 'pcfResonance', label: 'Reso', format: (value) => percent(value) },
+  { key: 'pcfEnv', label: 'Env', format: (value) => percent(value) },
+  { key: 'pcfDecay', label: 'Decay', format: (value) => `${Math.round(pcfDecaySeconds(value) * 1000)}ms` },
+  { key: 'compressor', label: 'Comp', format: (value) => value === 0 ? 'off' : percent(value) },
   { key: 'delayTime', label: 'Time', format: (value) => `${delayDivision(value)}/16` },
   { key: 'delayFeedback', label: 'F.back', format: (value) => percent(value) },
   { key: 'delayTone', label: 'FX Tone', format: (value) => percent(value) },
@@ -495,6 +506,27 @@ export function GrooveboxPatternEditor({
             </button>
           )
         })}
+      </div>
+
+      <div className="rk-groovebox-pcf" aria-label="Pattern-controlled filter steps">
+        <strong>PCF</strong>
+        <div className="rk-groovebox-steps">
+          {steps.map((step) => {
+            const value = pcfAt(pattern, step)
+            return (
+              <button
+                key={step}
+                type="button"
+                data-state={value === 0 ? 'rest' : value === 1 ? 'hit' : 'accent'}
+                onClick={() => save(cyclePcfStep(pattern, step), true)}
+                aria-label={`PCF step ${step + 1}: ${value === 0 ? 'off' : value === 1 ? 'on' : 'accent'}`}
+                aria-pressed={value !== 0}
+              >
+                {step + 1}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="rk-groovebox-tools" aria-label="Groovebox pattern transforms">

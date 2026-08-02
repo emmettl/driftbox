@@ -191,7 +191,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Groovebox swing"')
   expect(markup).toContain('aria-label="Clear Groovebox automation"')
   expect(markup).toContain('aria-label="Bass Drum sends and shared effects"')
-  for (const control of ['Delay', 'Reverb', 'Swing', 'Time', 'F.back', 'FX Tone', 'Size', 'Damp']) {
+  for (const control of ['Delay', 'Reverb', 'Swing', 'Drive', 'PCF', 'Cutoff', 'Reso', 'Env', 'Decay', 'Comp', 'Time', 'F.back', 'FX Tone', 'Size', 'Damp']) {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup).toContain('aria-label="Rotate Bass Drum left"')
@@ -203,7 +203,8 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
     expect(markup).toContain(`aria-label="${control}"`)
   }
   expect(markup.match(/Bass Drum step \d+: /g)).toHaveLength(16)
-  expect(sizeFor(MODULES)('groovebox').rows).toBe(14)
+  expect(markup.match(/PCF step \d+: /g)).toHaveLength(16)
+  expect(sizeFor(MODULES)('groovebox').rows).toBe(16)
 })
 
 it('shows every retained 303 instrument control', () => {

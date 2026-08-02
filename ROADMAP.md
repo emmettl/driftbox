@@ -6,7 +6,7 @@ anything in `packages/engine/`.
 ## Where it is
 
 **Working end to end.** Two drum machines, two 303s, a step sequencer with an arrangement,
-a per-voice channel strip, two send effects, an oscilloscope and a chillwave visualiser
+a per-voice channel strip, authored master inserts, two send effects, an oscilloscope and a chillwave visualiser
 with a performance mode. CI is green; the unit suite covers all three workspaces.
 
 | | |
@@ -19,7 +19,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
-| Effects | Tempo-synced delay and a generated-IR reverb, as sends |
+| Effects | Drive, pattern-controlled filter and compressor as master inserts; tempo-synced delay and generated-IR reverb as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL; scene identity travels with the document |
 | Visuals | Four meters, seventeen 3D scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
@@ -67,9 +67,12 @@ and Combinator routing. Songs and patches now also share one named local library
 document type and compatibility state; rack-only entries remain visible in the groovebox but
 cannot be flattened there, and the old patch shelf migrates on first write. Rack split and pad
 views now host the same reactive scenes over the same master XY filter, with scene identity
-persisted inside a compatible song or at patch level for rack-native work. Next, close the
-remaining authored effect path and stem-review gap; do not duplicate authored patterns into
-anonymous rack primitives.
+persisted inside a compatible song or at patch level for rack-native work. The retained
+Groovebox device also authors the same drive, PCF, compressor, delay and reverb settings as
+the original editor, including the PCF's off/on/accent pattern lane; rack mode still adds
+patchable Drive, SVF, Compressor and Delay modules around that compatible song. Next, close
+the rack-side stem-review gap and the remaining fast-entry refinements; do not duplicate
+authored patterns into anonymous rack primitives.
 
 ## What is deliberate
 

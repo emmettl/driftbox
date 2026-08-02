@@ -351,6 +351,15 @@ describe('focused pattern tools', () => {
     expect(song().patterns[0].tracks['909.bd']).toEqual([1, 1, 0, 0])
   })
 
+  it('programs the song-wide PCF lane without touching machine steps', () => {
+    const before = song().patterns[0].tracks
+    useBox.getState().togglePcfStep(1)
+    useBox.getState().togglePcfStep(2)
+    useBox.getState().togglePcfStep(2)
+    expect(song().patterns[0].pcf).toEqual([0, 1, 2, 0])
+    expect(song().patterns[0].tracks).toBe(before)
+  })
+
   it('rotates only the focused lane by default', () => {
     useBox.getState().rotateSelection(1, false)
     expect(song().patterns[0].tracks['909.bd']).toEqual([0, 1, 0, 2])

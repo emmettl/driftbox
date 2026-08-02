@@ -74,6 +74,13 @@ describe('a round trip', () => {
     expect(loaded.kit.flam).toBe(0.73)
   })
 
+  it('keeps and repairs pattern-controlled filter steps', () => {
+    const original = song({
+      patterns: [{ ...song().patterns[0], pcf: [1, 2, 7 as never] }],
+    })
+    expect(decodeSong(encodeSong(original))?.patterns[0].pcf?.slice(0, 4)).toEqual([1, 2, 0, 0])
+  })
+
   it('keeps per-voice send levels', () => {
     const text = JSON.stringify(
       song({ kit: { params: {}, sends: { '808.bd': { delay: 0.4, reverb: 0.9 } } } }),

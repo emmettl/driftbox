@@ -5,6 +5,7 @@ import {
   alterTrack,
   copyBassLine,
   copyDrumLane,
+  cyclePcfStep,
   defaultKit,
   duplicatePattern,
   emptyPattern,
@@ -13,6 +14,7 @@ import {
   randomizeTrack,
   pasteBassLine,
   pasteDrumLane,
+  pcfAt,
   removePattern,
   renamePattern,
   rotateBassLine,
@@ -289,6 +291,28 @@ describe('pattern transforms', () => {
       { note: null, accent: false, slide: false },
       { note: null, accent: false, slide: false },
     ])
+  })
+})
+
+describe('pattern-controlled filter steps', () => {
+  it('cycles off, on and accent without touching machine lanes', () => {
+    const before = song().patterns[0]
+    const on = cyclePcfStep(before, 2)
+    const accent = cyclePcfStep(on, 2)
+    const off = cyclePcfStep(accent, 2)
+    expect([pcfAt(on, 2), pcfAt(accent, 2), pcfAt(off, 2)]).toEqual([1, 2, 0])
+    expect(on.tracks).toBe(before.tracks)
+  })
+
+  it('deep-copies the PCF lane with a duplicated pattern', () => {
+    const original = song({
+      patterns: [{ ...song().patterns[0], pcf: [1, 0, 2, ...Array(13).fill(0)] }],
+      chain: [{ pattern: 'a', repeat: 1 }],
+    })
+    const { song: next, id } = duplicatePattern(original, 'a')
+    const copy = next.patterns.find((pattern) => pattern.id === id)!
+    copy.pcf![0] = 0
+    expect(next.patterns[0].pcf?.[0]).toBe(1)
   })
 })
 

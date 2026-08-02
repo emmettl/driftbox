@@ -58,7 +58,7 @@ user could approximate it from oscillators.
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted section seek, section loop and arbitrary whole-bar loop ranges plus Arranger | Landed |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted recorder for tempo, global/per-voice swing, instrument, send and shared effect controls plus Combinator/MIDI | Landed |
 | Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
-| Distortion, PCF, compressor, delay | Partial | Building blocks | Groovebox devices plus patchable rack equivalents |
+| Distortion, PCF, compressor, delay | Authored master inserts, off/on/accent PCF pattern lane and delay send | Same retained controls and PCF lane plus patchable Drive, SVF, Compressor and Delay modules | Landed; rack remains the strict superset |
 | MIDI play/control/learn | Hardware notes play the focused 303 or pitched drum; learn covers tempo, swing, authored controls, routing and effects | Shared host plus polyphony, channel routing, modulation and Combinator learn | Landed; rack remains the strict superset |
 | Stereo mix and stems export | Mastered song mix and pre-master stems | Retained mastered song mix plus patch render | Add stem export to rack mode when its review UI has a rack-native source model |
 | Named local song library | Shared typed song/patch shelf plus autosave | Same shared shelf, including legacy patch migration | Landed; rack-only work stays visible but cannot be flattened in groovebox mode |
@@ -83,10 +83,12 @@ work is ordered by dependency:
    resolves those targets for live playback and offline planning, including per-hit stem
    sends. Arbitrary whole-bar loop ranges may cross section boundaries. Reuse the thin
    recorder and transport primitives in rack mode, then add bar-quantised clip recording.
-3. **Section buses and effects.** The four authored machines now arrive on metered rack
-   source strips with level, pan and mute before their patchable stereo outputs. Add the
-   ReBirth signal path: distortion, pattern-controlled filter and compressor as inserts,
-   delay as a send. Keep Driftbox's reverb and per-voice controls.
+3. **Section buses and effects — landed.** The four authored machines arrive on metered
+   rack source strips with level, pan and mute before their patchable stereo outputs. The
+   retained song owns drive, pattern-controlled filter and compressor master
+   inserts, with delay as a send; Driftbox's reverb and per-voice controls remain. Both
+   editors expose the same controls and off/on/accent PCF lane, while rack mode additionally
+   offers patchable Drive, SVF, Compressor and Delay modules.
 4. **Fast pattern editing.** Drag paint/erase, rotate, transpose, randomise,
    material-preserving alter and 909 flam are present. Rack mode now exposes retained drum
    steps, pitched/accented/sliding 303 steps, lane or machine transforms and flam programming
@@ -154,8 +156,11 @@ have one name namespace, explicit type and compatibility metadata, and the old r
 is migrated without deleting it. The performance scene is now authored document state too:
 compatible documents keep it inside the retained Song, rack-native documents keep it on the
 Patch, and the shared scene host sits over the rack's existing master XY filter without
-obscuring the patcher. Next, close the remaining authored effect path and stem-review gap. Do
-not compile a song into anonymous VCOs, steps and cables and then attempt to
+obscuring the patcher. Authored drive, PCF, compressor, delay and reverb settings now stay in
+that same compatible envelope, and both editors program the PCF's off/on/accent pattern lane.
+Rack-native equivalents remain additive modules, not substitutes for retained song data.
+Next, close the rack-side stem-review gap and faster sequential-entry refinements. Do not
+compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
 

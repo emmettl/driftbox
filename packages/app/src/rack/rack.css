@@ -1685,6 +1685,19 @@ kbd {
     0 0 6px rgba(255, 209, 102, 0.42);
 }
 
+.rk-groovebox-pcf {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 7px;
+}
+
+.rk-groovebox-pcf > strong {
+  color: var(--three);
+  font: 9px var(--mono);
+  letter-spacing: 0.1em;
+}
+
 .rk-groovebox-tools {
   display: flex;
   align-items: center;

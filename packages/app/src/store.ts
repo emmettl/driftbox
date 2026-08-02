@@ -20,6 +20,7 @@ import {
   copyBassLine,
   copyDrumLane,
   cycleStep,
+  cyclePcfStep as cyclePatternPcfStep,
   encodeSong,
   songBars,
   songPresetById,
@@ -167,6 +168,7 @@ interface State {
   selectVoice: (id: string) => void
   selectBass: (id: string) => void
   toggleStep: (voiceId: string, step: number) => void
+  togglePcfStep: (step: number) => void
   setDrumStep: (voiceId: string, step: number, value: StepValue) => void
   editBassStep: (voiceId: string, step: number, value: BassStep) => void
   toggleFlamMode: () => void
@@ -539,6 +541,15 @@ export const useBox = create<State>()((set, get) => ({
     set({ song: next, selectedVoice: voiceId })
   },
 
+  togglePcfStep: (step) => {
+    const { song, editing, engine } = get()
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern) return
+    const next = replacePattern(song, cyclePatternPcfStep(pattern, step))
+    if (engine) engine.song = next
+    set({ song: next })
+  },
+
   setDrumStep: (voiceId, step, value) => {
     const { song, editing, engine } = get()
     const pattern = song.patterns.find((p) => p.id === editing)
@@ -863,7 +874,15 @@ export const useBox = create<State>()((set, get) => ({
       flams[voiceId] = Array.from({ length: clamped }, (_, i) => marks[i] === true)
     }
 
-    const resized: Pattern = { ...pattern, length: clamped, tracks, bass }
+    const resized: Pattern = {
+      ...pattern,
+      length: clamped,
+      tracks,
+      bass,
+      ...(pattern.pcf
+        ? { pcf: Array.from({ length: clamped }, (_, index) => pattern.pcf?.[index] ?? 0) }
+        : {}),
+    }
     if (pattern.flams) resized.flams = flams
     const next = replacePattern(song, resized)
     if (engine) engine.song = next

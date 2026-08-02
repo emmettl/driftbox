@@ -137,6 +137,8 @@ function pattern(value: unknown, index: number): Pattern | null {
     }
   }
 
+  const pcf = steps(value.pcf, length)
+
   return {
     id,
     name: typeof value.name === 'string' && value.name !== '' ? value.name : id,
@@ -144,6 +146,7 @@ function pattern(value: unknown, index: number): Pattern | null {
     tracks,
     bass,
     ...(Object.keys(flams).length > 0 ? { flams } : {}),
+    ...(pcf ? { pcf } : {}),
   }
 }
 

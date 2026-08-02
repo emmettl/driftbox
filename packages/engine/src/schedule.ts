@@ -14,6 +14,7 @@ import {
   flamAt,
   patternForBar,
   patternForClip,
+  pcfAt,
   stepAt,
   type ClipSlot,
   type Pattern,
@@ -60,6 +61,8 @@ export interface StepPlan {
   stepSeconds: number
   bpm: number
   fx: FxParams
+  /** Pattern-controlled filter strike for the song-wide authored insert. */
+  pcf: 0 | 1 | 2
   drums: DrumHit[]
   bass: BassHit[]
 }
@@ -106,7 +109,7 @@ export function planStep(
   const stepSeconds = 60 / bpm / 4
   const fx = fxParamsAt(song, event.bar, event.index)
   const pattern = patternForBar(song, event.bar)
-  if (!pattern) return { time: event.time, stepSeconds, bpm, fx, drums: [], bass: [] }
+  if (!pattern) return { time: event.time, stepSeconds, bpm, fx, pcf: 0, drums: [], bass: [] }
 
   const swung = (voiceId: string) =>
     event.time + swingDelay(
@@ -181,7 +184,7 @@ export function planStep(
     }
   }
 
-  return { time: event.time, stepSeconds, bpm, fx, drums, bass }
+  return { time: event.time, stepSeconds, bpm, fx, pcf: pcfAt(pattern, event.index), drums, bass }
 }
 
 /**
