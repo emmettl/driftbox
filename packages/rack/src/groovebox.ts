@@ -85,6 +85,7 @@ export function patchCompatibility(patch: Patch): PatchCompatibility {
     patch.modules.some((module) => module.type !== GROOVEBOX_MODULE.type) ||
     !derivedSourceOnly ||
     patch.cables.length > 0 ||
+    patch.visual !== undefined ||
     patch.break !== undefined ||
     (patch.modulation?.length ?? 0) > 0 ||
     (patch.voices ?? 1) > 1 ||

@@ -117,6 +117,9 @@ export interface AutomationLane {
 export interface Song {
   bpm: number
   swing: number
+  /** Host-resolved performance scene id. The engine carries this opaque hint but never
+   * interprets it, so an embedding app may provide different visuals or none at all. */
+  visual?: string
   patterns: Pattern[]
   /** The arrangement, in play order, looping at the end. A pattern may appear as often
    *  as it likes. An empty chain plays the first pattern forever. */

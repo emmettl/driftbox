@@ -15,17 +15,17 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
 | Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 steps; off / on / accent / 909 flam; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
 | Song | Multi-clip sections with repeat counts, section seek and arbitrary whole-bar looping; recordable versioned tempo, swing, instrument, send and effect automation |
-| Ships with | Sixteen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro |
+| Ships with | Seventeen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro and Driftlings |
 | Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |
 | Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Tempo-synced delay and a generated-IR reverb, as sends |
-| Saving | Autosaved to localStorage, export/import a file, song in a shareable URL |
+| Saving | Autosaved to localStorage, export/import a file, song in a shareable URL; scene identity travels with the document |
 | Visuals | Four meters, seventeen 3D scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.2.0, with provenance |
-| Rack | An unpublished work in progress with 31 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 31 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -65,8 +65,10 @@ allocator and hardware mapping store: the original editor can play its focused 3
 drum and learn every authored control, while rack mode adds polyphony, channels, modulation
 and Combinator routing. Songs and patches now also share one named local library with explicit
 document type and compatibility state; rack-only entries remain visible in the groovebox but
-cannot be flattened there, and the old patch shelf migrates on first write. Next, close the
-remaining authored effects and performance-scene gaps; do not duplicate authored patterns into
+cannot be flattened there, and the old patch shelf migrates on first write. Rack split and pad
+views now host the same reactive scenes over the same master XY filter, with scene identity
+persisted inside a compatible song or at patch level for rack-native work. Next, close the
+remaining authored effect path and stem-review gap; do not duplicate authored patterns into
 anonymous rack primitives.
 
 ## What is deliberate

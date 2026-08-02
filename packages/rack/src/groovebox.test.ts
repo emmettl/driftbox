@@ -109,6 +109,10 @@ describe('the groovebox document bridge', () => {
       field: 'tempo override',
       extend: (patch: Patch): Patch => ({ ...patch, tempo: 130 }),
     },
+    {
+      field: 'top-level visual',
+      extend: (patch: Patch): Patch => ({ ...patch, visual: 'longhand' }),
+    },
   ])('marks a document with a rack $field as extended without losing its song', ({ extend }) => {
     const song = SONGS[0].build()
     const extended = extend(embedGrooveboxSong(song))

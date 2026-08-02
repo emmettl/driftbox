@@ -294,6 +294,10 @@ export function decodeSong(text: string): Song | null {
     .filter((entry): entry is ChainStep => entry !== null && ids.has(entry.pattern))
 
   const lanes = automation(body.automation)
+  const visual =
+    typeof body.visual === 'string' && body.visual.trim() !== ''
+      ? body.visual.trim().slice(0, 120)
+      : undefined
   return {
     bpm: Math.round(clamp(body.bpm, 20, 300, 120)),
     swing: clamp(body.swing, 0, 1, 0),
@@ -302,5 +306,6 @@ export function decodeSong(text: string): Song | null {
     kit: kit(body.kit),
     fx: knobs(body.fx, DEFAULT_FX),
     ...(lanes.length > 0 ? { automation: lanes } : {}),
+    ...(visual ? { visual } : {}),
   }
 }

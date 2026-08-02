@@ -68,6 +68,10 @@ describe('every shipped song', () => {
     expect(decodeSong(encodeSong(song))).toEqual(song)
   })
 
+  it.each(SONGS)('$id carries its authored visual in the song document', ({ visual, build }) => {
+    expect(build().visual).toBe(visual)
+  })
+
   it.each(SONGS)('$id is long enough to be a track rather than a loop', ({ build }) => {
     expect(songBars(build())).toBeGreaterThanOrEqual(32)
   })

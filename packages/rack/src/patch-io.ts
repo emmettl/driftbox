@@ -210,6 +210,10 @@ export function decodePatch(text: string): Patch | null {
   }
 
   const patch: Patch = { modules, cables }
+  // Presentation is host-owned, but its short opaque id is still authored document data.
+  if (typeof body.visual === 'string' && body.visual.trim() !== '') {
+    patch.visual = body.visual.trim().slice(0, 120)
+  }
   // A short host-resolved id, never the audio itself. Empty or non-string values cannot name anything and
   // are dropped rather than being turned into a break the host has to guess at.
   if (isName(body.break)) patch.break = body.break

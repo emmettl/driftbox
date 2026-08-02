@@ -55,6 +55,10 @@ describe('a round trip', () => {
     expect(decodeSong(encodeSong(withClips))!.chain).toEqual(withClips.chain)
   })
 
+  it('keeps an opaque host visual hint', () => {
+    expect(decodeSong(encodeSong(song({ visual: 'longhand' })))?.visual).toBe('longhand')
+  })
+
   it('keeps 909 flam marks and their global width', () => {
     const original = song({
       patterns: [
@@ -107,6 +111,10 @@ describe('a round trip', () => {
   it('reads a bare song as well as an enveloped one', () => {
     // So a file assembled by hand out of `JSON.stringify(song)` still loads.
     expect(decodeSong(JSON.stringify(song()))?.bpm).toBe(102)
+  })
+
+  it('drops an unusable visual hint without rejecting the song', () => {
+    expect(decodeSong(JSON.stringify(song({ visual: '   ' })))?.visual).toBeUndefined()
   })
 })
 

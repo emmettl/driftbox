@@ -31,6 +31,7 @@ beforeEach(() => {
     patternClipboard: null,
     preset: null,
     libraryName: null,
+    scene: defaultSong().visual ?? SCENES[0].id,
   })
 })
 
@@ -479,6 +480,16 @@ describe('the visual a song asks for', () => {
     const withVisual = SONGS.find((s) => s.visual !== undefined)!
     useBox.getState().loadPreset(withVisual.id)
     expect(useBox.getState().scene).toBe(withVisual.visual)
+  })
+
+  it('honours a scene carried by an imported or library song', () => {
+    useBox.getState().loadSong({ ...defaultSong(), visual: 'longhand' })
+    expect(useBox.getState().scene).toBe('longhand')
+  })
+
+  it('writes a manual scene choice back into the song document', () => {
+    useBox.getState().setScene('longhand')
+    expect(useBox.getState().song.visual).toBe('longhand')
   })
 })
 

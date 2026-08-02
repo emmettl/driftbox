@@ -24,7 +24,6 @@ import {
   songBars,
   songPresetById,
   SONGS,
-  type SongPreset,
   addPattern,
   alterBassLine,
   alterTrack,
@@ -282,6 +281,13 @@ function prefersTouch(): boolean {
 // user's own a moment later looks like the app lost it and then found it.
 const initialSong = loadStoredSong() ?? defaultSong()
 
+/** Compare musical content for pre-visual autosave migration. A scene change is still an
+ * authored edit once the session is open; this only recognises an untouched older preset. */
+function withoutVisual(song: Song): Song {
+  const { visual: _drop, ...rest } = song
+  return rest
+}
+
 /**
  * Which shipped song the restored session is, if it is one of them.
  *
@@ -290,18 +296,20 @@ const initialSong = loadStoredSong() ?? defaultSong()
  * they mind losing work they never did.
  */
 const initialPreset =
-  SONGS.find((preset) => encodeSong(preset.build()) === encodeSong(initialSong))?.id ?? null
+  SONGS.find(
+    (preset) => encodeSong(withoutVisual(preset.build())) === encodeSong(withoutVisual(initialSong)),
+  )?.id ?? null
 
 /**
- * The scene a preset asks for, if this build has one by that name.
+ * The scene a song asks for, if this build has one by that name.
  *
  * Unknown names are ignored rather than falling back to a default — the engine's `visual`
  * is an opaque hint, and a host is free not to have that picture. A song naming a scene
  * this build does not ship should leave whatever is on screen alone rather than resetting
  * it to something arbitrary.
  */
-function visualOf(preset: SongPreset): { scene?: SceneId } {
-  const wanted = preset.visual
+function visualOfSong(song: Song): { scene?: SceneId } {
+  const wanted = song.visual
   return wanted && SCENES.some((s) => s.id === wanted) ? { scene: wanted } : {}
 }
 
@@ -342,6 +350,7 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
   }
   return {
     song,
+    ...visualOfSong(song),
     editing: song.patterns[0]?.id ?? '',
     followPlayhead: true,
     loop: null,
@@ -392,7 +401,10 @@ export const useBox = create<State>()((set, get) => ({
   performance: prefersTouch(),
   audioStalled: false,
   // Whatever the restored song suggests, so a returning listener gets the pairing too.
-  scene: (initialPreset ? songPresetById(initialPreset)?.visual : undefined) ?? SCENES[0].id,
+  scene:
+    visualOfSong(initialSong).scene ??
+    (initialPreset ? songPresetById(initialPreset)?.visual : undefined) ??
+    SCENES[0].id,
   collapsed: loadCollapsed(),
 
   // The AudioContext is created lazily on the first interaction. Constructing one
@@ -803,7 +815,12 @@ export const useBox = create<State>()((set, get) => ({
     get().engine?.auditionBass(voiceId, step)
   },
 
-  setScene: (scene) => set({ scene }),
+  setScene: (scene) => {
+    const { song, engine } = get()
+    const next = song.visual === scene ? song : { ...song, visual: scene }
+    if (engine) engine.song = next
+    set({ scene, song: next })
+  },
 
   togglePerformance: () => set({ performance: !get().performance }),
 
@@ -908,7 +925,7 @@ export const useBox = create<State>()((set, get) => ({
     const { engine, running } = get()
     // build(), not a stored object — each call is a fresh song, so loading one twice
     // cannot hand back something edited in between.
-    set({ ...adopt(preset.build(), engine), preset: preset.id, ...visualOf(preset) })
+    set({ ...adopt(preset.build(), engine), preset: preset.id })
     restart(engine, running)
   },
 
@@ -919,7 +936,7 @@ export const useBox = create<State>()((set, get) => ({
     // from nowhere, so next always goes somewhere.
     const next = SONGS[(((at < 0 ? 0 : at + delta) % SONGS.length) + SONGS.length) % SONGS.length]
 
-    set({ ...adopt(next.build(), engine), preset: next.id, ...visualOf(next) })
+    set({ ...adopt(next.build(), engine), preset: next.id })
 
     restart(engine, running)
     return next.name

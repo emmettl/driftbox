@@ -364,6 +364,9 @@ export interface ModRoute {
 export interface Patch {
   modules: PatchModule[]
   cables: PatchCable[]
+  /** Opaque performance scene id resolved by the host. Rack-native documents keep it
+   * here; a retained Groovebox song carries its own hint inside `groovebox` instead. */
+  visual?: string
   /**
    * The portable generated break this patch was written around.
    *

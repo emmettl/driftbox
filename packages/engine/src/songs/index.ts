@@ -53,7 +53,7 @@ export interface SongPreset {
 // kick on the floor and a closed hat on the "e", differing only in tempo — so the set
 // sounded like one track restarting. They are now three apart, and the arc runs gentle,
 // hard, dark, abstract, building, fast.
-export const SONGS: SongPreset[] = [
+const PRESETS: SongPreset[] = [
   {
     id: 'chillwave',
     visual: 'sunset',
@@ -174,6 +174,23 @@ export const SONGS: SongPreset[] = [
     build: mobiliseSong,
   },
 ]
+
+/** Ship the scene hint with the actual document as well as the catalogue entry.
+ *
+ * The catalogue used to be the only place that knew this pairing, so saving, sharing or
+ * opening a song in rack mode silently lost its authored visual. Keeping the raw builders
+ * scene-agnostic still makes them useful in engine tests and other hosts; the preset boundary
+ * is where the opaque host hint joins the Song envelope. */
+export const SONGS: SongPreset[] = PRESETS.map((preset) => {
+  const build = preset.build
+  return {
+    ...preset,
+    build: () => {
+      const song = build()
+      return preset.visual ? { ...song, visual: preset.visual } : song
+    },
+  }
+})
 
 export function songPresetById(id: string): SongPreset | undefined {
   return SONGS.find((preset) => preset.id === id)

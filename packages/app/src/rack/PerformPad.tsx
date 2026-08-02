@@ -1,5 +1,11 @@
 import { kaossReadout, type Kaoss } from '@driftbox/engine'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { SCENES, nextScene, type SceneId } from '../visual/scenes/index.js'
+import { endTouch, setTouch } from '../visual/touch.js'
+
+const Visualiser = lazy(() =>
+  import('../visual/Visualiser.js').then(({ Visualiser: Component }) => ({ default: Component })),
+)
 
 // The Kaoss pad, across the rack's master.
 //
@@ -9,9 +15,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 // audio thread — two BiquadFilterNodes outside the worklet, which is where a filter across a whole mix
 // belongs anyway.
 //
-// The `Kaoss` class itself is the engine's, unchanged. What is not reusable is `ui/KaossPad.tsx`, which is
-// welded to the sequencer's store, its scene list and its visualiser — so this is a second surface over the
-// same audio, rather than a shared component pretending two pages are one.
+// The `Kaoss` class and visual scene host are shared unchanged. What is not reusable is
+// `ui/KaossPad.tsx`, whose layout and transport controls belong to the sequencer — so this is a second
+// surface over the same audio and visuals, rather than a shared component pretending two pages are one.
 //
 // Across is cutoff, up is resonance, as every one of these since the KP1: the only layout anybody's hands
 // already know. Momentary, so it glides back to open when you let go — `release` explains why latching is a
@@ -22,6 +28,11 @@ interface Props {
   kaoss: Kaoss | null
   /** The rack's Back/Front switch still means something while the rack itself is hidden. */
   flipped: boolean
+  scene: SceneId
+  setScene: (scene: SceneId) => void
+  analyser: AnalyserNode | null
+  running: boolean
+  bpm: number
 }
 
 interface Point {
@@ -29,9 +40,10 @@ interface Point {
   y: number
 }
 
-export function PerformPad({ kaoss, flipped }: Props) {
+export function PerformPad({ kaoss, flipped, scene, setScene, analyser, running, bpm }: Props) {
   const surface = useRef<HTMLDivElement>(null)
   const [point, setPoint] = useState<Point | null>(null)
+  const held = useRef(false)
 
   /** Where the pointer is, 0..1 from the BOTTOM left — which is the orientation the readout assumes. */
   const positionOf = useCallback((event: React.PointerEvent): Point => {
@@ -48,13 +60,16 @@ export function PerformPad({ kaoss, flipped }: Props) {
     (at: Point) => {
       setPoint(at)
       kaoss?.set(at.x, at.y)
+      setTouch(at.x, at.y)
     },
     [kaoss],
   )
 
   const lift = useCallback(() => {
+    held.current = false
     setPoint(null)
     kaoss?.release()
+    endTouch()
   }, [kaoss])
 
   // A pointer that goes away without a pointerup — the tab hidden, the window blurred — would otherwise
@@ -69,6 +84,7 @@ export function PerformPad({ kaoss, flipped }: Props) {
   }, [lift])
 
   const readout = point ? kaossReadout(point.x, point.y) : null
+  const sceneName = (SCENES.find((candidate) => candidate.id === scene) ?? SCENES[0]).name
   const controls = () => (
     <>
       {/* Drawn from the point rather than from the filter, so the dot is under the finger even while the
@@ -82,6 +98,19 @@ export function PerformPad({ kaoss, flipped }: Props) {
       )}
       <span className="rk-pad-axis rk-pad-axis-x">cutoff</span>
       <span className="rk-pad-axis rk-pad-axis-y">resonance</span>
+      <button
+        type="button"
+        className="rk-pad-scene"
+        aria-label={`Scene: ${sceneName}. Change scene.`}
+        title="Change performance scene"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          setScene(nextScene(scene))
+        }}
+      >
+        {sceneName}
+      </button>
       <span className="rk-pad-readout">
         {readout === null
           ? kaoss
@@ -104,18 +133,32 @@ export function PerformPad({ kaoss, flipped }: Props) {
       aria-label={`Performance filter, ${flipped ? 'back' : 'front'} side. Drag across for cutoff, up for resonance.`}
       onPointerDown={(event) => {
         event.preventDefault()
+        held.current = true
         surface.current?.setPointerCapture(event.pointerId)
         move(positionOf(event))
       }}
       onPointerMove={(event) => {
-        if (event.buttons === 0) return
+        if (!held.current) return
         move(positionOf(event))
       }}
-      onPointerUp={lift}
+      onPointerUp={(event) => {
+        surface.current?.releasePointerCapture(event.pointerId)
+        lift()
+      }}
       onPointerCancel={lift}
     >
       <div className="rk-pad-turn">
         <div className="rk-pad-face rk-pad-face-front" aria-hidden={flipped}>
+          <Suspense fallback={<div className="rk-pad-visualiser rk-pad-visualiser-loading" />}>
+            <Visualiser
+              className="rk-pad-visualiser"
+              scene={scene}
+              analyser={analyser}
+              running={running}
+              bpm={bpm}
+            />
+          </Suspense>
+          <span className="rk-pad-visual-veil" />
           {controls()}
         </div>
         {/* There is no patch panel behind an insert that lives outside the rack graph. The pad therefore

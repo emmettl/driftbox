@@ -1011,6 +1011,31 @@ describe('editing a retained Groovebox pattern', () => {
   })
 })
 
+describe('performance scene document state', () => {
+  it('stores a rack-native scene on the patch without rebuilding audio', () => {
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0, history: NO_HISTORY })
+    useRack.getState().setVisual('longhand')
+
+    expect(useRack.getState().patch.visual).toBe('longhand')
+    expect(useRack.getState().revision).toBe(0)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('rack-native')
+  })
+
+  it('stores a Groovebox scene inside the retained song and keeps compatibility', () => {
+    useRack.setState({
+      patch: embedGrooveboxSong(SONGS[0].build()),
+      revision: 0,
+      history: NO_HISTORY,
+    })
+    useRack.getState().setVisual('longhand')
+
+    expect(grooveboxSong(useRack.getState().patch)?.visual).toBe('longhand')
+    expect(useRack.getState().patch.visual).toBeUndefined()
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+    expect(useRack.getState().revision).toBe(0)
+  })
+})
+
 describe('undo', () => {
   const state = () => useRack.getState()
 

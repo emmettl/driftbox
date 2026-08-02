@@ -18,6 +18,7 @@ import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
+import { SCENES } from '../visual/scenes/index.js'
 import { BREAKS, renderBreak } from './breaks.js'
 import {
   DriftboxEngine,
@@ -111,11 +112,13 @@ export default function RackApp() {
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
   const setTempo = useRack((s) => s.setTempo)
   const setBreak = useRack((s) => s.setBreak)
+  const setVisual = useRack((s) => s.setVisual)
   const playing = useRack((s) => s.running)
   const setRunning = useRack((s) => s.setRunning)
   const ensureSampler = useRack((s) => s.ensureSampler)
   const compatibility = useMemo(() => patchCompatibility(patch), [patch])
   const retainedSong = useMemo(() => grooveboxSong(patch), [patch])
+  const performanceScene = retainedSong?.visual ?? patch.visual ?? SCENES[0].id
   // Until hosted song playback lands, a compatible rack still follows the retained
   // song's tempo. Writing a different tempo is an explicit rack override and therefore
   // changes the compatibility state to rack-extended.
@@ -1471,7 +1474,15 @@ export default function RackApp() {
       <div ref={performanceSpace} className={`rk-performance-space rk-performance-space-${rackView}`}>
         {rackView !== 'rack' && (
           <div className="rk-perform">
-            <PerformPad kaoss={hasKaoss ? kaoss.current : null} flipped={flipped} />
+            <PerformPad
+              kaoss={hasKaoss ? kaoss.current : null}
+              flipped={flipped}
+              scene={performanceScene}
+              setScene={setVisual}
+              analyser={analyser}
+              running={playing}
+              bpm={tempo}
+            />
           </div>
         )}
 
