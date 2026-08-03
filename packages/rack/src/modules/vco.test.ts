@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Osc } from '../dsp/osc.js'
 import { VcoProcessor } from './vco.js'
 
 // Whether an oscillator is band-limited is not a matter of opinion, and it is not something
@@ -24,7 +25,7 @@ function run(
   width = 0.5,
   Constructor: typeof VcoProcessor = VcoProcessor,
 ): Float64Array {
-  const vco = new Constructor(SR)
+  const vco = new Constructor(SR, { Osc })
   const zero = new Float32Array(samples)
   const params = [
     new Float32Array(samples).fill(tuneFor(frequency)),
@@ -204,7 +205,7 @@ describe('the oscillator', () => {
     // modulated at audio rate. A sweep applied per sample and the same sweep applied once a
     // block are different sounds, and only one of them is a modular.
     const samples = 2048
-    const vco = new VcoProcessor(SR)
+    const vco = new VcoProcessor(SR, { Osc })
     const sweep = new Float32Array(samples)
     for (let i = 0; i < samples; i++) sweep[i] = (2 * i) / samples
     const params = [
@@ -229,7 +230,7 @@ describe('the oscillator', () => {
     // Linear FM with the index in units of the carrier, so the timbre holds still as you play
     // up the keyboard. A constant FM input of 1.0 is therefore just an octave up.
     const samples = Math.ceil(SR / 4)
-    const vco = new VcoProcessor(SR)
+    const vco = new VcoProcessor(SR, { Osc })
     const params = [
       new Float32Array(samples).fill(tuneFor(220)),
       new Float32Array(samples),
@@ -248,7 +249,7 @@ describe('the oscillator', () => {
     // frequency does not run the phase backwards and produce a NaN or a DC offset that the
     // rest of the patch inherits.
     const samples = 2048
-    const vco = new VcoProcessor(SR)
+    const vco = new VcoProcessor(SR, { Osc })
     const params = [
       new Float32Array(samples).fill(tuneFor(220)),
       new Float32Array(samples),

@@ -30,8 +30,9 @@ import { TRANSPORT_MODULE } from './transport.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
+import { VOICE_MODULE } from './voice.js'
 
-// Thirty-one modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-two modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -74,6 +75,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   GROOVEBOX_MODULE,
   AUDIO_INPUT_MODULE,
   VCO_MODULE,
+  VOICE_MODULE,
   NOISE_MODULE,
   SAMPLER_MODULE,
 
@@ -146,6 +148,7 @@ export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './tracker.js'
 export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
+export { VOICE_MODULE, VoiceProcessor } from './voice.js'
 export {
   VOCODER_BAND_COUNTS,
   VOCODER_MAX_BANDS,

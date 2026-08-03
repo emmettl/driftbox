@@ -196,10 +196,16 @@ describe('the assembled worklet', () => {
     )() as typeof Ladder
     expect(Mangled.name).toBe('q')
 
-    const registry: Registry = {
-      ...MODULES,
-      ladder: { ...LADDER_MODULE, deps: { Ladder: Mangled } },
-    }
+    // Swapped on **every** module that asks for a Ladder, not only on the Ladder module. The Voice takes
+    // one too, and leaving that one real makes the two disagree — which the assembler correctly refuses,
+    // loudly, because one of them would otherwise silently get the wrong DSP. That refusal is the point
+    // of the check in `rackSource`; running into it here is the check working.
+    const registry: Registry = Object.fromEntries(
+      Object.entries(MODULES).map(([type, def]) => [
+        type,
+        def.deps?.Ladder ? { ...def, deps: { ...def.deps, Ladder: Mangled } } : def,
+      ]),
+    )
     const { instance } = instantiate(registry)
     instance.port.onmessage?.({ data: { kind: 'plan', plan: compile(PATCH, registry) } })
 
