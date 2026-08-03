@@ -112,6 +112,8 @@ const UNSTABLE = [
   'TrackerProcessor',
   'VCO_MODULE',
   'VcoProcessor',
+  'VOICE_MODULE',
+  'VoiceProcessor',
   'VOCODER_BAND_COUNTS',
   'VOCODER_MAX_BANDS',
   'VOCODER_MODULE',

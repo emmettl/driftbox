@@ -53,8 +53,11 @@ describe('searching', () => {
       .map((def) => def.type)
 
   it('finds a module by name, whatever the case', () => {
-    expect(types('ladder')).toEqual(['ladder'])
-    expect(types('LADDER')).toEqual(['ladder'])
+    // The Voice matches too, because its description says it has a ladder filter in it — which is a
+    // better answer than hiding it, not a false positive. What matters is that the module actually
+    // called Ladder is found; the search deliberately reads descriptions as well as names.
+    expect(types('ladder')).toContain('ladder')
+    expect(types('LADDER')).toEqual(types('ladder'))
   })
 
   it('finds a module by what it is for rather than by its name', () => {

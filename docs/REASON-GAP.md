@@ -143,10 +143,18 @@ Ordered by return, not by how big Reason's version was.
   it goes at the end of a chain, so a mono one would have folded away the width that stereo
   cables had just made carryable. Still no analyser, which is a different feature and wants the
   Meter's telemetry path rather than a module of its own.
-- **A complete voice.** Subtractor, Thor and Malström are each *one device* that makes a sound
-  on its own. Here every voice is patched from VCO, SVF and ADSR. Polyphony landed at step 5b
-  and nothing yet takes advantage of eight voices being eight *different* notes, because the
-  patching cost is paid per voice-shaped patch rather than once.
+- **~~A complete voice.~~ Landed.** `Voice` is two band-limited oscillators with a detune, a ladder
+  filter with key tracking, an amplifier envelope and a filter envelope — one module that makes a note
+  from a gate with nothing else patched. `poly: true`, which is the point: a chord now costs one cable
+  where it used to cost eight copies of a five-module patch kept identical by hand.
+
+  Not a chunk, deliberately. A chunk is a recipe and the right shape for a *sound* somebody should be
+  able to take apart; five modules per voice is still five modules per voice, so it would not have bought
+  the thing above. The patching cost had to disappear rather than be automated.
+
+  The oscillator moved to `dsp/osc.ts` and is shared with the VCO through `deps` rather than copied —
+  `Random` was already shared between the LFO and the Noise the same way. A pasted copy would have gone
+  on passing `vco.test.ts` while drifting from the numbers it measures.
 - **A stereo imager and a ping-pong delay.** Both were impossible before cables carried a pair
   and are ordinary modules now. The Delay is the interesting one: making its existing ports
   stereo would change what every patch using it sounds like, so it wants a second thought about
@@ -207,7 +215,7 @@ Worth writing down so nobody builds them twice.
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
 3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, an export plays
    them, and the knob follows. Nothing remains.
-4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
+4. ~~EQ~~, then ~~a complete voice~~. Both landed.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate and bypass are
    done; what is left there is auto-routing a bare module, CV trim per jack, per-device patches
    and multi-select.

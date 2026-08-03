@@ -121,6 +121,7 @@ export { LADDER_MODULE, LadderProcessor } from './modules/ladder.js'
 export { OUT_MODULE, OutProcessor } from './modules/out.js'
 export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './modules/tracker.js'
 export { VCO_MODULE, VcoProcessor } from './modules/vco.js'
+export { VOICE_MODULE, VoiceProcessor } from './modules/voice.js'
 export {
   VOCODER_BAND_COUNTS,
   VOCODER_MAX_BANDS,

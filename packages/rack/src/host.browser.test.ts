@@ -120,6 +120,40 @@ describe('scheduling a param against a frame, in a real worklet', () => {
     expect(left[Math.round(sampleRate * 0.75)]).toBeCloseTo(0.8, 2)
   })
 
+  it('renders a playable note from one Voice module and nothing else', async () => {
+    // The claim the module exists for, through a real worklet. `voice.test.ts` measures the DSP directly;
+    // what only this can say is that a module taking **two** deps — the shared oscillator and the engine's
+    // Ladder — serialises into an `AudioWorkletGlobalScope` and runs there. A dep that failed to cross
+    // would throw on the first block and the file would come out silent, in production only.
+    const sampleRate = 22_050
+    const patch: Patch = {
+      modules: [
+        // An Offset with nothing patched in is a DC source, so it is the gate: held open for the render.
+        { id: 'g', type: 'offset', params: { offset: 1 } },
+        { id: 'v', type: 'voice', params: { attack: 0.001, sustain: 0.9, level: 0.6 } },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [
+        { from: ['g', 'out'], to: ['v', 'gate'] },
+        { from: ['v', 'out'], to: ['out', 'in'] },
+      ],
+      tempo: 120,
+    }
+
+    const rendered = await renderPatch(patch, {
+      sampleRate,
+      bars: 1,
+      tail: 0,
+      offline: (channels, frames, rate) => new OfflineAudioContext(channels, frames, rate),
+    })
+    const left = rendered.getChannelData(0)
+    let sum = 0
+    for (const sample of left) sum += sample * sample
+    // Not silence: a voice whose deps had not arrived gives exactly zero.
+    expect(Math.sqrt(sum / left.length)).toBeGreaterThan(0.02)
+    for (const sample of left) expect(Number.isFinite(sample)).toBe(true)
+  })
+
   it('converts a context time to the frame the audio thread will call it', () => {
     const context = new OfflineAudioContext(2, 2048, 44_100)
     const rack = new Rack(context)

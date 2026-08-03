@@ -1,3 +1,4 @@
+import { Osc } from '../dsp/osc.js'
 import type { ModuleDef, Processor } from '../types.js'
 
 // An oscillator, band-limited.
@@ -22,18 +23,31 @@ import type { ModuleDef, Processor } from '../types.js'
 // of a triangle needs a different correction (a BLAMP, not a BLEP) and it would be spent on
 // something nobody can hear.
 //
-// This class is SELF-CONTAINED — see the comment in `worklet.ts`.
+// This class is SELF-CONTAINED — see the comment in `worklet.ts`. The oscillator itself lives in
+// `dsp/osc.ts` and arrives through `deps`, so the Voice module can use the same one rather than a copy
+// that would quietly drift from the numbers measured above.
+
+/** What this module needs of the shared oscillator. Structural rather than the class itself, because the
+ *  serialised processor may never name it — see the constructor. */
+interface OscLike {
+  next(dt: number, shape: number, width: number): number
+}
 
 export class VcoProcessor implements Processor {
   private readonly sampleRate: number
-  private phase = 0
+  private readonly osc: OscLike
   /** The last exponent handed to Math.pow, and its result. A static pitch is the common
    *  case by a wide margin, and this turns 128 pow() calls a block into 128 compares. */
   private lastExponent = Number.NaN
   private lastRatio = 1
 
-  constructor(sampleRate: number) {
+  constructor(sampleRate: number, deps: Record<string, unknown>) {
     this.sampleRate = sampleRate
+    // Through `deps` rather than as an import: this class is serialised into a scope of its own, so a
+    // captured reference would be a ReferenceError the moment the first patch loaded. By string key and
+    // never by identifier — see the long note in `worklet.ts` about what a minifier does to a class name.
+    const Oscillator = deps.Osc as new () => OscLike
+    this.osc = new Oscillator()
   }
 
   process(
@@ -73,50 +87,8 @@ export class VcoProcessor implements Processor {
       let dt = frequency / this.sampleRate
       if (dt > 0.45) dt = 0.45
 
-      this.phase += dt
-      if (this.phase >= 1) this.phase -= 1
-      const t = this.phase
-
-      let value: number
-      const kind = shape[i] | 0
-      if (kind === 1) {
-        // Two discontinuities, in opposite directions: up at the top of the cycle, down at
-        // the pulse width.
-        let pw = width[i]
-        if (pw < 0.05) pw = 0.05
-        else if (pw > 0.95) pw = 0.95
-        value = t < pw ? 1 : -1
-        value += this.blep(t, dt)
-        let fall = t - pw
-        if (fall < 0) fall += 1
-        value -= this.blep(fall, dt)
-      } else if (kind === 2) {
-        value = 1 - 4 * Math.abs(t - 0.5)
-      } else {
-        value = 2 * t - 1 - this.blep(t, dt)
-      }
-      out[i] = value
+      out[i] = this.osc.next(dt, shape[i] | 0, width[i])
     }
-  }
-
-  /**
-   * The PolyBLEP residual, scaled for a jump of 2 — which is what all of these are, since
-   * every shape here runs ±1.
-   *
-   * `t` is the phase and `dt` the phase increment, so the correction is applied for the one
-   * sample before a discontinuity and the one after it. Away from those it is exactly zero,
-   * which is what makes this cheap: the branch is false for all but two samples a cycle.
-   */
-  private blep(t: number, dt: number): number {
-    if (t < dt) {
-      const x = t / dt
-      return x + x - x * x - 1
-    }
-    if (t > 1 - dt) {
-      const x = (t - 1) / dt
-      return x * x + x + x + 1
-    }
-    return 0
   }
 }
 
@@ -147,4 +119,5 @@ export const VCO_MODULE: ModuleDef = {
     { id: 'width', name: 'Width', min: 0.05, max: 0.95, default: 0.5 },
   ],
   processor: VcoProcessor,
+  deps: { Osc },
 }
