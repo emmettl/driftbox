@@ -135,6 +135,11 @@ body {
   color: var(--nine) !important;
 }
 
+.rk-header .rk-help-trigger {
+  border-color: rgba(95, 240, 208, 0.24);
+  color: var(--nine);
+}
+
 /* One pair, so the two read as one control rather than as two more buttons in a row of them. */
 .rk-undo {
   display: flex;
