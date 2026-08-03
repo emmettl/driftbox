@@ -380,7 +380,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Forty-three modules
+## Forty-four modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -415,6 +415,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Tracker** | four lanes and up to 64 steps, carrying pattern data in the patch |
 | **Arranger** | a list of sections, each a pattern and a count of bars — a song, driving a Tracker |
 | **Arp** | one held note becomes a running line: a chord, a direction and a clock |
+| **Scale Player** | polyphonic key/scale correction or wrong-note filtering, with portable custom scales |
 | **Note Echo** | polyphonic note repeats with tempo sync, pitch shift and a velocity slope per echo |
 | **Compressor** | dynamics and sidechain control for glue and ducking |
 | **Limiter** | stereo-linked look-ahead peak control with gain-reduction CV |
@@ -1594,6 +1595,23 @@ both bundle cost on the editing-only path and visual competition with a readable
    processor change. A retrigger on an already allocated voice starts a fresh train, which is the honest
    boundary of this graph: it repeats input chords voice-for-voice, but cannot turn one note into simultaneous
    zero-delay cluster voices. That expansion belongs with the held-chord player work, not in a fake CV sum.
+
+   **5n. A polyphonic Scale Player.** ✅ The scale half of Scales & Chords now sits in the same
+   pitch/gate/velocity path as MIDI, Note Echo and Voice. It carries the thirteen Reason scale presets plus
+   Chromatic, corrects each out-of-scale note to the nearest degree with a downward tie-break, or suppresses
+   it in Filter mode. The scale decision is latched on the gate edge while the correction remains an offset,
+   so pitch bend still moves a held note instead of being frozen out.
+
+   Custom scales are twelve portable enable flags in `PatchModule.data`, keeping editor state out of the
+   processor contract. The module runs once per rack voice, so an incoming
+   chord stays polyphonic and every note is corrected independently. Generating a multi-note chord from one
+   voice remains separate: it needs an event/voice expansion layer, not several pitch CVs summed together.
+
+   Scale Map completes the editing path: twelve pitch-class keys show the preset after the selected root is
+   applied, with explicit note names and correction/filter status. Clicking a key copies the visible preset
+   into Custom before toggling it, so exploring a variation takes one gesture and never destroys the factory
+   shape. The last enabled note cannot be removed; missing or damaged custom data falls back to Major on both
+   the processor and panel instead of turning the device silently unusable.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

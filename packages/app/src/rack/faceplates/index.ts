@@ -12,6 +12,7 @@ import { Multisampler } from './Multisampler.js'
 import { NoteEcho } from './NoteEcho.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
+import { ScalePlayer } from './ScalePlayer.js'
 import { Tracker } from './Tracker.js'
 import { Tuner } from './Tuner.js'
 import { Vco } from './Vco.js'
@@ -76,6 +77,9 @@ const FACEPLATES: Record<string, Entry> = {
   // The waveform, direct slice picker and sample interpretation controls make this an instrument rather
   // than a file-name strip. Four rows keep those controls touchable without overflowing the fixed rack slot.
   sampler: { component: Sampler, rows: 4 },
+  // A twelve-note map plus the three engine controls. The map remains large enough to edit directly while
+  // staying one row shorter than Echo Matrix, whose second control row carries eight params.
+  'scale-player': { component: ScalePlayer, rows: 4 },
   // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.
   // The Tracker was the tallest module in the rack and the least use — a pattern you could not see.
   tracker: { component: Tracker, rows: 7 },

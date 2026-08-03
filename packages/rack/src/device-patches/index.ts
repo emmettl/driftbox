@@ -344,6 +344,12 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   // Nearly legato and only octaves: the one that is a bassline rather than a figure.
   { id: 'octaves', type: 'arp', name: 'Octave Bass', params: { chord: 0, octaves: 2, mode: 0, gate: 0.9 } },
 
+  // ---- Scale Player -----------------------------------------------------------------------------
+  { id: 'g-major', type: 'scale-player', name: 'G Major', params: { key: 7, scale: 0, filter: 0 } },
+  { id: 'a-minor', type: 'scale-player', name: 'A Minor', params: { key: 9, scale: 1, filter: 0 } },
+  { id: 'd-dorian', type: 'scale-player', name: 'D Dorian', params: { key: 2, scale: 5, filter: 0 } },
+  { id: 'filter-c-major', type: 'scale-player', name: 'C Major Filter', params: { key: 0, scale: 0, filter: 1 } },
+
   // ---- Alligator --------------------------------------------------------------------------------
   {
     id: 'tight',
