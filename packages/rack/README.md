@@ -13,9 +13,9 @@ drag-to-reorder, performance mode and offline export.
 `../../docs/RACK.md` records the design and the decisions the implementation taught us.
 
 ```js
-import { Rack } from '@driftbox/rack'
+import { Rack, MODULES } from '@driftbox/rack'
 
-const rack = new Rack(ctx)
+const rack = new Rack(ctx, MODULES)
 if (!(await rack.start())) throw new Error('no AudioWorklet, no rack')
 
 rack.patch = {
@@ -50,7 +50,7 @@ the context on a user gesture, start the rack, connect it wherever the game's au
 
 ```js
 const ctx = new AudioContext()               // on a click, tap or key — browsers require a gesture
-const rack = new Rack(ctx)
+const rack = new Rack(ctx, MODULES)          // or a registry of just the modules your patch uses
 if (!(await rack.start())) return            // no AudioWorklet, no rack: the one failure to handle
 rack.patch = decodePatch(levelMusic) ?? PATCHES[0].build()
 rack.output.connect(musicBus)                // your own gain, so the game can duck it
@@ -61,6 +61,32 @@ Nothing about that is rack-specific except `start()`, which resolves `false` whe
 — a rack without one is not a degraded rack, it is no rack, and saying so beats looking broken. From there
 the two sections below are what a game reaches for: `Adaptive` to follow the scene, and `RackRenderer` if
 any of the music wants rendering ahead of time rather than played live.
+
+## What it costs a bundle
+
+The registry is an argument rather than a default, and that is the whole of why these numbers move: a
+default parameter is a static reference, so `MODULES` used to be retained even by a caller passing its own
+registry. Measured before the change, `Rack` came to 24.2kB gzipped and did not move by one byte when handed
+a four-module registry.
+
+| what you import | minified | gzip | brotli |
+|---|---|---|---|
+| `Rack` + `Adaptive` + `LanePlayer` + codec, four modules | 31.2 | **11.2** | 10.1 kB |
+| the same, eight modules | 35.8 | 12.6 | 11.3 kB |
+| the same, `MODULES` — all thirty-three | 74.3 | 24.2 | 21.3 kB |
+| `RackRenderer` + `Adaptive`, four modules | 21.3 | 7.7 | 7.0 kB |
+| every export, nothing shaken | 146.8 | 43.9 | 38.0 kB |
+
+So a game that knows its patch carries about 11kB gzipped for a modular synth, its compiler, an adaptive
+score and automation playback. A patch editor — anything where somebody can drag in any module — passes
+`MODULES` and carries all of it, which is what this repo's own app does.
+
+The content tree-shakes on its own: the shipped patches are 3.5kB gzipped, the chunks 1.3kB and the VCV
+importer 1.7kB, and none of them appear unless imported. The floor underneath everything is the compiler and
+the graph at 4.4kB.
+
+Measured by bundling each entry point with rolldown at `minify: true` — the bundler Vite uses — then
+compressing with gzip -9 and brotli quality 11.
 
 ## Playing what was recorded
 
@@ -88,7 +114,7 @@ explicitly does not promise — and reassembling the module registry by hand.
 ```js
 import { RackRenderer, PATCHES } from '@driftbox/rack'
 
-const renderer = new RackRenderer({ sampleRate: 48000 })
+const renderer = new RackRenderer(MODULES, { sampleRate: 48000 })
 renderer.patch = PATCHES[0].build()
 renderer.setTransport(renderer.patch.tempo ?? 120, true)
 

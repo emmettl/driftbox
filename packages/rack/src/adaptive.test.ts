@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MODULES } from './modules/index.js'
 import { Adaptive, adaptiveValue, adaptiveValues, type AdaptiveScore } from './adaptive.js'
 import { RackRenderer } from './headless.js'
 import type { Patch } from './types.js'
@@ -176,7 +177,7 @@ describe('Adaptive', () => {
       cables: [{ from: ['osc', 'out'], to: ['out', 'in'] }],
       tempo: 120,
     }
-    const renderer = new RackRenderer({ sampleRate: 48000 })
+    const renderer = new RackRenderer(MODULES, { sampleRate: 48000 })
     renderer.patch = patch
     renderer.setTransport(120, true)
 

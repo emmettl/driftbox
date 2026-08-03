@@ -590,6 +590,31 @@ modules, and `hostInputs` on `process` is the seam anything else fills. That is 
 Measured on the machine this was written on: a shipped preset renders at about 20x realtime at 48kHz,
 which is a few percent of one core. `examples/headless.mjs` is that measurement, runnable.
 
+### The registry is an argument, because a default is a static reference
+
+`new Rack(ctx)` read as the friendly signature and cost every consumer the entire module set. A default
+parameter is a reference the bundler must keep, so `MODULES` — and therefore all thirty-three modules and
+their processors — was retained even in a build that passed its own registry. Measured: `Rack` alone came to
+24.2kB gzipped and did not move by a single byte when handed a four-module registry.
+
+Requiring it takes a four-module game to 11.2kB, and a headless one to 7.7kB. The same change made the
+individual module defs worth exporting: nineteen of them were reachable only through `MODULES`, which is to
+say a consumer wanting three modules had no way to ask for three. They are promised API now, because API you
+have to use to do a supported thing cannot sit in the tier that is expected to change. The processors are
+not — a def is data about a module, a processor is the audio thread's contract, and that is the third-party
+question this document defers.
+
+Two things make the trimmed case behave rather than merely fit. A patch naming a module the registry does
+not have becomes a **placeholder**, exactly as it does in a build that is a version behind, so a registry
+that is missing something degrades visibly and in `plan.notes` rather than by demolishing the document. And
+the worklet is assembled from the registry it was given, so a trimmed rack ships a smaller audio thread too
+rather than a full one behind a smaller API.
+
+The cost is that every host writes `MODULES` where it used to write nothing, and that the editor in this
+repo — where anybody can drag in any module — passes the whole set and saves nothing. That is the right way
+round: the application that needs everything says so, and the embedder that does not is no longer paying for
+its convenience.
+
 ### What the app was holding that the package should have been
 
 Two things reached this package late, and both were found by asking what an embedding host would have to

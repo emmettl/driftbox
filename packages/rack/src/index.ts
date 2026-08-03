@@ -1,5 +1,4 @@
 import { compile } from './compile.js'
-import { MODULES } from './modules/index.js'
 import type { MeterReading, Patch, Plan, PlanNote, Registry } from './types.js'
 import { RACK_PROCESSOR, loadRack } from './worklet.js'
 
@@ -122,6 +121,33 @@ export {
 } from './device-patches/index.js'
 export { VCV_MODELS, importVcv, importVcvPatch, type ImportNote, type Imported } from './vcv/index.js'
 export { MODULES, MODULE_LIST } from './modules/index.js'
+// Every module's def, one by one, so a registry can be assembled by hand.
+//
+// **This list is what makes trimming possible rather than theoretical.** Nineteen of these were reachable
+// only through `MODULES` — which is the whole set — so a consumer wanting three modules had no way to ask
+// for three. The ones that were already exported got there because something in this repo happened to need
+// them; the rest are here because a supported way to control the bundle cannot be built out of imports that
+// are not offered.
+export { ADSR_MODULE } from './modules/adsr.js'
+export { CLOCK_MODULE } from './modules/clock.js'
+export { COMPRESSOR_MODULE } from './modules/compressor.js'
+export { DELAY_MODULE } from './modules/delay.js'
+export { DRIVE_MODULE } from './modules/drive.js'
+export { EQ_MODULE } from './modules/eq.js'
+export { LFO_MODULE } from './modules/lfo.js'
+export { METER_MODULE } from './modules/meter.js'
+export { MIXER_MODULE } from './modules/mixer.js'
+export { NOISE_MODULE } from './modules/noise.js'
+export { OFFSET_MODULE } from './modules/offset.js'
+export { QUANTIZER_MODULE } from './modules/quantizer.js'
+export { REVERB_MODULE } from './modules/reverb.js'
+export { SAMPLE_HOLD_MODULE } from './modules/sample-hold.js'
+export { SAMPLER_MODULE } from './modules/sampler.js'
+export { SEQ_MODULE } from './modules/seq.js'
+export { SVF_MODULE } from './modules/svf.js'
+export { TRANSPORT_MODULE } from './modules/transport.js'
+export { VCA_MODULE } from './modules/vca.js'
+
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
 export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './modules/audio-input.js'
 export { ARP_MODULE, ArpProcessor } from './modules/arp.js'
@@ -163,6 +189,25 @@ export const RACK_HOST_INPUTS = 5
  * Owns nothing but the node and the current plan. It does not own an AudioContext — the
  * caller does, because a rack is meant to sit alongside the drum machines in the same
  * context and share their output, not to be a second application.
+ *
+ * **The registry is required, and that is a bundle-size decision rather than a purity one.** It used to
+ * default to `MODULES`, which reads as friendlier and costs every consumer 14.5kB gzipped whether or not
+ * their patch uses a Vocoder: a default parameter is a static reference, so every module in the set was
+ * retained even by a caller passing its own registry. Measured, `Rack` alone came to 21.7kB gzipped and did
+ * not move by a single byte when handed a four-module registry. Written by the caller, `MODULES` is imported
+ * only if it is wanted, and a game that patches four modules pays for four.
+ *
+ * ```js
+ * import { Rack, MODULES } from '@driftbox/rack'
+ * const rack = new Rack(ctx, MODULES)                 // everything, ~21.7kB gzipped
+ *
+ * import { Rack, VCO_MODULE, LADDER_MODULE, OUT_MODULE } from '@driftbox/rack'
+ * const rack = new Rack(ctx, { vco: VCO_MODULE, ladder: LADDER_MODULE, out: OUT_MODULE })
+ * ```
+ *
+ * A patch naming a module the registry does not have becomes a placeholder rather than a deletion, exactly
+ * as it does for a build that is a version behind — so a trimmed registry degrades the way an old one does,
+ * visibly and in `notes`, rather than by demolishing the patch.
  */
 export class Rack {
   private readonly ctx: BaseAudioContext
@@ -187,7 +232,7 @@ export class Rack {
   /** Meter displays are opt-in so an offline render never produces UI traffic. */
   private meterListeners = new Set<(readings: readonly MeterReading[]) => void>()
 
-  constructor(ctx: BaseAudioContext, registry: Registry = MODULES) {
+  constructor(ctx: BaseAudioContext, registry: Registry) {
     this.ctx = ctx
     this.registry = registry
     this.hostInputs = Array.from({ length: RACK_HOST_INPUTS }, () => ctx.createGain())

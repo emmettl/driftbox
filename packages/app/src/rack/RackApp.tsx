@@ -745,7 +745,7 @@ export default function RackApp() {
       }
     }
 
-    const buffer = await renderPatch(patch, { bars: 8, sampleRate: 44100, data })
+    const buffer = await renderPatch(patch, { registry: MODULES, bars: 8, sampleRate: 44100, data })
     const url = URL.createObjectURL(toWav(buffer))
     const link = document.createElement('a')
     link.href = url
@@ -926,7 +926,9 @@ export default function RackApp() {
     // A pedal chain is played through, so ask the browser to favour response time over
     // a deeper power-saving buffer. It is a hint, not a latency guarantee.
     const ctx = new AudioContext({ latencyHint: 'interactive' })
-    const live = new Rack(ctx)
+    // Every module, because this is the editor: a rack you can patch anything into cannot ship a registry
+    // chosen ahead of time. An embedding host with a fixed patch is the case that passes fewer — see `Rack`.
+    const live = new Rack(ctx, MODULES)
     if (!(await live.start())) {
       // No worklet, no rack — unlike the engine's ladder there is nothing to fall back to, and saying
       // so is better than looking broken.

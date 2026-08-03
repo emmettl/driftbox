@@ -14,12 +14,14 @@
 // `@driftbox/engine`, which is Web Audio from end to end. Headless you get the rack's own modules.
 
 import { writeFileSync } from 'node:fs'
-import { Adaptive, PATCHES, RackRenderer } from '../dist/index.js'
+import { Adaptive, MODULES, PATCHES, RackRenderer } from '../dist/index.js'
 
 const SECONDS = 16
 const preset = PATCHES.find((entry) => entry.id === 'acid') ?? PATCHES[0]
 
-const renderer = new RackRenderer({ sampleRate: 48000 })
+// Every module, because a shipped preset can contain any of them. A game with a patch it knows passes a
+// registry of just that patch's modules instead, and carries a fraction of the bytes — see the README.
+const renderer = new RackRenderer(MODULES, { sampleRate: 48000 })
 renderer.patch = preset.build()
 renderer.setTransport(renderer.patch.tempo ?? 120, true)
 
