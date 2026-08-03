@@ -1610,7 +1610,8 @@ kbd {
   text-transform: uppercase;
 }
 
-.rk-groovebox-editor-bar select {
+.rk-groovebox-editor-bar select,
+.rk-groovebox-editor-bar input {
   max-width: 130px;
   height: 24px;
   color: var(--ink);
@@ -1618,6 +1619,11 @@ kbd {
   border: 1px solid var(--edge);
   border-radius: 5px;
   font: 9px var(--mono);
+}
+
+.rk-groovebox-editor-bar input {
+  width: 56px;
+  padding: 0 5px;
 }
 
 .rk-groovebox-page {
@@ -1679,6 +1685,12 @@ kbd {
   background: var(--eight);
   border-color: #ffe0f6;
   box-shadow: 0 0 6px rgba(255, 122, 217, 0.42);
+}
+
+.rk-groovebox-steps button[data-state='inactive'] {
+  opacity: 0.3;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .rk-groovebox-steps button[aria-pressed='true'] {

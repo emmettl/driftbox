@@ -43,6 +43,7 @@ import {
   setBassStep,
   setAutomationPoint,
   setStep as setPatternStep,
+  setTrackLength as setPatternTrackLength,
   toggleFlam,
   transposeBassLine,
   type BassParams,
@@ -206,6 +207,7 @@ interface State {
   setChainClip: (index: number, slot: ClipSlot, patternId: string) => void
   moveChain: (index: number, delta: number) => void
   setPatternLength: (length: number) => void
+  setDrumLaneLength: (length: number) => void
 
   /** The pattern list. Without these the app can only ever arrange what it shipped with. */
   newPattern: () => void
@@ -786,7 +788,7 @@ export const useBox = create<State>()((set, get) => ({
     if (!pattern) return
     // Everything in the pattern, drums and basslines both. "Clear this pattern" leaving
     // an acid line running underneath would be a surprise, and an unhelpful one.
-    const cleared: Pattern = { ...pattern, tracks: {}, bass: {} }
+    const cleared: Pattern = { ...pattern, tracks: {}, trackLengths: undefined, bass: {} }
     if (pattern.flams) cleared.flams = {}
     const next = replacePattern(song, cleared)
     if (engine) engine.song = next
@@ -942,11 +944,17 @@ export const useBox = create<State>()((set, get) => ({
     for (const [voiceId, marks] of Object.entries(pattern.flams ?? {})) {
       flams[voiceId] = Array.from({ length: clamped }, (_, i) => marks[i] === true)
     }
+    const trackLengths: Record<string, number> = {}
+    for (const [voiceId, laneLength] of Object.entries(pattern.trackLengths ?? {})) {
+      const resizedLength = Math.min(clamped, laneLength)
+      if (resizedLength < clamped) trackLengths[voiceId] = resizedLength
+    }
 
     const resized: Pattern = {
       ...pattern,
       length: clamped,
       tracks,
+      trackLengths: Object.keys(trackLengths).length > 0 ? trackLengths : undefined,
       bass,
       ...(pattern.pcf
         ? { pcf: Array.from({ length: clamped }, (_, index) => pattern.pcf?.[index] ?? 0) }
@@ -961,6 +969,16 @@ export const useBox = create<State>()((set, get) => ({
       bassEntryStep:
         bassEntryStep === null ? null : Math.min(bassEntryStep, clamped - 1),
     })
+  },
+
+  setDrumLaneLength: (length) => {
+    const { song, editing, selectedVoice, engine } = get()
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern) return
+    const resized = setPatternTrackLength(pattern, selectedVoice, length)
+    const next = replacePattern(song, resized)
+    if (engine) engine.song = next
+    set({ song: next })
   },
 
   // A new or copied pattern becomes the one being edited. You made it in order to work

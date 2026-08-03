@@ -106,6 +106,15 @@ describe('a round trip', () => {
     expect(loaded.kit.flam).toBe(0.73)
   })
 
+  it('keeps independent drum-lane lengths', () => {
+    const original = song({
+      patterns: [{ ...song().patterns[0], trackLengths: { '808.bd': 15 } }],
+    })
+    expect(decodeSong(encodeSong(original))?.patterns[0].trackLengths).toEqual({
+      '808.bd': 15,
+    })
+  })
+
   it('keeps and repairs pattern-controlled filter steps', () => {
     const original = song({
       patterns: [{ ...song().patterns[0], pcf: [1, 2, 7 as never] }],
@@ -217,6 +226,12 @@ describe('a song saved by an older build', () => {
     expect(round.chain).toEqual(decodeSong(v1)!.chain)
     expect(JSON.parse(encodeSong(round)).v).toBe(SONG_FORMAT)
   })
+
+  it('leaves legacy drum lanes at the parent pattern length', () => {
+    const legacy = JSON.parse(encodeSong(song()))
+    legacy.v = 6
+    expect(decodeSong(JSON.stringify(legacy))?.patterns[0].trackLengths).toBeUndefined()
+  })
 })
 
 describe('input that is not a song', () => {
@@ -242,6 +257,19 @@ describe('input that is not a song', () => {
 })
 
 describe('input that is a song but damaged', () => {
+  it('repairs drum-lane lengths and drops redundant full-length overrides', () => {
+    const damaged = song({
+      patterns: [
+        {
+          ...song().patterns[0],
+          trackLengths: { '808.bd': 99, '808.sd': -4, '808.ch': Number.NaN },
+        },
+      ],
+    })
+    const loaded = decodeSong(JSON.stringify(damaged))!
+    expect(loaded.patterns[0].trackLengths).toEqual({ '808.sd': 1 })
+  })
+
   it('repairs rather than refuses, so one bad step does not cost the session', () => {
     const text = JSON.stringify({
       bpm: 'fast',

@@ -34,6 +34,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 /**
  * Bumped when the shape changes in a way a reader cannot infer from the value alone.
  *
+ * 7 — drum voices may loop shorter than their parent pattern.
  * 6 — a 303 step may retain pitch while its Note/Pause gate is off.
  * 5 — songs may carry recordable parameter automation lanes.
  * 4 — patterns may carry 909 flam marks and the kit may carry their global width.
@@ -47,7 +48,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
  * rather than against the version number, because a v1 file and a hand-written one with
  * no version at all are the same problem, and only one of them announces itself.
  */
-export const SONG_FORMAT = 6
+export const SONG_FORMAT = 7
 
 interface Envelope {
   v: number
@@ -123,6 +124,15 @@ function pattern(value: unknown, index: number): Pattern | null {
     }
   }
 
+  const trackLengths: Record<string, number> = {}
+  if (isRecord(value.trackLengths)) {
+    for (const [voiceId, rawLength] of Object.entries(value.trackLengths)) {
+      if (voiceId === '' || typeof rawLength !== 'number' || !Number.isFinite(rawLength)) continue
+      const parsed = Math.max(1, Math.min(length, Math.round(rawLength)))
+      if (parsed < length) trackLengths[voiceId] = parsed
+    }
+  }
+
   const bass: Record<string, BassStep[]> = {}
   if (isRecord(value.bass)) {
     for (const [voiceId, line] of Object.entries(value.bass)) {
@@ -146,6 +156,7 @@ function pattern(value: unknown, index: number): Pattern | null {
     name: typeof value.name === 'string' && value.name !== '' ? value.name : id,
     length,
     tracks,
+    ...(Object.keys(trackLengths).length > 0 ? { trackLengths } : {}),
     bass,
     ...(Object.keys(flams).length > 0 ? { flams } : {}),
     ...(pcf ? { pcf } : {}),

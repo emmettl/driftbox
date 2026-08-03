@@ -13,7 +13,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 |---|---|
 | Machines | TR-808 (11 voices), TR-909 (11 voices), two TB-303s |
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
-| Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 steps; off / on / accent / 909 flam; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
+| Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 parent steps plus independent drum-voice loop lengths; off / on / accent / 909 flam; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
 | Song | Multi-clip sections with repeat counts, section seek and arbitrary whole-bar looping; recordable versioned tempo, swing, instrument, send and effect automation |
 | Ships with | Seventeen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro and Driftlings |
 | Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |
@@ -59,8 +59,10 @@ instrument, per-voice swing, send and shared effect automation against the hoste
 clock, quantise playing keyboard taps into the focused authored clip, advance a stopped 303
 entry cursor, cut/copy/paste a focused lane or machine without losing articulation, and
 return to the sequencer without losing that
-document. The original editor now uses those same clipboard transforms for lane and machine
-focus. Both modes now expose the same mastered retained-song WAV, while rack mode keeps its
+document. Drum voices can loop at independent lengths inside an 808 or 909 clip in both
+editors; recording, transforms and clipboard operations follow the audible voice loop. The
+original editor uses those same clipboard transforms for lane and machine focus. Both modes
+now expose the same mastered retained-song WAV, while rack mode keeps its
 patch render explicit and separate. They also share the browser MIDI host, monophonic note
 allocator and hardware mapping store: the original editor can play its focused 303 or pitched
 drum and learn every authored control, while rack mode adds polyphony, channels, modulation
@@ -687,19 +689,12 @@ typed shelf on the first new save; the legacy key is not deleted.
   topology: they use deterministic 6-bit PCM at roughly 30kHz plus cymbal modes. They
   remain a model rather than a copy of the original ROM, deliberately — shipping the
   recording would break the engine's recording-free and redistributable boundary.
-- **Lanes within one machine share a clip length.** A section independently selects its
-  808, 909 and both 303 clips, so those four machines can loop at different lengths.
-  Individual voices inside an 808 or 909 clip still share that clip's length.
 - **No AudioWorklet means no squelch.** The fallback is a single biquad — two poles,
   linear, no self-oscillation. The 303 panel says so when it is in use, but it is worth
   knowing that "the basslines sound tame" has one likely cause.
 - **There is one delay and one reverb for the whole song, and no way to bypass them.**
   Deliberate — the point of a send is that everything lands in the same room — but it does
   mean you cannot have a short slap on the snare and a long throw on the 303 at once.
-- **A pattern is a reusable whole-groove snapshot as well as a clip source.** Its stored
-  length applies to everything inside it. A section can select that pattern independently
-  for the 808, 909 or either 303, but a 15-step hat under a 16-step kick on the same drum
-  machine still needs a future per-lane length feature.
 - **A pattern with no kick in it is the one that clips.** Not the busiest — the busiest
   have transients for the bus compressor to clamp against. `Lift` is hats and a 303 with
   no kick at all, and measured at `1.04` from the drums alone until its two hat machines

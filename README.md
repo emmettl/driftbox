@@ -104,7 +104,9 @@ Drag across drum steps to paint or erase a run. The selected drum or 303 line ca
 rotated, randomised or rearranged without changing how much material it contains; 303
 lines can also be transposed. Rotation can expand to the whole machine currently on
 screen. On the 909, **flam** switches the pads into double-strike programming and exposes
-the spacing control.
+the spacing control. **Lane** gives the selected drum voice its own loop length inside the
+parent pattern, so a 15-step hat can move against a 16-step kick. Rack mode exposes the same
+setting as **Lane steps** and preserves it in the compatible song.
 
 The **Song** strip along the top is the arrangement. Each card is a number of bars and
 shows the clip for the machine currently on screen: switch between 808, 909, 303 A and

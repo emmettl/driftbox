@@ -283,6 +283,33 @@ describe('the shared step planner', () => {
     expect(song.chain[0]).toEqual({ pattern: 'primary', repeat: 1 })
   })
 
+  it('loops each drum voice at its own length inside the parent bar', () => {
+    const base = defaultSong()
+    const polymeter: Pattern = {
+      id: 'polymeter',
+      name: 'Polymeter',
+      length: 4,
+      tracks: {
+        '808.bd': [1, 0, 0, 1],
+        '808.ch': [1, 0, 0, 0],
+      },
+      trackLengths: { '808.ch': 3 },
+    }
+    const song = {
+      ...base,
+      patterns: [polymeter],
+      chain: [{ pattern: 'polymeter', repeat: 1 }],
+    }
+    const voices = planStep(song, {
+      absolute: 3,
+      index: 3,
+      bar: 0,
+      time: 0.3,
+      stepSeconds: 0.1,
+    }).drums.map((hit) => hit.voiceId)
+    expect(voices).toEqual(['808.bd', '808.ch'])
+  })
+
   it('schedules a 909 flam as a second strike at the configured width', () => {
     const base = defaultSong()
     const song = {

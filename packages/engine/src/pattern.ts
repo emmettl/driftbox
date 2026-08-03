@@ -27,6 +27,9 @@ export interface Pattern {
   length: number
   /** Voice id to its steps. A voice with no entry simply never fires. */
   tracks: Record<string, StepValue[]>
+  /** Optional drum-lane loop lengths. Missing means the parent pattern length, preserving
+   * every song authored before independent lanes existed. Overrides never exceed it. */
+  trackLengths?: Record<string, number>
   /** Optional flam marks, parallel to drum tracks. Only 909 voices render them today. */
   flams?: Record<string, boolean[]>
   /**
@@ -204,6 +207,7 @@ export function duplicatePattern(song: Song, id: string): { song: Song; id: stri
     // editing the copy would silently edit the original — the worst kind of bug,
     // because it looks like it worked until you play the other one.
     tracks: Object.fromEntries(Object.entries(source.tracks).map(([v, t]) => [v, [...t]])),
+    ...(source.trackLengths ? { trackLengths: { ...source.trackLengths } } : {}),
     ...(source.flams
       ? {
           flams: Object.fromEntries(
@@ -261,10 +265,35 @@ export function removePattern(song: Song, id: string): Song {
   }
 }
 
+/** The loop length for one drum voice. The parent pattern remains the machine/bar length. */
+export function trackLength(pattern: Pattern, voiceId: string): number {
+  const length = pattern.trackLengths?.[voiceId]
+  if (length === undefined || !Number.isFinite(length)) return pattern.length
+  return Math.max(1, Math.min(pattern.length, Math.round(length)))
+}
+
+/** Set one drum voice's loop length. Full-length lanes stay implicit for compact songs. */
+export function setTrackLength(pattern: Pattern, voiceId: string, length: number): Pattern {
+  const clamped = Number.isFinite(length)
+    ? Math.max(1, Math.min(pattern.length, Math.round(length)))
+    : pattern.length
+  const trackLengths = { ...pattern.trackLengths }
+  if (clamped === pattern.length) delete trackLengths[voiceId]
+  else trackLengths[voiceId] = clamped
+  return Object.keys(trackLengths).length > 0
+    ? { ...pattern, trackLengths }
+    : { ...pattern, trackLengths: undefined }
+}
+
+function trackStep(pattern: Pattern, voiceId: string, step: number): number {
+  const length = trackLength(pattern, voiceId)
+  return ((Math.floor(step) % length) + length) % length
+}
+
 export function stepAt(pattern: Pattern, voiceId: string, step: number): StepValue {
   const track = pattern.tracks[voiceId]
   if (!track) return 0
-  return track[step % pattern.length] ?? 0
+  return track[trackStep(pattern, voiceId, step)] ?? 0
 }
 
 export function pcfAt(pattern: Pattern, step: number): StepValue {
@@ -289,12 +318,13 @@ export function cyclePcfStep(pattern: Pattern, step: number): Pattern {
 export function cycleStep(pattern: Pattern, voiceId: string, step: number): Pattern {
   const track = pattern.tracks[voiceId] ?? new Array<StepValue>(pattern.length).fill(0)
   const next = [...track]
-  next[step] = (((track[step] ?? 0) + 1) % 3) as StepValue
-  if (next[step] === 0 && pattern.flams?.[voiceId]) {
+  const index = trackStep(pattern, voiceId, step)
+  next[index] = (((track[index] ?? 0) + 1) % 3) as StepValue
+  if (next[index] === 0 && pattern.flams?.[voiceId]) {
     const flams = {
       ...pattern.flams,
       [voiceId]: pattern.flams[voiceId].map((mark, index) =>
-        index === step ? false : mark,
+        index === trackStep(pattern, voiceId, step) ? false : mark,
       ),
     }
     return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: next }, flams }
@@ -310,12 +340,13 @@ export function setStep(
 ): Pattern {
   const track = pattern.tracks[voiceId] ?? new Array<StepValue>(pattern.length).fill(0)
   const next = [...track]
-  next[step] = value
+  const stepIndex = trackStep(pattern, voiceId, step)
+  next[stepIndex] = value
   if (value === 0 && pattern.flams?.[voiceId]) {
     const flams = {
       ...pattern.flams,
       [voiceId]: pattern.flams[voiceId].map((mark, index) =>
-        index === step ? false : mark,
+        index === stepIndex ? false : mark,
       ),
     }
     return { ...pattern, tracks: { ...pattern.tracks, [voiceId]: next }, flams }
@@ -326,14 +357,20 @@ export function setStep(
 export function clearTrack(pattern: Pattern, voiceId: string): Pattern {
   const tracks = { ...pattern.tracks }
   delete tracks[voiceId]
-  if (!pattern.flams?.[voiceId]) return { ...pattern, tracks }
+  const trackLengths = { ...pattern.trackLengths }
+  delete trackLengths[voiceId]
+  const lengthPatch = Object.keys(trackLengths).length > 0
+    ? { trackLengths }
+    : { trackLengths: undefined }
+  if (!pattern.flams?.[voiceId]) return { ...pattern, tracks, ...lengthPatch }
   const flams = { ...pattern.flams }
   delete flams[voiceId]
-  return { ...pattern, tracks, flams }
+  return { ...pattern, tracks, flams, ...lengthPatch }
 }
 
 export interface DrumLaneClipboard {
   kind: 'drum'
+  length: number
   steps: StepValue[]
   flams?: boolean[]
 }
@@ -345,15 +382,18 @@ export interface BassLineClipboard {
 
 /** Snapshot one authored drum lane, including 909 articulation, as detached clipboard data. */
 export function copyDrumLane(pattern: Pattern, voiceId: string): DrumLaneClipboard {
+  const length = trackLength(pattern, voiceId)
   const steps = Array.from(
-    { length: pattern.length },
+    { length },
     (_, index) => pattern.tracks[voiceId]?.[index] ?? 0,
   )
   const marks = Array.from(
-    { length: pattern.length },
+    { length },
     (_, index) => pattern.flams?.[voiceId]?.[index] === true,
   )
-  return marks.some(Boolean) ? { kind: 'drum', steps, flams: marks } : { kind: 'drum', steps }
+  return marks.some(Boolean)
+    ? { kind: 'drum', length, steps, flams: marks }
+    : { kind: 'drum', length, steps }
 }
 
 /** Replace one drum lane from detached clipboard data, fitting it to the destination length. */
@@ -378,27 +418,29 @@ export function pasteDrumLane(
   } else {
     delete flams[voiceId]
   }
-  return Object.keys(flams).length > 0
+  const pasted = Object.keys(flams).length > 0
     ? { ...pattern, tracks, flams }
     : { ...pattern, tracks, flams: undefined }
+  return setTrackLength(pasted, voiceId, clipboard.length)
 }
 
 export function flamAt(pattern: Pattern, voiceId: string, step: number): boolean {
-  return pattern.flams?.[voiceId]?.[step % pattern.length] === true
+  return pattern.flams?.[voiceId]?.[trackStep(pattern, voiceId, step)] === true
 }
 
 /** Toggle a 909 flam. Enabling one on a rest also creates the hit it articulates. */
 export function toggleFlam(pattern: Pattern, voiceId: string, step: number): Pattern {
+  const stepIndex = trackStep(pattern, voiceId, step)
   const marks = Array.from(
     { length: pattern.length },
     (_, index) => pattern.flams?.[voiceId]?.[index] === true,
   )
-  marks[step] = !marks[step]
+  marks[stepIndex] = !marks[stepIndex]
   const track = Array.from(
     { length: pattern.length },
     (_, index) => pattern.tracks[voiceId]?.[index] ?? 0,
   )
-  if (marks[step] && track[step] === 0) track[step] = 1
+  if (marks[stepIndex] && track[stepIndex] === 0) track[stepIndex] = 1
   return {
     ...pattern,
     tracks: { ...pattern.tracks, [voiceId]: track },
@@ -410,8 +452,8 @@ export function toggleFlam(pattern: Pattern, voiceId: string, step: number): Pat
 //
 // ReBirth put these on a menu. They live beside the pattern data here instead of in the
 // app so a rack clip editor, a game or a script gets exactly the same operation. Every
-// transform is immutable and bounded by `pattern.length`; hidden array tails must never
-// reappear after a rotate.
+// transform is immutable. Drum transforms are bounded by their voice loop and retain
+// inactive tails, so shortening a lane and later lengthening it is non-destructive.
 
 export type RandomSource = () => number
 
@@ -427,11 +469,27 @@ export function rotateTrack(pattern: Pattern, voiceId: string, delta: number): P
   const track = pattern.tracks[voiceId]
   if (!track) return pattern
   const marks = pattern.flams?.[voiceId]
+  const length = trackLength(pattern, voiceId)
+  const nextTrack: StepValue[] = Array.from(
+    { length: pattern.length },
+    (_, index): StepValue => track[index] ?? 0,
+  )
+  rotate<StepValue>(track, length, delta, () => 0).forEach((value, index) => {
+    nextTrack[index] = value
+  })
+  const nextMarks = marks
+    ? Array.from({ length: pattern.length }, (_, index) => marks[index] === true)
+    : undefined
+  if (nextMarks) {
+    rotate(nextMarks, length, delta, () => false).forEach((value, index) => {
+      nextMarks[index] = value
+    })
+  }
   return {
     ...pattern,
-    tracks: { ...pattern.tracks, [voiceId]: rotate(track, pattern.length, delta, () => 0) },
-    flams: marks
-      ? { ...pattern.flams, [voiceId]: rotate(marks, pattern.length, delta, () => false) }
+    tracks: { ...pattern.tracks, [voiceId]: nextTrack },
+    flams: nextMarks
+      ? { ...pattern.flams, [voiceId]: nextMarks }
       : pattern.flams,
   }
 }
@@ -478,7 +536,9 @@ export function randomizeTrack(
   voiceId: string,
   random: RandomSource = Math.random,
 ): Pattern {
-  const track = Array.from({ length: pattern.length }, (): StepValue => {
+  const length = trackLength(pattern, voiceId)
+  const track = Array.from({ length: pattern.length }, (_, index): StepValue => {
+    if (index >= length) return pattern.tracks[voiceId]?.[index] ?? 0
     const value = random()
     return value < 0.58 ? 0 : value < 0.88 ? 1 : 2
   })
@@ -524,22 +584,30 @@ export function alterTrack(
 ): Pattern {
   const track = pattern.tracks[voiceId]
   if (!track) return pattern
-  const source = Array.from({ length: pattern.length }, (_, index) => ({
+  const length = trackLength(pattern, voiceId)
+  const source = Array.from({ length }, (_, index) => ({
     value: track[index] ?? 0,
     flam: pattern.flams?.[voiceId]?.[index] === true,
   }))
   const altered = shuffled(source, random)
+  const nextTrack = Array.from({ length: pattern.length }, (_, index) => track[index] ?? 0)
+  altered.forEach((step, index) => { nextTrack[index] = step.value })
   const next: Pattern = {
     ...pattern,
     tracks: {
       ...pattern.tracks,
-      [voiceId]: altered.map((step) => step.value),
+      [voiceId]: nextTrack,
     },
   }
   if (pattern.flams?.[voiceId]) {
+    const nextMarks = Array.from(
+      { length: pattern.length },
+      (_, index) => pattern.flams?.[voiceId]?.[index] === true,
+    )
+    altered.forEach((step, index) => { nextMarks[index] = step.flam })
     next.flams = {
       ...pattern.flams,
-      [voiceId]: altered.map((step) => step.flam),
+      [voiceId]: nextMarks,
     }
   }
   return next

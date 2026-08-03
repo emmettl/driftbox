@@ -674,6 +674,12 @@ aside {
   box-shadow: 0 0 14px rgba(255, 190, 70, 0.55);
 }
 
+.step.lane-tail:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
+}
+
 .pcf-row {
   margin-top: 3px;
   padding-top: 7px;

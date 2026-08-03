@@ -95,7 +95,9 @@ The front panel also edits the retained pattern bank directly. Pattern and machi
 open one 16-step page at a time; drum steps cycle rest, hit and accent, while each 303 step
 can set pitch, Note/Pause, accent and slide. Pausing retains the pitch, and Slide remains
 editable on that silent step so the following attack bends in from it as it does in ReBirth.
-Longer polymetric patterns page rather than being truncated.
+Longer polymetric patterns page rather than being truncated. A selected 808/909 voice may
+also set its own shorter **Lane steps** loop inside that parent pattern; the inactive tail
+stays visible and dimmed, and the same compatible song data returns to the original editor.
 Edits replace the versioned song envelope and reach the hosted scheduler on its next step
 without recompiling the rack graph, restarting the arrangement or turning a compatible song
 into a rack-extended document. A section selector beside the steps assigns any pattern from
@@ -118,6 +120,9 @@ The selected drum lane—or the whole visible drum machine—can rotate; focused
 lanes can randomise or material-preserving alter; and either 303 can transpose. The 909's
 flam marks and shared flam width remain authored song data. Each button gesture is its own
 undo step, while direct step painting continues to coalesce as one edit.
+Drum transforms operate over the selected voice's loop rather than the parent bar, while
+inactive authored tail data is retained if the lane is lengthened later. Whole-machine
+operations therefore preserve each voice's independent phase and length.
 
 Automation recording is armed on the Groovebox device but clocked by the hosted audio
 engine. Moving rack tempo, global song swing, or any visible drum/303 instrument control
@@ -161,7 +166,7 @@ MIDI note writes at the visible cursor and advances with pattern-length wrap. Th
 retained-song counterpart of ReBirth entry, not a rack-only Tracker approximation.
 
 Focused cut/copy/paste stays at that authored-data boundary too. A drum clipboard carries
-its hit/accent states and any 909 flam marks; a 303 clipboard carries pitch, accent and
+its loop length, hit/accent states and any 909 flam marks; a 303 clipboard carries pitch, accent and
 slide. The lane/all focus used by rotate also decides whether one drum voice or the whole
 machine is copied, and pasting fits detached data to the destination clip length. The
 clipboard is session state, while cut and paste are discrete, undoable pattern edits. The

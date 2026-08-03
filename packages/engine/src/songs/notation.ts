@@ -97,6 +97,7 @@ export function clonePatterns(patterns: Pattern[]): Pattern[] {
   return patterns.map((p) => ({
     ...p,
     tracks: Object.fromEntries(Object.entries(p.tracks).map(([id, t]) => [id, [...t]])),
+    trackLengths: p.trackLengths ? { ...p.trackLengths } : undefined,
     pcf: p.pcf ? [...p.pcf] : undefined,
     bass: p.bass
       ? Object.fromEntries(Object.entries(p.bass).map(([id, l]) => [id, l.map((s) => ({ ...s }))]))

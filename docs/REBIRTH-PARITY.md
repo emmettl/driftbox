@@ -51,6 +51,7 @@ user could approximate it from oscillators.
 | Authored 808 and 909 kits | Yes | Patchable stereo outputs, retained pattern editor and all six authored controls per voice | Landed; generated PCM character remains deliberate |
 | Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
+| Independent drum-voice loop lengths | Selected lane loops inside its 808/909 parent clip | Same retained lane-length control and inactive-tail feedback | Landed; additive beyond ReBirth |
 | 303 pitch/note-pause/accent/slide editing | Direct grid plus stopped keyboard/MIDI entry; paused steps retain pitch for silent slides and same-pitch Slide writes ties | Same retained editor and advancing cursor plus Tracker primitives | Landed |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
 | Pattern transforms | Rotate, transpose, randomise, alter and focused cut/copy/paste | Retained lane/machine rotate, focused randomise/alter, 303 transpose, 909 flam and focused cut/copy/paste | Landed |
@@ -99,6 +100,10 @@ work is ordered by dependency:
    losing accents, flams or slides.
    The original editor now exposes the same engine clipboard for one lane, the visible drum
    machine, one 303 or both 303s, so the two modes cannot disagree about pasted material.
+   Each drum voice may also loop shorter than its parent clip. Both editors expose the same
+   lane-length control and inactive tail; playback, tap recording, transforms, flams and
+   clipboard data all wrap at that voice length. This is deliberately additive beyond
+   ReBirth and is part of the rack's strict-superset contract.
 5. **Interchange.** Mastered full-song rendering is now shared by both modes: rack mode
    keeps it explicitly separate from patch rendering so rack-only changes are never
    mistaken for edits to the retained song. The browser MIDI host, monophonic allocator

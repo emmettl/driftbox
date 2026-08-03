@@ -22,6 +22,10 @@ import {
   renamePattern,
   rotateBassLine,
   rotateTrack,
+  setStep,
+  setTrackLength,
+  stepAt,
+  trackLength,
   transposeBassLine,
   toggleFlam,
   uniquePatternId,
@@ -294,6 +298,63 @@ describe('pattern transforms', () => {
       { note: null, accent: false, slide: false },
       { note: null, accent: false, slide: false },
     ])
+  })
+})
+
+describe('independent drum-lane lengths', () => {
+  const pattern = (): Pattern => ({
+    id: 'polymeter',
+    name: 'Polymeter',
+    length: 4,
+    tracks: { '808.bd': [1, 0, 2, 0], '808.ch': [1, 0, 2, 2] },
+    flams: { '808.ch': [true, false, false, true] },
+  })
+
+  it('defaults to the parent pattern and stores only shorter overrides', () => {
+    const original = pattern()
+    expect(trackLength(original, '808.ch')).toBe(4)
+    const shorter = setTrackLength(original, '808.ch', 3)
+    expect(shorter.trackLengths).toEqual({ '808.ch': 3 })
+    expect(setTrackLength(shorter, '808.ch', 4).trackLengths).toBeUndefined()
+  })
+
+  it('loops steps and flams within the voice while the parent bar continues', () => {
+    const shorter = setTrackLength(pattern(), '808.ch', 3)
+    expect([0, 1, 2, 3, 4].map((step) => stepAt(shorter, '808.ch', step))).toEqual([
+      1, 0, 2, 1, 0,
+    ])
+    expect(flamAt(shorter, '808.ch', 3)).toBe(true)
+  })
+
+  it('maps live recording positions back into the audible lane step', () => {
+    const shorter = setTrackLength(pattern(), '808.ch', 3)
+    const recorded = setStep(shorter, '808.ch', 3, 2)
+    expect(recorded.tracks['808.ch']).toEqual([2, 0, 2, 2])
+  })
+
+  it('transforms only the active loop and preserves its hidden tail', () => {
+    const shorter = setTrackLength(pattern(), '808.ch', 3)
+    expect(rotateTrack(shorter, '808.ch', 1).tracks['808.ch']).toEqual([2, 1, 0, 2])
+    expect(randomizeTrack(shorter, '808.ch', () => 0.7).tracks['808.ch']).toEqual([1, 1, 1, 2])
+  })
+
+  it('copies and pastes the lane loop length with its active material', () => {
+    const shorter = setTrackLength(pattern(), '808.ch', 3)
+    const clipboard = copyDrumLane(shorter, '808.ch')
+    const pasted = pasteDrumLane(emptyPattern('target', 'Target', 6), '909.ch', clipboard)
+    expect(clipboard).toMatchObject({ length: 3, steps: [1, 0, 2] })
+    expect(trackLength(pasted, '909.ch')).toBe(3)
+    expect(pasted.tracks['909.ch']).toEqual([1, 0, 2, 0, 0, 0])
+  })
+
+  it('deep-copies lane lengths with a duplicated pattern', () => {
+    const original = song({
+      patterns: [{ ...pattern(), trackLengths: { '808.ch': 3 } }],
+      chain: [{ pattern: 'polymeter', repeat: 1 }],
+    })
+    const { song: next, id } = duplicatePattern(original, 'polymeter')
+    next.patterns.find((candidate) => candidate.id === id)!.trackLengths!['808.ch'] = 2
+    expect(next.patterns[0].trackLengths).toEqual({ '808.ch': 3 })
   })
 })
 

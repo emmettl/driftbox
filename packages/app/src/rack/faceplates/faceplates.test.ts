@@ -170,6 +170,7 @@ it('shows a 16-step editor for a retained Groovebox pattern', () => {
   expect(markup).toContain('aria-label="Groovebox pattern editor"')
   expect(markup).toContain('aria-label="Pattern to edit"')
   expect(markup).toContain('aria-label="Machine to edit"')
+  expect(markup).toContain('aria-label="Drum lane steps"')
   expect(markup).toContain('aria-label="Groovebox clip arrangement"')
   expect(markup).toContain('aria-label="Arrangement section"')
   expect(markup).toContain('aria-label="808 live clip"')
