@@ -223,6 +223,17 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   { id: 'crunch', type: 'drive', name: 'Crunch', params: { drive: 12, bias: 0.1 } },
   { id: 'fuzz', type: 'drive', name: 'Fuzz', params: { drive: 34, bias: 0.35 } },
 
+  // ---- Multi-mode distortion -------------------------------------------------------------------
+  { id: 'tube', type: 'distortion', name: 'Tube Warmth', params: { amount: 0.38, tone: 6000, bias: 0.08 } },
+  { id: 'tape', type: 'distortion', name: 'Tape Glue', params: { mode: 1, amount: 0.5, tone: 9000 } },
+  { id: 'fuzz', type: 'distortion', name: 'Fuzz Wall', params: { mode: 2, amount: 0.82, tone: 3500, level: 0.65 } },
+  {
+    id: 'digital',
+    type: 'distortion',
+    name: 'Digital Broken',
+    params: { mode: 3, amount: 0.78, tone: 12000, level: 0.7 },
+  },
+
   // ---- Delay ------------------------------------------------------------------------------------
   { id: 'slap', type: 'delay', name: 'Slap', params: { time: 0.09, feedback: 0.15 } },
   { id: 'eighth', type: 'delay', name: 'Eighth', params: { time: 0.25, feedback: 0.4 } },

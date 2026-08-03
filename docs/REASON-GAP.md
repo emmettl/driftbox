@@ -181,9 +181,10 @@ Ordered by return, not by how big Reason's version was.
 - **A multisample instrument.** `Sampler` is one buffer plus slices. No key zones, no velocity
   layers, no root key, no loop points — so a sampled instrument, as opposed to a sampled break,
   cannot be built.
-- **Multi-mode distortion.** `Drive` is one waveshaper and a 5 Hz DC blocker. Scream 4's value
-  was the *selector* — tube, tape, fuzz, digital — plus a tone stage, and each is a different
-  curve rather than a different amount.
+- **~~Multi-mode distortion.~~ Landed.** `Distortion` keeps stereo intact and selects four genuinely
+  different curves — tube sigmoid, tape arctangent, exponential fuzz, and hard-clipped bit reduction —
+  before a shared tone stage and output level. The original normalised `Drive` stays the predictable
+  one-curve tool and every patch using it keeps its sound.
 - **A limiter.** `Compressor` is dynamics; the ±4 clamp in the Graph is the only ceiling.
   `RACK.md` records eight voices of the Acid patch peaking at 3.93 against that clamp, which is
   the measurement that says a maximiser has somewhere to go.
@@ -197,9 +198,9 @@ Ordered by return, not by how big Reason's version was.
 
 The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches
 Audio Input → high-pass SVF → Drive → EQ → Compressor, with a visible dry/delay Mixer,
-Reverb and Out. **Distortion is present** through `Drive`, and the newly landed EQ shapes
-the harmonics after it; the remaining multi-mode distortion bullet above is about
-additional characters and a dedicated tone stage, not the absence of a usable pedal.
+Reverb and Out. **Distortion is present** through `Drive`, while the new multi-mode Distortion adds
+four more characters and its own post-curve tone stage without changing the factory's existing
+sound.
 
 What is still missing for a complete guitar rig is an **amp/cabinet** stage, a **tuner**,
 and a **looper**. Those three future module ids are recorded in `GUITAR_PEDALBOARD_GAPS`,

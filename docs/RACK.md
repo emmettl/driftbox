@@ -1219,10 +1219,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Seventeen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
-   Groovebox, Imager, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker, Transport and Vocoder**.
-   They are shared buses, clocks, controllers or processors whose state belongs to the rack rather than
-   to one voice. Delay is the clearest example — eight two-second buffers would be eight separate delays —
+   Eighteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
+   Distortion, Groovebox, Imager, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker, Transport
+   and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs to the
+   rack rather than to one voice. Delay is the clearest example — eight two-second buffers would be
+   eight separate delays —
    and Imager makes the other failure vivid: widening each voice before the polyphonic collapse would
    simply throw that width away. `poly.test.ts` pins this list so a new module cannot become shared
    merely because nobody made the decision.
@@ -1501,6 +1502,15 @@ both bundle cost on the editing-only path and visual competition with a readable
    The Mix knob is topology rather than convenience. At one hundred percent wet the cascade is an allpass
    and measures flat; at half wet its phase cancellation is the sound. Keeping that recombination inside
    the device is what makes it a phaser rather than six invisible utility filters and a Mixer.
+
+   **5g. Multi-mode distortion.** ✅ Built beside Drive rather than on top of it. Tube, tape, fuzz and
+   digital are four transfer functions, not four labels over one waveshaper; Amount drives each through
+   its useful range, then a tone stage shapes the harmonics the selected curve created. Bias, output level
+   and an Amount CV make the device playable rather than just a preset selector.
+
+   It is stereo because this device also belongs across a bus, with independent tone and DC-blocker state
+   per channel. `Drive` remains the level-normalised predictable curve and no saved patch changes sound;
+   choosing the larger device is an explicit request for character rather than an upgrade side effect.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

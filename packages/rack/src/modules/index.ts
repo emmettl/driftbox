@@ -8,6 +8,7 @@ import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
 import { COMPRESSOR_MODULE } from './compressor.js'
 import { DELAY_MODULE } from './delay.js'
+import { DISTORTION_MODULE } from './distortion.js'
 import { DRIVE_MODULE } from './drive.js'
 import { EQ_MODULE } from './eq.js'
 import { FOLLOWER_MODULE } from './follower.js'
@@ -36,7 +37,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-six modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-seven modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -90,6 +91,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
 
   VCA_MODULE,
   DRIVE_MODULE,
+  DISTORTION_MODULE,
   EQ_MODULE,
   IMAGER_MODULE,
   COMPRESSOR_MODULE,
@@ -135,6 +137,7 @@ export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligat
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
+export { DISTORTION_MODULE, DistortionProcessor } from './distortion.js'
 export { DRIVE_MODULE, DriveProcessor } from './drive.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './follower.js'
 export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './groovebox.js'
