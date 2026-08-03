@@ -44,6 +44,7 @@ export class ArpProcessor implements Processor {
   private patternStarted = false
   private insertPhase = 0
   private insertWas = 0
+  private singlePitchWas = Number.NaN
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -290,6 +291,7 @@ export class ArpProcessor implements Processor {
     const rateParam = params[11]
     const patternLengthParam = params[12]
     const insertParam = params[13]
+    const singleRepeatParam = params[14]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -403,25 +405,36 @@ export class ArpProcessor implements Processor {
             }
           }
 
+          if (length !== 1) this.singlePitchWas = Number.NaN
+
           this.interval = this.since
           this.since = 0
           const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(patternLengthParam[i])))
           this.patternStep = this.patternStarted ? (this.patternStep + 1) % patternLength : 0
           this.patternStarted = true
           if (this.patternEnabled(this.patternStep)) {
+            const repeatSingle = singleRepeatParam[i] >= 0.5
+            const singleChanged = length === 1
+              && (!Number.isFinite(this.singlePitchWas) || Math.abs(this.figurePitch[0] - this.singlePitchWas) >= 1e-5)
             // A performed chord can lose notes while an arpeggio is running. Restart instead of allowing a
             // saved step from the wider figure to index beyond the newly collected one.
-            const opening = !this.started || this.step < 0 || this.step >= length
-            const playStep = this.insertStep(length, mode, insert, opening)
-            const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
-            this.held = this.figurePitch[playStep] + shift
-            this.heldVelocity = velocityModeParam[i] >= 0.5
-              ? Math.max(0.01, Math.min(1, velocityParam[i]))
-              : this.figureVelocity[playStep]
-            const fraction = gateParam[i]
-            const span = opening ? this.trigSamples : this.interval
-            this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
-            this.trigLeft = this.trigSamples
+            const opening = !this.started || this.step < 0 || this.step >= length || singleChanged
+            if (length === 1 && !repeatSingle && !opening) {
+              this.gateLeft = 0
+              this.trigLeft = 0
+            } else {
+              const playStep = this.insertStep(length, mode, insert, opening)
+              const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
+              this.held = this.figurePitch[playStep] + shift
+              this.heldVelocity = velocityModeParam[i] >= 0.5
+                ? Math.max(0.01, Math.min(1, velocityParam[i]))
+                : this.figureVelocity[playStep]
+              const fraction = gateParam[i]
+              const span = opening ? this.trigSamples : this.interval
+              this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
+              this.trigLeft = this.trigSamples
+              this.singlePitchWas = length === 1 ? this.figurePitch[0] : Number.NaN
+            }
           } else {
             // The rhythm advances; the note figure does not. RPG rests silence a position rather than skip
             // an arpeggio note, so the next enabled pulse plays the next note the unmuted figure would have.
@@ -431,6 +444,7 @@ export class ArpProcessor implements Processor {
         } else {
           this.started = false
           this.patternStarted = false
+          this.singlePitchWas = Number.NaN
           this.gateLeft = 0
           this.trigLeft = 0
         }
@@ -453,7 +467,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 6,
+  version: 7,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -566,6 +580,15 @@ export const ARP_MODULE: ModuleDef = {
       default: 0,
       stepped: true,
       labels: ['Off', 'Low', 'Hi', '3-1', '4-2'],
+    },
+    {
+      id: 'singleRepeat',
+      name: 'Single Note Repeat',
+      min: 0,
+      max: 1,
+      default: 1,
+      stepped: true,
+      labels: ['Off', 'On'],
     },
   ],
   processor: ArpProcessor,

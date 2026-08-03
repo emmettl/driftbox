@@ -76,3 +76,10 @@ it('keeps Insert on the ordinary routed parameter path', () => {
   flushSync(() => higher!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
   expect(useRack.getState().paramValue('arp', 'insert')).toBe(1)
 })
+
+it('can disable single-note retriggering without rebuilding the graph', () => {
+  const before = useRack.getState().revision
+  choose('Single Note Repeat', 'Off')
+  expect(useRack.getState().paramValue('arp', 'singleRepeat')).toBe(0)
+  expect(useRack.getState().revision).toBe(before)
+})

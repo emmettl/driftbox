@@ -8,6 +8,7 @@ const CONTROL_IDS = [
   'source', 'chord', 'octaves', 'mode', 'gate', 'hold', 'shift', 'velocityMode', 'velocity',
   'timing', 'division', 'rate', 'patternLength',
   'insert',
+  'singleRepeat',
 ] as const
 
 export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
@@ -24,6 +25,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const rate = Math.max(0.1, Math.min(250, value('rate')))
   const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(value('patternLength'))))
   const insert = Math.max(0, Math.min(4, Math.round(value('insert'))))
+  const singleRepeat = value('singleRepeat') >= 0.5
   const param = (id: string) => def.params.find((candidate) => candidate.id === id)!
   const sourceName = param('source').labels?.[source] ?? (source === 0 ? 'Root' : 'Played')
   const modeName = param('mode').labels?.[mode] ?? `Mode ${mode + 1}`
@@ -90,7 +92,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
         <div className="rk-arp-legend">
           <span>{source === 0 ? `${chordName} intervals` : 'held input lanes'}</span>
           <strong data-held={hold ? 'yes' : undefined}>
-            {hold ? 'hold' : insert === 0 ? 'live' : `insert ${insertName}`}
+            {hold ? 'hold' : !singleRepeat ? 'single once' : insert === 0 ? 'live' : `insert ${insertName}`}
           </strong>
           <span>{patternLength} steps · {fixedVelocity ? `${Math.round(value('velocity') * 100)}% fixed` : 'played velocity'}</span>
         </div>

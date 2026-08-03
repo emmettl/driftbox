@@ -180,6 +180,8 @@ Ordered by return, not by how big Reason's version was.
   RPG-style Low/Hi anchors and 3-1/4-2 backstep inserts reshape the enabled-note figure. Its independent
   sixteen-step rhythm pattern adds rests without skipping notes or insert phases, and Arp Field makes both that pattern
   and the Root/Played walk editable while keeping every engine control on the ordinary routed parameter path.
+  Single Note Repeat can be disabled so a lone held note sounds once; it defaults on to preserve the original
+  Driftbox behavior.
 
   **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
   one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern

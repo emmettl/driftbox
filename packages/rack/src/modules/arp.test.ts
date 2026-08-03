@@ -26,6 +26,7 @@ interface Options {
   division?: number
   rate?: number
   insert?: number
+  singleRepeat?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -247,6 +248,61 @@ describe('note insertion', () => {
     const notes = Array.from({ length: 4 }, (_, step) => Math.round(out[0][step * STEP] * 12))
     expect(sounded).toEqual([true, false, true, true])
     expect(notes).toEqual([0, 0, 0, 4])
+  })
+})
+
+describe('single-note repeat', () => {
+  it('defaults on so the original Driftbox one-note figure still retriggers', () => {
+    expect(ARP_MODULE.params[param('singleRepeat')].default).toBe(1)
+    const { out } = run(4, { chord: 0, octaves: 1 })
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, true, true, true,
+    ])
+  })
+
+  it('sounds a single-note figure once when repeat is off', () => {
+    const { out } = run(4, { chord: 0, octaves: 1, singleRepeat: 0 })
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, false, false, false,
+    ])
+  })
+
+  it('starts the single note again after Reset', () => {
+    const { out } = run(5, {
+      chord: 0,
+      octaves: 1,
+      singleRepeat: 0,
+      reset: (i) => i >= STEP * 3 - 4 && i < STEP * 3 - 2,
+    })
+    expect(Array.from({ length: 5 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, false, false, true, false,
+    ])
+  })
+
+  it('sounds again when the one-note figure changes pitch', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-single-change')
+    const frames = STEP * 4
+    const pitch = Float32Array.from({ length: frames }, (_, i) => i >= STEP * 2 ? 1 : 0)
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(0)
+    params[param('octaves')].fill(1)
+    params[param('singleRepeat')].fill(0)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [pitch, new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, false, true, false,
+    ])
+    expect(Math.round(out[0][STEP * 2] * 12)).toBe(12)
+  })
+
+  it('still arpeggiates a chord when single-note repeat is off', () => {
+    expect(run(5, { chord: 2, octaves: 1, singleRepeat: 0 }).notes).toEqual([0, 4, 7, 0, 4])
   })
 })
 

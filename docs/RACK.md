@@ -1693,6 +1693,10 @@ both bundle cost on the editing-only path and visual competition with a readable
    figure exactly and labels Played anchors as the lowest or highest held note without pretending it knows which
    collector lane currently owns that pitch. `Off` remains the default, preserving every older figure.
 
+   **5u. Arp single-note repeat.** ✅ `Single Note Repeat` can be switched off so a one-note figure sounds
+   once and waits for a new note or Reset, while figures containing a chord continue to run. The control is routed
+   and visible on Arp Field. It defaults to `On`, which keeps the OG Driftbox retrigger behavior unchanged.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.
