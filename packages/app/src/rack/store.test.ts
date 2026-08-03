@@ -205,13 +205,67 @@ describe('editing the rack', () => {
     expect(at()).toBe(start + 4)
   })
 
+  it('gives a new source its own Out, so a click in the picker makes a sound', () => {
+    // Reason connects a new device to the next free mixer channel; `insertChunk` already did the same for
+    // a chunk. This is the gap `docs/REASON-GAP.md` called "chunks only".
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0, history: NO_HISTORY })
+    useRack.getState().addModule('voice')
+    const patch = useRack.getState().patch
+    expect(patch.modules.map((m) => m.type)).toEqual(['voice', 'out'])
+    expect(patch.cables).toEqual([{ from: ['voice-1', 'out'], to: ['out-1', 'in'] }])
+  })
+
+  it('gives each source its own Out rather than sharing one', () => {
+    // Sharing would put the new thing on somebody else's fader, which is the same reason a chunk gets a
+    // fresh one every time.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0, history: NO_HISTORY })
+    useRack.getState().addModule('vco')
+    useRack.getState().addModule('vco')
+    const patch = useRack.getState().patch
+    expect(patch.modules.filter((m) => m.type === 'out')).toHaveLength(2)
+    expect(patch.cables).toHaveLength(2)
+  })
+
+  it('leaves a module that is not a source unpatched', () => {
+    // An EQ wired to a fresh Out is a channel with nothing feeding it: clutter, and a fader that does
+    // nothing. Only a source earns a channel.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0, history: NO_HISTORY })
+    useRack.getState().addModule('eq')
+    expect(useRack.getState().patch.modules.map((m) => m.type)).toEqual(['eq'])
+    expect(useRack.getState().patch.cables).toEqual([])
+  })
+
+  it('leaves a source that has not said which outlet is primary unpatched', () => {
+    // The Noise has `white` and `pink`, which are equally its output, and the Groovebox has eight — four
+    // machines in stereo pairs. Wiring "the first one" would give the 808's left channel and the strong
+    // impression the other three machines were broken. A def that has not declared an `out` is one the
+    // rack should not answer for.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0, history: NO_HISTORY })
+    useRack.getState().addModule('noise')
+    useRack.getState().addModule('groovebox')
+    expect(useRack.getState().patch.cables).toEqual([])
+    expect(useRack.getState().patch.modules.some((m) => m.type === 'out')).toBe(false)
+  })
+
+  it('is one undo step, not two', () => {
+    // The module and its Out arrive together, so stepping back leaves neither — a half-undone add that
+    // left an orphan Out behind would be worse than not auto-routing at all.
+    useRack.setState({ patch: { modules: [], cables: [] }, revision: 0, history: NO_HISTORY })
+    useRack.getState().addModule('vco')
+    useRack.getState().undo()
+    expect(useRack.getState().patch.modules).toEqual([])
+  })
+
   it('numbers a new module rather than inventing an id', () => {
     // The id decides what a Noise module sounds like, because anything random in the rack seeds from it —
     // so it must be a function of the patch and not of the clock.
     useRack.setState({ patch: { modules: [], cables: [] } })
     useRack.getState().addModule('vco')
     useRack.getState().addModule('vco')
-    expect(useRack.getState().patch.modules.map((m) => m.id)).toEqual(['vco-1', 'vco-2'])
+    // Filtered to the type being numbered: a source now arrives with its own Out beside it, and this test
+    // is about the numbering rather than about what else the add brings.
+    const ids = useRack.getState().patch.modules.filter((m) => m.type === 'vco').map((m) => m.id)
+    expect(ids).toEqual(['vco-1', 'vco-2'])
   })
 
   it('reuses a gap in the numbering', () => {
@@ -219,7 +273,7 @@ describe('editing the rack', () => {
       patch: { modules: [{ id: 'vco-1', type: 'vco' }, { id: 'vco-3', type: 'vco' }], cables: [] },
     })
     useRack.getState().addModule('vco')
-    expect(useRack.getState().patch.modules[2].id).toBe('vco-2')
+    expect(useRack.getState().patch.modules.filter((m) => m.type === 'vco')[2].id).toBe('vco-2')
   })
 
   it('takes a module’s cables with it', () => {

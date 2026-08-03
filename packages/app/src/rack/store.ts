@@ -482,6 +482,29 @@ interface RackState {
 /** A fresh id for a module of this type: `vco-1`, `vco-2`. Stable, readable, and — because anything
  *  random in the rack seeds from the module id — it is also what decides what a Noise module sounds
  *  like, so it must not be a timestamp or a counter that resets. */
+/**
+ * The outlet a newly added module should be heard through, or null for one that should arrive unpatched.
+ *
+ * Reason connects a new device to the next free mixer channel. Doing the same here is what turns a click
+ * in the picker into a sound rather than a silent rectangle you then have to wire up — which matters most
+ * for exactly the modules the picker gallery was built to show off.
+ *
+ * **Two conditions, and neither is a special case.** A module in the `Sources` group, so that adding an EQ
+ * or a Delay does not create a channel with nothing feeding it. And an outlet literally named `out`, which
+ * is how a def *declares* which of its outlets is the main one.
+ *
+ * The second is what keeps this honest rather than a guess. Two shipped sources deliberately do not
+ * qualify: the Noise has `white` and `pink`, which are equally its output, and the Groovebox has eight —
+ * four machines in stereo pairs — so wiring "the first one" would give you the 808's left channel and the
+ * strong impression that the other three machines were broken. A module that has not said which outlet is
+ * primary is one the rack should not answer for, so those two arrive unpatched as everything did before.
+ */
+function autoOutlet(type: string): string | null {
+  const def = MODULES[type]
+  if (!def || def.group !== 'Sources') return null
+  return def.outlets.some((outlet) => outlet.id === 'out') ? 'out' : null
+}
+
 function freshId(patch: Patch, type: string): string {
   const taken = new Set(patch.modules.map((m) => m.id))
   for (let n = 1; ; n++) {
@@ -745,10 +768,22 @@ export const useRack = create<RackState>((set, get) => {
     },
 
     addModule: (type) =>
-      structural((patch) => ({
-        ...patch,
-        modules: [...patch.modules, { id: freshId(patch, type), type }],
-      })),
+      structural((patch) => {
+        const id = freshId(patch, type)
+        const modules = [...patch.modules, { id, type }]
+        const port = autoOutlet(type)
+        if (!port) return { ...patch, modules }
+
+        // Its own Out, exactly the way `insertChunk` gives a chunk one — which is the same idea and the
+        // reason `docs/REASON-GAP.md` listed this as "chunks only". Sharing an existing Out would put the
+        // new thing on somebody else's fader; a fresh one is what makes a rack of sources a mixer.
+        const out = freshId({ ...patch, modules }, 'out')
+        return {
+          ...patch,
+          modules: [...modules, { id: out, type: 'out', params: { level: 0.7 } }],
+          cables: [...patch.cables, { from: [id, port], to: [out, 'in'] }],
+        }
+      }),
 
     duplicateModule: (moduleId) =>
       structural((patch) => {
