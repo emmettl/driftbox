@@ -380,7 +380,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Forty-two modules
+## Forty-three modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -415,6 +415,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Tracker** | four lanes and up to 64 steps, carrying pattern data in the patch |
 | **Arranger** | a list of sections, each a pattern and a count of bars — a song, driving a Tracker |
 | **Arp** | one held note becomes a running line: a chord, a direction and a clock |
+| **Note Echo** | polyphonic note repeats with tempo sync, pitch shift and a velocity slope per echo |
 | **Compressor** | dynamics and sidechain control for glue and ducking |
 | **Limiter** | stereo-linked look-ahead peak control with gain-reduction CV |
 | **Reverb** | an in-worklet feedback-delay network |
@@ -1581,6 +1582,17 @@ both bundle cost on the editing-only path and visual competition with a readable
    and turns duplicate roots into velocity layers. Its two-dimensional map uses key horizontally and
    velocity vertically; selecting a zone exposes exact root, low/high key, low/high velocity and sustain
    loop points. The rack keyboard patches pitch, gate and velocity into the instrument on its first note.
+
+   **5m. A polyphonic Note Echo.** ✅ Built as a note transform rather than an audio delay: pitch, gate and
+   velocity enter and leave, while each allocated voice owns its repeat train. Free timing covers 1–1000ms;
+   tempo sync covers 1/128 through 1/2 notes. One to sixteen echoes can move by ±12 semitones per repeat,
+   follow a linear 10–200% velocity slope and use a gate fraction that always leaves a real retrigger edge.
+
+   Dry plus sixteen repeat enables are portable `PatchModule.data`, even before a custom panel exists. That
+   separates the playback contract from its eventual step display and lets a host mute repeats without a
+   processor change. A retrigger on an already allocated voice starts a fresh train, which is the honest
+   boundary of this graph: it repeats input chords voice-for-voice, but cannot turn one note into simultaneous
+   zero-delay cluster voices. That expansion belongs with the held-chord player work, not in a fake CV sum.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
