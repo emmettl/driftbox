@@ -104,7 +104,9 @@ into a rack-extended document. A section selector beside the steps assigns any p
 the retained bank to the selected machine in that arrangement section. Selecting the
 section's fallback removes the redundant override, preserving the old whole-pattern song
 shape where possible. Each machine can also launch the selected retained pattern on the
-next bar or return to following the authored arrangement. Queued and active launch state is
+next step, beat or bar—or return to following the authored arrangement at that boundary.
+Bar remains the default for old hosts. Queued and active launch state, including the pending
+quantization, is
 explicit on the faceplate but remains session-only: it never rewrites the retained envelope,
 enters undo history or changes a groovebox-compatible document into a rack extension.
 The same contextual editor exposes all six authored controls for the selected 808/909

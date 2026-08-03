@@ -2,7 +2,11 @@ import { BASS_VOICES, DEFAULT_BASS_PARAMS, bassNote, type BassStep } from './bas
 import { Bassline } from './bassline.js'
 import { DEFAULT_FX, DEFAULT_SENDS, Sends, type SendLevels } from './effects.js'
 import { Kaoss } from './kaoss.js'
-import { ClipLauncher, type ClipLaunchEvent } from './clip-launch.js'
+import {
+  ClipLauncher,
+  type ClipLaunchEvent,
+  type ClipLaunchQuantization,
+} from './clip-launch.js'
 import { metronomeClick } from './metronome.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
@@ -216,7 +220,7 @@ export class DriftboxEngine {
     this.analyser.connect(destination)
 
     this.transport = new Transport(this.ctx, {
-      onBar: () => this.clipLauncher.activate(),
+      onBar: () => this.clipLauncher.activate('bar'),
       barLength: (bar) =>
         barLengthForSelection(this.song, bar, this.clipLauncher.selection),
       onStep: (event) => this.playStep(event),
@@ -402,15 +406,21 @@ export class DriftboxEngine {
   }
 
   /**
-   * Launch one machine's pattern at the next bar, or pass null to follow the song again.
+   * Launch one machine's pattern at the next requested boundary, or pass null to follow
+   * the song again. Bar remains the default for callers written before finer launch
+   * quantization existed.
    *
    * Returns false for an unknown pattern without disturbing an already queued launch.
    */
-  queueClip(section: GrooveboxSection, patternId: string | null): boolean {
+  queueClip(
+    section: GrooveboxSection,
+    patternId: string | null,
+    quantization: ClipLaunchQuantization = 'bar',
+  ): boolean {
     if (patternId !== null && !this.song.patterns.some((pattern) => pattern.id === patternId)) {
       return false
     }
-    this.clipLauncher.queue(section, patternId)
+    this.clipLauncher.queue(section, patternId, quantization)
     return true
   }
 
@@ -552,6 +562,7 @@ export class DriftboxEngine {
   }
 
   private playStep(event: StepEvent): void {
+    this.clipLauncher.activate(event.index % STEPS_PER_BEAT === 0 ? 'beat' : 'step')
     // The click lands on the beat, straight, whatever the song is swinging. Swing is a
     // property of the music; a metronome that shuffled with it would be measuring
     // against itself and useless for playing along to.

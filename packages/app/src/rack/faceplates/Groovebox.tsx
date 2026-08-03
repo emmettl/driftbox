@@ -1,5 +1,6 @@
 import {
   ALL_VOICES,
+  CLIP_LAUNCH_QUANTIZATIONS,
   DEFAULT_BASS_PARAMS,
   DEFAULT_FX,
   DEFAULT_PARAMS,
@@ -40,6 +41,7 @@ import {
   type BassParams,
   type BassLineClipboard,
   type DrumLaneClipboard,
+  type ClipLaunchQuantization,
   type FxParams,
   type GrooveboxSection,
   type Pattern,
@@ -174,6 +176,8 @@ export function GrooveboxPatternEditor({
   clearAutomation,
   launch,
   launches,
+  launchQuantization = 'bar',
+  setLaunchQuantization,
   transport,
   loop,
   initialSection = 'tr808',
@@ -208,13 +212,20 @@ export function GrooveboxPatternEditor({
   launch?: (
     machine: GrooveboxSection,
     patternId: string | null,
+    quantization?: ClipLaunchQuantization,
   ) => boolean
   launches?: Partial<
     Record<
       GrooveboxSection,
-      { patternId: string | null; phase: 'queued' | 'active' }
+      {
+        patternId: string | null
+        phase: 'queued' | 'active'
+        quantization: ClipLaunchQuantization
+      }
     >
   >
+  launchQuantization?: ClipLaunchQuantization
+  setLaunchQuantization?: (quantization: ClipLaunchQuantization) => void
   transport?: {
     startAt: (bar: number) => boolean
     setLoop: (start: number, bars: number) => boolean
@@ -786,22 +797,42 @@ export function GrooveboxPatternEditor({
       </div>
 
       <div className="rk-groovebox-live" aria-label={`${sectionName(section)} live clip`}>
+        <label>
+          Quantize
+          <select
+            aria-label="Clip launch quantization"
+            value={launchQuantization}
+            onChange={(event) =>
+              setLaunchQuantization?.(event.target.value as ClipLaunchQuantization)
+            }
+          >
+            {CLIP_LAUNCH_QUANTIZATIONS.map((quantization) => (
+              <option value={quantization} key={quantization}>
+                {quantization}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           disabled={!launch}
-          onClick={() => launch?.(section, pattern.id)}
+          onClick={() => launch?.(section, pattern.id, launchQuantization)}
+          title={`Queue for the next ${launchQuantization}`}
         >
           Launch {pattern.name}
         </button>
         <button
           type="button"
           disabled={!launch}
-          onClick={() => launch?.(section, null)}
+          onClick={() => launch?.(section, null, launchQuantization)}
+          title={`Follow the song from the next ${launchQuantization}`}
         >
           Follow song
         </button>
         <span aria-live="polite">
-          {live ? `${live.phase} ${livePattern}` : 'follows song'}
+          {live
+            ? `${live.phase} ${livePattern}${live.phase === 'queued' ? ` · next ${live.quantization}` : ''}`
+            : 'follows song'}
         </span>
       </div>
 
@@ -1043,6 +1074,8 @@ function PatternEditor() {
   const clearAutomation = useRack((state) => state.clearGrooveboxAutomation)
   const launch = useRack((state) => state.grooveboxLauncher)
   const launches = useRack((state) => state.grooveboxLaunches)
+  const launchQuantization = useRack((state) => state.grooveboxLaunchQuantization)
+  const setLaunchQuantization = useRack((state) => state.setGrooveboxLaunchQuantization)
   const transport = useRack((state) => state.grooveboxTransport)
   const loop = useRack((state) => state.grooveboxLoop)
   return (
@@ -1068,6 +1101,8 @@ function PatternEditor() {
       clearAutomation={clearAutomation}
       launch={launch ?? undefined}
       launches={launches}
+      launchQuantization={launchQuantization}
+      setLaunchQuantization={setLaunchQuantization}
       transport={transport ?? undefined}
       loop={loop}
     />

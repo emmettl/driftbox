@@ -50,7 +50,7 @@ user could approximate it from oscillators.
 | Two authored 303 voices | Yes | Patchable stereo outputs, retained pattern editor and all eight authored controls per 303 | Landed |
 | Authored 808 and 909 kits | Yes | Patchable stereo outputs, retained pattern editor and all six authored controls per voice | Landed; generated PCM character remains deliberate |
 | Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
-| Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
+| Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus step-, beat- or bar-quantised session launch | Landed; bar remains the compatible default |
 | Independent drum-voice loop lengths | Selected lane loops inside its 808/909 parent clip | Same retained lane-length control and inactive-tail feedback | Landed; additive beyond ReBirth |
 | 303 pitch/note-pause/accent/slide editing | Direct grid plus stopped keyboard/MIDI entry; paused steps retain pitch for silent slides and same-pitch Slide writes ties | Same retained editor and advancing cursor plus Tracker primitives | Landed |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
@@ -144,8 +144,9 @@ pan, mute and a live post-strip meter; its unity defaults preserve the retained 
 saving a strip adjustment correctly marks the document as rack-extended. Retained drum
 and 303 pattern editing plus per-section machine clip assignment are now available directly
 on the device. The selected retained pattern can now be queued independently for any machine
-and becomes active at the next bar boundary; following the authored song again uses the same
-quantised path, and neither action mutates the document. Contextual voice controls now edit
+at the next step, beat or bar boundary; following the authored song again uses the same
+selected path, and neither action mutates the document. Bar remains the default for existing
+hosts. Contextual voice controls now edit
 the complete retained drum or bass parameter block and reach following scheduled hits without
 rebuilding the rack. The selected section can now seek or loop on the hosted transport, and
 arbitrary whole-bar loop ranges may cross section boundaries without entering the document.

@@ -33,6 +33,7 @@ beforeEach(() => {
     name: null,
     grooveboxLauncher: null,
     grooveboxLaunches: {},
+    grooveboxLaunchQuantization: 'bar',
     grooveboxTransport: null,
     grooveboxLoop: null,
     grooveboxAutomationRecording: false,
@@ -1249,16 +1250,19 @@ describe('editing a retained Groovebox pattern', () => {
       section: 'tr808',
       patternId,
       phase: 'queued',
+      quantization: 'beat',
     })
     expect(useRack.getState().grooveboxLaunches.tr808).toEqual({
       patternId,
       phase: 'queued',
+      quantization: 'beat',
     })
 
     useRack.getState().setGrooveboxLaunch({
       section: 'tr808',
       patternId,
       phase: 'active',
+      quantization: 'beat',
     })
     expect(useRack.getState().grooveboxLaunches.tr808?.phase).toBe('active')
     expect(useRack.getState().patch).toBe(patch)
@@ -1268,8 +1272,18 @@ describe('editing a retained Groovebox pattern', () => {
       section: 'tr808',
       patternId: null,
       phase: 'active',
+      quantization: 'bar',
     })
     expect(useRack.getState().grooveboxLaunches.tr808).toBeUndefined()
+  })
+
+  it('keeps launch quantization as session state', () => {
+    const patch = useRack.getState().patch
+    const history = useRack.getState().history
+    useRack.getState().setGrooveboxLaunchQuantization('step')
+    expect(useRack.getState().grooveboxLaunchQuantization).toBe('step')
+    expect(useRack.getState().patch).toBe(patch)
+    expect(useRack.getState().history).toBe(history)
   })
 
   it('keeps hosted transport controls and loop state out of the document', () => {

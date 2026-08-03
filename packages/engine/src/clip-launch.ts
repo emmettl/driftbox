@@ -2,41 +2,58 @@ import type { ClipSlot } from './pattern.js'
 
 export type ClipSelection = Partial<Record<ClipSlot, string>>
 export type ClipLaunchPhase = 'queued' | 'active'
+export const CLIP_LAUNCH_QUANTIZATIONS = ['step', 'beat', 'bar'] as const
+export type ClipLaunchQuantization = (typeof CLIP_LAUNCH_QUANTIZATIONS)[number]
 
 export interface ClipLaunchEvent {
   section: ClipSlot
   patternId: string | null
   phase: ClipLaunchPhase
+  quantization: ClipLaunchQuantization
+}
+
+interface PendingLaunch {
+  patternId: string | null
+  quantization: ClipLaunchQuantization
 }
 
 /**
  * Session-only machine clip overrides.
  *
  * A launch is performance state, not song data: sharing or saving a song after a set
- * must not silently rewrite its arrangement. Pending selections become active together
- * at a bar boundary, before that bar's length and notes are planned.
+ * must not silently rewrite its arrangement. Bar remains the default, while a performance
+ * host may opt into beat or step boundaries without changing the authored song.
  */
 export class ClipLauncher {
   private readonly active: ClipSelection = {}
-  private readonly pending: Partial<Record<ClipSlot, string | null>> = {}
+  private readonly pending: Partial<Record<ClipSlot, PendingLaunch>> = {}
   private readonly listeners = new Set<(event: ClipLaunchEvent) => void>()
 
   get selection(): ClipSelection {
     return { ...this.active }
   }
 
-  queue(section: ClipSlot, patternId: string | null): void {
-    this.pending[section] = patternId
-    this.emit({ section, patternId, phase: 'queued' })
+  queue(
+    section: ClipSlot,
+    patternId: string | null,
+    quantization: ClipLaunchQuantization = 'bar',
+  ): void {
+    this.pending[section] = { patternId, quantization }
+    this.emit({ section, patternId, phase: 'queued', quantization })
   }
 
-  activate(): void {
+  activate(boundary: ClipLaunchQuantization = 'bar'): void {
+    const boundaryRank = CLIP_LAUNCH_QUANTIZATIONS.indexOf(boundary)
     for (const section of Object.keys(this.pending) as ClipSlot[]) {
-      const patternId = this.pending[section] ?? null
+      const pending = this.pending[section]
+      if (!pending || CLIP_LAUNCH_QUANTIZATIONS.indexOf(pending.quantization) > boundaryRank) {
+        continue
+      }
+      const { patternId, quantization } = pending
       if (patternId === null) delete this.active[section]
       else this.active[section] = patternId
       delete this.pending[section]
-      this.emit({ section, patternId, phase: 'active' })
+      this.emit({ section, patternId, phase: 'active', quantization })
     }
   }
 
