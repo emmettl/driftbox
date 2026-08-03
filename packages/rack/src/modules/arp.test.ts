@@ -25,6 +25,8 @@ interface Options {
   timing?: number
   division?: number
   rate?: number
+  insert?: number
+  singleRepeat?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -63,6 +65,7 @@ interface PlayedOptions {
   velocityMode?: number
   velocity?: number
   releaseAt?: number
+  insert?: number
 }
 
 /** Feed independent pitch/gate/velocity lanes through the same collector view the Graph supplies. */
@@ -201,6 +204,108 @@ describe('played chords', () => {
   })
 })
 
+describe('note insertion', () => {
+  it('keeps Off as the exact figure that shipped before Insert', () => {
+    expect(ARP_MODULE.params[param('insert')].default).toBe(0)
+    expect(run(6, { chord: 2, octaves: 2, insert: 0 }).notes).toEqual([0, 4, 7, 12, 16, 19])
+  })
+
+  it('alternates the low or high anchor with the ordinary walk', () => {
+    expect(run(7, { chord: 2, octaves: 1, insert: 1 }).notes).toEqual([0, 0, 4, 0, 7, 0, 0])
+    expect(run(7, { chord: 2, octaves: 1, insert: 2 }).notes).toEqual([0, 7, 4, 7, 7, 7, 0])
+  })
+
+  it('plays three forward and one back, or four forward and two back', () => {
+    expect(run(8, { chord: 2, octaves: 2, insert: 3 }).notes).toEqual([0, 4, 7, 4, 7, 12, 7, 12])
+    expect(run(9, { chord: 2, octaves: 2, insert: 4 }).notes).toEqual([0, 4, 7, 12, 4, 7, 12, 16, 7])
+  })
+
+  it('finds the actual low note in Manual order instead of assuming lane one', () => {
+    const { notes } = runPlayed(5, [7, 0, 4], { octaves: 1, mode: 5, insert: 1 })
+    expect(notes).toEqual([7, 0, 0, 0, 4])
+  })
+
+  it('does not consume an insert note during a rhythm rest', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[1] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-insert-rest', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 4
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    params[param('insert')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    const sounded = Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)
+    const notes = Array.from({ length: 4 }, (_, step) => Math.round(out[0][step * STEP] * 12))
+    expect(sounded).toEqual([true, false, true, true])
+    expect(notes).toEqual([0, 0, 0, 4])
+  })
+})
+
+describe('single-note repeat', () => {
+  it('defaults on so the original Driftbox one-note figure still retriggers', () => {
+    expect(ARP_MODULE.params[param('singleRepeat')].default).toBe(1)
+    const { out } = run(4, { chord: 0, octaves: 1 })
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, true, true, true,
+    ])
+  })
+
+  it('sounds a single-note figure once when repeat is off', () => {
+    const { out } = run(4, { chord: 0, octaves: 1, singleRepeat: 0 })
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, false, false, false,
+    ])
+  })
+
+  it('starts the single note again after Reset', () => {
+    const { out } = run(5, {
+      chord: 0,
+      octaves: 1,
+      singleRepeat: 0,
+      reset: (i) => i >= STEP * 3 - 4 && i < STEP * 3 - 2,
+    })
+    expect(Array.from({ length: 5 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, false, false, true, false,
+    ])
+  })
+
+  it('sounds again when the one-note figure changes pitch', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-single-change')
+    const frames = STEP * 4
+    const pitch = Float32Array.from({ length: frames }, (_, i) => i >= STEP * 2 ? 1 : 0)
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(0)
+    params[param('octaves')].fill(1)
+    params[param('singleRepeat')].fill(0)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [pitch, new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, false, true, false,
+    ])
+    expect(Math.round(out[0][STEP * 2] * 12)).toBe(12)
+  })
+
+  it('still arpeggiates a chord when single-note repeat is off', () => {
+    expect(run(5, { chord: 2, octaves: 1, singleRepeat: 0 }).notes).toEqual([0, 4, 7, 0, 4])
+  })
+})
+
 describe('how it is clocked', () => {
   it('keeps explicit Clock as the default timing source', () => {
     expect(ARP_MODULE.params[param('timing')].default).toBe(0)
@@ -257,6 +362,39 @@ describe('how it is clocked', () => {
     }
     expect(pitchesAt(60)).toBe(11)
     expect(pitchesAt(180)).toBe(11)
+  })
+
+  it('completes the dotted and triplet tempo values without moving shipped division indices', () => {
+    expect(ARP_MODULE.params[param('division')].labels?.slice(0, 10)).toEqual([
+      '1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128',
+    ])
+    const additions = [
+      { division: 10, label: '1/2D', interval: 1800 },
+      { division: 11, label: '1/2T', interval: 800 },
+      { division: 12, label: '1/4D', interval: 900 },
+      { division: 13, label: '1/4T', interval: 400 },
+      { division: 14, label: '1/8D', interval: 450 },
+      { division: 15, label: '1/16D', interval: 225 },
+    ]
+    for (const addition of additions) {
+      expect(ARP_MODULE.params[param('division')].labels?.[addition.division]).toBe(addition.label)
+      const sampleRate = 1200
+      const frames = addition.interval + 2
+      const arp = new ArpProcessor(sampleRate, deps, `arp-${addition.label}`)
+      const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+      params[param('timing')].fill(1)
+      params[param('division')].fill(addition.division)
+      const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+      arp.process(
+        Array.from({ length: 5 }, (_, inlet) => new Float32Array(frames).fill(inlet === 2 ? 1 : 0)),
+        out,
+        params,
+        frames,
+        { tempo: 120, running: false, beat: 0, beatsPerBlock: 0 },
+      )
+      expect(out[3][0], `${addition.label} starts immediately`).toBe(1)
+      expect(out[3][addition.interval], `${addition.label} interval`).toBe(1)
+    }
   })
 
   it('gates for a fraction of the step, so the feel survives a tempo change', () => {
@@ -325,7 +463,31 @@ describe('how it is clocked', () => {
     const sounded = Array.from({ length: 5 }, (_, step) => out[3][step * STEP] >= 0.5)
     const notes = Array.from({ length: 5 }, (_, step) => Math.round(out[0][step * STEP] * 12))
     expect(sounded).toEqual([true, false, true, false, true])
-    expect(notes).toEqual([0, 4, 7, 0, 4])
+    expect(notes).toEqual([0, 0, 4, 4, 7])
+    expect(notes.filter((_, step) => sounded[step])).toEqual([0, 4, 7])
+  })
+
+  it('reaches the first note after a leading rest instead of waiting forever on pattern step one', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[0] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-leading-rest', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 3
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    expect(out[3][0]).toBe(0)
+    expect(out[3][STEP]).toBe(1)
+    expect(Math.round(out[0][STEP] * 12)).toBe(0)
   })
 
   it('defaults every pattern position on when no pattern data was saved', () => {
@@ -396,8 +558,13 @@ describe('the awkward settings', () => {
     // Cheap, and it is the sweep that would have caught an off-by-one in the table.
     for (let chord = 0; chord <= 7; chord++) {
       for (let mode = 0; mode <= 4; mode++) {
-        const { notes } = run(6, { chord, octaves: 2, mode })
-        expect(notes.every((n) => Number.isFinite(n) && n >= 0 && n < 48), `${chord}/${mode}`).toBe(true)
+        for (let insert = 0; insert <= 4; insert++) {
+          const { notes } = run(8, { chord, octaves: 2, mode, insert })
+          expect(
+            notes.every((n) => Number.isFinite(n) && n >= 0 && n < 48),
+            `${chord}/${mode}/${insert}`,
+          ).toBe(true)
+        }
       }
     }
   })

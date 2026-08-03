@@ -1677,15 +1677,25 @@ both bundle cost on the editing-only path and visual competition with a readable
    permutation rather than pretending a display-only RNG can predict the audio processor's seeded state.
 
    **5s. Arp rhythm engine.** ✅ External Clock remains the default, preserving the original Driftbox/Reason →
-   ReBirth one-finger patch exactly, while appended timing controls add rack-tempo divisions (including triplets)
-   and a 0.1–250 Hz free clock. A portable sixteen-value pattern mutes selected pulses independently of the note
-   cycle; its all-enabled default is therefore silent in the compatibility sense as well as musically familiar.
+   ReBirth one-finger patch exactly, while appended timing controls add straight, dotted and triplet rack-tempo divisions
+   and a 0.1–250 Hz free clock. A portable sixteen-value pattern mutes selected pulses without advancing the note
+   cycle, so the next enabled pulse plays the next figure note; its all-enabled default is therefore silent in the compatibility sense as well as musically familiar.
    Pattern length is an ordinary routed parameter from one to sixteen steps.
 
    Arp Field turns the existing sixteen-position preview into the pattern editor. Enabled steps retain the exact
    Root interval or representative Played lane; muted steps say `rest`, inactive positions beyond Pattern Steps
    are disabled, and every button exposes its state to keyboard and assistive-technology users. Together with the
    additive Played source, this makes Rack mode's Arp a strict superset of OG Driftbox rather than a fork of it.
+
+   **5t. Arp note insertion.** ✅ The RPG-style Insert control is an ordinary routed parameter: `Low` and `Hi`
+   alternate the actual pitch extreme with the selected direction, while `3-1` and `4-2` walk forward and then
+   back through that direction. Rhythm rests do not consume an inserted note. Arp Field previews the reshaped Root
+   figure exactly and labels Played anchors as the lowest or highest held note without pretending it knows which
+   collector lane currently owns that pitch. `Off` remains the default, preserving every older figure.
+
+   **5u. Arp single-note repeat.** ✅ `Single Note Repeat` can be switched off so a one-note figure sounds
+   once and waits for a new note or Reset, while figures containing a chord continue to run. The control is routed
+   and visible on Arp Field. It defaults to `On`, which keeps the OG Driftbox retrigger behavior unchanged.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

@@ -41,6 +41,10 @@ export class ArpProcessor implements Processor {
   private internalLeft = 0
   private timingWas = 0
   private patternStep = 0
+  private patternStarted = false
+  private insertPhase = 0
+  private insertWas = 0
+  private singlePitchWas = Number.NaN
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -85,7 +89,13 @@ export class ArpProcessor implements Processor {
     // Beat lengths for the labelled whole-note divisions below. Tempo sync deliberately follows the rack
     // tempo even while its transport is stopped: like the RPG-8, an Arp is playable without starting the
     // song. External remains the compatibility default for patches that want explicit Clock/Reset wiring.
-    const beats = [2, 1, 0.5, 1 / 3, 0.25, 1 / 6, 0.125, 1 / 12, 1 / 16, 1 / 32]
+    // New values are appended, never inserted: patches store the stepped value, so changing an existing
+    // index would turn a saved 1/16 into another rate. The tail completes RPG's dotted/triplet 1/2–1/16
+    // set while the first ten positions retain the rhythm shipped in Arp v4.
+    const beats = [
+      2, 1, 0.5, 1 / 3, 0.25, 1 / 6, 0.125, 1 / 12, 1 / 16, 1 / 32,
+      3, 4 / 3, 1.5, 2 / 3, 0.75, 0.375,
+    ]
     const at = Math.max(0, Math.min(beats.length - 1, Math.round(division)))
     const tempo = transport && transport.tempo > 0 ? transport.tempo : 120
     return Math.max(2, Math.round(beats[at] * this.sampleRate * 60 / tempo))
@@ -184,6 +194,70 @@ export class ArpProcessor implements Processor {
     }
   }
 
+  private retreat(length: number, mode: number, amount: number): void {
+    if (length <= 1) return
+    for (let moved = 0; moved < amount; moved++) {
+      if (mode === 1) {
+        this.step = this.step + 1 >= length ? 0 : this.step + 1
+      } else if (mode === 2 || mode === 3) {
+        // Walk backwards along the same turning path, restoring the direction state that `advance` would
+        // have held at that earlier position. This avoids duplicated end notes when Insert crosses a turn.
+        if (this.rising) {
+          if (this.step - 1 < 0) {
+            this.rising = false
+            this.step = 1
+          } else this.step--
+        } else if (this.step + 1 >= length) {
+          this.rising = true
+          this.step = length - 2
+        } else this.step++
+      } else if (mode === 4) {
+        // Random has no earlier/later pitch order to step through. A fresh legal roll is the only honest
+        // interpretation of a backstep without growing an unbounded history in the audio processor.
+        const roll = (this.rng.next() + 1) * 0.5
+        this.step = Math.min(length - 1, Math.max(0, Math.floor(roll * length)))
+      } else {
+        this.step = this.step - 1 < 0 ? length - 1 : this.step - 1
+      }
+    }
+  }
+
+  private extreme(length: number, high: boolean): number {
+    let found = 0
+    for (let at = 1; at < length; at++) {
+      if (high ? this.figurePitch[at] > this.figurePitch[found] : this.figurePitch[at] < this.figurePitch[found]) {
+        found = at
+      }
+    }
+    return found
+  }
+
+  private insertStep(length: number, mode: number, insert: number, opening: boolean): number {
+    if (opening) {
+      this.advance(length, mode, true)
+      this.insertPhase = 1
+      return this.step
+    }
+    if (insert === 1 || insert === 2) {
+      if (this.insertPhase === 1) {
+        this.insertPhase = 0
+        return this.extreme(length, insert === 2)
+      }
+      this.advance(length, mode, false)
+      this.insertPhase = 1
+      return this.step
+    }
+    const forward = insert === 3 ? 3 : insert === 4 ? 4 : 0
+    if (forward > 0 && this.insertPhase >= forward) {
+      this.retreat(length, mode, insert === 3 ? 1 : 2)
+      this.insertPhase = 1
+      return this.step
+    }
+    this.advance(length, mode, false)
+    if (forward > 0) this.insertPhase++
+    return this.step
+  }
+
   process(
     inlets: Float32Array[],
     outlets: Float32Array[],
@@ -216,6 +290,8 @@ export class ArpProcessor implements Processor {
     const divisionParam = params[10]
     const rateParam = params[11]
     const patternLengthParam = params[12]
+    const insertParam = params[13]
+    const singleRepeatParam = params[14]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -257,6 +333,7 @@ export class ArpProcessor implements Processor {
         this.activeCount = active
         if (!hold && active === 0) {
           this.started = false
+          this.patternStarted = false
           this.gateLeft = 0
           this.trigLeft = 0
         }
@@ -266,6 +343,7 @@ export class ArpProcessor implements Processor {
       if (reset === 1 && this.lastReset === 0) {
         this.started = false
         this.patternStep = 0
+        this.patternStarted = false
       }
       this.lastReset = reset
 
@@ -275,7 +353,14 @@ export class ArpProcessor implements Processor {
       if (timing !== this.timingWas) {
         this.internalLeft = 0
         this.started = false
+        this.patternStarted = false
         this.timingWas = timing
+      }
+      const insert = Math.max(0, Math.min(4, Math.round(insertParam[i])))
+      if (insert !== this.insertWas) {
+        this.started = false
+        this.insertPhase = 0
+        this.insertWas = insert
       }
       let clockEdge = timing === 0 && clock === 1 && this.lastClock === 0
       if (timing !== 0) {
@@ -320,32 +405,46 @@ export class ArpProcessor implements Processor {
             }
           }
 
-          const opening = !this.started
+          if (length !== 1) this.singlePitchWas = Number.NaN
+
           this.interval = this.since
           this.since = 0
-          this.advance(length, mode, opening)
-          if (this.step >= length) this.step = 0
           const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(patternLengthParam[i])))
-          this.patternStep = opening ? 0 : (this.patternStep + 1) % patternLength
-          const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
-          this.held = this.figurePitch[this.step] + shift
-          this.heldVelocity = velocityModeParam[i] >= 0.5
-            ? Math.max(0.01, Math.min(1, velocityParam[i]))
-            : this.figureVelocity[this.step]
-          const fraction = gateParam[i]
-          const span = opening ? this.trigSamples : this.interval
+          this.patternStep = this.patternStarted ? (this.patternStep + 1) % patternLength : 0
+          this.patternStarted = true
           if (this.patternEnabled(this.patternStep)) {
-            this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
-            this.trigLeft = this.trigSamples
+            const repeatSingle = singleRepeatParam[i] >= 0.5
+            const singleChanged = length === 1
+              && (!Number.isFinite(this.singlePitchWas) || Math.abs(this.figurePitch[0] - this.singlePitchWas) >= 1e-5)
+            // A performed chord can lose notes while an arpeggio is running. Restart instead of allowing a
+            // saved step from the wider figure to index beyond the newly collected one.
+            const opening = !this.started || this.step < 0 || this.step >= length || singleChanged
+            if (length === 1 && !repeatSingle && !opening) {
+              this.gateLeft = 0
+              this.trigLeft = 0
+            } else {
+              const playStep = this.insertStep(length, mode, insert, opening)
+              const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
+              this.held = this.figurePitch[playStep] + shift
+              this.heldVelocity = velocityModeParam[i] >= 0.5
+                ? Math.max(0.01, Math.min(1, velocityParam[i]))
+                : this.figureVelocity[playStep]
+              const fraction = gateParam[i]
+              const span = opening ? this.trigSamples : this.interval
+              this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
+              this.trigLeft = this.trigSamples
+              this.singlePitchWas = length === 1 ? this.figurePitch[0] : Number.NaN
+            }
           } else {
-            // A rest still consumes its place in both cycles. That keeps the rhythmic pattern independent
-            // of the note figure: sixteen steps remain sixteen steps whether the chord has three notes or
-            // seven, and unmuting a pulse never changes every later pitch.
+            // The rhythm advances; the note figure does not. RPG rests silence a position rather than skip
+            // an arpeggio note, so the next enabled pulse plays the next note the unmuted figure would have.
             this.gateLeft = 0
             this.trigLeft = 0
           }
         } else {
           this.started = false
+          this.patternStarted = false
+          this.singlePitchWas = Number.NaN
           this.gateLeft = 0
           this.trigLeft = 0
         }
@@ -368,7 +467,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 4,
+  version: 7,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -463,13 +562,34 @@ export const ARP_MODULE: ModuleDef = {
       id: 'division',
       name: 'Division',
       min: 0,
-      max: 9,
+      max: 15,
       default: 4,
       stepped: true,
-      labels: ['1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128'],
+      labels: [
+        '1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128',
+        '1/2D', '1/2T', '1/4D', '1/4T', '1/8D', '1/16D',
+      ],
     },
     { id: 'rate', name: 'Free Rate', min: 0.1, max: 250, default: 8 },
     { id: 'patternLength', name: 'Pattern Steps', min: 1, max: ARP_PATTERN_STEPS, default: 16, stepped: true },
+    {
+      id: 'insert',
+      name: 'Insert',
+      min: 0,
+      max: 4,
+      default: 0,
+      stepped: true,
+      labels: ['Off', 'Low', 'Hi', '3-1', '4-2'],
+    },
+    {
+      id: 'singleRepeat',
+      name: 'Single Note Repeat',
+      min: 0,
+      max: 1,
+      default: 1,
+      stepped: true,
+      labels: ['Off', 'On'],
+    },
   ],
   processor: ArpProcessor,
   deps: { Random },
