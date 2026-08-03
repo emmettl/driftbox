@@ -1670,6 +1670,12 @@ both bundle cost on the editing-only path and visual competition with a readable
    the same Root figure after the module version advances. Duplicate collected pitches are emitted once, and
    all note/order/latch workspaces are fixed typed arrays rather than allocations in the audio loop.
 
+   Arp Field completes the editor with sixteen visible configuration steps and all nine routed controls. Root
+   mode shows the exact semitone intervals the chosen chord and direction will produce. Played mode shows the
+   collector lanes and octave walk without inventing live pitch telemetry the host has not received; the legend
+   keeps Hold and the played/fixed velocity policy visible. Random uses an explicitly representative unordered
+   permutation rather than pretending a display-only RNG can predict the audio processor's seeded state.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

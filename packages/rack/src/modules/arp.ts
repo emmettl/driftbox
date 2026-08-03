@@ -347,7 +347,7 @@ export const ARP_MODULE: ModuleDef = {
       labels: ['Up', 'Down', 'Up-Dn', 'Dn-Up', 'Rand', 'Manual'],
     },
     { id: 'gate', name: 'Gate Length', min: 0.05, max: 1, default: 0.5 },
-    { id: 'hold', name: 'Hold', min: 0, max: 1, default: 0, stepped: true },
+    { id: 'hold', name: 'Hold', min: 0, max: 1, default: 0, stepped: true, labels: ['Off', 'On'] },
     { id: 'shift', name: 'Octave Shift', min: -3, max: 3, default: 0, stepped: true },
     {
       id: 'velocityMode',

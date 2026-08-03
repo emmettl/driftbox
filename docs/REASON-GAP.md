@@ -176,6 +176,8 @@ Ordered by return, not by how big Reason's version was.
   preserves the original Driftbox behavior and every saved patch. Played mode adds ascending, descending,
   turning, random and note-on-order figures; Hold latches the last chord, the one-to-four-octave range and
   ±3-octave shift match the RPG-8 shape, and velocity can follow each source note or use a fixed value.
+  Arp Field makes Root intervals or the Played collector walk visible across sixteen positions while keeping
+  every engine control on the ordinary routed parameter path.
 
   **Note Echo has landed** as a polyphonic pitch/gate/velocity transform: free or tempo-synced spacing,
   one to sixteen repeats, semitone movement, a linear velocity slope, gate length, dry mute and a portable

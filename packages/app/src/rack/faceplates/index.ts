@@ -1,6 +1,7 @@
 import type { ModuleDef } from '@driftbox/rack'
 import { CELL_HEIGHT, PAD, ROW, TITLE, columnsFor, rowsForJacks, type Size, type Span } from '../layout.js'
 import { Arranger } from './Arranger.js'
+import { Arp } from './Arp.js'
 import { ChordPlayer } from './ChordPlayer.js'
 import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
@@ -50,6 +51,9 @@ interface Entry {
 }
 
 const FACEPLATES: Record<string, Entry> = {
+  // Sixteen configuration steps above all nine RPG controls. Played mode is deliberately a lane diagram:
+  // live pitches stay in the audio thread, so the panel does not invent telemetry it was never sent.
+  arp: { component: Arp, rows: 5 },
   // Sixteen sections in two columns of eight, plus the length knob. The same height as the Combinator,
   // which is about right — a song and a patch are the two things you look at rather than twiddle.
   arranger: { component: Arranger, rows: 5 },

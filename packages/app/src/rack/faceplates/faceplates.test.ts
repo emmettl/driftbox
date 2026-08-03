@@ -36,6 +36,7 @@ describe('choosing a faceplate', () => {
     expect(faceplateFor('note-echo')).not.toBe(Generic)
     expect(faceplateFor('scale-player')).not.toBe(Generic)
     expect(faceplateFor('chord-player')).not.toBe(Generic)
+    expect(faceplateFor('arp')).not.toBe(Generic)
   })
 })
 
@@ -98,7 +99,7 @@ describe('a hand-built faceplate still shows everything its module has', () => {
   // Rendered rather than inspected, because the question is "does a control for this param exist on screen",
   // and no amount of reading the source answers that as directly.
 
-  const HAND_BUILT = ['groovebox', 'vco', 'ladder', 'out', 'midi', 'meter', 'arranger', 'sampler', 'multisampler', 'note-echo', 'scale-player', 'chord-player'] as const
+  const HAND_BUILT = ['groovebox', 'vco', 'ladder', 'out', 'midi', 'meter', 'arranger', 'sampler', 'multisampler', 'note-echo', 'scale-player', 'chord-player', 'arp'] as const
 
   /** Every param id the faceplate asked about, collected by handing it a probing `value`. */
   const asked = (type: string): Set<string> => {
