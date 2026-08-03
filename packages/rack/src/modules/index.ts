@@ -147,7 +147,7 @@ export const MODULES: Registry = Object.fromEntries(
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
 export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './audio-input.js'
-export { ARP_MODULE, ArpProcessor } from './arp.js'
+export { ARP_MODULE, ARP_PATTERN_STEPS, ArpProcessor } from './arp.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
 export { CABINET_MODULE, CabinetProcessor } from './cabinet.js'

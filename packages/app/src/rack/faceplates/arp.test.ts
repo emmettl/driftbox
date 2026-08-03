@@ -11,6 +11,7 @@ describe('the Arp faceplate', () => {
     const values: Record<string, number> = {
       source: 0, chord: 3, octaves: 2, mode: 0, gate: 0.5,
       hold: 0, shift: 0, velocityMode: 0, velocity: 0.8,
+      timing: 0, division: 4, rate: 8, patternLength: 16,
     }
     const markup = renderToStaticMarkup(createElement(Arp, {
       def,
@@ -19,9 +20,9 @@ describe('the Arp faceplate', () => {
       onChange: () => {},
     }))
     expect(markup).toContain('Arp Field')
-    expect(markup).toContain('Root · Up · 2 oct')
+    expect(markup).toContain('Root · Up · external clock')
     expect(markup).toContain('Min intervals')
-    expect(markup.match(/class="rk-arp-step"/g)).toHaveLength(16)
+    expect(markup.match(/class="rk-arp-step(?: |")/g)).toHaveLength(16)
   })
 
   it('shows collected lanes without claiming to know their live pitches', () => {

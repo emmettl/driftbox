@@ -372,7 +372,7 @@ export const ARP_MODULE: ModuleDef = {
   name: 'Arp',
   group: 'Sequencing',
   blurb:
-    'Turns a played chord into one running line, or builds the original Driftbox chord from a single root. Direction, octave range, latch and velocity stay patchable.',
+    'Turns a played chord into one running line, or builds the original Driftbox chord from a single root. Run it from a cable, tempo or free clock, then add rests with its step pattern.',
   logo: {
     paths: ['M6 30l8-8 8 8 8-8 8 8 8-8 8 8', 'M6 14h8', 'M22 14h8', 'M38 14h8'],
   },

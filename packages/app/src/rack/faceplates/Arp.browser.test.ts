@@ -51,3 +51,21 @@ it('switches to played-chord collection and Hold without rebuilding the graph', 
   expect(useRack.getState().paramValue('arp', 'hold')).toBe(1)
   expect(useRack.getState().revision).toBe(before)
 })
+
+it('stores muted rhythm steps as portable module data', () => {
+  const second = host.querySelector<HTMLButtonElement>('[aria-label^="Step 2 enabled"]')
+  expect(second).toBeTruthy()
+  flushSync(() => second!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  expect(useRack.getState().data('arp', 'pattern')).toEqual([
+    1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  ])
+})
+
+it('keeps timing and pattern length on ordinary routed params', () => {
+  choose('Timing', 'Tempo')
+  const shorter = host.querySelector<HTMLButtonElement>('button[aria-label="Pattern Steps down"]')
+  expect(shorter).toBeTruthy()
+  flushSync(() => shorter!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  expect(useRack.getState().paramValue('arp', 'timing')).toBe(1)
+  expect(useRack.getState().paramValue('arp', 'patternLength')).toBe(15)
+})
