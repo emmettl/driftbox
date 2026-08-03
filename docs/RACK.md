@@ -1678,8 +1678,8 @@ both bundle cost on the editing-only path and visual competition with a readable
 
    **5s. Arp rhythm engine.** ✅ External Clock remains the default, preserving the original Driftbox/Reason →
    ReBirth one-finger patch exactly, while appended timing controls add rack-tempo divisions (including triplets)
-   and a 0.1–250 Hz free clock. A portable sixteen-value pattern mutes selected pulses independently of the note
-   cycle; its all-enabled default is therefore silent in the compatibility sense as well as musically familiar.
+   and a 0.1–250 Hz free clock. A portable sixteen-value pattern mutes selected pulses without advancing the note
+   cycle, so the next enabled pulse plays the next figure note; its all-enabled default is therefore silent in the compatibility sense as well as musically familiar.
    Pattern length is an ordinary routed parameter from one to sixteen steps.
 
    Arp Field turns the existing sixteen-position preview into the pattern editor. Enabled steps retain the exact

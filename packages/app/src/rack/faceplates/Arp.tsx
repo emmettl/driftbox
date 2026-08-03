@@ -26,12 +26,18 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const sourceName = param('source').labels?.[source] ?? (source === 0 ? 'Root' : 'Played')
   const modeName = param('mode').labels?.[mode] ?? `Mode ${mode + 1}`
   const chordName = param('chord').labels?.[chord] ?? `Chord ${chord + 1}`
-  const preview = arpPreview({ source, chord, octaves, mode, shift })
   const stored = module.data?.pattern ?? []
   const pattern = Array.from(
     { length: ARP_PATTERN_STEPS },
     (_, index) => stored[index] === undefined ? 1 : stored[index],
   )
+  const figure = arpPreview({ source, chord, octaves, mode, shift })
+  let figureStep = 0
+  const preview = pattern.map((enabled) => {
+    const step = figure[Math.min(figure.length - 1, figureStep)]
+    if (enabled >= 0.5) figureStep++
+    return step
+  })
   const timingName = timing === 0
     ? 'external clock'
     : timing === 1

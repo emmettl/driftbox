@@ -325,7 +325,31 @@ describe('how it is clocked', () => {
     const sounded = Array.from({ length: 5 }, (_, step) => out[3][step * STEP] >= 0.5)
     const notes = Array.from({ length: 5 }, (_, step) => Math.round(out[0][step * STEP] * 12))
     expect(sounded).toEqual([true, false, true, false, true])
-    expect(notes).toEqual([0, 4, 7, 0, 4])
+    expect(notes).toEqual([0, 0, 4, 4, 7])
+    expect(notes.filter((_, step) => sounded[step])).toEqual([0, 4, 7])
+  })
+
+  it('reaches the first note after a leading rest instead of waiting forever on pattern step one', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[0] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-leading-rest', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 3
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    expect(out[3][0]).toBe(0)
+    expect(out[3][STEP]).toBe(1)
+    expect(Math.round(out[0][STEP] * 12)).toBe(0)
   })
 
   it('defaults every pattern position on when no pattern data was saved', () => {

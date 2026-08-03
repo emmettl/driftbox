@@ -41,6 +41,7 @@ export class ArpProcessor implements Processor {
   private internalLeft = 0
   private timingWas = 0
   private patternStep = 0
+  private patternStarted = false
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -257,6 +258,7 @@ export class ArpProcessor implements Processor {
         this.activeCount = active
         if (!hold && active === 0) {
           this.started = false
+          this.patternStarted = false
           this.gateLeft = 0
           this.trigLeft = 0
         }
@@ -266,6 +268,7 @@ export class ArpProcessor implements Processor {
       if (reset === 1 && this.lastReset === 0) {
         this.started = false
         this.patternStep = 0
+        this.patternStarted = false
       }
       this.lastReset = reset
 
@@ -275,6 +278,7 @@ export class ArpProcessor implements Processor {
       if (timing !== this.timingWas) {
         this.internalLeft = 0
         this.started = false
+        this.patternStarted = false
         this.timingWas = timing
       }
       let clockEdge = timing === 0 && clock === 1 && this.lastClock === 0
@@ -320,32 +324,33 @@ export class ArpProcessor implements Processor {
             }
           }
 
-          const opening = !this.started
           this.interval = this.since
           this.since = 0
-          this.advance(length, mode, opening)
-          if (this.step >= length) this.step = 0
           const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(patternLengthParam[i])))
-          this.patternStep = opening ? 0 : (this.patternStep + 1) % patternLength
-          const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
-          this.held = this.figurePitch[this.step] + shift
-          this.heldVelocity = velocityModeParam[i] >= 0.5
-            ? Math.max(0.01, Math.min(1, velocityParam[i]))
-            : this.figureVelocity[this.step]
-          const fraction = gateParam[i]
-          const span = opening ? this.trigSamples : this.interval
+          this.patternStep = this.patternStarted ? (this.patternStep + 1) % patternLength : 0
+          this.patternStarted = true
           if (this.patternEnabled(this.patternStep)) {
+            const opening = !this.started
+            this.advance(length, mode, opening)
+            if (this.step >= length) this.step = 0
+            const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
+            this.held = this.figurePitch[this.step] + shift
+            this.heldVelocity = velocityModeParam[i] >= 0.5
+              ? Math.max(0.01, Math.min(1, velocityParam[i]))
+              : this.figureVelocity[this.step]
+            const fraction = gateParam[i]
+            const span = opening ? this.trigSamples : this.interval
             this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
             this.trigLeft = this.trigSamples
           } else {
-            // A rest still consumes its place in both cycles. That keeps the rhythmic pattern independent
-            // of the note figure: sixteen steps remain sixteen steps whether the chord has three notes or
-            // seven, and unmuting a pulse never changes every later pitch.
+            // The rhythm advances; the note figure does not. RPG rests silence a position rather than skip
+            // an arpeggio note, so the next enabled pulse plays the next note the unmuted figure would have.
             this.gateLeft = 0
             this.trigLeft = 0
           }
         } else {
           this.started = false
+          this.patternStarted = false
           this.gateLeft = 0
           this.trigLeft = 0
         }

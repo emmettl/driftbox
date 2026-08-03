@@ -31,6 +31,19 @@ describe('the Arp faceplate', () => {
     expect(preview[0].description).toContain('Played input lane 1')
   })
 
+  it('keeps the next note after a rest instead of skipping it in the preview', () => {
+    const def = MODULES.arp
+    const values = Object.fromEntries(def.params.map((param) => [param.id, param.default]))
+    const markup = renderToStaticMarkup(createElement(Arp, {
+      def,
+      module: { id: 'arp', type: 'arp', data: { pattern: [1, 0, 1] } },
+      value: (id: string) => values[id],
+      onChange: () => {},
+    }))
+    expect(markup).toContain('Step 2 muted: Root interval +3 semitones')
+    expect(markup).toContain('Step 3 enabled: Root interval +3 semitones')
+  })
+
   it('mirrors downward and turning directions with octave shift', () => {
     expect(arpPreview({ source: 0, chord: 2, octaves: 1, mode: 1, shift: -1, steps: 4 })
       .map((step) => step.label)).toEqual(['-5', '-8', '-12', '-5'])
