@@ -289,9 +289,11 @@ export class Rack {
     }
     this.node = node
     if (this.meterListeners.size > 0) node.port.postMessage({ kind: 'monitor', enabled: true })
-    // A patch set before start() is not lost — the common order is to build a patch from a
-    // URL and only then get a gesture to start audio with.
-    this.send()
+    // A patch set before start() is already in `processorOptions` above. Do not post the same plan again:
+    // an OfflineAudioContext can deliver that message after the constructor has seeded its scheduled params,
+    // and rebuilding the Graph then correctly clears those events as belonging to the old plan. The result
+    // is a timing-dependent export with its automation missing. Live edits still travel through `send()` in
+    // the patch setter once `this.node` exists.
     return true
   }
 

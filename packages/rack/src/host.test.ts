@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MODULES } from './modules/index.js'
 import { Rack } from './index.js'
 
@@ -10,10 +10,11 @@ import { Rack } from './index.js'
 // at `Rack.beat`. So it is testable here against a clock a test can move, and it is worth testing here
 // because it is the one piece of `Rack` a game reads every frame.
 //
-// **The stub is three members and cannot grow**, which is the condition `app/src/rack/breaks.ts` sets for
-// stubbing a context at all: its warning is about stubbing an audio graph, where the stub gains a method
-// every time the code under test touches one and what you end up proving is that the stub is complete.
-// Nothing here renders. `start()` is never called, so no worklet is wanted and no node is built.
+// **The clock stub is three members and cannot grow**, which is the condition `app/src/rack/breaks.ts` sets
+// for stubbing a context at all: its warning is about stubbing an audio graph, where the stub gains a method
+// every time the code under test touches one and what you end up proving is that the stub is complete. The
+// beat tests below do not render. The final boundary test builds only the two-member worklet shell needed to
+// see what `start()` sends; DSP remains covered by the browser test and the worklet harness.
 
 /** A context whose clock the test owns. */
 function fakeContext(): BaseAudioContext & { now: number } {
@@ -36,6 +37,8 @@ function fakeContext(): BaseAudioContext & { now: number } {
   }
   return ctx as unknown as BaseAudioContext & { now: number }
 }
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('Rack.beat', () => {
   it('is zero before anything is playing, and stays there while stopped', () => {
@@ -103,5 +106,46 @@ describe('Rack.beat', () => {
 
     const beatsFromSeconds = (3 * 140) / 60
     expect(rack.beat).toBeCloseTo(beatsFromSeconds)
+  })
+})
+
+describe('Rack.start', () => {
+  it('seeds a preloaded plan and automation without posting a second plan', async () => {
+    const messages: unknown[] = []
+    let seeded: AudioWorkletNodeOptions | undefined
+    class FakeAudioWorkletNode {
+      port = { onmessage: null, postMessage: (message: unknown) => messages.push(message) }
+      constructor(_context: BaseAudioContext, _name: string, options: AudioWorkletNodeOptions) {
+        seeded = options
+      }
+      connect() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('AudioWorkletNode', FakeAudioWorkletNode)
+
+    const gain = { connect() {}, disconnect() {} }
+    const context = {
+      sampleRate: 48000,
+      currentTime: 0,
+      createGain: () => gain,
+      audioWorklet: { addModule: async () => {} },
+    } as unknown as BaseAudioContext
+    const rack = new Rack(context, MODULES)
+    rack.patch = {
+      modules: [
+        { id: 'o', type: 'offset' },
+        { id: 'out', type: 'out' },
+      ],
+      cables: [{ from: ['o', 'out'], to: ['out', 'in'] }],
+    }
+    rack.scheduleParam('o', 'offset', 0.5, 1000)
+
+    expect(await rack.start()).toBe(true)
+    expect(seeded?.processorOptions).toMatchObject({
+      plan: rack.plan,
+      params: [{ slot: rack.plan?.slots.o.offset, value: 0.5, frame: 1000 }],
+    })
+    // Posting this plan again can race the first render quantum and clear the seeded params.
+    expect(messages).toEqual([])
   })
 })
