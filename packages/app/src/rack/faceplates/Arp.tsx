@@ -5,6 +5,7 @@ import { arpInsertPreview } from './arp-display.js'
 import type { FaceplateProps } from './types.js'
 
 const CONTROL_IDS = [
+  'enable',
   'source', 'chord', 'octaves', 'mode', 'gate', 'hold', 'shift', 'velocityMode', 'velocity',
   'timing', 'division', 'rate', 'patternLength',
   'insert',
@@ -15,6 +16,7 @@ const CONTROL_IDS = [
 export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const setData = useRack((state) => state.setData)
   const source = Math.max(0, Math.min(1, Math.round(value('source'))))
+  const enabled = value('enable') >= 0.5
   const chord = Math.max(0, Math.min(7, Math.round(value('chord'))))
   const octaves = Math.max(1, Math.min(4, Math.round(value('octaves'))))
   const mode = Math.max(0, Math.min(5, Math.round(value('mode'))))
@@ -62,7 +64,9 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
       <header className="rk-title rk-arp-title">
         <span className="rk-name">Arp Field</span>
         <span className="rk-arp-model">AP—64</span>
-        <span className="rk-arp-readout">{sourceName} · {modeName} · {timingName}</span>
+        <span className="rk-arp-readout">
+          {enabled ? `${sourceName} · ${modeName} · ${timingName}` : `${sourceName} · converter`}
+        </span>
       </header>
 
       <div className="rk-arp-display" data-source={source === 0 ? 'root' : 'played'}>
@@ -94,7 +98,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
         <div className="rk-arp-legend">
           <span>{source === 0 ? `${chordName} intervals` : 'held input lanes'}</span>
           <strong data-held={hold ? 'yes' : undefined}>
-            {hold ? 'hold' : !singleRepeat ? 'single once' : insert === 0 ? 'live' : `insert ${insertName}`}
+            {!enabled ? 'bypass' : hold ? 'hold' : !singleRepeat ? 'single once' : insert === 0 ? 'live' : `insert ${insertName}`}
           </strong>
           <span>{patternLength} steps · {fixedVelocity ? `${Math.round(value('velocity') * 100)}% fixed` : 'played velocity'}</span>
         </div>

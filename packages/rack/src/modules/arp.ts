@@ -48,6 +48,11 @@ export class ArpProcessor implements Processor {
   private insertPhase = 0
   private insertWas = 0
   private singlePitchWas = Number.NaN
+  private enableWas = true
+  private bypassGateWas = 0
+  private bypassVoice = -1
+  private bypassPitch = 0
+  private bypassVelocity = 0
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -309,6 +314,7 @@ export class ArpProcessor implements Processor {
     const insertParam = params[13]
     const singleRepeatParam = params[14]
     const shuffleParam = params[15]
+    const enableParam = params[16]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -358,6 +364,68 @@ export class ArpProcessor implements Processor {
       }
 
       const reset = resetIn[i] >= 0.5 ? 1 : 0
+      const clock = clockIn[i] >= 0.5 ? 1 : 0
+      const enabled = enableParam[i] >= 0.5
+      if (!enabled) {
+        if (this.enableWas) {
+          this.started = false
+          this.patternStarted = false
+          this.tied = false
+          this.gateLeft = 0
+          this.trigLeft = 0
+          this.bypassGateWas = 0
+          this.bypassVoice = -1
+        }
+        this.enableWas = false
+
+        let selected = -1
+        if (played) {
+          let newest = 0
+          for (let voice = 0; voice < inputVoices; voice++) {
+            if (this.gateWas[voice] === 1 && (selected < 0 || this.order[voice] > newest)) {
+              selected = voice
+              newest = this.order[voice]
+            }
+          }
+          if (selected >= 0) {
+            this.bypassPitch = pitchVoices[selected]?.[i] ?? this.bypassPitch
+            this.bypassVelocity = Math.max(0, Math.min(1, velocityVoices[selected]?.[i] ?? 1))
+          }
+        } else {
+          selected = gateIn[i] >= 0.5 ? 0 : -1
+          this.bypassPitch = pitchIn[i]
+          this.bypassVelocity = Math.max(0, Math.min(1, velocityIn[i]))
+        }
+
+        const bypassGate = selected >= 0 ? 1 : 0
+        if (bypassGate === 1 && (this.bypassGateWas === 0 || selected !== this.bypassVoice)) {
+          this.trigLeft = this.trigSamples
+        }
+        this.bypassGateWas = bypassGate
+        this.bypassVoice = selected
+        pitchOut[i] = this.bypassPitch
+        gateOut[i] = bypassGate
+        velocityOut[i] = this.bypassVelocity
+        if (this.trigLeft > 0) {
+          this.trigLeft--
+          trigOut[i] = 1
+        } else trigOut[i] = 0
+        this.lastClock = clock
+        this.lastReset = reset
+        continue
+      }
+
+      if (!this.enableWas) {
+        this.internalLeft = 0
+        this.tempoPosition = 0
+        this.tempoDelay = 0
+        this.started = false
+        this.patternStarted = false
+        this.insertPhase = 0
+        this.bypassGateWas = 0
+        this.bypassVoice = -1
+      }
+      this.enableWas = true
       if (reset === 1 && this.lastReset === 0) {
         this.started = false
         this.tied = false
@@ -367,7 +435,6 @@ export class ArpProcessor implements Processor {
       this.lastReset = reset
 
       this.since++
-      const clock = clockIn[i] >= 0.5 ? 1 : 0
       if (this.tied && gateParam[i] < 1) this.tied = false
       const timing = Math.max(0, Math.min(2, Math.round(timingParam[i])))
       if (timing !== this.timingWas) {
@@ -500,7 +567,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 9,
+  version: 10,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -512,6 +579,10 @@ export const ARP_MODULE: ModuleDef = {
       {
         title: 'Root and Played are two instruments',
         body: 'Root treats V/Oct as one note and constructs the selected Chord. Played collects a polyphonic chord from the Pitch and Gate inputs; Hold can latch it after your fingers leave the keys.',
+      },
+      {
+        title: 'Off is a monophonic converter',
+        body: 'Arpeggiator Off mirrors Root Pitch, Gate and Velocity directly. In Played mode it follows the most recently pressed held note, matching the device’s monophonic output rather than attempting to collapse a chord.',
       },
       {
         title: 'Choose one timing authority',
@@ -531,6 +602,7 @@ export const ARP_MODULE: ModuleDef = {
       'External timing needs Clock edges; Tempo timing needs the rack transport running.',
       'Shuffle affects Tempo timing only and uses the host transport’s global amount.',
       'Gate Length at zero closes Gate completely; at Tie it stays legato until a rest or reset condition.',
+      'Arpeggiator Off bypasses the figure controls and uses last-note priority in Played mode.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -631,6 +703,15 @@ export const ARP_MODULE: ModuleDef = {
       min: 0,
       max: 1,
       default: 0,
+      stepped: true,
+      labels: ['Off', 'On'],
+    },
+    {
+      id: 'enable',
+      name: 'Arpeggiator',
+      min: 0,
+      max: 1,
+      default: 1,
       stepped: true,
       labels: ['Off', 'On'],
     },

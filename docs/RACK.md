@@ -1707,6 +1707,13 @@ both bundle cost on the editing-only path and visual competition with a readable
    measured. Pattern rests, Reset, timing changes and released Played chords still close a tie. The default and
    every previously valid saved value are unchanged.
 
+   **5x. Arp converter bypass.** ✅ The routed `Arpeggiator` switch defaults to `On`; `Off` stops the figure
+   and mirrors monophonic note control without waiting for a clock. Root passes its ordinary Pitch, Gate and
+   Velocity inputs. Played uses last-note priority across collector voices and falls back to the previous held
+   key when the newest is released. Trig marks each selected-note change, while Hold, pattern, direction,
+   insertion, shift and velocity replacement are bypassed. This matches RPG-8's monophonic MIDI-to-CV role
+   without changing OG Driftbox's enabled default.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

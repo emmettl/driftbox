@@ -185,6 +185,8 @@ Ordered by return, not by how big Reason's version was.
   odd sixteenth positions without moving their surrounding eighth-note anchors.
   Gate Length now reaches the RPG endpoints too: zero closes Gate completely, while Tie remains open from
   the first note until a rest or stop condition instead of leaving an opening-step gap.
+  Arpeggiator Off completes the MIDI-to-CV role: Root mirrors its monophonic Pitch/Gate/Velocity inputs, and
+  Played follows the most recently pressed held voice without applying the figure or timing controls.
 
   **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
   one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern
