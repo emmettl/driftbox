@@ -417,6 +417,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Arranger** | a list of sections, each a pattern and a count of bars — a song, driving a Tracker |
 | **Arp** | one held note becomes a running line: a chord, a direction and a clock |
 | **Scale Player** | polyphonic key/scale correction or wrong-note filtering, with portable custom scales |
+| **Chord Player** | one note into a scale-built chord: inversions, open voicing, octaves, colour and alter |
 | **Note Echo** | polyphonic note repeats with tempo sync, pitch shift and a velocity slope per echo |
 | **Compressor** | dynamics and sidechain control for glue and ducking |
 | **Limiter** | stereo-linked look-ahead peak control with gain-reduction CV |
@@ -1630,6 +1631,17 @@ both bundle cost on the editing-only path and visual competition with a readable
    the last players' notes. The compiler
    decides all widths and mappings at rebuild time; the audio loop remains a branch-free walk over prepared
    buffers. The next stack can now be the Chord Player itself rather than another graph redesign.
+
+   **5p. Chord Player.** ✅ The first consumer of variable-width streams generates one to five tertian notes
+   in any Scale Player key/scale, including the same portable Custom mask. Inversion chooses the lowest chord
+   tone, Open spreads alternating inner voices, and Oct Down, Oct Up and Color can all add notes together. The
+   full setting uses eight real lanes: five chord tones, two root octaves and the 13th colour note.
+
+   Wrong roots take the same nearest scale note and downward tie-break as Scale Player while pitch bend remains
+   live. Alter is a held control that toggles the chord third outside the scale, making the ordinary major/minor
+   exchange concrete instead of pretending the manual specifies a larger hidden table. Node-local shared state
+   removes coincident generated pitches across simultaneously played input roots, so two chords sharing E do
+   not layer it twice. Four device patches cover a triad, seventh, open ninth and the full wide thirteenth.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

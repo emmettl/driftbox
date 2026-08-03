@@ -195,9 +195,12 @@ Ordered by return, not by how big Reason's version was.
   The voice-cardinality foundation has now landed: buffers carry exact widths, expanders get bounded child
   lanes for each source voice, and ordinary modules downstream inherit the wider stream. The eight-lane maximum
   covers five tertian notes plus octave-up, octave-down and colour together. Mono collapse keeps
-  its old meaning, and old plans still run through the original mono/poly fallback. Still absent is the Chord
-  Player module that uses those lanes for one to five scale-built voices, inversion, open voicing and added
-  colour/octaves; adding several pitch numbers together would still only produce one wrong note.
+  its old meaning, and old plans still run through the original mono/poly fallback.
+
+  **Chord Player has landed on that foundation.** It scale-corrects each input root, builds one to five tertian
+  tones, supports inversion and open voicing, and can add both root octaves and a 9/11/13 colour note together.
+  Alter toggles the third outside the current scale while held. The expanded voices keep pitch bend and velocity,
+  and coincident notes across simultaneous input chords are emitted once rather than layered.
 - **~~A multisample instrument.~~ Landed.** `Multisampler` sits beside the unchanged
   break-slicing `Sampler`: it maps session-loaded recordings by key and velocity, respects root key and
   source sample rate, sustains between per-zone loop points, and instantiates per MIDI voice. Zone maps

@@ -52,6 +52,7 @@ const PROMISED = [
   'AUDIO_INPUT_MODULE',
   'CABINET_MODULE',
   'CLOCK_MODULE',
+  'CHORD_PLAYER_MODULE',
   'COMBI_MODULE',
   'COMPRESSOR_MODULE',
   'DELAY_MODULE',
@@ -100,6 +101,8 @@ const PROMISED = [
   'NOTE_ECHO_STEPS',
   // A custom scale is one portable enabled-note flag for each pitch class.
   'SCALE_PLAYER_CUSTOM_NOTES',
+  // Five tertian notes and all three additions are real output voices, not pitch values to sum.
+  'CHORD_PLAYER_LANES',
   // Content: patches to open, chunks to drop in.
   'PATCHES',
   'patchPresetById',
