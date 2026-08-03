@@ -219,9 +219,9 @@ The toms play from it too — they are pitched percussion, and each tunes across
 under an octave. Past that the keys dim: the way further up is the next tom, which is what
 the machine's three of them are for. Select one in the grid and it appears as a target.
 
-## Sixteen songs, one pair of 303s
+## Seventeen songs, one pair of 303s
 
-It ships with sixteen, and they share nothing — different tempos, different halves of the
+It ships with seventeen, and they share nothing — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -234,6 +234,7 @@ scene used twice:
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
 | **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
+| **Time Vortex** | Radiophonic sci-fi. 142bpm, a galloping pulse and a signal lost in tape echo. | *Graphic Lab* |
 | **Defcon** | Downtempo. 68bpm, the slowest thing here, built on the tritone — the one interval that refuses to resolve. | *Defcon* |
 | **Cumulus** | Ambient house, after the Orb. 116bpm, the heaviest swing here by a distance, and the only cheerful thing in the set. | *Clouds* |
 | **Pump** | Hip house, aimed at the Technotronic record. 124bpm, and the only 303 here playing stabs rather than a line. | *Dancers* |
@@ -322,7 +323,7 @@ finger in the Sunset scene; the bodies lean toward it in Lifeforms. It is the ve
 shader bending real geometry rather than an effect laid over the top, which is why the
 grid lines stretch around it.
 
-**C** changes the scene. There are seventeen — *Sunset*, the slatted sun over a wireframe
+**C** changes the scene. There are eighteen — *Sunset*, the slatted sun over a wireframe
 floor; *Lifeforms*, aiming squarely at the ISDN-era Future Sound of London videos, with
 translucent bodies breathing on the bass and every vertex pushed around by layered noise so
 the silhouette never repeats; *Wireframe*, a hexagonal corridor you fly down, which is the Rez one; *Web*,
@@ -331,7 +332,9 @@ lights one lane and a hat lights another and the shape of the mix is the picture
 *Trench*, after the vector Star Wars cabinet; *Stillwater*; *Saturn*; *Light Cycles*;
 *Defcon*; *Clouds*; *Dancers*; *Machine*; *Night Bus*; *Jump Man*; *Cübik*, a paper-white field
 of coloured towers; *Endless Convoy*, a column of impossible cargo under a rust-red sun;
-and *Graphic Lab*, a living print-and-broadcast design system.
+*Graphic Lab*, a living print-and-broadcast design system; and *Longhand*, an empty stave
+that keeps what you draw on it — every drag lays down luminous tubing, and the music reads the
+mark rather than redrawing it.
 
 On *Web*, a finger is a **black hole**. The lanes fall into it, wind into a spiral as they
 get close — rotation rises sharply near the centre, so the rim is barely disturbed while

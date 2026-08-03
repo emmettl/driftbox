@@ -129,6 +129,10 @@ export { MODULES, MODULE_LIST } from './modules/index.js'
 // them; the rest are here because a supported way to control the bundle cannot be built out of imports that
 // are not offered.
 export { ADSR_MODULE } from './modules/adsr.js'
+export { DISTORTION_MODULE } from './modules/distortion.js'
+export { IMAGER_MODULE } from './modules/imager.js'
+export { PHASER_MODULE } from './modules/phaser.js'
+export { PING_PONG_MODULE } from './modules/ping-pong.js'
 export { CLOCK_MODULE } from './modules/clock.js'
 export { COMPRESSOR_MODULE } from './modules/compressor.js'
 export { DELAY_MODULE } from './modules/delay.js'

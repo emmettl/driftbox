@@ -33,9 +33,16 @@ import type { Dep, Registry } from './types.js'
 //
 //     class{s0=0;s1=0;s2=0;s3=0;...}
 //
-// Anonymous. Not renamed — NAMED AT ALL. `dep.name` is the empty string, the assembler emits
-// `const  = class{...}`, and the whole worklet fails to parse: every patch silent, in
-// production only, with the development build working perfectly.
+// The SOURCE TEXT is anonymous. When this was written `dep.name` was the empty string with it,
+// so the assembler emitted `const  = class{...}` and the whole worklet failed to parse: every
+// patch silent, in production only, with the development build working perfectly.
+//
+// **Re-measured under rolldown 1.2.2, `.name` is no longer empty — it is the mangled binding,
+// `me`.** Which is worse, not better. A name-derived scheme now works under this bundler and
+// fails under whichever one still hands back nothing, so the failure has become somebody else's
+// build rather than every build, and it is still silence rather than an error. The conclusion is
+// the same one and the argument for it is stronger. `minified.test.ts` measures this on the real
+// bundled artefact, so if it moves again the number moves with it.
 //
 // So dependencies are not referenced by identifier at all. They are passed in as an object
 // and looked up by string key: `deps.Ladder`. A minifier does not touch string keys or object

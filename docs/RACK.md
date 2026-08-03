@@ -10,7 +10,7 @@ too now — four rotaries and four buttons that move any parameter of any module
 
 The rack works end to end but remains a work in progress and is intentionally unpublished.
 Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 31 modules; the app has
+`packages/rack` has the compiler, worklet host, patch format and 37 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -357,10 +357,14 @@ interface Processor {
 Three things here were not in the first sketch and are load-bearing:
 
 **`deps` is keyed by string, and the processor looks its dependencies up as `deps.Ladder`.**
-Never by identifier. Minified, `Ladder.toString()` comes out as `class{s0=0;...}` —
-*anonymous*, not renamed — so any scheme that derives an identifier from `Class.name` at
-assembly time emits `const  = class{...}` and the whole worklet fails to parse. Production
-only; the dev build works perfectly. `worklet.ts` has the long version.
+Never by identifier. Minified, `Ladder.toString()` comes out as `class{s0=0;...}` — the
+*source text* is anonymous — so any scheme that derives an identifier from `Class.name` at
+assembly time is at the mercy of what that bundler decided the name is. Measured under
+rolldown 1.2.2 it is the mangled binding, `me`; measured when this was first written it was
+the empty string, which emits `const  = class{...}` and fails to parse. **Bundler-dependently
+broken is worse than reliably broken**: it works in our build and goes silent in somebody
+else's, in production only. A minifier does not touch string keys, so the two halves cannot
+disagree. `worklet.ts` has the long version and `minified.test.ts` runs it.
 
 **`terminal` replaces a reserved output buffer.** One line in a def rather than a special case
 in the compiler: an empty rack is silence, two Outs are a mix of both, and the Out module still
@@ -376,7 +380,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Thirty-one modules
+## Thirty-seven modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -385,14 +389,18 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Groovebox** | Retained 808, 909 and two 303s as four stereo host-fed rack sources |
 | **Audio Input** | permission-gated microphone or audio-interface capture, with device selection in the host |
 | **VCO** | saw / pulse / tri, PWM, linear FM inlet, hard sync inlet |
+| **Voice** | a whole synth in one module: two oscillators, a ladder and two envelopes, playable in chords |
 | **Noise** | white and pink |
 | **Sampler** | loaded or generated audio, sliced and retriggered from CV |
 | **Ladder** | the existing 4-pole. Already written, already tested |
 | **SVF** | state-variable multimode — LP/HP/BP/notch, cheap, and unlike the ladder |
 | **VCA** | linear and exponential, CV inlet |
 | **Drive** | waveshaper |
+| **Distortion** | tube, tape, fuzz and digital as four curves, with a tone control after the hit |
 | **EQ** | low shelf, sweepable mid with a Q, high shelf — stereo |
+| **Imager** | independent low and high width around one crossover, so the bottom stays centred |
 | **Delay** | CV'able time, tempo-syncable |
+| **Ping-Pong** | wet echoes bouncing left then right, cross-fed so one mono line fills a stereo cable |
 | **ADSR** | gate inlet, one envelope out |
 | **LFO** | free or synced, several shapes, reset inlet |
 | **S&H** | sample and hold |
@@ -403,8 +411,11 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Clock** | gate, a fixed 1ms trigger, and a phase ramp. Armed at construction, so it ticks the moment it is patched |
 | **Seq** | eight steps of pitch and on/off, advanced by an external clock. No clock inside it |
 | **Tracker** | four lanes and up to 64 steps, carrying pattern data in the patch |
+| **Arranger** | a list of sections, each a pattern and a count of bars — a song, driving a Tracker |
+| **Arp** | one held note becomes a running line: a chord, a direction and a clock |
 | **Compressor** | dynamics and sidechain control for glue and ducking |
 | **Reverb** | an in-worklet feedback-delay network |
+| **Phaser** | six swept allpass stages, stereo motion built in, sweep CV in octaves |
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
 | **Follower** | an envelope follower: audio in, its contour out as CV, plus a gate above a threshold |
 | **Alligator** | three filtered gates across one signal — fixed low/band/high, gated and enveloped apart |
@@ -530,7 +541,7 @@ Why a second page inside `packages/app` rather than a fourth package:
 
 What is genuinely shared, and worth keeping shared: the hash codec (`src/hash.ts` — already
 done, and already carrying both kinds), the stylesheet and its tokens, the knob and pointer-
-drag primitives, the oscilloscope, the seventeen scenes, the audio-start gesture handling, and the
+drag primitives, the oscilloscope, the eighteen scenes, the audio-start gesture handling, and the
 panel-fold machinery. What is not: the step grid, the pattern chain, the song picker — the rack
 has no patterns, and pretending otherwise is how the two flows end up tangled.
 
@@ -734,8 +745,9 @@ The risk is all in the first item. Do it first and alone.
    worklet host, three modules: VCO into Ladder into Out. What it cost was almost entirely in
    places this sketch did not predict, so they are written down in the package README and in
    the comments. The one worth repeating here: minified, `Ladder.toString()` comes out as
-   `class{...}` — *anonymous*, not merely renamed — so emitting `const ${dep.name} = ...` would
-   have produced `const  = class{...}`, an unparseable worklet, in production builds only.
+   `class{...}` — the source text is anonymous — so emitting `const ${dep.name} = ...` produced
+   `const  = class{...}`, an unparseable worklet, in production builds only. `Class.name` itself
+   turns out to be bundler-dependent rather than reliably empty; see the section above.
    Dependencies go through a string key for that reason and no other.
 2. **Patch-io.** ✅ Built — `rack/patch-io.ts`, the kind-aware hash codec in
    `app/src/hash.ts`, and the patch half of persistence in `app/src/rack/persistence.ts`.
@@ -1139,7 +1151,7 @@ The risk is all in the first item. Do it first and alone.
 
 ## The visualiser, and why it lives on the performance pad
 
-The sequencer has seventeen 3D scenes and the obvious first move was to put one behind the rack. Measured
+The sequencer has eighteen 3D scenes and the obvious first move was to put one behind the rack. Measured
 rather than assumed, that costs more than it looks:
 
 | | |

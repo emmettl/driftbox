@@ -54,10 +54,12 @@ const PROMISED = [
   'COMBI_MODULE',
   'COMPRESSOR_MODULE',
   'DELAY_MODULE',
+  'DISTORTION_MODULE',
   'DRIVE_MODULE',
   'EQ_MODULE',
   'FOLLOWER_MODULE',
   'GROOVEBOX_MODULE',
+  'IMAGER_MODULE',
   'LADDER_MODULE',
   'LFO_MODULE',
   'METER_MODULE',
@@ -66,6 +68,8 @@ const PROMISED = [
   'NOISE_MODULE',
   'OFFSET_MODULE',
   'OUT_MODULE',
+  'PHASER_MODULE',
+  'PING_PONG_MODULE',
   'QUANTIZER_MODULE',
   'REVERB_MODULE',
   'SAMPLE_HOLD_MODULE',
@@ -183,6 +187,19 @@ describe('the public API', () => {
     for (const name of PROMISED) {
       expect(rack, `${name} is promised but not exported`).toHaveProperty(name)
     }
+  })
+
+  it('exports every module in the registry one by one', () => {
+    // **The list above is a pin; this is the rule behind it.** Trimming the bundle means assembling a
+    // registry by hand, which a consumer can only do for modules that are individually exported — so a
+    // module reachable solely through `MODULES` is a module nobody can pay for separately. Four landed in
+    // the days after that path shipped and none of them got an export, because nothing said they had to.
+    //
+    // Compared by identity rather than by name, so a def renamed on the way out is still found and a
+    // convention about `*_MODULE` is not quietly load-bearing.
+    const exported = new Set(Object.values(rack))
+    const missing = rack.MODULE_LIST.filter((def) => !exported.has(def)).map((def) => def.type)
+    expect(missing, 'in MODULE_LIST but not exported on its own').toEqual([])
   })
 
   it('keeps the patch codec free of the registry, which is what lets an unknown module survive', () => {
