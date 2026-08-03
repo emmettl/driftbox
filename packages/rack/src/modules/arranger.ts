@@ -132,6 +132,29 @@ export const ARRANGER_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'A list of sections, each a pattern and a count of bars. Intro, main, break, drop — a song, driving a Tracker.',
+  guide: {
+    overview:
+      'The Arranger turns a short bank of Tracker patterns into a song form. Each row names a pattern and says how many incoming bar pulses it should last before the next row begins.',
+    concepts: [
+      {
+        title: 'Bar advances the song',
+        body: 'The Bar inlet expects one pulse per bar, not the Tracker’s step clock. A section with four bars holds its Pattern output for four of those pulses.',
+      },
+      {
+        title: 'Pattern selects; Trig restarts',
+        body: 'Pattern is a number for the Tracker’s Pattern inlet. Trig fires at each section change so the Tracker can be reset to step one when a new part begins.',
+      },
+    ],
+    firstPatch: [
+      'Create two contrasting patterns in a Tracker.',
+      'Patch a one-pulse-per-bar source to Bar, Arranger Pattern to Tracker Pattern, and Arranger Trig to Tracker Reset.',
+      'Set the first rows to pattern 1 for four bars and pattern 2 for two bars, then start the step clock separately.',
+    ],
+    watchFor: [
+      'A sixteenth-note clock at Bar will rush through sections sixteen times too fast.',
+      'Shortening Sections hides later rows without deleting their stored values.',
+    ],
+  },
   logo: {
     paths: [
       'M5 8h14v9H5zM25 8h24v9H25zM5 23h30v9H5zM41 23h18v9H41z',

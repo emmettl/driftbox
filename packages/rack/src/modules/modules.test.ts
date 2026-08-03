@@ -224,6 +224,35 @@ describe('the registry', () => {
     }
   })
 
+  it('gives the non-obvious devices a real guide rather than a longer catalogue blurb', () => {
+    const guided = [
+      'groovebox',
+      'multisampler',
+      'sampler',
+      'alligator',
+      'vocoder',
+      'looper',
+      'combi',
+      'arranger',
+      'tracker',
+      'arp',
+      'scale-player',
+      'note-echo',
+    ]
+
+    for (const type of guided) {
+      const guide = MODULES[type].guide
+      expect(guide, type).toBeTruthy()
+      expect(guide!.overview.length, `${type} overview`).toBeGreaterThan(80)
+      expect(guide!.concepts.length, `${type} concepts`).toBeGreaterThanOrEqual(2)
+      expect(guide!.firstPatch.length, `${type} first patch`).toBeGreaterThanOrEqual(3)
+      for (const concept of guide!.concepts) {
+        expect(concept.title.trim(), type).not.toBe('')
+        expect(concept.body.length, `${type}: ${concept.title}`).toBeGreaterThan(60)
+      }
+    }
+  })
+
   it('keeps each group together and in one place in the list', () => {
     // The picker walks the list once and starts a shelf whenever the group changes, so a module out of
     // group order would silently open a second "Filters" heading further down. Cheaper to hold the list

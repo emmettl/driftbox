@@ -166,6 +166,29 @@ export const ALLIGATOR_MODULE: ModuleDef = {
   group: 'Filters',
   blurb:
     'Three filtered gates chopping one signal at different rhythms. A pad goes in and a rhythm part comes out.',
+  guide: {
+    overview:
+      'Alligator splits one sound through low-pass, band-pass and high-pass lanes. Each lane opens from its own Gate input, so three rhythms can carve different frequency ranges out of the same sustained source.',
+    concepts: [
+      {
+        title: 'The gate inputs are the rhythm',
+        body: 'A high signal opens that band; a low signal lets it decay. Feed clocks, sequencer gates or trigger patterns into the three Gate jacks rather than expecting an internal pattern.',
+      },
+      {
+        title: 'The outputs stay separate',
+        body: 'Low, Band and High are not mixed inside the device. Send them to different effects or mixer channels, or combine them yourself when you want one finished rhythm.',
+      },
+    ],
+    firstPatch: [
+      'Patch a sustained pad, noise or break into In.',
+      'Patch three related gate patterns into Low Gate, Band Gate and High Gate.',
+      'Send the three outputs to mixer channels; make the low lane decay longer and the high lane shorter.',
+    ],
+    watchFor: [
+      'With no gate patched or held high, a lane will not create a rhythm on its own.',
+      'Attack mainly removes clicks; Decay is the more musical control for changing the groove.',
+    ],
+  },
   logo: {
     paths: [
       'M5 10h14l5 5-5 5H5l5-5-5-5',

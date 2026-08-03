@@ -98,6 +98,29 @@ export const COMBI_MODULE: ModuleDef = {
   group: 'Modulation',
   blurb:
     'Four knobs and four buttons wired to any parameters in the rack. One gesture opening a filter, shortening a decay and pushing a send.',
+  guide: {
+    overview:
+      'The Combinator is a bank of macro controls. A routing maps one rotary or button to another device’s parameter, including values that have no cable inlet, and one macro can drive several targets at once.',
+    concepts: [
+      {
+        title: 'Routes are not cables',
+        body: 'A cable carries a changing signal between jacks. A Combinator route moves a named front-panel parameter between a target minimum and maximum, so it is created in the routing panel rather than on the back of the rack.',
+      },
+      {
+        title: 'Ranges make the gesture',
+        body: 'Each route has target values at the macro’s two ends. Reverse those values to close one parameter while another opens, or use a narrow range for subtle movement.',
+      },
+    ],
+    firstPatch: [
+      'Open the routing panel for Rotary 1 and add a route to a filter Cutoff.',
+      'Set a useful low and high cutoff rather than sweeping the entire parameter range.',
+      'Add a second Rotary 1 route to an effect mix, reversing its range if the dry sound should recede as the filter opens.',
+    ],
+    watchFor: [
+      'If several routes target the same parameter, the later route wins.',
+      'The eight outlets mirror the macro values as signals; they are optional and separate from parameter routing.',
+    ],
+  },
   logo: {
     paths: [
       'M8 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0M21 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0M34 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0M47 15a5 5 0 1 0 10 0a5 5 0 1 0-10 0',

@@ -48,6 +48,8 @@ export type {
   Port,
   ParamDef,
   ModuleLogo,
+  ModuleGuide,
+  ModuleGuideConcept,
   ModuleDef,
   MeterReading,
 } from './types.js'

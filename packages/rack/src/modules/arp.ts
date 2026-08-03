@@ -373,6 +373,33 @@ export const ARP_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Turns a played chord into one running line, or builds the original Driftbox chord from a single root. Run it from a cable, tempo or free clock, then add rests with its step pattern.',
+  guide: {
+    overview:
+      'Arp turns a set of notes into a timed monophonic line. It can build a chord from one root or collect the individual notes you play, then traverse them across octaves according to its mode and rhythm pattern.',
+    concepts: [
+      {
+        title: 'Root and Played are two instruments',
+        body: 'Root treats V/Oct as one note and constructs the selected Chord. Played collects a polyphonic chord from the Pitch and Gate inputs; Hold can latch it after your fingers leave the keys.',
+      },
+      {
+        title: 'Choose one timing authority',
+        body: 'External advances from Clock cable edges. Tempo uses the rack transport and Division. Free runs at Free Rate. The inactive timing controls keep their values but do not affect playback.',
+      },
+      {
+        title: 'Pitch order and rhythm are independent',
+        body: 'Mode chooses which note comes next. The step pattern decides whether that position sounds or rests, so adding a rest does not shift every later pitch.',
+      },
+    ],
+    firstPatch: [
+      'Set Source to Root, Timing to Tempo, Chord to Minor and Division to 1/16.',
+      'Patch a pitch and gate into Arp, then patch its Pitch and Gate outputs to a synth voice.',
+      'Try Played source with Hold on, play a chord, and toggle a few pattern steps off to create rests.',
+    ],
+    watchFor: [
+      'External timing needs Clock edges; Tempo timing needs the rack transport running.',
+      'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
+    ],
+  },
   logo: {
     paths: ['M6 30l8-8 8 8 8-8 8 8 8-8 8 8', 'M6 14h8', 'M22 14h8', 'M38 14h8'],
   },

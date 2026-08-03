@@ -145,6 +145,29 @@ export const SAMPLER_MODULE: ModuleDef = {
   group: 'Sources',
   blurb:
     'Plays a break, sliced. Retriggering by slice is what chopping is, and chopping is what jungle is made of.',
+  guide: {
+    overview:
+      'The Sampler divides one loaded recording into equal slices. Every trigger starts the selected slice, making a break behave like a bank of individually playable hits.',
+    concepts: [
+      {
+        title: 'Selection and triggering are separate',
+        body: 'The Slice knob or Slice input chooses a region; the Trig input actually starts it. Changing Slice without a trigger prepares the next hit but does not interrupt the current one.',
+      },
+      {
+        title: 'EOC chains events',
+        body: 'End Of Cycle emits a short pulse when a non-looping slice finishes. Patch it to another trigger input to make one sound hand off to the next.',
+      },
+    ],
+    firstPatch: [
+      'Load a break and leave Slices at 16 for one region per sixteenth note.',
+      'Patch a sequencer trigger to Trig and a stepped CV sequence to Slice.',
+      'Patch Out to the mixer, then try Reverse or raise Start to move the attack point inside every slice.',
+    ],
+    watchFor: [
+      'Slice CV selects a slice; it is not V/Oct pitch. Use the V/Oct inlet when you want transposition.',
+      'Loop keeps the selected region repeating, so EOC is most useful with Loop off.',
+    ],
+  },
   logo: {
     paths: [
       'M4 21c4 0 4-11 8-11s4 20 8 20 4-15 8-15 4 11 8 11 4-18 8-18 4 24 8 24 4-11 8-11',

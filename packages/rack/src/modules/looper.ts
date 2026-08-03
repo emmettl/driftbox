@@ -154,6 +154,29 @@ export const LOOPER_MODULE: ModuleDef = {
   group: 'Effects',
   blurb:
     'Captures up to thirty stereo seconds, then plays or overdubs them. The take lives for this session only.',
+  guide: {
+    overview:
+      'Loop Station records a performance into a stereo buffer, closes the loop when you leave Record, and can then play or overdub against that exact captured length.',
+    concepts: [
+      {
+        title: 'The first take sets the length',
+        body: 'Record starts an empty loop. Switching to Play or Dub closes it; later overdubs wrap around that duration instead of making the loop longer.',
+      },
+      {
+        title: 'Dry, Loop and Feedback are different',
+        body: 'Dry monitors the live input. Loop sets playback level. Feedback controls how much already-recorded audio survives each overdub pass.',
+      },
+    ],
+    firstPatch: [
+      'Patch a stereo source into In and Out to a mixer or terminal output.',
+      'Choose Rec, perform one phrase, then choose Play exactly at the loop boundary.',
+      'Choose Dub to add a layer; lower Feedback if old layers should fade on every pass.',
+    ],
+    watchFor: [
+      'The recorded take is session-only and is not embedded in a shared patch.',
+      'Clear erases the buffer. Stop preserves it and only halts playback.',
+    ],
+  },
   logo: {
     paths: [
       'M15 31a17 17 0 1 1 7 7',

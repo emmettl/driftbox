@@ -273,6 +273,7 @@ function RackHelp({ topic }: { topic: string }) {
         </HelpSection>
         <HelpSection title="Device patches and parameters">
           <dl className="help-definitions">
+            <div><dt>Device help</dt><dd>Press the small ? beside a device patch name for its signal flow and control reference. Complex devices also include their mental model, a starter patch, and common traps.</dd></div>
             <div><dt>Patch name</dt><dd>The small device-patch control recalls settings for that one module, not the complete rack.</dd></div>
             <div><dt>Save</dt><dd>Stores the current device settings in this browser for reuse on another instance.</dd></div>
             <div><dt>Knobs</dt><dd>Drag vertically, Shift for fine movement, arrow keys when focused, and double-click for midpoint.</dd></div>

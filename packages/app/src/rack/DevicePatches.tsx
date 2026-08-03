@@ -25,6 +25,7 @@ import { useRack } from './store.js'
 interface Props {
   moduleId: string
   def: ModuleDef
+  onHelp: () => void
 }
 
 /** Whether two complete param sets are the same settings. Both come from `completeParams`, so the keys match. */
@@ -35,7 +36,7 @@ function same(a: Record<string, number>, b: Record<string, number>): boolean {
   return true
 }
 
-export function DevicePatches({ moduleId, def }: Props) {
+export function DevicePatches({ moduleId, def, onHelp }: Props) {
   const loadDevicePatch = useRack((s) => s.loadDevicePatch)
   const devicePatchOf = useRack((s) => s.devicePatchOf)
   // The params object itself, so this re-renders when a knob moves and the name stops claiming to be a
@@ -61,9 +62,9 @@ export function DevicePatches({ moduleId, def }: Props) {
   // because the factory bank comes first — so the minus button cannot appear over a factory row.
   const deletable = mine !== undefined && at >= factory.length
 
-  // A device with nothing to turn — the Noise, the Sample & Hold — gets no browser. A bank for a device
-  // with no knobs is furniture. After the hooks, so the order never changes between renders.
-  if (def.params.every((param) => param.hidden)) return null
+  // A device with nothing to turn still gets help, but no patch browser. Kept after the hooks so their
+  // order never changes between renders.
+  const hasPatchBrowser = def.params.some((param) => !param.hidden)
 
   const step = (by: number) => {
     if (bank.length === 0) return
@@ -86,8 +87,18 @@ export function DevicePatches({ moduleId, def }: Props) {
     // The Chassis selects a module on pointerdown anywhere in it, and the grip above starts a drag.
     // Neither is what pressing a button in here means.
     <div className="rk-device-patches" onPointerDown={(event) => event.stopPropagation()}>
-      {naming === null ? (
-        <>
+      <button
+        type="button"
+        className="rk-module-help-trigger"
+        aria-label={`Explain ${def.name}`}
+        title={`How ${def.name} works`}
+        onClick={onHelp}
+      >
+        ?
+      </button>
+      {hasPatchBrowser &&
+        (naming === null ? (
+          <>
           <button
             type="button"
             className="rk-device-step"
@@ -151,9 +162,9 @@ export function DevicePatches({ moduleId, def }: Props) {
               −
             </button>
           )}
-        </>
-      ) : (
-        <>
+          </>
+        ) : (
+          <>
           <input
             className="rk-device-naming"
             aria-label={`Name for these ${def.name} settings`}
@@ -184,8 +195,8 @@ export function DevicePatches({ moduleId, def }: Props) {
           >
             ✕
           </button>
-        </>
-      )}
+          </>
+        ))}
     </div>
   )
 }

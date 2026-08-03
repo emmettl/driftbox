@@ -168,6 +168,29 @@ export const TRACKER_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Four lanes of up to sixty-four steps, and eight patterns of them. A bar of drum and bass with the break, the bass and two more parts in it.',
+  guide: {
+    overview:
+      'Tracker stores eight patterns, each with four independent lanes. Every clock edge advances one row; a lane can emit pitch CV, a held gate and a short trigger from that same row so it can drive melodic voices or percussion.',
+    concepts: [
+      {
+        title: 'CV, Gate and Trig answer different needs',
+        body: 'CV carries the row’s value continuously. Gate stays high for the step when it is active. Trig is a brief pulse at the step edge—use it to strike envelopes and samplers.',
+      },
+      {
+        title: 'Pattern is a bank address',
+        body: 'The Pattern control and inlet choose one of eight stored grids; they do not transpose the notes. The Arranger automates that choice to build sections into a song.',
+      },
+    ],
+    firstPatch: [
+      'Patch a sixteenth-note clock to Clock and a transport-start pulse to Reset.',
+      'Use Lane 1 Trig to fire a Sampler and Lane 2 CV plus Gate to play a synth voice.',
+      'Enter a few rows, keep Steps at 16 for one bar, then duplicate the idea into Pattern 2 and vary it.',
+    ],
+    watchFor: [
+      'Unit changes how a lane’s stored numbers are interpreted; choose the unit before fine-tuning values.',
+      'Mute stops a lane’s outputs but keeps its pattern data intact.',
+    ],
+  },
   logo: {
     paths: [
       'M7 5v30M20 5v30M33 5v30M46 5v30M59 5v30',

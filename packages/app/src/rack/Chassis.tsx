@@ -1,7 +1,8 @@
-import { MODULES, routedParams } from '@driftbox/rack'
+import { MODULES, routedParams, type ModuleDef } from '@driftbox/rack'
 import { sizeFor } from './faceplates/index.js'
 import { DevicePatches } from './DevicePatches.js'
 import { Driven } from './Driven.js'
+import { ModuleGuide } from './ModuleGuide.js'
 import {
   boundsBetween,
   dragBounds,
@@ -74,6 +75,7 @@ export function Chassis({ layout }: Props) {
    */
   const [drag, setDrag] = useState<Dragging | null>(null)
   const [selecting, setSelecting] = useState<Selecting | null>(null)
+  const [guide, setGuide] = useState<ModuleDef | null>(null)
   const surface = useRef<HTMLDivElement | null>(null)
 
   /** Pointer position in design units rather than screen pixels, so the preview lines up with the layout at
@@ -324,7 +326,9 @@ export function Chassis({ layout }: Props) {
             {/* Above the grip in z-order, because the grip is a transparent sheet across the whole title
                 strip and a browser you cannot click is decoration. Rendered here rather than in each
                 faceplate for the same reason the grip is: a module needs no UI work to be complete. */}
-            {def && <DevicePatches moduleId={placement.id} def={def} />}
+            {def && (
+              <DevicePatches moduleId={placement.id} def={def} onHelp={() => setGuide(def)} />
+            )}
             {def ? (
               <Driven
                 def={def}
@@ -406,6 +410,7 @@ export function Chassis({ layout }: Props) {
           </section>
         )
       })}
+      {guide && <ModuleGuide def={guide} onClose={() => setGuide(null)} />}
     </div>
   )
 }

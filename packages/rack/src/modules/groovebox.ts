@@ -162,6 +162,29 @@ export const GROOVEBOX_MODULE: ModuleDef = {
     ],
   },
   group: 'Sources',
+  guide: {
+    overview:
+      'This is the bridge from a retained Groovebox song into the cable rack. It does not make a second copy of the song: it exposes the four authored machines as separate stereo stems so the rack can process and mix them independently.',
+    concepts: [
+      {
+        title: 'Four stems, one song',
+        body: '808, 909, 303 A and 303 B each have left and right outputs. Their patterns and synthesis still come from the retained Groovebox song; the controls here only set each stem’s level, pan and mute.',
+      },
+      {
+        title: 'Retained means embedded',
+        body: 'A rack-native patch may not contain a Groovebox song. In that case every outlet is silent. Open or convert a Groovebox song first if you want this device to produce audio.',
+      },
+    ],
+    firstPatch: [
+      'Open a Groovebox song in the rack so this source has authored material.',
+      'Patch the 808 L/R pair to one stereo effect or mixer path and the 303 A L/R pair to another.',
+      'Use the strip mutes to confirm which machine each cable is carrying, then balance the four levels.',
+    ],
+    watchFor: [
+      'Left and right are separate mono jacks here. Patch both when you want to preserve the authored stereo image.',
+      'Editing the embedded song changes what these outlets play; it is not a sample frozen at import time.',
+    ],
+  },
   inlets: [],
   outlets: GROOVEBOX_SECTIONS.flatMap((section) => [
     { id: GROOVEBOX_PORTS[section].left, name: `${sectionName(section)} L` },

@@ -243,6 +243,27 @@ export interface ModuleLogo {
   paths: readonly string[]
 }
 
+/** One idea a device needs to explain before its controls make sense. */
+export interface ModuleGuideConcept {
+  title: string
+  body: string
+}
+
+/**
+ * Longer, optional teaching copy for a device whose faceplate cannot explain itself in labels alone.
+ *
+ * The host can always build a useful reference from `blurb`, ports and params. This extra layer is for
+ * behaviour that is not visible in those lists: how two signals interact, what state the device retains,
+ * or why several timing modes exist. Keeping it on the def means another host — and a third-party module —
+ * carries the explanation with the instrument instead of relying on a parallel table in this app.
+ */
+export interface ModuleGuide {
+  overview: string
+  concepts: readonly ModuleGuideConcept[]
+  firstPatch: readonly string[]
+  watchFor?: readonly string[]
+}
+
 export interface ModuleDef {
   /** Stable forever. This is the string a saved patch stores. */
   type: string
@@ -263,6 +284,8 @@ export interface ModuleDef {
    * about anybody's.
    */
   blurb?: string
+  /** Deeper contextual help. Omit when the automatic port and control reference is enough. */
+  guide?: ModuleGuide
   /**
    * A compact vector explanation of the module, drawn in a 64 × 40 view box.
    *
