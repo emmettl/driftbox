@@ -206,6 +206,13 @@ describe('selecting several modules', () => {
     expect(useRack.getState().selection).toEqual([])
   })
 
+  it('replaces a continuously computed group at once', () => {
+    useRack.getState().selectMany(['vco-a', 'vco-b', 'vco-a', 'gone'])
+    expect(useRack.getState().selection).toEqual(['vco-a', 'vco-b'])
+    useRack.getState().selectMany(['vco-c'])
+    expect(useRack.getState().selection).toEqual(['vco-c'])
+  })
+
   it('takes everything between, in rack order and either direction', () => {
     useRack.getState().select('vco-b')
     useRack.getState().selectRange('vco-d')
