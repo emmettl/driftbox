@@ -230,8 +230,10 @@ Worth writing down so nobody builds them twice.
    them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate, bypass,
-   auto-routing and multi-select are done; what is left there is CV trim per jack, per-device patches,
-   and the rubber band over the multi-select that now exists.
+   auto-routing, multi-select and per-device patches are done; what is left there is **CV trim per
+   jack** and the rubber band over the multi-select that now exists. The trim is the substantive one —
+   the rubber band is a nicer way to do something you can already do, whereas without a trim every
+   modulation of a controlled amount still costs an inline Offset and two extra cables.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.
