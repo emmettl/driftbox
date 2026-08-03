@@ -4526,6 +4526,7 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 }
 
 .rk-arp-step {
+  padding: 0;
   position: relative;
   min-width: 0;
   overflow: hidden;
@@ -4534,12 +4535,31 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   border-radius: 4px;
   background: linear-gradient(180deg, rgba(174, 156, 255, 0.2), rgba(37, 28, 65, 0.34));
   text-align: center;
+  cursor: pointer;
+}
+
+.rk-arp-step:not(.rk-arp-step-on) {
+  color: rgba(174, 156, 255, 0.32);
+  border-color: rgba(174, 156, 255, 0.08);
+  background: rgba(8, 6, 14, 0.72);
+  box-shadow: none;
+}
+
+.rk-arp-step[data-active='no'] {
+  opacity: 0.28;
+  cursor: default;
 }
 
 .rk-arp-display[data-source='played'] .rk-arp-step {
   color: rgba(214, 255, 247, 0.9);
   border-color: rgba(112, 238, 213, 0.18);
   background: linear-gradient(180deg, rgba(112, 238, 213, 0.18), rgba(12, 52, 48, 0.34));
+}
+
+.rk-arp-display[data-source='played'] .rk-arp-step:not(.rk-arp-step-on) {
+  color: rgba(112, 238, 213, 0.3);
+  border-color: rgba(112, 238, 213, 0.07);
+  background: rgba(4, 9, 10, 0.72);
 }
 
 .rk-arp-step[data-octave='1'],
@@ -4618,7 +4638,7 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 
 .rk-arp-controls {
   display: grid;
-  grid-template-columns: repeat(5, 58px);
+  grid-template-columns: repeat(7, 58px);
   align-items: center;
   justify-content: center;
   padding-top: 2px;

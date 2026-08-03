@@ -345,6 +345,8 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   { id: 'octaves', type: 'arp', name: 'Octave Bass', params: { chord: 0, octaves: 2, mode: 0, gate: 0.9 } },
   { id: 'played-up', type: 'arp', name: 'Played Chord Up', params: { source: 1, octaves: 1, mode: 0, gate: 0.55 } },
   { id: 'manual-hold', type: 'arp', name: 'Manual Hold', params: { source: 1, octaves: 2, mode: 5, hold: 1, gate: 0.7 } },
+  { id: 'tempo-minor', type: 'arp', name: 'Tempo Minor', params: { timing: 1, division: 4, chord: 3, octaves: 2, gate: 0.42 } },
+  { id: 'free-scatter', type: 'arp', name: 'Free Scatter', params: { timing: 2, rate: 6.4, chord: 5, octaves: 3, mode: 4, gate: 0.32 } },
 
   // ---- Scale Player -----------------------------------------------------------------------------
   { id: 'g-major', type: 'scale-player', name: 'G Major', params: { key: 7, scale: 0, filter: 0 } },

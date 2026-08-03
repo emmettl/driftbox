@@ -176,8 +176,14 @@ Ordered by return, not by how big Reason's version was.
   preserves the original Driftbox behavior and every saved patch. Played mode adds ascending, descending,
   turning, random and note-on-order figures; Hold latches the last chord, the one-to-four-octave range and
   ±3-octave shift match the RPG-8 shape, and velocity can follow each source note or use a fixed value.
-  Arp Field makes Root intervals or the Played collector walk visible across sixteen positions while keeping
-  every engine control on the ordinary routed parameter path.
+  It can use the old Clock inlet, run at a rack-tempo division, or free-run from 0.1–250 Hz. Its independent
+  sixteen-step rhythm pattern adds rests without changing the note cycle, and Arp Field makes both that pattern
+  and the Root/Played walk editable while keeping every engine control on the ordinary routed parameter path.
+
+  **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
+  one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern
+  are the defaults, so an old patch still follows the same Clock cable and produces the same chord figure.
+  Played chords, internal timing and rhythmic rests are opt-in extensions, not a replacement mode.
 
   **Note Echo has landed** as a polyphonic pitch/gate/velocity transform: free or tempo-synced spacing,
   one to sixteen repeats, semitone movement, a linear velocity slope, gate length, dry mute and a portable

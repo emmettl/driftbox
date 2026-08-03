@@ -1,9 +1,11 @@
 import { Random } from '../dsp/random.js'
-import type { ModuleDef, Processor, Transport } from '../types.js'
+import type { ModuleData, ModuleDef, Processor, Transport } from '../types.js'
 
 interface RandomLike {
   next(): number
 }
+
+export const ARP_PATTERN_STEPS = 16
 
 // One shared controller, with two honest sources. Root keeps the original Driftbox behavior: choose a chord
 // shape and one note becomes a progression. Played uses the Graph's collector view and arpeggiates the notes
@@ -11,7 +13,9 @@ interface RandomLike {
 // direct processor callers still take the same road.
 export class ArpProcessor implements Processor {
   private readonly rng: RandomLike
+  private readonly sampleRate: number
   private readonly trigSamples: number
+  private readonly data?: ModuleData
   private readonly chords = [
     [0],
     [0, 7],
@@ -34,6 +38,9 @@ export class ArpProcessor implements Processor {
   private trigLeft = 0
   private since = 0
   private interval = 0
+  private internalLeft = 0
+  private timingWas = 0
+  private patternStep = 0
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -52,10 +59,36 @@ export class ArpProcessor implements Processor {
   private readonly figureVelocity = new Float32Array(256)
   private readonly figureOrder = new Uint32Array(256)
 
-  constructor(sampleRate: number, deps: Record<string, unknown>, id: string) {
+  constructor(sampleRate: number, deps: Record<string, unknown>, id: string, data?: ModuleData) {
     const Rng = deps.Random as new (seed: string | number) => RandomLike
     this.rng = new Rng(id)
-    this.trigSamples = Math.max(1, Math.round(sampleRate * 0.001))
+    this.sampleRate = sampleRate > 0 ? sampleRate : 44100
+    this.trigSamples = Math.max(1, Math.round(this.sampleRate * 0.001))
+    this.data = data
+  }
+
+  private patternEnabled(step: number): boolean {
+    const pattern = this.data?.get('pattern')
+    return !pattern || step >= pattern.length || pattern[step] >= 0.5
+  }
+
+  private internalInterval(
+    timing: number,
+    division: number,
+    rate: number,
+    transport?: Transport,
+  ): number {
+    if (timing === 2) {
+      return Math.max(2, Math.round(this.sampleRate / Math.max(0.1, Math.min(250, rate))))
+    }
+
+    // Beat lengths for the labelled whole-note divisions below. Tempo sync deliberately follows the rack
+    // tempo even while its transport is stopped: like the RPG-8, an Arp is playable without starting the
+    // song. External remains the compatibility default for patches that want explicit Clock/Reset wiring.
+    const beats = [2, 1, 0.5, 1 / 3, 0.25, 1 / 6, 0.125, 1 / 12, 1 / 16, 1 / 32]
+    const at = Math.max(0, Math.min(beats.length - 1, Math.round(division)))
+    const tempo = transport && transport.tempo > 0 ? transport.tempo : 120
+    return Math.max(2, Math.round(beats[at] * this.sampleRate * 60 / tempo))
   }
 
   private clearLatch(): void {
@@ -156,7 +189,7 @@ export class ArpProcessor implements Processor {
     outlets: Float32Array[],
     params: Float32Array[],
     frames: number,
-    _transport?: Transport,
+    transport?: Transport,
     _hostInputs?: Float32Array[][],
     voiceInlets?: Float32Array[][],
   ): void {
@@ -179,6 +212,10 @@ export class ArpProcessor implements Processor {
     const shiftParam = params[6]
     const velocityModeParam = params[7]
     const velocityParam = params[8]
+    const timingParam = params[9]
+    const divisionParam = params[10]
+    const rateParam = params[11]
+    const patternLengthParam = params[12]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -226,12 +263,29 @@ export class ArpProcessor implements Processor {
       }
 
       const reset = resetIn[i] >= 0.5 ? 1 : 0
-      if (reset === 1 && this.lastReset === 0) this.started = false
+      if (reset === 1 && this.lastReset === 0) {
+        this.started = false
+        this.patternStep = 0
+      }
       this.lastReset = reset
 
       this.since++
       const clock = clockIn[i] >= 0.5 ? 1 : 0
-      if (clock === 1 && this.lastClock === 0) {
+      const timing = Math.max(0, Math.min(2, Math.round(timingParam[i])))
+      if (timing !== this.timingWas) {
+        this.internalLeft = 0
+        this.started = false
+        this.timingWas = timing
+      }
+      let clockEdge = timing === 0 && clock === 1 && this.lastClock === 0
+      if (timing !== 0) {
+        if (this.internalLeft <= 0) {
+          clockEdge = true
+          this.internalLeft = this.internalInterval(timing, divisionParam[i], rateParam[i], transport)
+        }
+        this.internalLeft--
+      }
+      if (clockEdge) {
         let mode = Math.round(modeParam[i])
         if (mode < 0) mode = 0
         else if (mode > 5) mode = 5
@@ -271,6 +325,8 @@ export class ArpProcessor implements Processor {
           this.since = 0
           this.advance(length, mode, opening)
           if (this.step >= length) this.step = 0
+          const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(patternLengthParam[i])))
+          this.patternStep = opening ? 0 : (this.patternStep + 1) % patternLength
           const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
           this.held = this.figurePitch[this.step] + shift
           this.heldVelocity = velocityModeParam[i] >= 0.5
@@ -278,8 +334,16 @@ export class ArpProcessor implements Processor {
             : this.figureVelocity[this.step]
           const fraction = gateParam[i]
           const span = opening ? this.trigSamples : this.interval
-          this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
-          this.trigLeft = this.trigSamples
+          if (this.patternEnabled(this.patternStep)) {
+            this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
+            this.trigLeft = this.trigSamples
+          } else {
+            // A rest still consumes its place in both cycles. That keeps the rhythmic pattern independent
+            // of the note figure: sixteen steps remain sixteen steps whether the chord has three notes or
+            // seven, and unmuting a pulse never changes every later pitch.
+            this.gateLeft = 0
+            this.trigLeft = 0
+          }
         } else {
           this.started = false
           this.gateLeft = 0
@@ -304,11 +368,11 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 2,
+  version: 4,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
-    'Turns a played chord into one running line, or builds the original Driftbox chord from a single root. Direction, octave range, latch and velocity stay patchable.',
+    'Turns a played chord into one running line, or builds the original Driftbox chord from a single root. Run it from a cable, tempo or free clock, then add rests with its step pattern.',
   logo: {
     paths: ['M6 30l8-8 8 8 8-8 8 8 8-8 8 8', 'M6 14h8', 'M22 14h8', 'M38 14h8'],
   },
@@ -359,6 +423,26 @@ export const ARP_MODULE: ModuleDef = {
       labels: ['Played', 'Fixed'],
     },
     { id: 'velocity', name: 'Fixed Velocity', min: 0.01, max: 1, default: 0.8 },
+    {
+      id: 'timing',
+      name: 'Timing',
+      min: 0,
+      max: 2,
+      default: 0,
+      stepped: true,
+      labels: ['External', 'Tempo', 'Free'],
+    },
+    {
+      id: 'division',
+      name: 'Division',
+      min: 0,
+      max: 9,
+      default: 4,
+      stepped: true,
+      labels: ['1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128'],
+    },
+    { id: 'rate', name: 'Free Rate', min: 0.1, max: 250, default: 8 },
+    { id: 'patternLength', name: 'Pattern Steps', min: 1, max: ARP_PATTERN_STEPS, default: 16, stepped: true },
   ],
   processor: ArpProcessor,
   deps: { Random },

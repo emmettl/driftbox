@@ -99,6 +99,8 @@ const PROMISED = [
   'unpackMultisampleZones',
   // The repeat pattern is dry plus sixteen echoes; hosts use this to build a stable step editor.
   'NOTE_ECHO_STEPS',
+  // The Arp rhythm editor is the same portable sixteen-position contract.
+  'ARP_PATTERN_STEPS',
   // A custom scale is one portable enabled-note flag for each pitch class.
   'SCALE_PLAYER_CUSTOM_NOTES',
   // Five tertian notes and all three additions are real output voices, not pitch values to sum.
