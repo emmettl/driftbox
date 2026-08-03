@@ -6,6 +6,9 @@ export interface ArpPreviewOptions {
   shift: number
   steps?: number
 }
+export interface ArpInsertPreviewOptions extends ArpPreviewOptions {
+  insert: number
+}
 export interface ArpPreviewStep {
   label: string
   octave: number
@@ -71,5 +74,52 @@ export function arpPreview(options: ArpPreviewOptions): ArpPreviewStep[] {
       octave,
       description: `Root interval ${interval > 0 ? '+' : ''}${interval} semitones`,
     }
+  })
+}
+
+/** Apply RPG-style Insert to the configuration preview. Rhythm rests are applied by the faceplate later. */
+export function arpInsertPreview(options: ArpInsertPreviewOptions): ArpPreviewStep[] {
+  const count = Math.max(1, Math.round(options.steps ?? 16))
+  const insert = Math.max(0, Math.min(4, Math.round(options.insert)))
+  const ordinary = arpPreview({ ...options, steps: count + 8 })
+  if (insert === 0) return ordinary.slice(0, count)
+
+  if (insert === 1 || insert === 2) {
+    const high = insert === 2
+    let anchor: ArpPreviewStep
+    if (options.source >= 0.5) {
+      anchor = {
+        label: high ? 'hi' : 'lo',
+        octave: 0,
+        description: `${high ? 'Highest' : 'Lowest'} held input note`,
+      }
+    } else {
+      const octaves = Math.max(1, Math.min(4, Math.round(options.octaves)))
+      const chord = CHORDS[Math.max(0, Math.min(CHORDS.length - 1, Math.round(options.chord)))]
+      const ascending = arpPreview({ ...options, mode: 0, steps: chord.length * octaves })
+      anchor = ascending.reduce((best, candidate) => {
+        const value = Number(candidate.label)
+        const bestValue = Number(best.label)
+        return high ? (value > bestValue ? candidate : best) : (value < bestValue ? candidate : best)
+      })
+    }
+    let ordinaryAt = 0
+    return Array.from({ length: count }, (_, at) => at % 2 === 0 ? ordinary[ordinaryAt++] : anchor)
+  }
+
+  const forward = insert === 3 ? 3 : 4
+  const back = insert === 3 ? 1 : 2
+  let ordinaryAt = 0
+  let phase = 1
+  return Array.from({ length: count }, () => {
+    const step = ordinary[ordinaryAt]
+    if (phase >= forward) {
+      ordinaryAt = Math.max(0, ordinaryAt - back)
+      phase = 1
+    } else {
+      ordinaryAt++
+      phase++
+    }
+    return step
   })
 }

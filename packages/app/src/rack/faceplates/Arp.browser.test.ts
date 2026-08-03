@@ -69,3 +69,10 @@ it('keeps timing and pattern length on ordinary routed params', () => {
   expect(useRack.getState().paramValue('arp', 'timing')).toBe(1)
   expect(useRack.getState().paramValue('arp', 'patternLength')).toBe(15)
 })
+
+it('keeps Insert on the ordinary routed parameter path', () => {
+  const higher = host.querySelector<HTMLButtonElement>('button[aria-label="Insert up"]')
+  expect(higher).toBeTruthy()
+  flushSync(() => higher!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  expect(useRack.getState().paramValue('arp', 'insert')).toBe(1)
+})

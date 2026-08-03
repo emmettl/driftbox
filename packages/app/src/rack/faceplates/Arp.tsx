@@ -1,12 +1,13 @@
 import { ARP_PATTERN_STEPS } from '@driftbox/rack'
 import { ParamControl } from '../ParamControl.js'
 import { useRack } from '../store.js'
-import { arpPreview } from './arp-display.js'
+import { arpInsertPreview } from './arp-display.js'
 import type { FaceplateProps } from './types.js'
 
 const CONTROL_IDS = [
   'source', 'chord', 'octaves', 'mode', 'gate', 'hold', 'shift', 'velocityMode', 'velocity',
   'timing', 'division', 'rate', 'patternLength',
+  'insert',
 ] as const
 
 export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
@@ -22,6 +23,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const division = Math.max(0, Math.min(15, Math.round(value('division'))))
   const rate = Math.max(0.1, Math.min(250, value('rate')))
   const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(value('patternLength'))))
+  const insert = Math.max(0, Math.min(4, Math.round(value('insert'))))
   const param = (id: string) => def.params.find((candidate) => candidate.id === id)!
   const sourceName = param('source').labels?.[source] ?? (source === 0 ? 'Root' : 'Played')
   const modeName = param('mode').labels?.[mode] ?? `Mode ${mode + 1}`
@@ -31,7 +33,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
     { length: ARP_PATTERN_STEPS },
     (_, index) => stored[index] === undefined ? 1 : stored[index],
   )
-  const figure = arpPreview({ source, chord, octaves, mode, shift })
+  const figure = arpInsertPreview({ source, chord, octaves, mode, shift, insert })
   let figureStep = 0
   const preview = pattern.map((enabled) => {
     const step = figure[Math.min(figure.length - 1, figureStep)]
@@ -43,6 +45,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
     : timing === 1
       ? `${param('division').labels?.[division] ?? `division ${division + 1}`} tempo`
       : `${rate < 10 ? rate.toFixed(1) : Math.round(rate)} Hz`
+  const insertName = param('insert').labels?.[insert] ?? `Insert ${insert}`
 
   const toggle = (index: number) => {
     const next = [...pattern]
@@ -86,7 +89,9 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
         </div>
         <div className="rk-arp-legend">
           <span>{source === 0 ? `${chordName} intervals` : 'held input lanes'}</span>
-          <strong data-held={hold ? 'yes' : undefined}>{hold ? 'hold' : 'live'}</strong>
+          <strong data-held={hold ? 'yes' : undefined}>
+            {hold ? 'hold' : insert === 0 ? 'live' : `insert ${insertName}`}
+          </strong>
           <span>{patternLength} steps · {fixedVelocity ? `${Math.round(value('velocity') * 100)}% fixed` : 'played velocity'}</span>
         </div>
       </div>

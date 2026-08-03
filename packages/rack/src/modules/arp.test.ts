@@ -25,6 +25,7 @@ interface Options {
   timing?: number
   division?: number
   rate?: number
+  insert?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -63,6 +64,7 @@ interface PlayedOptions {
   velocityMode?: number
   velocity?: number
   releaseAt?: number
+  insert?: number
 }
 
 /** Feed independent pitch/gate/velocity lanes through the same collector view the Graph supplies. */
@@ -198,6 +200,53 @@ describe('played chords', () => {
       velocity: 0.72,
     }).velocities
     expect(fixed.every((value) => Math.abs(value - 0.72) < 1e-5)).toBe(true)
+  })
+})
+
+describe('note insertion', () => {
+  it('keeps Off as the exact figure that shipped before Insert', () => {
+    expect(ARP_MODULE.params[param('insert')].default).toBe(0)
+    expect(run(6, { chord: 2, octaves: 2, insert: 0 }).notes).toEqual([0, 4, 7, 12, 16, 19])
+  })
+
+  it('alternates the low or high anchor with the ordinary walk', () => {
+    expect(run(7, { chord: 2, octaves: 1, insert: 1 }).notes).toEqual([0, 0, 4, 0, 7, 0, 0])
+    expect(run(7, { chord: 2, octaves: 1, insert: 2 }).notes).toEqual([0, 7, 4, 7, 7, 7, 0])
+  })
+
+  it('plays three forward and one back, or four forward and two back', () => {
+    expect(run(8, { chord: 2, octaves: 2, insert: 3 }).notes).toEqual([0, 4, 7, 4, 7, 12, 7, 12])
+    expect(run(9, { chord: 2, octaves: 2, insert: 4 }).notes).toEqual([0, 4, 7, 12, 4, 7, 12, 16, 7])
+  })
+
+  it('finds the actual low note in Manual order instead of assuming lane one', () => {
+    const { notes } = runPlayed(5, [7, 0, 4], { octaves: 1, mode: 5, insert: 1 })
+    expect(notes).toEqual([7, 0, 0, 0, 4])
+  })
+
+  it('does not consume an insert note during a rhythm rest', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[1] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-insert-rest', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 4
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    params[param('insert')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    const sounded = Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)
+    const notes = Array.from({ length: 4 }, (_, step) => Math.round(out[0][step * STEP] * 12))
+    expect(sounded).toEqual([true, false, true, true])
+    expect(notes).toEqual([0, 0, 0, 4])
   })
 })
 
@@ -453,8 +502,13 @@ describe('the awkward settings', () => {
     // Cheap, and it is the sweep that would have caught an off-by-one in the table.
     for (let chord = 0; chord <= 7; chord++) {
       for (let mode = 0; mode <= 4; mode++) {
-        const { notes } = run(6, { chord, octaves: 2, mode })
-        expect(notes.every((n) => Number.isFinite(n) && n >= 0 && n < 48), `${chord}/${mode}`).toBe(true)
+        for (let insert = 0; insert <= 4; insert++) {
+          const { notes } = run(8, { chord, octaves: 2, mode, insert })
+          expect(
+            notes.every((n) => Number.isFinite(n) && n >= 0 && n < 48),
+            `${chord}/${mode}/${insert}`,
+          ).toBe(true)
+        }
       }
     }
   })

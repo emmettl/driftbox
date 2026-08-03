@@ -42,6 +42,8 @@ export class ArpProcessor implements Processor {
   private timingWas = 0
   private patternStep = 0
   private patternStarted = false
+  private insertPhase = 0
+  private insertWas = 0
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -191,6 +193,70 @@ export class ArpProcessor implements Processor {
     }
   }
 
+  private retreat(length: number, mode: number, amount: number): void {
+    if (length <= 1) return
+    for (let moved = 0; moved < amount; moved++) {
+      if (mode === 1) {
+        this.step = this.step + 1 >= length ? 0 : this.step + 1
+      } else if (mode === 2 || mode === 3) {
+        // Walk backwards along the same turning path, restoring the direction state that `advance` would
+        // have held at that earlier position. This avoids duplicated end notes when Insert crosses a turn.
+        if (this.rising) {
+          if (this.step - 1 < 0) {
+            this.rising = false
+            this.step = 1
+          } else this.step--
+        } else if (this.step + 1 >= length) {
+          this.rising = true
+          this.step = length - 2
+        } else this.step++
+      } else if (mode === 4) {
+        // Random has no earlier/later pitch order to step through. A fresh legal roll is the only honest
+        // interpretation of a backstep without growing an unbounded history in the audio processor.
+        const roll = (this.rng.next() + 1) * 0.5
+        this.step = Math.min(length - 1, Math.max(0, Math.floor(roll * length)))
+      } else {
+        this.step = this.step - 1 < 0 ? length - 1 : this.step - 1
+      }
+    }
+  }
+
+  private extreme(length: number, high: boolean): number {
+    let found = 0
+    for (let at = 1; at < length; at++) {
+      if (high ? this.figurePitch[at] > this.figurePitch[found] : this.figurePitch[at] < this.figurePitch[found]) {
+        found = at
+      }
+    }
+    return found
+  }
+
+  private insertStep(length: number, mode: number, insert: number, opening: boolean): number {
+    if (opening) {
+      this.advance(length, mode, true)
+      this.insertPhase = 1
+      return this.step
+    }
+    if (insert === 1 || insert === 2) {
+      if (this.insertPhase === 1) {
+        this.insertPhase = 0
+        return this.extreme(length, insert === 2)
+      }
+      this.advance(length, mode, false)
+      this.insertPhase = 1
+      return this.step
+    }
+    const forward = insert === 3 ? 3 : insert === 4 ? 4 : 0
+    if (forward > 0 && this.insertPhase >= forward) {
+      this.retreat(length, mode, insert === 3 ? 1 : 2)
+      this.insertPhase = 1
+      return this.step
+    }
+    this.advance(length, mode, false)
+    if (forward > 0) this.insertPhase++
+    return this.step
+  }
+
   process(
     inlets: Float32Array[],
     outlets: Float32Array[],
@@ -223,6 +289,7 @@ export class ArpProcessor implements Processor {
     const divisionParam = params[10]
     const rateParam = params[11]
     const patternLengthParam = params[12]
+    const insertParam = params[13]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -287,6 +354,12 @@ export class ArpProcessor implements Processor {
         this.patternStarted = false
         this.timingWas = timing
       }
+      const insert = Math.max(0, Math.min(4, Math.round(insertParam[i])))
+      if (insert !== this.insertWas) {
+        this.started = false
+        this.insertPhase = 0
+        this.insertWas = insert
+      }
       let clockEdge = timing === 0 && clock === 1 && this.lastClock === 0
       if (timing !== 0) {
         if (this.internalLeft <= 0) {
@@ -336,14 +409,15 @@ export class ArpProcessor implements Processor {
           this.patternStep = this.patternStarted ? (this.patternStep + 1) % patternLength : 0
           this.patternStarted = true
           if (this.patternEnabled(this.patternStep)) {
-            const opening = !this.started
-            this.advance(length, mode, opening)
-            if (this.step >= length) this.step = 0
+            // A performed chord can lose notes while an arpeggio is running. Restart instead of allowing a
+            // saved step from the wider figure to index beyond the newly collected one.
+            const opening = !this.started || this.step < 0 || this.step >= length
+            const playStep = this.insertStep(length, mode, insert, opening)
             const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
-            this.held = this.figurePitch[this.step] + shift
+            this.held = this.figurePitch[playStep] + shift
             this.heldVelocity = velocityModeParam[i] >= 0.5
               ? Math.max(0.01, Math.min(1, velocityParam[i]))
-              : this.figureVelocity[this.step]
+              : this.figureVelocity[playStep]
             const fraction = gateParam[i]
             const span = opening ? this.trigSamples : this.interval
             this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
@@ -379,7 +453,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 5,
+  version: 6,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -484,6 +558,15 @@ export const ARP_MODULE: ModuleDef = {
     },
     { id: 'rate', name: 'Free Rate', min: 0.1, max: 250, default: 8 },
     { id: 'patternLength', name: 'Pattern Steps', min: 1, max: ARP_PATTERN_STEPS, default: 16, stepped: true },
+    {
+      id: 'insert',
+      name: 'Insert',
+      min: 0,
+      max: 4,
+      default: 0,
+      stepped: true,
+      labels: ['Off', 'Low', 'Hi', '3-1', '4-2'],
+    },
   ],
   processor: ArpProcessor,
   deps: { Random },
