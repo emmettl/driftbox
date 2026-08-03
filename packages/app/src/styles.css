@@ -1261,6 +1261,27 @@ aside {
   border-color: rgba(255, 255, 255, 0.35);
 }
 
+.stage-help {
+  position: absolute;
+  top: max(88px, calc(env(safe-area-inset-top) + 74px));
+  right: max(27px, calc(env(safe-area-inset-right) + 27px));
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: rgba(20, 10, 30, 0.5);
+  backdrop-filter: blur(12px);
+  color: var(--dim);
+  font-weight: 700;
+}
+
+.stage-help:hover {
+  border-color: var(--nine);
+  color: var(--nine);
+}
+
 /* The particles streaming into the play button. Above the scene, below the buttons, and
    pointer-transparent — it is a signpost, not a control. */
 .play-beacon {
@@ -1621,6 +1642,14 @@ aside {
 
 .transport-toggle {
   display: none;
+}
+
+.help-trigger {
+  width: 34px;
+  padding-inline: 0;
+  border-radius: 50%;
+  color: var(--nine);
+  font-weight: 700;
 }
 
 /* A phone in portrait. The channel strip goes below the grid rather than beside it. */

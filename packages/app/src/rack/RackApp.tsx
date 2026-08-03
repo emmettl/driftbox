@@ -54,6 +54,7 @@ import {
   type AudioInputDevice,
   type AudioInputHandle,
 } from './audio-input.js'
+import { HelpDialog } from '../ui/HelpDialog.js'
 
 type RackView = 'rack' | 'split' | 'pad'
 
@@ -231,6 +232,19 @@ export default function RackApp() {
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
   const [reviewingStems, setReviewingStems] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+
+  useEffect(() => {
+    const openHelp = (event: KeyboardEvent) => {
+      if (event.key !== '?') return
+      const target = event.target as HTMLElement | null
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      event.preventDefault()
+      setHelpOpen(true)
+    }
+    window.addEventListener('keydown', openHelp)
+    return () => window.removeEventListener('keydown', openHelp)
+  }, [])
   /**
    * Move between the three arrangements with one shared-element transition when the browser can do it.
    *
@@ -1547,6 +1561,17 @@ export default function RackApp() {
           </>
         )}
 
+        <button
+          type="button"
+          className="rk-help-trigger"
+          onClick={() => setHelpOpen(true)}
+          aria-label="Open help"
+          aria-keyshortcuts="?"
+          title="Help (?)"
+        >
+          ? Help
+        </button>
+
         {patch.groovebox && !retainedSong ? (
           <span
             className="rk-away rk-away-disabled"
@@ -1779,6 +1804,7 @@ export default function RackApp() {
           {buildLabel()}
         </span>
       </footer>
+      {helpOpen && <HelpDialog surface="rack" onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }

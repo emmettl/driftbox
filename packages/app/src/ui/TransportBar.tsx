@@ -27,9 +27,10 @@ function useFlash(): [string | null, (message: string) => void] {
 interface TransportBarProps {
   playRef?: RefObject<HTMLButtonElement | null>
   vibesRef?: RefObject<HTMLButtonElement | null>
+  onHelp?: () => void
 }
 
-export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
+export function TransportBar({ playRef, vibesRef, onHelp }: TransportBarProps = {}) {
   const running = useBox((s) => s.running)
   const song = useBox((s) => s.song)
   const view = useBox((s) => s.view)
@@ -165,6 +166,19 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
       >
         ···
       </button>
+
+      {onHelp && (
+        <button
+          className="ghost help-trigger"
+          type="button"
+          onClick={onHelp}
+          aria-label="Open help"
+          aria-keyshortcuts="?"
+          title="Help (?)"
+        >
+          ?
+        </button>
+      )}
 
       <div className={`transport-more${more ? ' open' : ''}`}>
       {/* Pattern length owns the bar; each selected drum voice may loop inside it. */}

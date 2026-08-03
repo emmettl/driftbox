@@ -15,6 +15,7 @@ import { TransportBar } from './ui/TransportBar'
 import { VoicePanel } from './ui/VoicePanel'
 import { PlayBeacon, type BeaconTarget } from './ui/PlayBeacon'
 import { useFirstRun, useMedia } from './ui/useFirstRun'
+import { HelpDialog } from './ui/HelpDialog'
 import { Visualiser } from './visual/Visualiser'
 import { SCENES, nextScene } from './visual/scenes'
 import { Oscilloscope } from './visual/Oscilloscope'
@@ -94,6 +95,7 @@ export default function App() {
   // unmounting immediately would make it vanish rather than fold away, so it is held
   // mounted for exactly as long as the animation runs.
   const [consoleMounted, setConsoleMounted] = useState(!performing)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
     if (!performing) {
@@ -117,11 +119,15 @@ export default function App() {
       // Not while typing in a control — space on a focused slider should not also
       // start the transport.
       const target = event.target as HTMLElement | null
-      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
 
       if (event.code === 'Space') {
         event.preventDefault()
         toggleTransport()
+      }
+      if (event.key === '?') {
+        event.preventDefault()
+        setHelpOpen(true)
       }
       if (event.key.toLowerCase() === 'v') togglePerformance()
       if (event.key === 'Escape' && performing) togglePerformance()
@@ -205,6 +211,16 @@ export default function App() {
             {SCENES.find((s) => s.id === scene)?.name}
           </button>
 
+          <button
+            className="stage-help"
+            onClick={() => setHelpOpen(true)}
+            aria-label="Open help"
+            aria-keyshortcuts="?"
+            title="Help (?)"
+          >
+            ?
+          </button>
+
           {/* The way back to the console, and the thing the console appears to come out
               of. No longer the loudest thing on screen while stopped — the play button
               has taken that job, since starting it is what you want first. */}
@@ -221,7 +237,11 @@ export default function App() {
 
       {consoleMounted && (
         <div className={`console${performing ? ' folding' : ''}`}>
-          <TransportBar playRef={consolePlay} vibesRef={vibesButton} />
+          <TransportBar
+            playRef={consolePlay}
+            vibesRef={vibesButton}
+            onHelp={() => setHelpOpen(true)}
+          />
           <Arrangement />
           <main>
             {view === 'bass' ? <BassGrid /> : <Sequencer />}
@@ -255,6 +275,7 @@ export default function App() {
           reading its targets in viewport space — the particles would swim away from the
           buttons for the length of the animation. */}
       <PlayBeacon className="console-beacon" targets={consoleBeacons} />
+      {helpOpen && <HelpDialog surface="groovebox" onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }
