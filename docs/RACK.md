@@ -1707,6 +1707,25 @@ both bundle cost on the editing-only path and visual competition with a readable
    measured. Pattern rests, Reset, timing changes and released Played chords still close a tie. The default and
    every previously valid saved value are unchanged.
 
+   **5x. Arp converter bypass.** ✅ The routed `Arpeggiator` switch defaults to `On`; `Off` stops the figure
+   and mirrors monophonic note control without waiting for a clock. Root passes its ordinary Pitch, Gate and
+   Velocity inputs. Played uses last-note priority across collector voices and falls back to the previous held
+   key when the newest is released. Trig marks each selected-note change, while Hold, pattern, direction,
+   insertion, shift and velocity replacement are bypassed. This matches RPG-8's monophonic MIDI-to-CV role
+   without changing OG Driftbox's enabled default.
+
+   **5y. Inlet presence contract.** ✅ A compiled node now carries one immutable cable-presence bit beside
+   each flattened processor inlet. This is deliberately structural rather than a test for non-zero samples:
+   a cable from a placeholder or bypassed source remains plugged in while it carries silence. Processors can
+   therefore implement normalled and arming jacks without confusing “unplugged” with “currently low”. Plans
+   from older builds fall back to their non-zero buffer indices, so the audio ABI remains backwards compatible.
+
+   **5z. Start of Arpeggio.** ✅ The appended `Start` inlet uses that presence bit for the RPG rear-panel
+   contract: unplugged is the old immediate-start behavior, while a patched-low jack arms the device and emits
+   no arpeggio until a rising trigger restarts the note walk, insert phase and rhythm pattern. The appended
+   `Start` outlet emits a short pulse on the opening note and every complete figure return. Both port ids are
+   additive, and Arpeggiator Off remains an ungated MIDI-to-CV converter.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

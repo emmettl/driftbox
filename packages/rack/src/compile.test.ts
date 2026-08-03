@@ -116,6 +116,7 @@ describe('compiling a patch', () => {
 
     expect(plan.params[slots.cutoff].value).toBe(-0.4)
     expect(node.inletTrims).toEqual([undefined, slots.cutoff, undefined])
+    expect(node.inletConnected).toEqual([false, true, false])
     // Kept out of the authored param namespace even if a third-party module uses an unfortunate id.
     expect(plan.slots.filter).not.toHaveProperty('cutoff', slots.cutoff)
   })

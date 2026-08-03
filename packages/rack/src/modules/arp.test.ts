@@ -28,6 +28,7 @@ interface Options {
   insert?: number
   singleRepeat?: number
   shuffle?: number
+  enable?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -103,6 +104,126 @@ function runPlayed(steps: number, semitones: number[], options: PlayedOptions = 
     out,
   }
 }
+
+describe('converter bypass', () => {
+  it('defaults on so every older Driftbox figure remains enabled', () => {
+    expect(ARP_MODULE.params[param('enable')].default).toBe(1)
+  })
+
+  it('mirrors Root pitch, gate and velocity without a clock or figure processing', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-root-bypass')
+    const frames = 128
+    const pitch = Float32Array.from({ length: frames }, (_, i) => i / frames)
+    const gate = Float32Array.from({ length: frames }, (_, i) => i >= 16 && i < 96 ? 1 : 0)
+    const velocity = new Float32Array(frames).fill(0.42)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('enable')].fill(0)
+    params[param('shift')].fill(3)
+    params[param('velocityMode')].fill(1)
+    params[param('velocity')].fill(0.9)
+    params[param('timing')].fill(2)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [pitch, gate, velocity, new Float32Array(frames), new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+
+    expect(out[0]).toEqual(pitch)
+    expect(out[1]).toEqual(gate)
+    expect(out[2].every((value) => Math.abs(value - 0.42) < 1e-5)).toBe(true)
+    expect([...out[3]].flatMap((value, index) => value >= 0.5 && (index === 0 || out[3][index - 1] < 0.5) ? [index] : []))
+      .toEqual([16])
+  })
+
+  it('uses last-note priority in Played mode and falls back without dropping Gate', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-played-bypass')
+    const frames = 192
+    const pitch = [new Float32Array(frames), new Float32Array(frames).fill(7 / 12)]
+    const gate = [
+      Float32Array.from({ length: frames }, (_, i) => i < 160 ? 1 : 0),
+      Float32Array.from({ length: frames }, (_, i) => i < 64 ? 1 : 0),
+    ]
+    const velocity = [new Float32Array(frames).fill(0.25), new Float32Array(frames).fill(0.8)]
+    const zero = new Float32Array(frames)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('enable')].fill(0)
+    params[param('source')].fill(1)
+    params[param('hold')].fill(1)
+    params[param('shift')].fill(-3)
+    params[param('velocityMode')].fill(1)
+    params[param('velocity')].fill(0.99)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [zero, zero, zero, zero, zero],
+      out,
+      params,
+      frames,
+      undefined,
+      undefined,
+      [pitch, gate, velocity, [zero], [zero]],
+    )
+
+    expect(Math.round(out[0][32] * 12)).toBe(7)
+    expect(out[2][32]).toBeCloseTo(0.8)
+    expect(Math.round(out[0][96] * 12)).toBe(0)
+    expect(out[2][96]).toBeCloseTo(0.25)
+    expect(out[1].slice(0, 160).every((value) => value === 1)).toBe(true)
+    expect(out[1].slice(160).every((value) => value === 0)).toBe(true)
+    expect([...out[3]].flatMap((value, index) => value >= 0.5 && (index === 0 || out[3][index - 1] < 0.5) ? [index] : []))
+      .toEqual([0, 64])
+  })
+})
+
+describe('start of arpeggio', () => {
+  it('keeps an armed figure silent until Start rises, then restarts it from step one', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-start')
+    const frames = STEP * 6
+    const pitch = new Float32Array(frames)
+    const clock = Float32Array.from({ length: frames }, (_, i) => i % STEP < STEP / 2 ? 1 : 0)
+    const start = Float32Array.from({ length: frames }, (_, i) =>
+      (i >= STEP + 8 && i < STEP + 16) || (i >= STEP * 3 + 8 && i < STEP * 3 + 16) ? 1 : 0,
+    )
+    const zero = new Float32Array(frames)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+
+    arp.process(
+      [pitch, zero, zero, clock, zero, start],
+      out,
+      params,
+      frames,
+      undefined,
+      undefined,
+      undefined,
+      [false, false, false, true, false, true],
+    )
+
+    expect(out[1].slice(0, STEP * 2).every((value) => value === 0)).toBe(true)
+    expect(Math.round(out[0][STEP * 2 + 8] * 12)).toBe(0)
+    expect(Math.round(out[0][STEP * 3 + 8] * 12)).toBe(4)
+    expect(Math.round(out[0][STEP * 4 + 8] * 12)).toBe(0)
+    expect([...out[4]].flatMap((value, index) =>
+      value >= 0.5 && (index === 0 || out[4][index - 1] < 0.5) ? [index] : [],
+    )).toEqual([STEP * 2, STEP * 4])
+  })
+
+  it('keeps the legacy immediate start when the Start jack is unplugged', () => {
+    const { notes, out } = run(4, { chord: 2, octaves: 1 })
+    expect(notes).toEqual([0, 4, 7, 0])
+    expect([...out[4]].flatMap((value, index) =>
+      value >= 0.5 && (index === 0 || out[4][index - 1] < 0.5) ? [index] : [],
+    )).toEqual([0, STEP * 3])
+  })
+
+  it('appends stable Start ports without moving the existing cable ids', () => {
+    expect(ARP_MODULE.inlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'clock', 'reset', 'start'])
+    expect(ARP_MODULE.outlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'trig', 'start'])
+  })
+})
 
 describe('what it plays', () => {
   it('walks up the chord you chose', () => {

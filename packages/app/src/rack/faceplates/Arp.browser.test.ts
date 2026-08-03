@@ -90,3 +90,12 @@ it('opts into the rack transport shuffle without rebuilding the graph', () => {
   expect(useRack.getState().paramValue('arp', 'shuffle')).toBe(1)
   expect(useRack.getState().revision).toBe(before)
 })
+
+it('switches the Arpeggiator into converter mode without rebuilding the graph', () => {
+  const before = useRack.getState().revision
+  choose('Arpeggiator', 'Off')
+  expect(useRack.getState().paramValue('arp', 'enable')).toBe(0)
+  expect(useRack.getState().revision).toBe(before)
+  render()
+  expect(host.querySelector('.rk-arp-readout')?.textContent).toContain('Root · converter')
+})
