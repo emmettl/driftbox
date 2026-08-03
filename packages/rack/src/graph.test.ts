@@ -298,11 +298,31 @@ describe('running a graph', () => {
     expect(quarter).toBeCloseTo(unity * 0.25, 4)
   })
 
+  it('gives an inlet no slot at all while its pot sits at unity', () => {
+    // Unity is exactly what the direct buffer path already does, so paying a buffer and a multiply per
+    // sample to reproduce it is waste — measured at 3–5% of render time across `graph.bench.ts`. The
+    // consequence is that engaging a trim rebuilds once; every turn after that is a message.
+    const plan = compile(
+      chain(
+        [
+          { id: 'osc', type: 'vco' },
+          { id: 'out', type: 'out' },
+        ],
+        [['osc', 'out', 'out', 'in']],
+      ),
+      MODULES,
+    )
+    expect(plan.inputTrims!.out).toEqual({})
+    expect(plan.nodes.find((node) => node.id === 'out')!.inletTrims?.[0]).toBeUndefined()
+  })
+
   it('moves an inlet trim through its hidden ramped slot without rebuilding', () => {
     const patch = chain(
       [
         { id: 'osc', type: 'vco' },
-        { id: 'out', type: 'out', params: { level: 0.1 } },
+        // Already off unity, so the slot exists. Turning it from here is what a drag does, and it must not
+        // rebuild — a rebuild resets every oscillator's phase and every filter's history.
+        { id: 'out', type: 'out', params: { level: 0.1 }, inputTrims: { in: 0.5 } },
       ],
       [['osc', 'out', 'out', 'in']],
     )

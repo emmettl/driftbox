@@ -438,10 +438,32 @@ describe('rear-panel input trims', () => {
     expect(useRack.getState().inputTrimValue('filter', 'cutoff')).toBe(1)
     useRack.getState().setInputTrim('filter', 'cutoff', -0.35)
     expect(useRack.getState().patch.modules[0].inputTrims).toEqual({ cutoff: -0.35 })
-    expect(useRack.getState().revision).toBe(0)
 
     useRack.getState().setInputTrim('filter', 'cutoff', 1)
     expect(useRack.getState().patch.modules[0].inputTrims).toBeUndefined()
+  })
+
+  it('rebuilds when a pot leaves unity, and when it comes back', () => {
+    // The compiler only spends a hidden slot on a trim that is doing something, because an inlet with one
+    // costs a buffer and a multiply per sample. So the two ends of the pot's travel change the shape of the
+    // plan and nothing else does.
+    expect(useRack.getState().revision).toBe(0)
+    useRack.getState().setInputTrim('filter', 'cutoff', -0.35)
+    expect(useRack.getState().revision).toBe(1)
+    useRack.getState().setInputTrim('filter', 'cutoff', 1)
+    expect(useRack.getState().revision).toBe(2)
+  })
+
+  it('does not rebuild anywhere in between, which is the whole of a drag', () => {
+    // The property that has to survive: rebuilding resets every oscillator's phase and every filter's
+    // history, so doing it per pointer move is a continuous crackle.
+    useRack.getState().setInputTrim('filter', 'cutoff', 0.9)
+    const settled = useRack.getState().revision
+    useRack.getState().setInputTrim('filter', 'cutoff', 0.6)
+    useRack.getState().setInputTrim('filter', 'cutoff', 0.3)
+    useRack.getState().setInputTrim('filter', 'cutoff', -0.4)
+    expect(useRack.getState().inputTrimValue('filter', 'cutoff')).toBe(-0.4)
+    expect(useRack.getState().revision).toBe(settled)
   })
 
   it('clamps the pot and ignores a port the device does not have', () => {
