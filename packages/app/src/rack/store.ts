@@ -120,8 +120,15 @@ interface RackState {
    */
   undo: () => void
   redo: () => void
-  /** Which module is selected, for keyboard editing and for dimming the rest. */
-  selected: string | null
+  /**
+   * What is selected, in the order it was picked, for editing and for dimming the rest.
+   *
+   * **A list rather than an id plus a set.** Reordering and removal used to be one module at a time, which
+   * `docs/REASON-GAP.md` lists as the multi-select gap. Holding a primary id *and* a group would be two
+   * representations that must agree, and this store's own rule is that nothing should have to keep two of
+   * those in step — so the list is the only truth and `primary` reads off the end of it.
+   */
+  selection: readonly string[]
   flipped: boolean
   /**
    * What the compiler had to decide or discard, straight from the Rack.
@@ -462,7 +469,13 @@ interface RackState {
    */
   ensureMidi: () => string | null
   load: (patch: Patch) => void
-  select: (moduleId: string | null) => void
+  /** Pick one, or with `extend` add it to the group — or take it back out, which is the half people reach
+   *  for immediately after picking one thing too many. `null` clears. */
+  select: (moduleId: string | null, extend?: boolean) => void
+  /** Everything between the last thing picked and this one, in rack order. Shift-click. */
+  selectRange: (moduleId: string) => void
+  /** Remove everything selected, in one structural edit and therefore one undo step. */
+  removeSelected: () => void
   flip: (flipped?: boolean) => void
 }
 
@@ -576,7 +589,7 @@ export const useRack = create<RackState>((set, get) => {
     patch: EMPTY_PATCH,
     revision: 0,
     history: NO_HISTORY,
-    selected: null,
+    selection: [],
     flipped: false,
     notes: [],
     name: null,
@@ -1321,7 +1334,52 @@ export const useRack = create<RackState>((set, get) => {
           : step
       }),
 
-    select: (moduleId) => set({ selected: moduleId }),
+    select: (moduleId, extend) =>
+      set((state) => {
+        if (moduleId === null) return { selection: [] }
+        if (!extend) return { selection: [moduleId] }
+        // Toggling, so a modifier-click can take something back out of the group — which is the half of
+        // additive selection people reach for immediately after picking one thing too many.
+        return state.selection.includes(moduleId)
+          ? { selection: state.selection.filter((id) => id !== moduleId) }
+          : { selection: [...state.selection, moduleId] }
+      }),
+
+    selectRange: (moduleId) =>
+      set((state) => {
+        const order = state.patch.modules.map((m) => m.id)
+        const anchor = state.selection[state.selection.length - 1]
+        const from = order.indexOf(anchor)
+        const to = order.indexOf(moduleId)
+        // With nothing selected yet, or an anchor that has since been removed, a range has no meaning and
+        // this is an ordinary click. Silently, because a shortcut that reported an error would be worse.
+        if (from < 0 || to < 0) return { selection: [moduleId] }
+        const [start, end] = from <= to ? [from, to] : [to, from]
+        // Anchor last, so shift-clicking again extends from where you started rather than from the far end
+        // of what you just selected — which is what every list in every application does.
+        const span = order.slice(start, end + 1).filter((id) => id !== anchor)
+        return { selection: [...span, anchor] }
+      }),
+
+    removeSelected: () =>
+      structural((patch) => {
+        const going = new Set(get().selection)
+        if (going.size === 0) return patch
+        // One structural edit for the whole group, so removing four modules is one undo rather than four.
+        // Cables and routings at either end go with them, for the reason `removeModule` gives: leaving
+        // them means they come back if a module is re-added under the same id, which looks like a haunting.
+        const routes = (patch.modulation ?? []).filter(
+          (route) => !going.has(route.from[0]) && !going.has(route.to[0]),
+        )
+        const { modulation: _drop, ...rest } = patch
+        return {
+          ...rest,
+          modules: patch.modules.filter((m) => !going.has(m.id)),
+          cables: patch.cables.filter((c) => !going.has(c.from[0]) && !going.has(c.to[0])),
+          ...(routes.length > 0 ? { modulation: routes } : {}),
+        }
+      }),
+
     flip: (flipped) => set((state) => ({ flipped: flipped ?? !state.flipped })),
   }
 })

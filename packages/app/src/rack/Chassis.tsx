@@ -34,8 +34,10 @@ interface Dragging extends ModuleDragGeometry {
 
 export function Chassis({ layout }: Props) {
   const patch = useRack((s) => s.patch)
-  const selected = useRack((s) => s.selected)
+  const selection = useRack((s) => s.selection)
   const select = useRack((s) => s.select)
+  const selectRange = useRack((s) => s.selectRange)
+  const removeSelected = useRack((s) => s.removeSelected)
   const setParam = useRack((s) => s.setParam)
   const paramValue = useRack((s) => s.paramValue)
   const removeModule = useRack((s) => s.removeModule)
@@ -133,7 +135,9 @@ export function Chassis({ layout }: Props) {
         const def = MODULES[placement.type]
         if (!module) return null
 
-        const isSelected = selected === placement.id
+        const isSelected = selection.includes(placement.id)
+        /** Part of a group of more than one, so the tools act on all of it rather than on this one. */
+        const inGroup = isSelected && selection.length > 1
         const bounds = drag?.id === placement.id ? dragBounds(drag) : null
         const isGhost = bounds !== null
         const position = bounds
@@ -168,7 +172,13 @@ export function Chassis({ layout }: Props) {
             data-span={placement.span}
             data-drag-ghost={isGhost ? 'true' : undefined}
             style={position}
-            onPointerDown={() => select(placement.id)}
+            // Shift takes everything between; the platform's own multi-select modifier toggles one. Read
+            // from the event rather than tracked, because a key released while the pointer is down would
+            // otherwise leave the rack in a mode nobody could see.
+            onPointerDown={(event) => {
+              if (event.shiftKey) selectRange(placement.id)
+              else select(placement.id, event.metaKey || event.ctrlKey)
+            }}
           >
             {/* The drag handle, over the faceplate's own title strip. A transparent overlay rather than
                 asking every faceplate to wire one up: the registry's whole promise is that a module needs
@@ -231,7 +241,14 @@ export function Chassis({ layout }: Props) {
             {module.bypassed && <span className="rk-bypass-flag">bypassed</span>}
 
             {isSelected && (
-              <div className="rk-module-tools">
+              <div
+                className="rk-module-tools"
+                // The section beneath selects on pointerdown, so without this a click on Remove first
+                // collapsed the group to this one module and then removed only it — while the button still
+                // said "Remove 4 modules", because the label was decided at render and the action read the
+                // store afterwards. Operating a module's own tools is not a selection gesture.
+                onPointerDown={(event) => event.stopPropagation()}
+              >
                 <button type="button" onClick={() => moveModule(placement.id, -1)} aria-label="Move up">
                   ↑
                 </button>
@@ -257,7 +274,17 @@ export function Chassis({ layout }: Props) {
                 >
                   ⧉
                 </button>
-                <button type="button" onClick={() => removeModule(placement.id)} aria-label="Remove">
+                {/* Removes the whole group when this module is part of one — in one edit, so four modules
+                    are one undo rather than four. The label says how many, because a button that quietly
+                    took four things away when you expected one is the worst kind of surprise. */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    inGroup ? removeSelected() : removeModule(placement.id)
+                  }
+                  aria-label={inGroup ? `Remove ${selection.length} modules` : 'Remove'}
+                  title={inGroup ? `Remove all ${selection.length} selected` : undefined}
+                >
                   ✕
                 </button>
               </div>
