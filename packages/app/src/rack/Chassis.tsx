@@ -1,5 +1,6 @@
 import { MODULES, routedParams } from '@driftbox/rack'
-import { faceplateFor, sizeFor } from './faceplates/index.js'
+import { sizeFor } from './faceplates/index.js'
+import { Driven } from './Driven.js'
 import {
   dragBounds,
   dropIndex,
@@ -132,7 +133,6 @@ export function Chassis({ layout }: Props) {
         const def = MODULES[placement.type]
         if (!module) return null
 
-        const Faceplate = faceplateFor(placement.type)
         const isSelected = selected === placement.id
         const bounds = drag?.id === placement.id ? dragBounds(drag) : null
         const isGhost = bounds !== null
@@ -202,7 +202,7 @@ export function Chassis({ layout }: Props) {
               }}
             />
             {def ? (
-              <Faceplate
+              <Driven
                 def={def}
                 module={module}
                 value={(paramId) => paramValue(placement.id, paramId)}

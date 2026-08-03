@@ -71,9 +71,9 @@ through the frame the ABI grew. Four decisions worth keeping:
   last possible moment, in the scheduler.
 - **Playback never goes through the patch.** It is sent straight to the audio thread, the same road a MIDI
   note takes and for the same reason: a lane played back through `setParam` would record itself, one point
-  per tick, for ever. The visible consequence is that a knob does not move on screen while its lane plays —
-  which is exactly what a MIDI-driven param already does, and the live-value channel that would fix both
-  is one piece of work rather than two.
+  per tick, for ever. The knob still follows it — the host re-reads the same lane at the same playhead for
+  the screen, so the panel and the sound are one number computed twice rather than two channels that can
+  disagree. See `app/src/rack/live.ts`.
 
 Two halves, and only one of them is in the parity ledger:
 
@@ -205,9 +205,8 @@ Worth writing down so nobody builds them twice.
 1. ~~Undo.~~ Landed. Cheapest, and it makes everything after it safer to try.
 2. ~~Stereo cables.~~ Landed, per port. The remaining adopters — a ping-pong Delay, an imager,
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
-3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, and an export
-   plays them. What remains is presentation: a knob does not visibly move while its lane plays, for the
-   same reason a MIDI-driven one does not.
+3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, an export plays
+   them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate and bypass are
    done; what is left there is auto-routing a bare module, CV trim per jack, per-device patches
