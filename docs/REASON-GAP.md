@@ -200,7 +200,8 @@ Ordered by return, not by how big Reason's version was.
   **Chord Player has landed on that foundation.** It scale-corrects each input root, builds one to five tertian
   tones, supports inversion and open voicing, and can add both root octaves and a 9/11/13 colour note together.
   Alter toggles the third outside the current scale while held. The expanded voices keep pitch bend and velocity,
-  and coincident notes across simultaneous input chords are emitted once rather than layered.
+  and coincident notes across simultaneous input chords are emitted once rather than layered. Chord Loom shows
+  every allocated voice and gives Alter its actual momentary pointer/keyboard interaction.
 - **~~A multisample instrument.~~ Landed.** `Multisampler` sits beside the unchanged
   break-slicing `Sampler`: it maps session-loaded recordings by key and velocity, respects root key and
   source sample rate, sustains between per-zone loop points, and instantiates per MIDI voice. Zone maps

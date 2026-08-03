@@ -4323,6 +4323,154 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   border-top: 1px solid rgba(174, 156, 255, 0.12);
 }
 
+/* ---- Chord Loom voice player ------------------------------------------------ */
+.rk-chord-title {
+  position: relative;
+  align-items: center;
+}
+
+.rk-chord-model {
+  color: var(--three);
+  font: 8px var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.rk-chord-readout {
+  position: absolute;
+  right: 126px;
+  color: rgba(255, 196, 92, 0.8);
+  font: 8px var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rk-chord-display {
+  position: relative;
+  height: 96px;
+  flex: 0 0 96px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 176, 46, 0.25);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 176, 46, 0.055), transparent 45%),
+    radial-gradient(circle at 50% 110%, rgba(94, 48, 12, 0.42), rgba(8, 5, 3, 0.97));
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.74);
+}
+
+.rk-chord-display[data-open='yes'] {
+  background:
+    linear-gradient(120deg, rgba(174, 156, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 50% 110%, rgba(94, 48, 12, 0.42), rgba(8, 5, 3, 0.97));
+}
+
+.rk-chord-notes {
+  position: absolute;
+  inset: 9px 10px 27px;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.rk-chord-note {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 236, 203, 0.23);
+  border: 1px solid rgba(255, 176, 46, 0.1);
+  border-radius: 12px 12px 4px 4px;
+  background: rgba(255, 176, 46, 0.025);
+  text-align: center;
+}
+
+.rk-chord-note[data-active='yes'] {
+  color: #241203;
+  border-color: rgba(255, 200, 107, 0.92);
+  background: linear-gradient(180deg, #ffe1a0, var(--three));
+  box-shadow: 0 0 10px rgba(255, 176, 46, 0.34);
+}
+
+.rk-chord-note i,
+.rk-chord-note b,
+.rk-chord-note em {
+  position: absolute;
+  right: 0;
+  left: 0;
+  font-family: var(--mono);
+  font-style: normal;
+}
+
+.rk-chord-note i {
+  top: 4px;
+  font-size: 6px;
+  opacity: 0.62;
+}
+
+.rk-chord-note b {
+  top: 18px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.rk-chord-note em {
+  bottom: 5px;
+  overflow: hidden;
+  font-size: 6px;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.rk-chord-legend {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  left: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  color: var(--dim);
+  font: 7px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rk-chord-legend span:last-child {
+  text-align: right;
+}
+
+.rk-chord-alter {
+  height: 18px;
+  padding: 0 12px;
+  color: var(--three);
+  border: 1px solid rgba(255, 176, 46, 0.56);
+  border-radius: 9px;
+  background: rgba(255, 176, 46, 0.06);
+  font: 7px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.rk-chord-alter[aria-pressed='true'] {
+  color: #211000;
+  background: var(--three);
+  box-shadow: 0 0 10px rgba(255, 176, 46, 0.58);
+}
+
+.rk-chord-alter[data-routed='yes'] {
+  outline: 1px solid var(--nine);
+  outline-offset: 2px;
+}
+
+.rk-chord-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 58px);
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 176, 46, 0.12);
+}
+
 /* A patch holding somebody's own file cannot travel in a link, and saying so beats sharing a broken one. */
 .rk-nolink {
   margin: 0 0 0 auto;

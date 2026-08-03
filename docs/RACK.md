@@ -1643,6 +1643,12 @@ both bundle cost on the editing-only path and visual competition with a readable
    removes coincident generated pitches across simultaneously played input roots, so two chords sharing E do
    not layer it twice. Four device patches cover a triad, seventh, open ninth and the full wide thirteenth.
 
+   Chord Loom completes the editing path with all eight allocated lanes visible at once, including their pitch
+   class and octave relative to the selected key. The header states the previewed key, scale and actual output
+   count; all eight persistent controls remain ordinary routed `ParamControl`s. Alter is the exception because
+   its behaviour is the point: pointer or keyboard press writes one and release, cancellation or lost focus
+   writes zero, matching Reason's momentary button instead of turning it into a misleading latch.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.
