@@ -40,10 +40,10 @@ still lacks measured against *Reason* rather than against the groovebox, which i
 list with a different order. Undo and stereo cables have landed; recorded automation now leads it.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
-promise and for editor parity with ReBirth. It also fixes the implementation order:
-independent machine clips (now landed) before song automation, then section buses/effects,
-the remaining fast pattern tools and interchange. `docs/RACK.md` remains the implementation
-record for the modular engine itself.
+promise and for editor parity with ReBirth. Its dependency order—independent machine clips,
+song automation, section buses/effects, fast pattern tools and interchange—has landed. Faster
+sequential note entry is the remaining editor refinement. `docs/RACK.md` remains the
+implementation record for the modular engine itself.
 
 The first interchange layer is landed: rack patches can retain the complete versioned
 song without rewriting it, including a future song this build cannot decode, and expose
@@ -71,7 +71,8 @@ persisted inside a compatible song or at patch level for rack-native work. The r
 Groovebox device also authors the same drive, PCF, compressor, delay and reverb settings as
 the original editor, including the PCF's off/on/accent pattern lane; rack mode still adds
 patchable Drive, SVF, Compressor and Delay modules around that compatible song. Next, close
-the rack-side stem-review gap and the remaining fast-entry refinements; do not duplicate
+the remaining fast-entry refinements; the rack now shares the retained song's per-voice stem
+review/export desk while keeping its rack-graph WAV explicit and separate. Do not duplicate
 authored patterns into anonymous rack primitives.
 
 ## What is deliberate

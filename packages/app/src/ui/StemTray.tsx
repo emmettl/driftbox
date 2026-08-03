@@ -13,10 +13,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { downloadBlob } from '../persistence'
 import { useBox } from '../store'
+import './StemTray.css'
 
 interface Props {
   onClose: () => void
   onExported: (count: number) => void
+}
+
+interface ReviewProps extends Props {
+  song: Song
+  running: boolean
+  stopTransport: () => void
+  /** Prefix shared by one-off saves and the complete set. */
+  filePrefix?: string
 }
 
 function stemName(id: string): string {
@@ -25,9 +34,10 @@ function stemName(id: string): string {
     ?? id
 }
 
-const fileName = (stem: Stem, index: number) => {
+const fileName = (stem: Stem, index: number, prefix = 'driftbox') => {
   const safe = stem.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  return `driftbox-${index + 1}-${safe}.wav`
+  const document = prefix.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  return `${document || 'driftbox'}-${index + 1}-${safe}.wav`
 }
 
 const PREVIEW_SECONDS = 4
@@ -49,12 +59,14 @@ function stemPreviewStart(song: Song, id: string): number {
  * stops the live song first, because hearing one isolated voice over the complete mix would claim to be
  * an audition while hiding the thing somebody is trying to check.
  */
-export function StemTray({ onClose, onExported }: Props) {
-  const song = useBox((state) => state.song)
-  const running = useBox((state) => state.running)
-  const toggleTransport = useBox((state) => state.toggleTransport)
-  const exportStems = useBox((state) => state.exportStems)
-  const exporting = useBox((state) => state.rendering)
+export function StemReviewTray({
+  song,
+  running,
+  stopTransport,
+  filePrefix = 'driftbox',
+  onClose,
+  onExported,
+}: ReviewProps) {
   const ids = useMemo(() => voicesUsed(song), [song])
   const cache = useRef(new Map<string, Stem>())
   const pending = useRef(new Map<string, Promise<Stem | null>>())
@@ -62,6 +74,7 @@ export function StemTray({ onClose, onExported }: Props) {
   const source = useRef<AudioBufferSourceNode | null>(null)
   const alive = useRef(true)
   const [rendering, setRendering] = useState<string | null>(null)
+  const [exporting, setExporting] = useState<string | null>(null)
   const [playing, setPlaying] = useState<string | null>(null)
   const [ready, setReady] = useState<ReadonlySet<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
@@ -114,7 +127,7 @@ export function StemTray({ onClose, onExported }: Props) {
     const audio = context.current ?? new AudioContext()
     context.current = audio
     if (audio.state === 'suspended') await audio.resume()
-    if (running) toggleTransport()
+    if (running) stopTransport()
 
     setRendering(id)
     try {
@@ -146,7 +159,7 @@ export function StemTray({ onClose, onExported }: Props) {
     try {
       const [stem] = await renderStems(song, { only: [id] })
       if (!stem || !alive.current) return
-      downloadBlob(toWav(stem.buffer), fileName(stem, index))
+      downloadBlob(toWav(stem.buffer), fileName(stem, index, filePrefix))
     } catch {
       if (alive.current) setError(`Could not render ${stemName(id)}.`)
     } finally {
@@ -162,13 +175,45 @@ export function StemTray({ onClose, onExported }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  useEffect(() => () => {
-    alive.current = false
-    stop(false)
-    const audio = context.current
-    context.current = null
-    if (audio && audio.state !== 'closed') void audio.close()
+  useEffect(() => {
+    // React's development StrictMode mounts, cleans up and mounts effects once more.
+    // Reset the guard so that rehearsal does not leave every async preview looking dead.
+    alive.current = true
+    return () => {
+      alive.current = false
+      stop(false)
+      const audio = context.current
+      context.current = null
+      if (audio && audio.state !== 'closed') void audio.close()
+    }
   }, [stop])
+
+  const exportAll = async () => {
+    stop()
+    setError(null)
+    let written = 0
+    try {
+      for (const [index, id] of ids.entries()) {
+        if (!alive.current) return
+        setExporting(id)
+        const [stem] = await renderStems(song, { only: [id] })
+        if (!stem || !alive.current) return
+        downloadBlob(toWav(stem.buffer), fileName(stem, index, filePrefix))
+        written++
+        // Browsers commonly collapse several downloads dispatched in one event turn.
+        await new Promise((done) => setTimeout(done, 120))
+      }
+      if (alive.current) {
+        setExporting(null)
+        onExported(written)
+      }
+    } catch {
+      if (alive.current) {
+        setExporting(null)
+        setError('Could not export the complete stem set.')
+      }
+    }
+  }
 
   const busy = rendering ?? exporting
 
@@ -240,7 +285,7 @@ export function StemTray({ onClose, onExported }: Props) {
             disabled={busy !== null || ids.length === 0}
             onClick={() => {
               stop()
-              void exportStems().then(onExported)
+              void exportAll()
             }}
           >
             Export all stems
@@ -249,5 +294,20 @@ export function StemTray({ onClose, onExported }: Props) {
       </section>
     </div>,
     document.body,
+  )
+}
+
+/** Sequencer adapter for the shared retained-song review desk. */
+export function StemTray(props: Props) {
+  const song = useBox((state) => state.song)
+  const running = useBox((state) => state.running)
+  const toggleTransport = useBox((state) => state.toggleTransport)
+  return (
+    <StemReviewTray
+      {...props}
+      song={song}
+      running={running}
+      stopTransport={toggleTransport}
+    />
   )
 }

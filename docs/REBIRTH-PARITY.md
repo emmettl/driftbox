@@ -12,9 +12,9 @@ relationship Reason had to ReBirth:
 This is a product contract, not a claim about the current implementation. The rack is
 already a strict superset in routing, modulation, MIDI, sampling, sequencing and sound
 design. It now hosts the four authored instruments, their compact pattern workflow, song
-automation and the shared performance visualiser without flattening them. The remaining
-gaps are the authored ReBirth-style effect path, a few fast-entry details and rack-side
-stem review/export.
+automation, effects, stem review and the shared performance visualiser without flattening
+them. The remaining groovebox-editor gap is faster sequential note entry; rack-native
+source export remains a separate modular-workflow concern.
 
 ## What “strict superset” means
 
@@ -60,7 +60,7 @@ user could approximate it from oscillators.
 | Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
 | Distortion, PCF, compressor, delay | Authored master inserts, off/on/accent PCF pattern lane and delay send | Same retained controls and PCF lane plus patchable Drive, SVF, Compressor and Delay modules | Landed; rack remains the strict superset |
 | MIDI play/control/learn | Hardware notes play the focused 303 or pitched drum; learn covers tempo, swing, authored controls, routing and effects | Shared host plus polyphony, channel routing, modulation and Combinator learn | Landed; rack remains the strict superset |
-| Stereo mix and stems export | Mastered song mix and pre-master stems | Retained mastered song mix plus patch render | Add stem export to rack mode when its review UI has a rack-native source model |
+| Stereo mix and stems export | Mastered song mix and pre-master stems | Same retained mix and per-voice stem review/export plus a distinct patch render | Landed for compatible songs; rack-native source stems require an explicit modular source model |
 | Named local song library | Shared typed song/patch shelf plus autosave | Same shared shelf, including legacy patch migration | Landed; rack-only work stays visible but cannot be flattened in groovebox mode |
 | Visuals and performance pad | Shared reactive scenes over the master XY filter | Same scene host over the same master controls in split/full-pad views | Landed; scene identity stays inside a compatible Song or a rack-native Patch |
 | Shareable, repairable documents | Yes | Yes | Versioned bridge preserving unknown rack-only content |
@@ -159,7 +159,10 @@ Patch, and the shared scene host sits over the rack's existing master XY filter 
 obscuring the patcher. Authored drive, PCF, compressor, delay and reverb settings now stay in
 that same compatible envelope, and both editors program the PCF's off/on/accent pattern lane.
 Rack-native equivalents remain additive modules, not substitutes for retained song data.
-Next, close the rack-side stem-review gap and faster sequential-entry refinements. Do not
+The same boundary now applies to export: rack mode reviews and saves the retained song's
+pre-master voice stems without claiming that they contain rack-only cables or processing;
+Patch WAV remains a separately labelled render. Next, close the faster sequential-entry
+refinements. Do not
 compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
