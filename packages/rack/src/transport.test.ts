@@ -3,7 +3,7 @@ import { compile } from './compile.js'
 import { Random } from './dsp/random.js'
 import { Graph } from './graph.js'
 import { MODULES } from './modules/index.js'
-import type { ModuleDef, Patch, Processor, Registry } from './types.js'
+import type { ModuleDef, Patch, Processor, Registry, Transport } from './types.js'
 
 // The transport, and bulk data into modules. Phase A of `docs/DNB.md` — neither is much use on its own and
 // nothing rhythmic is possible without the first.
@@ -14,6 +14,7 @@ const FRAMES = 128
 /** Records the bulk data it was handed, so the mechanism can be tested before a sampler exists to use it. */
 class DataProbeProcessor implements Processor {
   static seen: (Float32Array | undefined)[] = []
+  static transports: Transport[] = []
   private readonly data: { get(slot: string): Float32Array | undefined }
 
   constructor(
@@ -30,7 +31,9 @@ class DataProbeProcessor implements Processor {
     outlets: Float32Array[],
     _params: Float32Array[],
     frames: number,
+    transport?: Transport,
   ): void {
+    if (transport) DataProbeProcessor.transports.push(transport)
     const table = this.data.get('table')
     DataProbeProcessor.seen.push(table)
     // Output the first value, so the data can be observed through the audio as well as directly.
@@ -93,6 +96,18 @@ const clocked = (params: Record<string, number> = {}): Patch => ({
 })
 
 describe('the transport', () => {
+  it('carries one clamped global shuffle value to every processor', () => {
+    DataProbeProcessor.transports = []
+    const { graph } = build({ modules: [{ id: 'probe', type: 'probe' }], cables: [] })
+    graph.setTransport(120, true, 0.67)
+    render(graph, 1)
+    expect(DataProbeProcessor.transports.at(-1)?.shuffle).toBeCloseTo(0.67)
+
+    graph.setTransport(120, true, 9)
+    render(graph, 1)
+    expect(DataProbeProcessor.transports.at(-1)?.shuffle).toBe(1)
+  })
+
   it('does nothing until it is running', () => {
     const { graph } = build(clocked())
     graph.setTransport(174, false)

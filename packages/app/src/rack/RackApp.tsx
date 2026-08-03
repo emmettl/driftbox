@@ -134,6 +134,7 @@ export default function RackApp() {
   // song's tempo. Writing a different tempo is an explicit rack override and therefore
   // changes the compatibility state to rack-extended.
   const tempo = patch.tempo ?? retainedSong?.bpm ?? 120
+  const shuffle = retainedSong?.swing ?? 0
 
   const rack = useRef<Rack | null>(null)
   /** Where the rack's transport is, in musical time. See `playhead.ts`. */
@@ -172,6 +173,7 @@ export default function RackApp() {
               live.setTransport(
                 currentPatch.tempo ?? grooveboxSong(currentPatch)?.bpm ?? 120,
                 true,
+                grooveboxSong(currentPatch)?.swing ?? 0,
               )
               useRack.getState().setRunning(true)
               void hosted.startAt(start)
@@ -1055,7 +1057,7 @@ export default function RackApp() {
     }
     // The gesture that starts audio is also the gesture that starts the music. Anything else means arriving,
     // pressing a button, and getting silence — which is the "instant DJ" problem in `docs/DNB.md`.
-    live.setTransport(currentPatch.tempo ?? song?.bpm ?? 120, true)
+    live.setTransport(currentPatch.tempo ?? song?.bpm ?? 120, true, song?.swing ?? 0)
     setRunning(true)
     setStarted(true)
     if (hosted) await hosted.start()
@@ -1128,7 +1130,7 @@ export default function RackApp() {
   useEffect(() => {
     const live = rack.current
     if (!live) return
-    live.setTransport(tempo, playing)
+    live.setTransport(tempo, playing, shuffle)
     // The rack's own playhead, kept beside the graph's. Starting rewinds and a tempo change banks what has
     // already elapsed, exactly as `Graph.setTransport` does — see `playhead.ts` for why recomputing from
     // total elapsed seconds would move every position already recorded.
@@ -1155,7 +1157,7 @@ export default function RackApp() {
       groovebox.current?.stop()
       if (ctx.state === 'running' && audioInputState !== 'on') void ctx.suspend()
     }
-  }, [audioInputState, patch.tempo, tempo, playing])
+  }, [audioInputState, patch.tempo, playing, shuffle, tempo])
 
   /**
    * Tell the store where the transport is, so an armed knob turn records somewhere real.

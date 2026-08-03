@@ -134,6 +134,9 @@ Three things came out of building it, all found by tests:
 - **It fires the downbeat when play is pressed**, the same decision the Clock makes by arming itself at
   construction. A transport silent until a whole beat has gone by reads as broken, and at 60bpm that is a
   second of nothing.
+- **One clamped global shuffle value travels with tempo.** It is timing context rather than patch wiring:
+  a retained Groovebox song supplies its master swing, while a native rack host that omits it remains straight.
+  Modules still opt in explicitly, so adding the value cannot shuffle an older patch by accident.
 
 Tempo lives in the patch, like the engine's `Song.bpm`, because a drum-and-bass patch *is* 174 and one shared at
 the wrong tempo is not the patch that was shared. Absent means 120, so a patch written before this round-trips

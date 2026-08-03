@@ -83,6 +83,8 @@ export interface Transport {
   beat: number
   /** How many beats one block covers, so a module can work out where inside the block a division falls. */
   beatsPerBlock: number
+  /** Global odd-sixteenth delay, from straight at 0 to the maximum shuffle at 1. Optional for older hosts. */
+  shuffle?: number
 }
 
 /**
