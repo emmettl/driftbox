@@ -15,6 +15,7 @@ import { FOLLOWER_MODULE } from './follower.js'
 import { GROOVEBOX_MODULE } from './groovebox.js'
 import { IMAGER_MODULE } from './imager.js'
 import { LADDER_MODULE } from './ladder.js'
+import { LIMITER_MODULE } from './limiter.js'
 import { LFO_MODULE } from './lfo.js'
 import { MIDI_MODULE } from './midi.js'
 import { METER_MODULE } from './meter.js'
@@ -37,7 +38,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-seven modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-eight modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -95,6 +96,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   EQ_MODULE,
   IMAGER_MODULE,
   COMPRESSOR_MODULE,
+  LIMITER_MODULE,
 
   DELAY_MODULE,
   PING_PONG_MODULE,
@@ -143,6 +145,7 @@ export { FOLLOWER_MODULE, FollowerProcessor } from './follower.js'
 export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './groovebox.js'
 export { IMAGER_MODULE, ImagerProcessor } from './imager.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
+export { LIMITER_MODULE, LimiterProcessor } from './limiter.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
 export { METER_MODULE, MeterProcessor } from './meter.js'

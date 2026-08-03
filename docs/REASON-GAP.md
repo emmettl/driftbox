@@ -185,9 +185,10 @@ Ordered by return, not by how big Reason's version was.
   different curves — tube sigmoid, tape arctangent, exponential fuzz, and hard-clipped bit reduction —
   before a shared tone stage and output level. The original normalised `Drive` stays the predictable
   one-curve tool and every patch using it keeps its sound.
-- **A limiter.** `Compressor` is dynamics; the ±4 clamp in the Graph is the only ceiling.
-  `RACK.md` records eight voices of the Acid patch peaking at 3.93 against that clamp, which is
-  the measurement that says a maximiser has somewhere to go.
+- **~~A limiter.~~ Landed.** The Graph now has a fixed terminal limiter as its safety invariant, and the
+  patch has the mastering device that is a creative decision: stereo-linked 5 ms look-ahead, input gain,
+  a ceiling, release, and gain reduction as an outlet. The final comparison guarantees the stated ceiling;
+  the terminal still protects patches that do not use the device.
 - **~~Audio input~~ — landed.** `getUserMedia()` capture enters the worklet on a fifth host bus
   and the Audio Input source makes it patchable. The app enumerates `audioinput` devices after
   permission, switches them by exact `deviceId`, disables speech processing, and stops every

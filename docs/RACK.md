@@ -1231,14 +1231,13 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Eighteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
-   Distortion, Groovebox, Imager, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker, Transport
-   and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs to the
-   rack rather than to one voice. Delay is the clearest example — eight two-second buffers would be
-   eight separate delays —
-   and Imager makes the other failure vivid: widening each voice before the polyphonic collapse would
-   simply throw that width away. `poly.test.ts` pins this list so a new module cannot become shared
-   merely because nobody made the decision.
+   Nineteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
+   Distortion, Groovebox, Imager, Limiter, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
+   Transport and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
+   to the rack rather than to one voice. Delay is the clearest example — eight two-second buffers would
+   be eight separate delays — and Imager makes the other failure vivid: widening each voice before the
+   polyphonic collapse would simply throw that width away. `poly.test.ts` pins this list so a new module
+   cannot become shared merely because nobody made the decision.
 
    Two things needed adding that the plan did not mention:
 
@@ -1523,6 +1522,16 @@ both bundle cost on the editing-only path and visual competition with a readable
    It is stereo because this device also belongs across a bus, with independent tone and DC-blocker state
    per channel. `Drive` remains the level-normalised predictable curve and no saved patch changes sound;
    choosing the larger device is an explicit request for character rather than an upgrade side effect.
+
+   **5h. A look-ahead limiter.** ✅ Built as a patchable mastering device above the Graph's fixed terminal
+   safety limiter. A five-millisecond stereo delay gives one linked detector time to see a peak and move
+   both channels together; input gain drives the master into it, ceiling and release define the result,
+   and a GR outlet makes the reduction available elsewhere in the patch.
+
+   The look-ahead maximum is a monotonic queue rather than a scan of the whole delay for every sample.
+   That keeps the work proportional to samples rather than sample rate times window length. The last
+   ceiling comparison catches the fraction left by the attack ramp, so this device's number is a promise;
+   the terminal limiter remains the invariant for patches that never add one.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

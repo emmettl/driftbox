@@ -284,6 +284,11 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
     name: 'Pump',
     params: { threshold: -22, ratio: 8, attack: 0.03, release: 0.35, makeup: 5, knee: 1 },
   },
+
+  // ---- Limiter ----------------------------------------------------------------------------------
+  { id: 'transparent', type: 'limiter', name: 'Transparent', params: { release: 0.18 } },
+  { id: 'loud', type: 'limiter', name: 'Loud', params: { inputGain: 6, ceiling: -1, release: 0.1 } },
+  { id: 'punch', type: 'limiter', name: 'Punch', params: { inputGain: 3, ceiling: -0.3, release: 0.05 } },
   // Not a limiter — `REASON-GAP.md` still wants one of those — but it is what this device can do in that
   // direction, and a hard knee is the part that matters.
   {
