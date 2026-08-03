@@ -62,10 +62,13 @@ Two halves, and only one of them is in the parity ledger:
 - **The lane.** The groovebox already has a versioned automation timeline with a recorder
   (`engine/automation.ts`). REBIRTH-PARITY.md has the row: expose the shared recorder in rack
   mode. That is interchange work.
-- **The clock to record against.** `graph.ts` notes that nothing is scheduled against a frame
-  yet — `param` messages ramp across the block that follows them and no further. Sample-accurate
-  automation needs the message ABI to grow a frame, which is the one growth `RACK.md` says to
-  resist and the one that would earn it.
+- **The clock to record against — landed.** `param` messages take an optional `frame`, so a change
+  starts at the sample asked for rather than at the next block boundary, up to 2.9ms out. It is the one
+  growth `RACK.md` said to resist and the one that earned it, and it is a field on a message that
+  already existed rather than a sixth kind. `Rack.scheduleParam` and `Rack.frameFor` are the host half;
+  a schedule made before `start()` travels in `processorOptions`, because no port message reaches an
+  offline render. **Playback is therefore unblocked and recording is not yet wired** — what is left is
+  the interchange work above, not anything architectural.
 
 ### 3. ~~There is no undo~~ — landed
 
@@ -184,7 +187,8 @@ Worth writing down so nobody builds them twice.
 1. ~~Undo.~~ Landed. Cheapest, and it makes everything after it safer to try.
 2. ~~Stereo cables.~~ Landed, per port. The remaining adopters — a ping-pong Delay, an imager,
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
-3. Recorded automation, once the ABI carries a frame.
+3. Recorded automation. ~~The ABI now carries a frame~~ — playback is unblocked; exposing the shared
+   recorder in rack mode is what remains, and it is interchange work rather than architecture.
 4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate and bypass are
    done; what is left there is auto-routing a bare module, CV trim per jack, per-device patches

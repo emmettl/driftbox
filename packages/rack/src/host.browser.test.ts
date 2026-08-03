@@ -34,3 +34,57 @@ describe('a host-fed rack source in Web Audio', () => {
     rack.stop()
   })
 })
+
+describe('scheduling a param against a frame, in a real worklet', () => {
+  // `currentFrame` is the load-bearing assumption of the whole feature and it is a global that only exists
+  // inside a real AudioWorkletGlobalScope. Everything in `graph.test.ts` and `worklet.test.ts` supplies it —
+  // one as an argument, one on `globalThis` — so neither can tell whether the browser actually has it. If it
+  // did not, or were named something else, the worklet would throw on its first block and every patch would
+  // go silent in production only. This is the only test that can say.
+
+  it('lands the change at the frame asked for and not at the block boundary', async () => {
+    const sampleRate = 22_050
+    // A quarter of a second, which is plenty of blocks either side of the moment being asked for.
+    const context = new OfflineAudioContext(2, sampleRate / 4, sampleRate)
+    // An Offset with nothing patched into it is a DC source: `in * gain + offset` at silence is the knob.
+    const patch: Patch = {
+      modules: [
+        { id: 'o', type: 'offset' },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [{ from: ['o', 'out'], to: ['out', 'in'] }],
+    }
+    const rack = new Rack(context)
+    rack.patch = patch
+
+    // **Scheduled before `start()`, and that is the whole reason this works.** No port message reaches an
+    // OfflineAudioContext posted before `startRendering` — the audio thread is not running yet — so a
+    // schedule sent afterwards is simply absent from the file. Measured: an ordinary `setParam` posted
+    // here is lost the same way, which is why the plan and any loaded sample already travel as
+    // `processorOptions`. A change made before the node exists is held and seeded with them.
+    // Deliberately not on a block boundary: 1000 is 7 blocks and 104 samples in, so a change that landed
+    // at the boundary instead would be off by more than a rounding error and this would see it.
+    const frame = 1000
+    rack.scheduleParam('o', 'offset', 0.5, frame)
+
+    expect(await rack.start()).toBe(true)
+    rack.output?.connect(context.destination)
+
+    const left = (await context.startRendering()).getChannelData(0)
+    // Silent before, moved after. The couple of samples either side of the seam are the ramp itself.
+    expect(left[frame - 1]).toBeCloseTo(0, 4)
+    expect(left[frame + 200]).toBeCloseTo(0.5, 2)
+    rack.stop()
+  })
+
+  it('converts a context time to the frame the audio thread will call it', () => {
+    const context = new OfflineAudioContext(2, 2048, 44_100)
+    const rack = new Rack(context)
+    // The one part of the contract easy to get subtly wrong — milliseconds, or a count of blocks, would
+    // both be plausible and both silently put automation in the wrong place.
+    expect(rack.frameFor(1)).toBe(44_100)
+    expect(rack.frameFor(0.5)).toBe(22_050)
+    expect(rack.frameFor(Number.NaN)).toBe(0)
+    expect(rack.frameFor(-1)).toBe(0)
+  })
+})

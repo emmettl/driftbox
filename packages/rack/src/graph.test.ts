@@ -385,6 +385,130 @@ describe('moving a knob', () => {
   })
 })
 
+describe('moving a knob at a moment', () => {
+  // What recorded automation needed. A param change lands at the next block boundary, which is up to 2.9ms
+  // out at 44.1kHz — inaudible on a slow sweep and quite audible on a filter meant to open on the downbeat.
+  // These pin the timing; `values` is where the arithmetic is.
+
+  const probePatch: Patch = { modules: [{ id: 'p', type: 'probe' }], cables: [] }
+  const slotOf = (patch: Patch) => compile(patch, PROBES).slots.p.value
+
+  /** Render `blocks` blocks, telling the Graph where each one sits on the context clock. */
+  function renderAt(graph: Graph, blocks: number, from = 0): Float64Array {
+    const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
+    const out = new Float64Array(blocks * FRAMES)
+    for (let block = 0; block < blocks; block++) {
+      graph.process(channels, [], from + block * FRAMES)
+      out.set(channels[0], block * FRAMES)
+    }
+    return out
+  }
+
+  it('holds the old value until the frame asked for, then moves', () => {
+    // The whole feature in one assertion: silence up to the sample, sound from it.
+    const graph = graphFor(probePatch, PROBES)
+    graph.setParam(slotOf(probePatch), 0.75, undefined, 200)
+
+    const audio = renderAt(graph, 2)
+    // Frame 200 is 72 samples into the second block.
+    expect(firstBad(audio.subarray(0, 200), (x) => x === 0)).toBe(-1)
+    expect(audio[255]).toBeCloseTo(0.75, 5)
+  })
+
+  it('ramps from the frame rather than stepping at it', () => {
+    // A scheduled change is still a change, so it still must not click. It ramps over what is left of the
+    // block instead of over all of it, which is the only difference from a knob.
+    const graph = graphFor(probePatch, PROBES)
+    graph.setParam(slotOf(probePatch), 0.75, undefined, 64)
+
+    const audio = renderAt(graph, 1)
+    expect(audio[63]).toBe(0)
+    // The first sample of the ramp, so the change starts at the frame asked for and not one after it.
+    expect(audio[64]).toBeGreaterThan(0)
+    let monotonic = true
+    for (let i = 65; i < FRAMES; i++) if (audio[i] <= audio[i - 1]) monotonic = false
+    expect(monotonic).toBe(true)
+    expect(audio[FRAMES - 1]).toBeCloseTo(0.75, 5)
+  })
+
+  it('steps a stepped param exactly at the frame, with nothing in between', () => {
+    // A selector caught between two settings is not a sound. There is nothing to interpolate — only a
+    // moment to change at, which is precisely what this buys.
+    const patch: Patch = { modules: [{ id: 'p', type: 'probe-stepped' }], cables: [] }
+    const graph = graphFor(patch, PROBES)
+    graph.setParam(slotOf(patch), 0.75, undefined, 100)
+
+    const audio = renderAt(graph, 1)
+    expect(firstBad(audio.subarray(0, 100), (x) => x === 0)).toBe(-1)
+    expect(firstBad(audio.subarray(100), (x) => x === 0.75)).toBe(-1)
+  })
+
+  it('applies a frame that has already gone by rather than dropping it', () => {
+    // Late is a timing error somebody can hear and reason about. Vanishing is a mystery, and a host reading
+    // a lane a block late is an ordinary thing to happen under load.
+    const graph = graphFor(probePatch, PROBES)
+    graph.setParam(slotOf(probePatch), 0.75, undefined, 10)
+
+    const audio = renderAt(graph, 2, 1000)
+    expect(audio[FRAMES - 1]).toBeCloseTo(0.75, 5)
+  })
+
+  it('keeps the last change when two land in one block, by frame and not by arrival', () => {
+    // "Later wins" is only defensible if later means later in time. A host posting a lane out of order
+    // would otherwise hear whichever message happened to be delivered last.
+    const graph = graphFor(probePatch, PROBES)
+    const slot = slotOf(probePatch)
+    graph.setParam(slot, 0.75, undefined, 90)
+    graph.setParam(slot, 0.25, undefined, 30)
+
+    const audio = renderAt(graph, 2)
+    expect(audio[FRAMES - 1]).toBeCloseTo(0.75, 5)
+  })
+
+  it('does not offset the next knob turn', () => {
+    // `rampAt` is per slot and persists unless cleared, so a scheduled move followed by an ordinary one is
+    // exactly where a stale offset would show up — as a knob that hesitates before moving.
+    const graph = graphFor(probePatch, PROBES)
+    const slot = slotOf(probePatch)
+    graph.setParam(slot, 0.25, undefined, 100)
+    renderAt(graph, 1)
+
+    graph.setParam(slot, 0.75)
+    const audio = renderAt(graph, 1, FRAMES)
+    // A knob ramps from the very first sample, so it has already left where it started.
+    expect(audio[0]).toBeGreaterThan(0.25)
+    expect(audio[FRAMES - 1]).toBeCloseTo(0.75, 5)
+  })
+
+  it('leaves an unscheduled knob byte-identical to before scheduling existed', () => {
+    // The immediate path is an offset of zero through the same arithmetic, so this is the regression test
+    // for the whole change: every existing patch must sound exactly as it did.
+    const graph = graphFor(probePatch, PROBES)
+    graph.setParam(slotOf(probePatch), 0.75)
+    const audio = render(graph, 1)
+    expect(audio[0]).toBeCloseTo(0.75 / FRAMES, 5)
+    expect(audio[FRAMES - 1]).toBeCloseTo(0.75, 5)
+  })
+
+  it('treats a nonsense frame as a knob rather than losing the change', () => {
+    const graph = graphFor(probePatch, PROBES)
+    graph.setParam(slotOf(probePatch), 0.75, undefined, Number.NaN)
+    const audio = render(graph, 1)
+    expect(audio[FRAMES - 1]).toBeCloseTo(0.75, 5)
+  })
+
+  it('forgets what was scheduled against a patch that no longer exists', () => {
+    // A rebuild renumbers the slots, so a change waiting on slot 3 would land on whatever parameter is
+    // third in the new patch — a knob moving on its own, in a module nobody touched.
+    const graph = graphFor(probePatch, PROBES)
+    graph.setParam(slotOf(probePatch), 0.75, undefined, 5000)
+    graph.setPlan(compile(probePatch, PROBES))
+
+    const audio = renderAt(graph, 60)
+    expect(firstBad(audio, (x) => x === 0)).toBe(-1)
+  })
+})
+
 describe('replacing a plan', () => {
   it('takes effect and does not carry the old patch over', () => {
     const graph = graphFor(

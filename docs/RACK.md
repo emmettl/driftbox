@@ -270,12 +270,33 @@ testable, and clickless, and a slower gesture is the UI's business. The flatteni
 optional: without it the ramp is replayed for as long as the knob sits still, which is a
 sawtooth LFO at the block rate, 344 Hz and very audible. `graph.test.ts` has that test.
 
-Scheduling a param against a frame is **not** built. When it is, `currentFrame` inside the
-worklet is a better clock than `ctx.currentTime`, and the rack's own sequencer will need no
-lookahead timer and no worker ticker at all — only a tempo and a start frame from outside.
+**Scheduling a param against a frame is built** ✅, and it is the one growth the ABI has earned. A
+`param` message may carry an optional `frame`: absent, the change lands at the next block boundary as
+it always has; present, its ramp starts at that sample. Frames count from the start of the context —
+`currentFrame` on the audio thread, which is a better clock than `ctx.currentTime` and the only one
+both sides can see. `Rack.frameFor` converts.
 
-The message set is the ABI: `plan` and `param` today, `transport` when there is one. Resist
-growing it.
+Three things that were not obvious until it was built:
+
+- **Sample-accurate timing, block-rate resolution.** Two changes to one param inside one block still
+  leave only the later one audible, because a param is one ramp per block and always has been. That is
+  the right trade for automation, which wants its move to *start* in the right place; anything moving
+  faster than 344Hz is an LFO, and there is a module for that.
+- **A frame already gone by applies at once rather than being dropped.** Late is a timing error somebody
+  can hear and reason about. Vanishing is a mystery, and a host reading a lane a block late under load
+  is an ordinary thing to happen.
+- **It has to travel in `processorOptions`, not only in a message.** No port message reaches an
+  `OfflineAudioContext` posted before `startRendering`, because that thread is not running yet — the same
+  measured trap that already sends the plan and any loaded sample that way. A schedule made before
+  `start()` is held and seeded with them, and without that, exporting a patch would silently produce a
+  file with the automation missing.
+
+What this does *not* yet do is record. The lane and the recorder exist in `engine/automation.ts`; wiring
+them to rack mode is interchange work, and it is what the clock was missing.
+
+The message set is the ABI: `plan`, `param`, `transport`, `monitor` and `data`. Resist growing it — the
+frame is a field on a message that already existed, not a sixth kind, and that is the shape any further
+growth should take.
 
 ## The module contract
 
