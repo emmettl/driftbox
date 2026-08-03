@@ -152,6 +152,7 @@ export { SAMPLER_MODULE } from './modules/sampler.js'
 export { SEQ_MODULE } from './modules/seq.js'
 export { SVF_MODULE } from './modules/svf.js'
 export { TRANSPORT_MODULE } from './modules/transport.js'
+export { TUNER_MODULE } from './modules/tuner.js'
 export { VCA_MODULE } from './modules/vca.js'
 
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
