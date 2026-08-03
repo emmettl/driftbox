@@ -191,6 +191,29 @@ export const VOCODER_MODULE: ModuleDef = {
   group: 'Filters',
   blurb:
     'One sound wearing another\'s shape. Speak into a saw and the saw talks; run a break into a pad and the pad plays the drums.',
+  guide: {
+    overview:
+      'A vocoder measures the changing frequency shape of the Mod signal and imposes that shape on the Carrier. The carrier supplies the pitch and texture; the modulator supplies the articulation and rhythm.',
+    concepts: [
+      {
+        title: 'Carrier versus Mod',
+        body: 'Patch a harmonically rich synth, noise or pad into Carrier. Patch speech, drums or another animated sound into Mod. Swapping them produces a completely different—and often much quieter—result.',
+      },
+      {
+        title: 'Bands trade clarity for character',
+        body: 'More bands follow the modulator in finer detail and usually improve intelligibility. Fewer bands sound coarser and more obviously synthetic.',
+      },
+    ],
+    firstPatch: [
+      'Patch a held saw chord into Carrier and a spoken or drum signal into Mod.',
+      'Patch Out to the mixer, start with 16 bands, fast Attack and a short Release.',
+      'Raise Dry briefly if you need to verify that the carrier is sounding, then return it to zero and try Shift.',
+    ],
+    watchFor: [
+      'Silence at either input can make the processed output silent; Dry only passes the carrier.',
+      'A pure sine carrier has too little harmonic material for the filters to shape clearly.',
+    ],
+  },
   logo: {
     paths: [
       'M3 14c4-8 7 8 11 0s7 8 11 0',

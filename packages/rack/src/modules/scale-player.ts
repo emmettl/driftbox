@@ -134,6 +134,33 @@ export const SCALE_PLAYER_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Keeps notes and whole chords in key. Correct wrong notes to the nearest scale tone or filter them out.',
+  guide: {
+    overview:
+      'Scale Player sits between a note source and an instrument. It leaves notes in the selected key alone, then either moves outside notes to the nearest scale tone or silences their gates.',
+    concepts: [
+      {
+        title: 'Correct changes pitch',
+        body: 'With Wrong Notes set to Correct, an outside note is quantized to the nearest allowed semitone while Gate and Velocity continue through.',
+      },
+      {
+        title: 'Filter changes rhythm',
+        body: 'With Wrong Notes set to Filter, pitch still passes but the gate is suppressed for outside notes. That turns the scale into a rhythmic mask instead of pitch correction.',
+      },
+      {
+        title: 'Custom uses the faceplate notes',
+        body: 'The named scales follow Key automatically. Custom uses the twelve note switches on the device, transposed by Key, so you can define a pitch collection that is not in the menu.',
+      },
+    ],
+    firstPatch: [
+      'Patch sequencer or MIDI Pitch, Gate and Velocity through the three matching inputs and outputs.',
+      'Choose a Key and Scale, leave Wrong Notes on Correct, and deliberately play chromatic notes.',
+      'Switch to Filter to hear the same notes become rests, then try Custom and enable only a few note buttons.',
+    ],
+    watchFor: [
+      'This device changes note messages, not audio; place it before an oscillator or complete voice.',
+      'Velocity is passed through unchanged even when pitch is corrected.',
+    ],
+  },
   logo: {
     paths: [
       'M7 32h7V17h7v15h7V12h7v20h7V20h7v12h7',

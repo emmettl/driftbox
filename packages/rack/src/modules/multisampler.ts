@@ -243,6 +243,29 @@ export const MULTISAMPLER_MODULE: ModuleDef = {
   group: 'Sources',
   blurb:
     'Maps recordings across keys and velocity layers, with root tuning and sustain loops. Patch MIDI pitch, gate and velocity and play it polyphonically.',
+  guide: {
+    overview:
+      'A Multisample Instrument chooses one recording when a note begins, based on pitch and velocity, then transposes that recording from its root note. Its zones turn a folder of recordings into one playable instrument.',
+    concepts: [
+      {
+        title: 'Zones choose the recording',
+        body: 'Each zone has a key range, velocity range and root note. Where zones overlap, the closest root wins; the chosen recording stays fixed until the next note so a pitch bend cannot switch samples halfway through.',
+      },
+      {
+        title: 'Gate shapes the note',
+        body: 'A rising Gate selects and starts a sample. Attack and Release shape its envelope, while a zone’s sustain loop repeats only while the gate remains held.',
+      },
+    ],
+    firstPatch: [
+      'Load or map a multisample set on the faceplate.',
+      'Patch MIDI V/Oct, Gate and Velocity to the three matching inputs, then patch Out to a mixer or Out device.',
+      'Hold a low and a high note, then adjust Attack and Release; use Env when another module should follow the same shape.',
+    ],
+    watchFor: [
+      'Zone mapping is saved with the patch, but the recording data is local to this session and device.',
+      'No matching key-and-velocity zone means silence, not the nearest arbitrary sample.',
+    ],
+  },
   logo: {
     paths: [
       'M6 31V10h52v21H6z',

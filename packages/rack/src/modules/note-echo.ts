@@ -145,6 +145,33 @@ export const NOTE_ECHO_MODULE: ModuleDef = {
   group: 'Sequencing',
   blurb:
     'Repeats notes or whole chords in time, with a semitone shift and a linear velocity slope on every echo.',
+  guide: {
+    overview:
+      'Note Echo repeats note events rather than audio. Every repeat can move by a fixed pitch interval, change velocity and emit a new gate, so the downstream instrument plays each echo as a fresh note.',
+    concepts: [
+      {
+        title: 'It belongs before the instrument',
+        body: 'Patch Pitch, Gate and Velocity from MIDI or a sequencer into Note Echo, then send its three outputs to a voice. For an audible delay line after the instrument, use an audio Delay instead.',
+      },
+      {
+        title: 'Each change accumulates',
+        body: 'Pitch is added again on every repeat. Velocity is a per-repeat multiplier, so values below one fade and values above one grow until the output limit is reached.',
+      },
+      {
+        title: 'Dry controls the original note',
+        body: 'Dry On passes the played note before its repeats. Dry Mute emits only the generated echoes, useful for a separate harmony or call-and-response path.',
+      },
+    ],
+    firstPatch: [
+      'Patch MIDI Pitch, Gate and Velocity into Note Echo and its matching outputs into a synth voice.',
+      'Choose Tempo sync, three repeats, a 1/8 division and Pitch +7 for rising fifths.',
+      'Set Velocity below 1 for a fade, then shorten Gate if repeated notes overlap too much.',
+    ],
+    watchFor: [
+      'Tempo mode follows the rack transport; Free mode uses Time ms.',
+      'Whole played chords repeat together because the device is polyphonic.',
+    ],
+  },
   logo: {
     paths: [
       'M7 13h10v10H7zM27 17h9v9h-9zM46 21h8v8h-8z',
