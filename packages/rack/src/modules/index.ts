@@ -8,6 +8,7 @@ import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
 import { COMPRESSOR_MODULE } from './compressor.js'
 import { DELAY_MODULE } from './delay.js'
+import { DISTORTION_MODULE } from './distortion.js'
 import { DRIVE_MODULE } from './drive.js'
 import { EQ_MODULE } from './eq.js'
 import { FOLLOWER_MODULE } from './follower.js'
@@ -21,6 +22,7 @@ import { MIXER_MODULE } from './mixer.js'
 import { NOISE_MODULE } from './noise.js'
 import { OFFSET_MODULE } from './offset.js'
 import { OUT_MODULE } from './out.js'
+import { PHASER_MODULE } from './phaser.js'
 import { PING_PONG_MODULE } from './ping-pong.js'
 import { QUANTIZER_MODULE } from './quantizer.js'
 import { SAMPLE_HOLD_MODULE } from './sample-hold.js'
@@ -35,7 +37,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-five modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-seven modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -89,12 +91,14 @@ export const MODULE_LIST: readonly ModuleDef[] = [
 
   VCA_MODULE,
   DRIVE_MODULE,
+  DISTORTION_MODULE,
   EQ_MODULE,
   IMAGER_MODULE,
   COMPRESSOR_MODULE,
 
   DELAY_MODULE,
   PING_PONG_MODULE,
+  PHASER_MODULE,
   REVERB_MODULE,
 
   ADSR_MODULE,
@@ -133,6 +137,7 @@ export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligat
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
+export { DISTORTION_MODULE, DistortionProcessor } from './distortion.js'
 export { DRIVE_MODULE, DriveProcessor } from './drive.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './follower.js'
 export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './groovebox.js'
@@ -145,6 +150,7 @@ export { MIXER_MODULE, MixerProcessor } from './mixer.js'
 export { NOISE_MODULE, NoiseProcessor } from './noise.js'
 export { OFFSET_MODULE, OffsetProcessor } from './offset.js'
 export { OUT_MODULE, OutProcessor } from './out.js'
+export { PHASER_MODULE, PhaserProcessor } from './phaser.js'
 export { PING_PONG_MODULE, PingPongProcessor } from './ping-pong.js'
 export { QUANTIZER_MODULE, QuantizerProcessor } from './quantizer.js'
 export { SAMPLE_HOLD_MODULE, SampleHoldProcessor } from './sample-hold.js'
