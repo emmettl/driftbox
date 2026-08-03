@@ -45,10 +45,11 @@ theoretical: **Out** (both ports, so the end of the rack can take a pair at all)
 arithmetically what it was — one FDN, two output mixing vectors, the second being the same taps
 under an alternating sign — so folding it back to mono is unchanged sample for sample.
 
-What is still to come is the rest of the adopters: a ping-pong Delay, a stereo imager, and the
-Groovebox source's four pairs becoming four stereo jacks rather than eight mono ones. That last
-one waits on a port rename, which would move existing cables — adding a channel to a port is
-safe, renaming one is not.
+What is still to come is the rest of the adopters: a ping-pong Delay and the Groovebox source's
+four pairs becoming four stereo jacks rather than eight mono ones. The **Stereo Imager has landed**:
+two-band mid/side width with a crossover, so the bottom can stay centred while the top opens out.
+That last Groovebox change waits on a port rename, which would move existing cables — adding a
+channel to a port is safe, renaming one is not.
 
 ### 2. ~~Nothing records a parameter move~~ — landed
 
@@ -155,8 +156,9 @@ Ordered by return, not by how big Reason's version was.
   The oscillator moved to `dsp/osc.ts` and is shared with the VCO through `deps` rather than copied —
   `Random` was already shared between the LFO and the Noise the same way. A pasted copy would have gone
   on passing `vco.test.ts` while drifting from the numbers it measures.
-- **A stereo imager and a ping-pong delay.** Both were impossible before cables carried a pair
-  and are ordinary modules now. The Delay is the interesting one: making its existing ports
+- **~~A stereo imager~~ and a ping-pong delay.** The Imager has landed: independent low and high
+  mid/side width around a crossover, with transparent defaults and factory starting points for mono
+  bass, a wider top and narrowing. The Delay is the interesting one: making its existing ports
   stereo would change what every patch using it sounds like, so it wants a second thought about
   whether ping-pong is a mode or a module.
 - **A phaser.** Chorus and flanger are patchable and `delay.ts` says so in its header — a delay
@@ -224,8 +226,9 @@ Worth writing down so nobody builds them twice.
 ## The order
 
 1. ~~Undo.~~ Landed. Cheapest, and it makes everything after it safer to try.
-2. ~~Stereo cables.~~ Landed, per port. The remaining adopters — a ping-pong Delay, an imager,
-   the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
+2. ~~Stereo cables.~~ Landed, per port, and the stereo imager has landed on top. The remaining adopters —
+   a ping-pong Delay and the Groovebox's four pairs — are now ordinary module work rather than an
+   architectural change.
 3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, an export plays
    them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.

@@ -231,6 +231,11 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   // `delay.ts` says are patchable rather than modules of their own.
   { id: 'flange', type: 'delay', name: 'Flange Base', params: { time: 0.005, feedback: 0.55 } },
 
+  // ---- Stereo imager ----------------------------------------------------------------------------
+  { id: 'mono-bass', type: 'imager', name: 'Mono Bass', params: { lowWidth: 0, crossover: 180 } },
+  { id: 'wide-top', type: 'imager', name: 'Wide Top', params: { lowWidth: 0.6, highWidth: 1.55 } },
+  { id: 'narrow', type: 'imager', name: 'Narrow', params: { lowWidth: 0.65, highWidth: 0.75 } },
+
   // ---- Reverb -----------------------------------------------------------------------------------
   { id: 'room', type: 'reverb', name: 'Room', params: { size: 0.35, decay: 0.5, damp: 0.55, mix: 0.18 } },
   { id: 'plate', type: 'reverb', name: 'Plate', params: { size: 0.55, decay: 0.78, damp: 0.15, mix: 0.35 } },
