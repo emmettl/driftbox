@@ -22,6 +22,8 @@ import {
 } from '@driftbox/engine'
 import {
   applyModulation,
+  clearLane,
+  setPoint,
   EMPTY_PATCH,
   grooveboxSong,
   insertChunk,
@@ -145,6 +147,28 @@ interface RackState {
 
   setParam: (moduleId: string, paramId: string, value: number) => void
   paramValue: (moduleId: string, paramId: string) => number
+
+  /**
+   * Whether a knob turn is also recorded onto a lane.
+   *
+   * Session state, not document state — deliberately, and for the same reason `running` is. Arming is
+   * something you are doing right now; saving a patch that reopened already recording would overwrite the
+   * automation somebody had just loaded, with the first knob they touched.
+   */
+  automating: boolean
+  setAutomating: (automating: boolean) => void
+  /**
+   * Where the transport is, in sixteenths, or null when there is nowhere to record.
+   *
+   * A callback rather than a number, so the position is read at the instant the knob moves rather than
+   * being pushed into the store sixty times a second — which is the same shape `grooveboxAutomationPosition`
+   * uses, and for the same reason: a stored playhead is a render per frame to deliver a number nobody was
+   * looking at.
+   */
+  automationPosition: (() => number | null) | null
+  setAutomationPosition: (position: (() => number | null) | null) => void
+  /** Forget one parameter's recording. */
+  clearAutomation: (moduleId: string, paramId: string) => void
 
   /**
    * Write one lane of a pattern. **Not structural**, for the same reason a knob is not.
@@ -585,15 +609,46 @@ export const useRack = create<RackState>((set, get) => {
       // That also means grabbing a *routed* knob directly is undone the moment its rotary next moves,
       // which is what Reason does and is the honest behaviour: the routing owns the knob, and the
       // faceplate marks it so rather than disabling it.
-      write(paramKey(moduleId, paramId), false, (patch) => ({
-        ...patch,
-        modules: patch.modules.map((module) =>
-          module.id === moduleId
-            ? { ...module, params: { ...module.params, [paramId]: value } }
-            : module,
-        ),
-      }))
+      //
+      // When armed, the move is also written to a lane at wherever the transport is. Recorded in the same
+      // edit rather than in a second one: two writes would be two undo steps for one gesture, and a patch
+      // could be saved between them with the knob moved and the recording missing.
+      const at = get().automating ? get().automationPosition?.() : null
+      write(paramKey(moduleId, paramId), false, (patch) => {
+        const moved = {
+          ...patch,
+          modules: patch.modules.map((module) =>
+            module.id === moduleId
+              ? { ...module, params: { ...module.params, [paramId]: value } }
+              : module,
+          ),
+        }
+        if (at === null || at === undefined) return moved
+        return { ...moved, automation: setPoint(moved.automation, [moduleId, paramId], at, value) }
+      })
     },
+
+    automating: false,
+    automationPosition: null,
+    setAutomating: (automating) => set({ automating }),
+    setAutomationPosition: (automationPosition) => set({ automationPosition }),
+
+    clearAutomation: (moduleId, paramId) =>
+      // Structural is wrong — a lane changes no module and no cable, so nothing needs recompiling and
+      // clearing one must not click. The same path a knob takes.
+      write(`automation:clear:${moduleId}:${paramId}`, false, (patch) => {
+        const automation = clearLane(patch.automation, [moduleId, paramId])
+        // `?? 0` matters: with no automation at all, `patch.automation?.length` is undefined and
+        // `0 === undefined` is false — so clearing a lane that was never recorded wrote a new patch,
+        // autosaved it and cost an undo step for nothing. Identity is the signal everywhere in this app.
+        if (automation.length === (patch.automation?.length ?? 0)) return patch
+        const next = { ...patch }
+        // Dropped rather than left empty, so clearing the last lane leaves the patch exactly as it was
+        // before anything was recorded — and round-tripping it stays byte-identical.
+        if (automation.length > 0) next.automation = automation
+        else delete next.automation
+        return next
+      }),
 
     setLane: (moduleId, lane, values) => get().setData(moduleId, `lane${lane + 1}`, values),
 

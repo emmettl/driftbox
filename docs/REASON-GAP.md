@@ -50,18 +50,36 @@ Groovebox source's four pairs becoming four stereo jacks rather than eight mono 
 one waits on a port rename, which would move existing cables — adding a channel to a port is
 safe, renaming one is not.
 
-### 2. Nothing records a parameter move
+### 2. ~~Nothing records a parameter move~~ — landed
 
-The rack can *drive* a parameter from four places — a knob, a Combinator routing, a learned CC,
-a cable into a param-shaped inlet — and remembers none of them. Reason's sequencer records any
+The rack could *drive* a parameter from four places — a knob, a Combinator routing, a learned CC,
+a cable into a param-shaped inlet — and remembered none of them. Reason's sequencer records any
 parameter of any device onto a lane against the timeline, and that is most of what makes it a
 DAW rather than an instrument.
 
+It now does. `Patch.automation` is a lane per parameter, recorded against the arrangement and played back
+through the frame the ABI grew. Four decisions worth keeping:
+
+- **Lanes live on the Patch, not on the retained Song.** Reusing the engine's timeline looks like the
+  smaller change and is not: that timeline belongs to a `Song`, and a rack-native patch has none — so
+  automation would have been absent from exactly the patches somebody built out of modules.
+- **A target is `[module, param]`**, the tuple a cable and a Combinator routing already use, so a lane
+  naming a module the file does not contain is caught by the rule cables follow and gets the codec's
+  endpoint parser for free.
+- **Positions are musical; frames are only how they are played.** A lane records at a sixteenth from the
+  top, so it survives a tempo change, a loop and being shared. The conversion to a frame happens at the
+  last possible moment, in the scheduler.
+- **Playback never goes through the patch.** It is sent straight to the audio thread, the same road a MIDI
+  note takes and for the same reason: a lane played back through `setParam` would record itself, one point
+  per tick, for ever. The visible consequence is that a knob does not move on screen while its lane plays —
+  which is exactly what a MIDI-driven param already does, and the live-value channel that would fix both
+  is one piece of work rather than two.
+
 Two halves, and only one of them is in the parity ledger:
 
-- **The lane.** The groovebox already has a versioned automation timeline with a recorder
-  (`engine/automation.ts`). REBIRTH-PARITY.md has the row: expose the shared recorder in rack
-  mode. That is interchange work.
+- **The lane — landed for rack parameters.** The groovebox's own versioned timeline
+  (`engine/automation.ts`) is still what records *its* controls; `packages/rack/src/automation.ts` is the
+  rack's, for module parameters. REBIRTH-PARITY.md's row about the shared recorder is about the first.
 - **The clock to record against — landed.** `param` messages take an optional `frame`, so a change
   starts at the sample asked for rather than at the next block boundary, up to 2.9ms out. It is the one
   growth `RACK.md` said to resist and the one that earned it, and it is a field on a message that
@@ -187,8 +205,9 @@ Worth writing down so nobody builds them twice.
 1. ~~Undo.~~ Landed. Cheapest, and it makes everything after it safer to try.
 2. ~~Stereo cables.~~ Landed, per port. The remaining adopters — a ping-pong Delay, an imager,
    the Groovebox's four pairs — are now ordinary module work rather than an architectural change.
-3. Recorded automation. ~~The ABI now carries a frame~~ — playback is unblocked; exposing the shared
-   recorder in rack mode is what remains, and it is interchange work rather than architecture.
+3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, and an export
+   plays them. What remains is presentation: a knob does not visibly move while its lane plays, for the
+   same reason a MIDI-driven one does not.
 4. ~~EQ~~, then a complete voice — the one thing the picker still most obviously cannot offer.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate and bypass are
    done; what is left there is auto-routing a bare module, CV trim per jack, per-device patches

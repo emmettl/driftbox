@@ -1,3 +1,4 @@
+import { STEPS_PER_BAR } from './automation.js'
 import { Rack } from './index.js'
 import { MODULES } from './modules/index.js'
 import type { Patch, Registry } from './types.js'
@@ -103,6 +104,19 @@ export async function renderPatch(
     }
   }
   rack.setTransport(tempo, true)
+
+  // Recorded parameter moves, scheduled before `start()` for exactly the reason above — this is the case
+  // the seeding path in `Rack.scheduleParam` exists for. Without it an exported file would have the patch
+  // but not the performance, which is the sort of difference somebody only notices after sharing it.
+  //
+  // The whole lane goes in at once rather than through a lookahead scheduler. Offline has no "now" to look
+  // ahead of: the render runs as fast as it can and every frame is known before the first sample.
+  for (const lane of patch.automation ?? []) {
+    for (const point of lane.points) {
+      const seconds = (point.at * 4 * 60) / (STEPS_PER_BAR * tempo)
+      rack.scheduleParam(lane.target[0], lane.target[1], point.value, Math.round(seconds * sampleRate))
+    }
+  }
 
   if (!(await rack.start())) {
     throw new Error('this browser cannot render a rack: no AudioWorklet')

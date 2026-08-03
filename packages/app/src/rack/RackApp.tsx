@@ -8,6 +8,7 @@ import {
   grooveboxSong,
   renderRetainedSongMix,
   patchCompatibility,
+  pointsIn,
   renderPatch,
   type Patch,
 } from '@driftbox/rack'
@@ -17,6 +18,7 @@ import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
+import { moveTo, stepAt, STOPPED, timeOfStep, type Playhead } from './playhead.js'
 import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { SCENES } from '../visual/scenes/index.js'
@@ -116,6 +118,8 @@ export default function RackApp() {
   const setVisual = useRack((s) => s.setVisual)
   const playing = useRack((s) => s.running)
   const setRunning = useRack((s) => s.setRunning)
+  const automating = useRack((s) => s.automating)
+  const setAutomating = useRack((s) => s.setAutomating)
   const ensureSampler = useRack((s) => s.ensureSampler)
   const compatibility = useMemo(() => patchCompatibility(patch), [patch])
   const retainedSong = useMemo(() => grooveboxSong(patch), [patch])
@@ -126,6 +130,10 @@ export default function RackApp() {
   const tempo = patch.tempo ?? retainedSong?.bpm ?? 120
 
   const rack = useRef<Rack | null>(null)
+  /** Where the rack's transport is, in musical time. See `playhead.ts`. */
+  const playhead = useRef<Playhead>(STOPPED)
+  /** The last step the automation scheduler has already queued, so a point is never sent twice. */
+  const scheduledTo = useRef(-1)
   /** The retained song playing beside the rack graph, through the same final performance bus. */
   const groovebox = useRef<DriftboxEngine | null>(null)
   /** Exact envelope currently hosted, so rack-only edits do not rebuild the song engine. */
@@ -1042,6 +1050,18 @@ export default function RackApp() {
     const live = rack.current
     if (!live) return
     live.setTransport(tempo, playing)
+    // The rack's own playhead, kept beside the graph's. Starting rewinds and a tempo change banks what has
+    // already elapsed, exactly as `Graph.setTransport` does — see `playhead.ts` for why recomputing from
+    // total elapsed seconds would move every position already recorded.
+    playhead.current = moveTo(
+      playhead.current,
+      live.output?.context.currentTime ?? 0,
+      playing,
+      tempo,
+    )
+    // A fresh run replays the lanes from the top, so the window starts before the first step rather than
+    // at it — `pointsIn` is open at the start, and a point at step zero would otherwise never be due.
+    if (playing) scheduledTo.current = -1
 
     // An AudioWorkletNode's context is typed as BaseAudioContext, which has neither suspend nor resume — the rack
     // is always given a real AudioContext, so this is a narrowing rather than an assumption.
@@ -1061,6 +1081,68 @@ export default function RackApp() {
       if (ctx.state === 'running' && audioInputState !== 'on') void ctx.suspend()
     }
   }, [audioInputState, patch.tempo, tempo, playing])
+
+  /**
+   * Tell the store where the transport is, so an armed knob turn records somewhere real.
+   *
+   * A callback rather than a pushed number, so the position is read at the instant the knob moves. Null
+   * while there is no rack at all, which is what makes recording before `Start audio` a no-op rather than
+   * a pile of points at step zero.
+   */
+  useEffect(() => {
+    const read = () => {
+      const ctx = rack.current?.output?.context
+      if (!ctx) return null
+      return stepAt(playhead.current, ctx.currentTime)
+    }
+    useRack.getState().setAutomationPosition(read)
+    return () => useRack.getState().setAutomationPosition(null)
+  }, [])
+
+  /**
+   * Play the lanes back.
+   *
+   * A host-side lookahead scheduler, which `docs/RACK.md` argues the rack's *own* sequencer does not need
+   * because that one lives on the audio thread. Automation is different: the lanes are in the document, on
+   * this side, so something here has to hand them over in time. What makes it accurate rather than merely
+   * timely is `scheduleParam` — each point is sent with the frame it belongs at, so the 100ms tick decides
+   * only how far ahead work is done and never where a value lands.
+   *
+   * The window advances by `scheduledTo`, so a point is queued exactly once. `pointsIn` is open at the
+   * start and closed at the end for that reason, and the seam is where getting it wrong shows up as a knob
+   * that jumps twice.
+   */
+  useEffect(() => {
+    if (!playing) return
+    const AHEAD = 0.25
+    const tick = () => {
+      const live = rack.current
+      const ctx = live?.output?.context
+      if (!live || !ctx) return
+      const lanes = useRack.getState().patch.automation
+      if (!lanes || lanes.length === 0) return
+
+      const until = stepAt(playhead.current, ctx.currentTime + AHEAD)
+      if (until <= scheduledTo.current) return
+      for (const lane of lanes) {
+        for (const point of pointsIn(lane, scheduledTo.current, until)) {
+          // Recording writes through `setParam`, which is also what a knob does — so a lane played back
+          // into the store would record itself, one point per tick, for ever. Straight to the audio thread
+          // instead: playback is performance, not an edit, exactly as a MIDI note is.
+          live.scheduleParam(
+            lane.target[0],
+            lane.target[1],
+            point.value,
+            live.frameFor(timeOfStep(playhead.current, point.at)),
+          )
+        }
+      }
+      scheduledTo.current = until
+    }
+    tick()
+    const timer = window.setInterval(tick, 100)
+    return () => window.clearInterval(timer)
+  }, [playing])
 
   useEffect(() => {
     return useRack.subscribe((state, previous) => {
@@ -1198,6 +1280,19 @@ export default function RackApp() {
           <>
             <button type="button" onClick={() => setRunning(!playing)} aria-pressed={playing}>
               {playing ? '■ Stop' : '▶ Play'}
+            </button>
+            {/* Arm. Beside the transport rather than on a faceplate, because it arms every knob in the
+                rack at once — a per-module control would imply you had to arm the one you were about to
+                touch, which is the opposite of how recording a performance works. `aria-pressed` gets the
+                header's own on-state styling, the same as the flip and perform buttons. */}
+            <button
+              type="button"
+              className={automating ? 'rk-arm rk-arm-on' : 'rk-arm'}
+              onClick={() => setAutomating(!automating)}
+              aria-pressed={automating}
+              title="Record knob moves onto the arrangement"
+            >
+              ● Rec
             </button>
             <label className="rk-voices">
               BPM

@@ -43,6 +43,9 @@ export type {
   PatchModule,
   PatchCable,
   ModRoute,
+  AutoLane,
+  AutoPoint,
+  ParamRef,
   Port,
   ParamDef,
   ModuleLogo,
@@ -78,6 +81,16 @@ export type {
 export { compile } from './compile.js'
 export { Graph } from './graph.js'
 export { applyModulation, routeValue, routedParams, sourcePosition } from './modulation.js'
+export {
+  automationLength,
+  clearLane,
+  laneFor,
+  pointsIn,
+  setPoint,
+  STEPS_PER_BAR,
+  stepOf,
+  valueAt,
+} from './automation.js'
 export {
   embedGrooveboxSong,
   grooveboxSong,

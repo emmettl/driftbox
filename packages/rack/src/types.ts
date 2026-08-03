@@ -423,6 +423,37 @@ export interface Patch {
    * the transport is *running* is session state and deliberately not here.
    */
   tempo?: number
+  /**
+   * Recorded parameter moves. Absent means none, which is what every patch written before this means.
+   *
+   * At the top level beside `modulation`, and for the same reason: a lane names its parameter by module id
+   * and param id, so the format grows one optional array and no module gains a notion of owning a timeline.
+   * See `automation.ts` for why these are here rather than on the retained Song, and why a position is
+   * musical rather than a frame.
+   */
+  automation?: AutoLane[]
+}
+
+/** One parameter, named the way a cable names an endpoint. */
+export type ParamRef = [module: string, param: string]
+
+/** One recorded value, at a position in sixteenths from the top of the arrangement. */
+export interface AutoPoint {
+  at: number
+  value: number
+}
+
+/**
+ * One parameter's recorded moves, in ascending position.
+ *
+ * `curve` is `linear` unless it says otherwise, because a knob somebody turned moved continuously and a
+ * lane that stepped between recorded points would sound like a much coarser recording than it is. `hold`
+ * is for a parameter where between two values is not a value — a waveform selector, a mute.
+ */
+export interface AutoLane {
+  target: ParamRef
+  curve?: 'hold' | 'linear'
+  points: AutoPoint[]
 }
 
 // ---------------------------------------------------------------------------------------

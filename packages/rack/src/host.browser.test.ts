@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Rack } from './index.js'
+import { renderPatch } from './render.js'
 import type { Patch } from './types.js'
 
 describe('a host-fed rack source in Web Audio', () => {
@@ -75,6 +76,48 @@ describe('scheduling a param against a frame, in a real worklet', () => {
     expect(left[frame - 1]).toBeCloseTo(0, 4)
     expect(left[frame + 200]).toBeCloseTo(0.5, 2)
     rack.stop()
+  })
+
+  it('plays a recorded lane back into an offline render', async () => {
+    // The end of the automation road, and the only test that runs all of it: a lane in the document, turned
+    // into frames, seeded past the offline message trap, applied by the Graph at the sample asked for.
+    //
+    // An Offset with nothing patched in is a DC source, so the lane is directly the output — no filter to
+    // reason about, and a level that can be read straight off the buffer.
+    const sampleRate = 22_050
+    const patch: Patch = {
+      modules: [
+        { id: 'o', type: 'offset' },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [{ from: ['o', 'out'], to: ['out', 'in'] }],
+      tempo: 120,
+      // 120bpm is two beats a second, so a sixteenth is an eighth of a second: step 0 at 0s, step 4 at
+      // 0.5s. Held rather than ramped, so the seam is a step and the assertions need no tolerance band.
+      automation: [
+        {
+          target: ['o', 'offset'],
+          curve: 'hold',
+          points: [
+            { at: 0, value: 0.2 },
+            { at: 4, value: 0.8 },
+          ],
+        },
+      ],
+    }
+
+    const rendered = await renderPatch(patch, {
+      sampleRate,
+      bars: 1,
+      tail: 0,
+      offline: (channels, frames, rate) => new OfflineAudioContext(channels, frames, rate),
+    })
+    const left = rendered.getChannelData(0)
+
+    // Before the second point, and after it. A render that ignored the lane sits at the Offset's own knob,
+    // which is zero — so this fails three different ways if any part of the chain drops the automation.
+    expect(left[Math.round(sampleRate * 0.25)]).toBeCloseTo(0.2, 2)
+    expect(left[Math.round(sampleRate * 0.75)]).toBeCloseTo(0.8, 2)
   })
 
   it('converts a context time to the frame the audio thread will call it', () => {
