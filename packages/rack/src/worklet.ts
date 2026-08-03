@@ -48,7 +48,12 @@ export const RACK_PROCESSOR = 'driftbox-rack'
 /** How the host talks to the graph. This is the ABI — keep it small. */
 export type RackMessage =
   | { kind: 'plan'; plan: unknown }
-  | { kind: 'param'; slot: number; value: number; voice?: number }
+  /**
+   * `frame` is optional and is the whole of what sample-accurate automation needed: absent, the change
+   * lands at the next block boundary as it always has; present, it starts at that sample. Frames count
+   * from the start of the context — `currentFrame` here, `Rack.frameFor` on the other side.
+   */
+  | { kind: 'param'; slot: number; value: number; voice?: number; frame?: number }
   | { kind: 'transport'; tempo: number; running: boolean }
   /** Enable low-rate meter readings only while a host faceplate is listening. */
   | { kind: 'monitor'; enabled: boolean }
@@ -116,6 +121,9 @@ class RackProcessor extends AudioWorkletProcessor {
       if (seed.plan) this.graph.setPlan(seed.plan)
       if (seed.transport) this.graph.setTransport(seed.transport.tempo, seed.transport.running)
       for (const entry of seed.data || []) this.graph.setData(entry.module, entry.slot, entry.data)
+      // Scheduled param changes, for the same reason as the plan and the data: an offline render never
+      // sees a port message posted before it started, so automation would silently not be in the file.
+      for (const p of seed.params || []) this.graph.setParam(p.slot, p.value, p.voice, p.frame)
     }
     this.port.onmessage = (event) => {
       const message = event.data
@@ -128,7 +136,7 @@ class RackProcessor extends AudioWorkletProcessor {
           this.port.postMessage({ kind: 'missing', types: this.graph.missing.slice() })
         }
       } else if (message.kind === 'param') {
-        this.graph.setParam(message.slot, message.value, message.voice)
+        this.graph.setParam(message.slot, message.value, message.voice, message.frame)
       } else if (message.kind === 'transport') {
         this.graph.setTransport(message.tempo, message.running)
       } else if (message.kind === 'monitor') {
@@ -140,7 +148,11 @@ class RackProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs, outputs) {
-    this.graph.process(outputs[0], inputs)
+    // \`currentFrame\` is the first sample of this block on the context's clock, and it is the only clock
+    // both sides can see: the host schedules against it through \`ctx.currentTime\`. Passing it rather than
+    // letting the Graph count its own blocks means a scheduled change cannot drift from what the host asked
+    // for, however many blocks the context has dropped or however this processor was constructed.
+    this.graph.process(outputs[0], inputs, currentFrame)
     // Eight render quanta is roughly 46Hz at 48kHz: fluid enough for a needle, far below sample rate, and
     // small enough that several meters remain cheap. Offline rendering never enables this, so exporting a
     // patch does not fill the main-thread queue with display messages.

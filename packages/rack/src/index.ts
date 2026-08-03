@@ -144,6 +144,8 @@ export class Rack {
   private runningValue = false
   /** Data set before there was a node to send it to. Handed over in `processorOptions` at construction. */
   private pending: { module: string; slot: string; data: Float32Array }[] = []
+  /** Scheduled param changes made before there was a node to send them to. See `scheduleParam`. */
+  private pendingParams: { slot: number; value: number; voice?: number; frame: number }[] = []
   /** Meter displays are opt-in so an offline render never produces UI traffic. */
   private meterListeners = new Set<(readings: readonly MeterReading[]) => void>()
 
@@ -178,12 +180,14 @@ export class Rack {
         plan: this.compiled,
         transport: { tempo: this.tempoValue, running: this.runningValue },
         data: this.pending,
+        params: this.pendingParams,
       },
     })
     for (let input = 0; input < this.hostInputs.length; input++) {
       this.hostInputs[input].connect(node, 0, input)
     }
     this.pending = []
+    this.pendingParams = []
     node.port.onmessage = (event: MessageEvent) => {
       const message = event.data as {
         kind?: string
@@ -265,6 +269,57 @@ export class Rack {
     const slot = this.compiled?.slots[moduleId]?.[paramId]
     if (slot === undefined) return
     this.node?.port.postMessage({ kind: 'param', slot, value, voice })
+  }
+
+  /**
+   * Move a knob **at a moment**, rather than at the next block boundary.
+   *
+   * A separate method rather than a fifth argument to `setParam`, because scheduling without caring about
+   * voices is the common case and `setParam(id, p, v, undefined, frame)` is a call site nobody should have
+   * to write. It posts the same message; the frame is the only difference.
+   *
+   * This is what recorded automation is played back through. Without it a lane can only be delivered one
+   * point per block — up to 2.9ms out at 44.1kHz, which is inaudible on a slow sweep and quite audible on
+   * anything meant to land on a beat.
+   *
+   * `frame` is on the context's clock: use `frameFor`. A frame already past applies immediately rather than
+   * being dropped, so a lane read slightly too late still plays, merely late.
+   */
+  scheduleParam(
+    moduleId: string,
+    paramId: string,
+    value: number,
+    frame: number,
+    voice?: number,
+  ): void {
+    const slot = this.compiled?.slots[moduleId]?.[paramId]
+    if (slot === undefined) return
+    if (!this.node) {
+      // Held until the node exists, the same way a loaded sample is. **This is what makes automation work
+      // in an offline render at all**: no port message reaches an `OfflineAudioContext` before
+      // `startRendering`, because that thread is not running yet — measured, and the symptom is a file of
+      // the right length with the automation simply absent.
+      //
+      // Only scheduled changes are held. An ordinary `setParam` before `start()` is already redundant,
+      // because the plan carries every param's value and the patch was compiled after it was set. A
+      // scheduled change is an event rather than a value, so nothing else is carrying it.
+      this.pendingParams.push({ slot, value, voice, frame })
+      return
+    }
+    this.node.port.postMessage({ kind: 'param', slot, value, voice, frame })
+  }
+
+  /**
+   * A context time, as the frame the audio thread will call it.
+   *
+   * Here rather than left to each caller because it is the one piece of the scheduling contract that is easy
+   * to get subtly wrong — `currentFrame` on the audio thread counts samples from the start of the context,
+   * which is `currentTime * sampleRate` and not, for instance, milliseconds or a count of blocks. Getting it
+   * wrong gives automation that is silently in the wrong place rather than an error.
+   */
+  frameFor(when: number): number {
+    if (!Number.isFinite(when)) return 0
+    return Math.max(0, Math.round(when * this.ctx.sampleRate))
   }
 
   /** How many voices the open patch compiled to. */

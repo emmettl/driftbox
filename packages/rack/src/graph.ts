@@ -47,6 +47,14 @@ interface Node {
   collapse: { into: Float32Array; from: Float32Array[] }[]
 }
 
+/** A param change waiting for its frame. `voice` undefined means every voice, which is what a knob means. */
+interface Scheduled {
+  slot: number
+  value: number
+  voice: number | undefined
+  frame: number
+}
+
 export class Graph {
   /** Module types the plan named that this build could not construct. Should always be
    *  empty — the compiler checked the host's registry — and will not be if the worklet was
@@ -115,6 +123,27 @@ export class Graph {
   /** Set for one block after a param ramped, so the buffer is flattened back to a constant
    *  next block. Without it the ramp would be replayed for as long as the knob sat still. */
   private ramped: Uint8Array[] = []
+  /**
+   * `[slot][voice]` — the sample within the coming block at which that param's ramp starts.
+   *
+   * Zero for a knob, which is every param change there has ever been until now and is why the immediate
+   * path is byte-identical to before this existed. Non-zero only for a change scheduled against a frame.
+   * Cleared as it is consumed, so one scheduled move cannot offset the next knob turn.
+   */
+  private rampAt: Int32Array[] = []
+
+  /**
+   * Param changes waiting for their frame, and where the block clock is.
+   *
+   * `frame` counts samples since the context started, which is the clock `currentFrame` gives the worklet
+   * and the one a host can compute from `ctx.currentTime`. It is kept here as well so a Graph driven
+   * directly — every test in this package, and the offline path before it had a context — still has a
+   * consistent clock without the caller having to invent one.
+   */
+  private frame = 0
+  private scheduled: Scheduled[] = []
+  /** Reused so applying a block's due events allocates nothing on the audio thread. */
+  private due: Scheduled[] = []
 
   constructor(
     sampleRate: number,
@@ -140,23 +169,99 @@ export class Graph {
 
   /**
    * Aim a param at a new value. It arrives over the block that follows, ramped, so a knob turn does not
-   * click. Nothing here is scheduled against a frame yet — that is what sample-accurate automation will
-   * need, and it is not needed to make a sound.
+   * click.
    *
    * `voice` undefined means every voice, which is what a knob means: one knob, one value, all eight notes.
    * A specific voice is what a keyboard means — that is how eight MIDI modules hold eight different notes,
    * and it is the only thing polyphony added to the message ABI.
+   *
+   * **`frame` is the second, and it is what recorded automation needed.** Without it a param change lands
+   * at the next block boundary, so it is up to 2.9ms early or late at 44.1kHz — inaudible for a knob
+   * somebody is turning and quite audible for a filter that is supposed to open exactly on the downbeat.
+   * With it the change starts at the sample asked for.
+   *
+   * Frames count from the start of the context, which is `currentFrame` inside the worklet and
+   * `Math.round(ctx.currentTime * sampleRate)` outside it — see `Rack.frameFor`. A frame already gone by
+   * applies at once rather than being dropped: late is a timing error and silence is a mystery.
+   *
+   * **Sample-accurate timing, block-rate resolution.** Two changes to one param inside one block leave only
+   * the later one audible, because a param is one ramp per block and always has been. That is the right
+   * trade for automation — a lane wants its move to *start* in the right place, and a value that moves more
+   * often than 344Hz is an LFO, which this rack has a module for.
    */
-  setParam(slot: number, value: number, voice?: number): void {
+  setParam(slot: number, value: number, voice?: number, frame?: number): void {
     const perVoice = this.targets[slot]
     if (!perVoice) return
     if (!Number.isFinite(value)) return
-    if (voice === undefined) {
-      perVoice.fill(value)
+    // A voice outside the patch is nonsense and has always been ignored rather than clamped — including
+    // −1, which is why "every voice" is `undefined` here and not a negative sentinel. Reusing −1 for it
+    // would have turned a host's bad input into a change on all eight voices; `poly.test.ts` says so.
+    if (voice !== undefined && (voice < 0 || voice >= perVoice.length)) return
+    // Anything that is not a usable frame is a knob, including a NaN from a host that did arithmetic on an
+    // undefined time. Treating it as "now" is the behaviour that existed before scheduling did.
+    if (frame === undefined || !Number.isFinite(frame)) {
+      this.aim(slot, value, voice, 0)
       return
     }
-    if (voice < 0 || voice >= perVoice.length) return
-    perVoice[voice] = value
+    // Bounded so a host that schedules a lane far ahead cannot grow this without limit on the audio thread.
+    // Full means the oldest waiting change is applied now rather than discarded — early beats vanished.
+    if (this.scheduled.length >= 512) this.applyDue(this.scheduled.shift()!, 0)
+    this.scheduled.push({ slot, value, voice, frame })
+  }
+
+  /** Point a param at a value, and say where in the coming block its ramp begins. */
+  private aim(slot: number, value: number, voice: number | undefined, offset: number): void {
+    if (voice === undefined) {
+      this.targets[slot].fill(value)
+      this.rampAt[slot].fill(offset)
+      return
+    }
+    this.targets[slot][voice] = value
+    this.rampAt[slot][voice] = offset
+  }
+
+  /** Apply one waiting change, at `offset` samples into the coming block. */
+  private applyDue(event: Scheduled, offset: number): void {
+    // The plan can have been replaced since this was scheduled, so the slot may be gone and the voice
+    // count may have shrunk. Re-checked here rather than trusted from when it was queued.
+    const perVoice = this.targets[event.slot]
+    if (!perVoice) return
+    if (event.voice !== undefined && event.voice >= perVoice.length) return
+    this.aim(event.slot, event.value, event.voice, offset)
+  }
+
+  /**
+   * Apply every waiting change that falls in this block, in frame order.
+   *
+   * Frame order rather than the order they arrived, because "two in one block, the later one wins" is only
+   * a defensible rule if "later" means later in time. A host that posts a lane out of order would otherwise
+   * hear whichever message happened to be delivered last.
+   *
+   * Partitioned into a reused array rather than filtered into a new one: this runs on the audio thread and
+   * allocating per block is how a graph starts dropping buffers under load.
+   */
+  private drain(blockStart: number, frames: number): void {
+    const blockEnd = blockStart + frames
+    this.due.length = 0
+    let kept = 0
+    for (let i = 0; i < this.scheduled.length; i++) {
+      const event = this.scheduled[i]
+      if (event.frame >= blockEnd) {
+        this.scheduled[kept++] = event
+        continue
+      }
+      this.due.push(event)
+    }
+    this.scheduled.length = kept
+    if (this.due.length === 0) return
+    if (this.due.length > 1) this.due.sort((a, b) => a.frame - b.frame)
+    for (const event of this.due) {
+      // A frame already gone by lands at the top of this block. Late, and audibly so if it is very late —
+      // but a change that never arrives is a bug nobody can diagnose from the sound.
+      const offset = event.frame <= blockStart ? 0 : Math.min(frames - 1, Math.round(event.frame - blockStart))
+      this.applyDue(event, offset)
+    }
+    this.due.length = 0
   }
 
   /** Where the transport is now. Tempo may change while running; position does not jump when it does. */
@@ -212,7 +317,7 @@ export class Graph {
    * the default is a genuine no-op, and hard-panning loses 3dB of total power exactly as a balance control
    * on a mixer does.
    */
-  process(channels: Float32Array[], hostInputs: Float32Array[][] = []): void {
+  process(channels: Float32Array[], hostInputs: Float32Array[][] = [], frame?: number): void {
     const mix = channels[0]
     if (!mix) return
     if (mix.length !== this.frames) {
@@ -221,6 +326,13 @@ export class Graph {
     }
     const frames = this.frames
 
+    // Where this block sits on the context's clock. The worklet passes `currentFrame`, which is the only
+    // clock a host can also see; anything driving a Graph directly gets the internal count, which agrees
+    // with itself and is what the tests and the offline path use.
+    const blockStart = frame !== undefined && Number.isFinite(frame) ? frame : this.frame
+    this.frame = blockStart + frames
+    if (this.scheduled.length > 0) this.drain(blockStart, frames)
+
     for (let slot = 0; slot < this.paramBuffers.length; slot++) {
       const perVoice = this.paramBuffers[slot]
       const stepped = this.stepped[slot]
@@ -228,6 +340,11 @@ export class Graph {
         const buffer = perVoice[voice]
         const target = this.targets[slot][voice]
         const value = this.values[slot][voice]
+        // Not cleared here: `aim` is the only thing that writes a target and it always writes the offset
+        // beside it, so the two cannot drift apart. Clearing here as well would be a second guard on the
+        // same invariant, and a redundant guard is worse than none — it makes the mutation that breaks the
+        // real one survive, so the test that should have caught it passes.
+        const at = this.rampAt[slot][voice]
         if (value === target) {
           if (this.ramped[slot][voice]) {
             buffer.fill(target)
@@ -236,10 +353,17 @@ export class Graph {
           continue
         }
         if (stepped) {
-          buffer.fill(target)
+          // The old value up to the sample asked for, the new one from it. A selector must not be caught
+          // between two settings, so there is nothing to interpolate — only a moment to change at.
+          if (at > 0) buffer.fill(value, 0, at)
+          buffer.fill(target, at)
         } else {
-          const step = (target - value) / frames
-          for (let i = 0; i < frames; i++) buffer[i] = value + step * (i + 1)
+          // Hold, then ramp over what is left of the block. At an offset of zero — every knob, and every
+          // param change that existed before scheduling did — this is exactly the old arithmetic.
+          if (at > 0) buffer.fill(value, 0, at)
+          const span = frames - at
+          const step = (target - value) / span
+          for (let i = 0; i < span; i++) buffer[at + i] = value + step * (i + 1)
           this.ramped[slot][voice] = 1
         }
         this.values[slot][voice] = target
@@ -440,6 +564,11 @@ export class Graph {
     this.targets = []
     this.stepped = new Uint8Array(count)
     this.ramped = []
+    this.rampAt = []
+    // A change scheduled against a slot the new plan does not have would otherwise sit in the queue for
+    // ever, and one against a slot that still exists would land on whatever parameter now has that number.
+    // `applyDue` re-checks the slot too; this is the cheaper half of the same guard.
+    if (!keepParams) this.scheduled.length = 0
     for (let i = 0; i < count; i++) {
       const saved = plan.params[i].value
       const values = new Float32Array(this.voices)
@@ -455,6 +584,7 @@ export class Graph {
       this.targets.push(targets)
       this.stepped[i] = plan.params[i].stepped ? 1 : 0
       this.ramped.push(new Uint8Array(this.voices))
+      this.rampAt.push(new Int32Array(this.voices))
       this.paramBuffers.push(
         Array.from({ length: this.voices }, () => new Float32Array(this.frames).fill(values[0])),
       )

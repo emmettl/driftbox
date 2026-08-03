@@ -50,6 +50,11 @@ function instantiate(registry: Registry): { instance: Instance; posted: unknown[
   }
 
   const registered = new Map<string, new () => Instance>()
+  // `currentFrame` is a live global in an AudioWorkletGlobalScope — it is a different number every block,
+  // not something bound once when the scope is created. So it goes on `globalThis`, which a bare identifier
+  // in the assembled source resolves to through the scope chain, and `render` advances it per block. Passing
+  // it as a `new Function` argument would freeze it at zero, and every scheduling test would then pass by
+  // measuring a clock that never moved.
   const evaluate = new Function(
     'AudioWorkletProcessor',
     'registerProcessor',
@@ -67,6 +72,18 @@ function instantiate(registry: Registry): { instance: Instance; posted: unknown[
   return { instance: new Processor!(), posted }
 }
 
+/** The first index where `ok` fails, or −1. Reads better in a failure than a bare boolean. */
+function firstBad(data: ArrayLike<number>, ok: (x: number) => boolean): number {
+  for (let i = 0; i < data.length; i++) if (!ok(data[i])) return i
+  return -1
+}
+
+/** The audio thread's clock, as the assembled source sees it. Reset per render so blocks line up with frames. */
+declare global {
+  // eslint-disable-next-line no-var
+  var currentFrame: number
+}
+
 function render(
   instance: Instance,
   blocks: number,
@@ -74,6 +91,7 @@ function render(
 ): Float64Array {
   const out = new Float64Array(blocks * FRAMES)
   for (let block = 0; block < blocks; block++) {
+    globalThis.currentFrame = block * FRAMES
     const channels = [new Float32Array(FRAMES), new Float32Array(FRAMES)]
     expect(instance.process(inputs, [channels])).toBe(true)
     out.set(channels[0], block * FRAMES)
@@ -316,6 +334,35 @@ describe('the transport and bulk data across the message boundary', () => {
     render(instance, 8)
     instance.port.onmessage?.({ data: { kind: 'transport', tempo: 174, running: false } })
     expect(rms(render(instance, 40))).toBe(0)
+  })
+
+  it('carries a scheduled frame all the way to the graph', () => {
+    // The one claim only this harness can make. `frame` is an optional field on a message the host and the
+    // audio thread agree about by convention, so a typo in either half is silent — the change would simply
+    // land at the block boundary, which is what it did before the field existed and looks like nothing at
+    // all going wrong. Checked by asking for a frame partway through the second block and reading the seam.
+    // An Offset with nothing patched in is a DC source — `in * gain + offset` at silence is the knob — so
+    // moving its knob is a signal you can point at, and the seam is visible in the samples.
+    const PATCH: Patch = {
+      modules: [
+        { id: 'o', type: 'offset' },
+        { id: 'out', type: 'out', params: { level: 1 } },
+      ],
+      cables: [{ from: ['o', 'out'], to: ['out', 'in'] }],
+    }
+    const plan = compile(PATCH, MODULES)
+    const { instance } = instantiate(MODULES)
+    instance.port.onmessage?.({ data: { kind: 'plan', plan } })
+
+    instance.port.onmessage?.({
+      data: { kind: 'param', slot: plan.slots.o.offset, value: 0.5, frame: FRAMES + 64 },
+    })
+    const audio = render(instance, 2)
+
+    // Silent right up to the frame asked for, and moved by the end of that block. Drop the field on either
+    // side of the boundary and the change lands at sample 0 of block 0 instead, which this catches.
+    expect(firstBad(audio.subarray(0, FRAMES + 64), (x) => x === 0)).toBe(-1)
+    expect(audio[2 * FRAMES - 1]).toBeGreaterThan(0.4)
   })
 
   it('accepts bulk data for a module', () => {
