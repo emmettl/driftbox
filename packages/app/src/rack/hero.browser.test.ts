@@ -1,4 +1,4 @@
-import { patchPresetById, renderPatch } from '@driftbox/rack'
+import { MODULES, patchPresetById, renderPatch } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
 import { breakById, renderBreak } from './breaks.js'
 
@@ -30,6 +30,7 @@ describe('Pressure System in a browser', () => {
     // drop. Long enough to prove the Arranger changes the record; short enough for an ordinary test run.
     const bars = 12
     const rendered = await renderPatch(patch, {
+      registry: MODULES,
       bars,
       tail: 0.5,
       sampleRate: SR,

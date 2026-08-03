@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MODULES } from './modules/index.js'
 import { Rack } from './index.js'
 
 // Where the live host thinks the music is.
@@ -39,7 +40,7 @@ function fakeContext(): BaseAudioContext & { now: number } {
 describe('Rack.beat', () => {
   it('is zero before anything is playing, and stays there while stopped', () => {
     const ctx = fakeContext()
-    const rack = new Rack(ctx)
+    const rack = new Rack(ctx, MODULES)
     expect(rack.beat).toBe(0)
     ctx.now = 10
     expect(rack.beat).toBe(0)
@@ -47,7 +48,7 @@ describe('Rack.beat', () => {
 
   it('advances at the tempo once running', () => {
     const ctx = fakeContext()
-    const rack = new Rack(ctx)
+    const rack = new Rack(ctx, MODULES)
     ctx.now = 5 // the context has been open a while; the transport has not
     rack.setTransport(120, true)
 
@@ -62,7 +63,7 @@ describe('Rack.beat', () => {
     // multiplying total elapsed seconds by the new tempo would rewrite every beat already gone by, so a
     // score that switched sections on bar four would find bar four somewhere else.
     const ctx = fakeContext()
-    const rack = new Rack(ctx)
+    const rack = new Rack(ctx, MODULES)
     rack.setTransport(120, true)
     ctx.now = 2
     expect(rack.beat).toBeCloseTo(4)
@@ -77,7 +78,7 @@ describe('Rack.beat', () => {
     // Both halves matter, and they mirror `Graph.setTransport`: pausing is not a rewind, and starting from
     // a stop is. The two sides must not disagree about where bar one is.
     const ctx = fakeContext()
-    const rack = new Rack(ctx)
+    const rack = new Rack(ctx, MODULES)
     rack.setTransport(120, true)
     ctx.now = 2
     rack.setTransport(120, false)
@@ -96,7 +97,7 @@ describe('Rack.beat', () => {
     // Not a claim about implementation — one counts frames and one reads a clock — but about the number a
     // score is quantised against. `Adaptive` is written once and driven from both.
     const ctx = fakeContext()
-    const rack = new Rack(ctx)
+    const rack = new Rack(ctx, MODULES)
     rack.setTransport(140, true)
     ctx.now = 3
 

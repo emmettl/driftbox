@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MODULES } from './modules/index.js'
 import { STEPS_PER_BAR } from './automation.js'
 import { RackRenderer } from './headless.js'
 import { LanePlayer, type LaneHost } from './lanes.js'
@@ -126,7 +127,7 @@ describe('LanePlayer', () => {
       automation: [{ target: ['out', 'level'], points: [{ at: 0, value: 0.8 }, { at: 8, value: 0 }] }],
     }
 
-    const renderer = new RackRenderer({ sampleRate: 48000 })
+    const renderer = new RackRenderer(MODULES, { sampleRate: 48000 })
     renderer.patch = patch
     renderer.setTransport(120, true)
     const player = new LanePlayer(renderer)

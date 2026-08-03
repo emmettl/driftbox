@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MODULES } from './modules/index.js'
 import { Rack } from './index.js'
 import { renderPatch } from './render.js'
 import type { Patch } from './types.js'
@@ -14,7 +15,7 @@ describe('a host-fed rack source in Web Audio', () => {
       ],
       cables: [{ from: ['song', 'tr808-l'], to: ['out', 'in'] }],
     }
-    const rack = new Rack(context)
+    const rack = new Rack(context, MODULES)
     rack.patch = patch
     expect(await rack.start()).toBe(true)
     rack.output?.connect(context.destination)
@@ -55,7 +56,7 @@ describe('scheduling a param against a frame, in a real worklet', () => {
       ],
       cables: [{ from: ['o', 'out'], to: ['out', 'in'] }],
     }
-    const rack = new Rack(context)
+    const rack = new Rack(context, MODULES)
     rack.patch = patch
 
     // **Scheduled before `start()`, and that is the whole reason this works.** No port message reaches an
@@ -107,6 +108,7 @@ describe('scheduling a param against a frame, in a real worklet', () => {
     }
 
     const rendered = await renderPatch(patch, {
+      registry: MODULES,
       sampleRate,
       bars: 1,
       tail: 0,
@@ -141,6 +143,7 @@ describe('scheduling a param against a frame, in a real worklet', () => {
     }
 
     const rendered = await renderPatch(patch, {
+      registry: MODULES,
       sampleRate,
       bars: 1,
       tail: 0,
@@ -156,7 +159,7 @@ describe('scheduling a param against a frame, in a real worklet', () => {
 
   it('converts a context time to the frame the audio thread will call it', () => {
     const context = new OfflineAudioContext(2, 2048, 44_100)
-    const rack = new Rack(context)
+    const rack = new Rack(context, MODULES)
     // The one part of the contract easy to get subtly wrong — milliseconds, or a count of blocks, would
     // both be plausible and both silently put automation in the wrong place.
     expect(rack.frameFor(1)).toBe(44_100)

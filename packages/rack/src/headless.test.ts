@@ -3,8 +3,10 @@ import { compile } from './compile.js'
 import { Graph } from './graph.js'
 import { RackRenderer } from './headless.js'
 import { MODULES } from './modules/index.js'
+import { OUT_MODULE } from './modules/out.js'
+import { VCO_MODULE } from './modules/vco.js'
 import { PATCHES } from './patches/index.js'
-import type { Patch } from './types.js'
+import type { Patch, Registry } from './types.js'
 
 // The renderer with no browser under it.
 //
@@ -40,7 +42,7 @@ describe('RackRenderer', () => {
     expect(typeof globalThis.AudioContext).toBe('undefined')
     expect(typeof globalThis.OfflineAudioContext).toBe('undefined')
 
-    const renderer = new RackRenderer({ sampleRate: SR })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR })
     renderer.patch = tonePatch()
     const { channels, length } = renderer.render(0.25)
 
@@ -66,7 +68,7 @@ describe('RackRenderer', () => {
     const byHand = [new Float32Array(frames), new Float32Array(frames)]
     for (let block = 0; block < 8; block++) graph.process(byHand)
 
-    const renderer = new RackRenderer({ sampleRate: SR, frames })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR, frames })
     renderer.patch = patch
     const viaFacade = [new Float32Array(frames), new Float32Array(frames)]
     for (let block = 0; block < 8; block++) renderer.process(viaFacade)
@@ -81,12 +83,12 @@ describe('RackRenderer', () => {
     const preset = PATCHES.find((entry) => entry.id === 'generative')
     expect(preset).toBeDefined()
 
-    const once = new RackRenderer({ sampleRate: SR })
+    const once = new RackRenderer(MODULES, { sampleRate: SR })
     once.patch = preset!.build()
     once.setTransport(once.patch.tempo ?? 120, true)
     const a = once.render(1)
 
-    const twice = new RackRenderer({ sampleRate: SR })
+    const twice = new RackRenderer(MODULES, { sampleRate: SR })
     twice.patch = preset!.build()
     twice.setTransport(twice.patch.tempo ?? 120, true)
     const b = twice.render(1)
@@ -96,7 +98,7 @@ describe('RackRenderer', () => {
   })
 
   it('moves a knob, and ignores one the patch does not have', () => {
-    const renderer = new RackRenderer({ sampleRate: SR })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR })
     renderer.patch = tonePatch(0.5)
     const loud = renderer.render(0.1)
 
@@ -113,7 +115,7 @@ describe('RackRenderer', () => {
     // The reason `scheduleParam` exists at all: a change that arrives at the next block boundary is up to a
     // block late, which is inaudible on a sweep and quite audible on a cut. Here the cut is to silence, so
     // the sample it happens at is measurable.
-    const renderer = new RackRenderer({ sampleRate: SR, frames: 128 })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR, frames: 128 })
     renderer.patch = tonePatch(0.8)
     const at = renderer.frameFor(0.05)
     expect(at).toBe(2400)
@@ -128,7 +130,7 @@ describe('RackRenderer', () => {
   })
 
   it('keeps a musical position that does not jump when the tempo changes', () => {
-    const renderer = new RackRenderer({ sampleRate: SR })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR })
     renderer.patch = tonePatch()
 
     expect(renderer.beat).toBe(0)
@@ -149,7 +151,7 @@ describe('RackRenderer', () => {
   it('follows the block size it is handed', () => {
     // A host with its own buffer size says so by handing over buffers of it. The Graph reallocates; the
     // audio is the same music either way, so the check is that it is still music — non-silent and finite.
-    const renderer = new RackRenderer({ sampleRate: SR, frames: 128 })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR, frames: 128 })
     renderer.patch = tonePatch()
     const big = [new Float32Array(1024), new Float32Array(1024)]
     renderer.process(big)
@@ -159,8 +161,45 @@ describe('RackRenderer', () => {
     expect(big[0].every((sample) => Number.isFinite(sample))).toBe(true)
   })
 
+  it('runs on a registry of only the modules a patch uses', () => {
+    // The supported way to control the bundle: `Rack` and this both take the registry rather than defaulting
+    // to the whole set, and the individual defs are exported so three modules can actually be asked for.
+    // Measured, this is the difference between 24.2kB gzipped and 11.2kB — but it is only worth anything if
+    // a trimmed rack sounds like an untrimmed one, which is what this asserts.
+    const trimmed: Registry = { vco: VCO_MODULE, out: OUT_MODULE }
+    const renderer = new RackRenderer(trimmed, { sampleRate: SR })
+    renderer.patch = tonePatch()
+    const small = renderer.render(0.25)
+
+    const whole = new RackRenderer(MODULES, { sampleRate: SR })
+    whole.patch = tonePatch()
+    expect(Array.from(small.channels[0])).toEqual(Array.from(whole.render(0.25).channels[0]))
+  })
+
+  it('turns a module the registry does not have into a placeholder, not a deletion', () => {
+    // A trimmed registry has to degrade the way an older build does — visibly, in `notes`, with the cables
+    // still resolving — or trimming would be a way to quietly demolish somebody's patch.
+    const renderer = new RackRenderer({ vco: VCO_MODULE, out: OUT_MODULE }, { sampleRate: SR })
+    renderer.patch = {
+      modules: [
+        { id: 'osc', type: 'vco' },
+        { id: 'filter', type: 'ladder' },
+        { id: 'out', type: 'out' },
+      ],
+      cables: [
+        { from: ['osc', 'out'], to: ['filter', 'in'] },
+        { from: ['filter', 'out'], to: ['out', 'in'] },
+      ],
+    }
+
+    expect(renderer.notes.some((note) => note.kind === 'placeholder')).toBe(true)
+    // The patch is intact — nothing was dropped on the way through.
+    expect(renderer.patch.modules).toHaveLength(3)
+    expect(renderer.patch.cables).toHaveLength(2)
+  })
+
   it('reports what the compiler decided', () => {
-    const renderer = new RackRenderer({ sampleRate: SR })
+    const renderer = new RackRenderer(MODULES, { sampleRate: SR })
     renderer.patch = {
       modules: [{ id: 'mystery', type: 'not-a-module' }],
       cables: [],

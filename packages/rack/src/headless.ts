@@ -1,6 +1,5 @@
 import { compile } from './compile.js'
 import { Graph } from './graph.js'
-import { MODULES } from './modules/index.js'
 import type { MeterReading, Patch, Plan, PlanNote, Registry } from './types.js'
 
 // The rack with no browser under it at all.
@@ -41,7 +40,6 @@ export interface RackRendererOptions {
    * `scheduleParam` is unaffected — it lands on the sample asked for either way.
    */
   frames?: number
-  registry?: Registry
 }
 
 /** Blocks of audio, as a host that has to write a file or fill a ring buffer wants them. */
@@ -60,6 +58,13 @@ export interface RenderedAudio {
  * constructor and nothing else. What it adds is `process`, and what it drops is everything that only means
  * something on a Web Audio graph: there is no node to connect, no worklet to load and therefore no `start()`
  * that can fail.
+ *
+ * The registry is the first argument and is required, for the bundle-size reason written out at `Rack` — a
+ * default would be a static reference to the whole module set, and every consumer would carry all of it.
+ *
+ * ```js
+ * const renderer = new RackRenderer(MODULES, { sampleRate: 48000 })
+ * ```
  */
 export class RackRenderer {
   readonly sampleRate: number
@@ -84,10 +89,10 @@ export class RackRenderer {
   /** Frames handed out so far, which is this host's clock. See `time`. */
   private rendered = 0
 
-  constructor(options: RackRendererOptions = {}) {
+  constructor(registry: Registry, options: RackRendererOptions = {}) {
     this.sampleRate = options.sampleRate ?? 48000
     this.frames = Math.max(1, Math.round(options.frames ?? 128))
-    this.registry = options.registry ?? MODULES
+    this.registry = registry
 
     // The shape the Graph wants: processors by type, and every dependency any module declared, merged and
     // keyed by string. In the worklet this is what `rackSource` writes into the assembled source; here it

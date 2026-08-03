@@ -1,6 +1,5 @@
 import { STEPS_PER_BAR } from './automation.js'
 import { Rack } from './index.js'
-import { MODULES } from './modules/index.js'
 import type { Patch, Registry } from './types.js'
 
 // Rendering a patch to a buffer, offline.
@@ -42,7 +41,9 @@ export interface RenderOptions {
   tail?: number
   /** Bulk data per module — a Sampler's break, a Tracker's pattern. Without it a break patch renders silent. */
   data?: Record<string, Record<string, Float32Array>>
-  registry?: Registry
+  /** Required, for the bundle-size reason at `Rack`: a default here would pull every module into every
+   *  consumer's build, including one that never renders anything offline. */
+  registry: Registry
   /** Injectable for testing, the same way `renderStems` takes one. */
   offline?: (channels: number, length: number, rate: number) => OfflineAudioContext
 }
@@ -71,10 +72,7 @@ export function renderLength(
  * Stereo because the rack's output is: phase C put a pan on the Out, and rendering to mono would throw away
  * the one thing that makes two hard-panned chains worth patching.
  */
-export async function renderPatch(
-  patch: Patch,
-  options: RenderOptions = {},
-): Promise<AudioBuffer> {
+export async function renderPatch(patch: Patch, options: RenderOptions): Promise<AudioBuffer> {
   const sampleRate = options.sampleRate ?? 44100
   const bars = Math.max(1, Math.round(options.bars ?? 4))
   const tail = options.tail ?? 2
@@ -87,7 +85,7 @@ export async function renderPatch(
       new OfflineAudioContext(channels, frames, rate))
   const ctx = make(2, length, sampleRate)
 
-  const rack = new Rack(ctx, options.registry ?? MODULES)
+  const rack = new Rack(ctx, options.registry)
 
   // **Everything before `start()`, and that ordering is the whole of why this works.**
   //
