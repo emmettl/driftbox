@@ -53,6 +53,13 @@ export class ArpProcessor implements Processor {
   private bypassVoice = -1
   private bypassPitch = 0
   private bypassVelocity = 0
+  private lastStart = 0
+  private startAllowed = false
+  private startTrigLeft = 0
+  private cycleStep = 0
+  private cycleRising = true
+  private cycleInsertPhase = 1
+  private randomCycle = 0
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -287,16 +294,21 @@ export class ArpProcessor implements Processor {
     transport?: Transport,
     _hostInputs?: Float32Array[][],
     voiceInlets?: Float32Array[][],
+    inletConnected?: boolean[],
   ): void {
     const pitchIn = inlets[0]
     const gateIn = inlets[1]
     const velocityIn = inlets[2]
     const clockIn = inlets[3]
     const resetIn = inlets[4]
+    const startIn = inlets[5]
     const pitchOut = outlets[0]
     const gateOut = outlets[1]
     const velocityOut = outlets[2]
     const trigOut = outlets[3]
+    const startOut = outlets[4]
+    const startPatched = inletConnected?.[5] ?? false
+    if (!startPatched) this.startAllowed = true
 
     const sourceParam = params[0]
     const chordParam = params[1]
@@ -365,6 +377,24 @@ export class ArpProcessor implements Processor {
 
       const reset = resetIn[i] >= 0.5 ? 1 : 0
       const clock = clockIn[i] >= 0.5 ? 1 : 0
+      const start = (startIn?.[i] ?? 0) >= 0.5 ? 1 : 0
+      const startEdge = startPatched && start === 1 && this.lastStart === 0
+      this.lastStart = start
+      if (startEdge) {
+        this.startAllowed = true
+        this.internalLeft = 0
+        this.tempoPosition = 0
+        this.tempoDelay = 0
+        this.started = false
+        this.patternStep = 0
+        this.patternStarted = false
+        this.insertPhase = 0
+        this.singlePitchWas = Number.NaN
+        this.tied = false
+        this.gateLeft = 0
+        this.trigLeft = 0
+        this.startTrigLeft = 0
+      }
       const enabled = enableParam[i] >= 0.5
       if (!enabled) {
         if (this.enableWas) {
@@ -373,6 +403,7 @@ export class ArpProcessor implements Processor {
           this.tied = false
           this.gateLeft = 0
           this.trigLeft = 0
+          this.startTrigLeft = 0
           this.bypassGateWas = 0
           this.bypassVoice = -1
         }
@@ -410,6 +441,7 @@ export class ArpProcessor implements Processor {
           this.trigLeft--
           trigOut[i] = 1
         } else trigOut[i] = 0
+        if (startOut) startOut[i] = 0
         this.lastClock = clock
         this.lastReset = reset
         continue
@@ -426,6 +458,20 @@ export class ArpProcessor implements Processor {
         this.bypassVoice = -1
       }
       this.enableWas = true
+      if (startPatched && !this.startAllowed) {
+        this.tied = false
+        this.gateLeft = 0
+        this.trigLeft = 0
+        this.startTrigLeft = 0
+        this.lastClock = clock
+        this.lastReset = reset
+        pitchOut[i] = this.held
+        gateOut[i] = 0
+        velocityOut[i] = this.heldVelocity
+        trigOut[i] = 0
+        if (startOut) startOut[i] = 0
+        continue
+      }
       if (reset === 1 && this.lastReset === 0) {
         this.started = false
         this.tied = false
@@ -520,6 +566,20 @@ export class ArpProcessor implements Processor {
               this.trigLeft = 0
             } else {
               const playStep = this.insertStep(length, mode, insert, opening)
+              let figureStart = opening
+              if (opening) {
+                this.cycleStep = this.step
+                this.cycleRising = this.rising
+                this.cycleInsertPhase = this.insertPhase
+                this.randomCycle = 0
+              } else if (mode === 4) {
+                this.randomCycle = (this.randomCycle + 1) % length
+                figureStart = this.randomCycle === 0
+              } else {
+                figureStart = this.step === this.cycleStep
+                  && this.rising === this.cycleRising
+                  && this.insertPhase === this.cycleInsertPhase
+              }
               const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
               this.held = this.figurePitch[playStep] + shift
               this.heldVelocity = velocityModeParam[i] >= 0.5
@@ -530,6 +590,7 @@ export class ArpProcessor implements Processor {
               this.tied = fraction >= 1
               this.gateLeft = fraction > 0 && !this.tied ? Math.max(1, Math.round(span * fraction)) : 0
               this.trigLeft = this.trigSamples
+              if (figureStart) this.startTrigLeft = this.trigSamples
               this.singlePitchWas = length === 1 ? this.figurePitch[0] : Number.NaN
             }
           } else {
@@ -561,13 +622,19 @@ export class ArpProcessor implements Processor {
         this.trigLeft--
         trigOut[i] = 1
       } else trigOut[i] = 0
+      if (startOut) {
+        if (this.startTrigLeft > 0) {
+          this.startTrigLeft--
+          startOut[i] = 1
+        } else startOut[i] = 0
+      }
     }
   }
 }
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 10,
+  version: 11,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -583,6 +650,10 @@ export const ARP_MODULE: ModuleDef = {
       {
         title: 'Off is a monophonic converter',
         body: 'Arpeggiator Off mirrors Root Pitch, Gate and Velocity directly. In Played mode it follows the most recently pressed held note, matching the device’s monophonic output rather than attempting to collapse a chord.',
+      },
+      {
+        title: 'Start can arm and restart the figure',
+        body: 'With nothing patched to Start, Arp runs exactly as before. Patching Start holds the arpeggio silent until a rising trigger, which restarts the note figure, insertion and rhythm pattern from their first positions. Start Out marks every figure restart.',
       },
       {
         title: 'Choose one timing authority',
@@ -603,6 +674,7 @@ export const ARP_MODULE: ModuleDef = {
       'Shuffle affects Tempo timing only and uses the host transport’s global amount.',
       'Gate Length at zero closes Gate completely; at Tie it stays legato until a rest or reset condition.',
       'Arpeggiator Off bypasses the figure controls and uses last-note priority in Played mode.',
+      'A patched Start inlet arms the figure; it stays silent until a rising trigger arrives.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -615,12 +687,14 @@ export const ARP_MODULE: ModuleDef = {
     { id: 'velocity', name: 'Velocity' },
     { id: 'clock', name: 'Clock' },
     { id: 'reset', name: 'Reset' },
+    { id: 'start', name: 'Start' },
   ],
   outlets: [
     { id: 'pitch', name: 'V/Oct' },
     { id: 'gate', name: 'Gate' },
     { id: 'velocity', name: 'Velocity' },
     { id: 'trig', name: 'Trig' },
+    { id: 'start', name: 'Start' },
   ],
   params: [
     { id: 'source', name: 'Source', min: 0, max: 1, default: 0, stepped: true, labels: ['Root', 'Played'] },
