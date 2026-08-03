@@ -54,16 +54,16 @@ user could approximate it from oscillators.
 | 303 note/accent/slide/tie editing | Direct grid plus stopped keyboard/MIDI entry with note, rest and tie | Same retained editor and advancing cursor plus Tracker primitives | Landed |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
 | Pattern transforms | Rotate, transpose, randomise, alter and focused cut/copy/paste | Retained lane/machine rotate, focused randomise/alter, 303 transpose, 909 flam and focused cut/copy/paste | Landed |
-| Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
+| Song arrangement | Multi-clip sections | Hosted multi-clip sections plus the rack Arranger | Landed |
 | Song transport | Section seek and arbitrary whole-bar loop ranges | Hosted section seek, section loop and arbitrary whole-bar loop ranges plus Arranger | Landed |
 | Song automation | Recordable versioned tempo, swing, instrument, send and effect lanes | Hosted recorder for tempo, global/per-voice swing, instrument, send and shared effect controls plus Combinator/MIDI | Landed |
 | Section mixer | Per voice | Four metered, patchable stereo source strips with level, pan and mute | Landed |
 | Distortion, PCF, compressor, delay | Authored master inserts, off/on/accent PCF pattern lane and delay send | Same retained controls and PCF lane plus patchable Drive, SVF, Compressor and Delay modules | Landed; rack remains the strict superset |
 | MIDI play/control/learn | Hardware notes play the focused 303 or pitched drum; learn covers tempo, swing, authored controls, routing and effects | Shared host plus polyphony, channel routing, modulation and Combinator learn | Landed; rack remains the strict superset |
-| Stereo mix and stems export | Mastered song mix and pre-master stems | Same retained mix and per-voice stem review/export plus a distinct patch render | Landed for compatible songs; rack-native source stems require an explicit modular source model |
+| Stereo mix and stems export | Mastered song mix and pre-master stems | Same retained mix and per-voice stem review/export plus a distinct patch render | Landed and render-equivalence tested for compatible songs; rack-native source stems require an explicit modular source model |
 | Named local song library | Shared typed song/patch shelf plus autosave | Same shared shelf, including legacy patch migration | Landed; rack-only work stays visible but cannot be flattened in groovebox mode |
 | Visuals and performance pad | Shared reactive scenes over the master XY filter | Same scene host over the same master controls in split/full-pad views | Landed; scene identity stays inside a compatible Song or a rack-native Patch |
-| Shareable, repairable documents | Yes | Yes | Versioned bridge preserving unknown rack-only content |
+| Shareable, repairable documents | Yes | Yes | Landed; versioned bridge preserves unknown rack-only content |
 
 Update this ledger when a capability lands. It is deliberately about user-visible
 behaviour; implementation progress belongs in `ROADMAP.md` and `RACK.md`.
@@ -163,8 +163,10 @@ that same compatible envelope, and both editors program the PCF's off/on/accent 
 Rack-native equivalents remain additive modules, not substitutes for retained song data.
 The same boundary now applies to export: rack mode reviews and saves the retained song's
 pre-master voice stems without claiming that they contain rack-only cables or processing;
-Patch WAV remains a separately labelled render. Next, add a deterministic retained-song
-render-equivalence acceptance test. Do not
+Patch WAV remains a separately labelled render. That boundary is now executable rather than
+aspirational: a deterministic Chromium matrix round-trips an all-machine fixture and every
+shipped song through the rack document, then compares its Song WAV with the sequencer render
+under a 2e-5 maximum-sample tolerance (below -93 dBFS). Do not
 compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.

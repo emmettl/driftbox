@@ -113,7 +113,7 @@ The package exports two tiers, listed explicitly in `index.ts` and pinned by `ap
 
 **Promised** — the rack, the document, the content: `Rack`, `Patch` and its parts,
 `encodePatch`/`decodePatch`/`PATCH_FORMAT`, `MODULES`, the shipped patches and chunks, the
-Combinator's routing helpers, `renderPatch`, the VCV importer.
+Combinator's routing helpers, `renderPatch`, `renderRetainedSongMix`, the VCV importer.
 
 **Not promised** — exported because something in this repo needs them: `compile` and the `Plan`
 shapes it returns, `Graph`, the worklet loaders, and the individual module defs and processors.

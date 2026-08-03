@@ -84,6 +84,7 @@ export {
   GROOVEBOX_SOURCE_ID,
   isGrooveboxEditable,
   patchCompatibility,
+  renderRetainedSongMix,
   withGrooveboxSource,
   type PatchCompatibility,
 } from './groovebox.js'
