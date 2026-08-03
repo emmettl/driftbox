@@ -80,6 +80,7 @@ export type {
   PlanNote,
   Processor,
   ProcessorClass,
+  ProcessorVoice,
   Registry,
   Transport,
   ModuleData,
@@ -135,6 +136,7 @@ export { IMAGER_MODULE } from './modules/imager.js'
 export { PHASER_MODULE } from './modules/phaser.js'
 export { PING_PONG_MODULE } from './modules/ping-pong.js'
 export { CLOCK_MODULE } from './modules/clock.js'
+export { CHORD_PLAYER_LANES, CHORD_PLAYER_MODULE } from './modules/chord-player.js'
 export { COMPRESSOR_MODULE } from './modules/compressor.js'
 export { DELAY_MODULE } from './modules/delay.js'
 export { DRIVE_MODULE } from './modules/drive.js'

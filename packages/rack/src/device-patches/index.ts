@@ -350,6 +350,17 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   { id: 'd-dorian', type: 'scale-player', name: 'D Dorian', params: { key: 2, scale: 5, filter: 0 } },
   { id: 'filter-c-major', type: 'scale-player', name: 'C Major Filter', params: { key: 0, scale: 0, filter: 1 } },
 
+  // ---- Chord Player -----------------------------------------------------------------------------
+  { id: 'g-major-triad', type: 'chord-player', name: 'G Major Triad', params: { key: 7, scale: 0, notes: 3 } },
+  { id: 'minor-seventh', type: 'chord-player', name: 'Minor Seventh', params: { key: 0, scale: 1, notes: 4 } },
+  { id: 'open-ninth', type: 'chord-player', name: 'Open Ninth', params: { key: 0, scale: 0, notes: 3, open: 1, color: 1 } },
+  {
+    id: 'wide-thirteenth',
+    type: 'chord-player',
+    name: 'Wide Thirteenth',
+    params: { key: 0, scale: 0, notes: 5, open: 1, octDown: 1, octUp: 1, color: 1 },
+  },
+
   // ---- Alligator --------------------------------------------------------------------------------
   {
     id: 'tight',

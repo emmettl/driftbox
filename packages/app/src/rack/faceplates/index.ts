@@ -1,6 +1,7 @@
 import type { ModuleDef } from '@driftbox/rack'
 import { CELL_HEIGHT, PAD, ROW, TITLE, columnsFor, rowsForJacks, type Size, type Span } from '../layout.js'
 import { Arranger } from './Arranger.js'
+import { ChordPlayer } from './ChordPlayer.js'
 import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
 import { Groovebox } from './Groovebox.js'
@@ -52,6 +53,9 @@ const FACEPLATES: Record<string, Entry> = {
   // Sixteen sections in two columns of eight, plus the length knob. The same height as the Combinator,
   // which is about right — a song and a patch are the two things you look at rather than twiddle.
   arranger: { component: Arranger, rows: 5 },
+  // Eight generated voices, a real held Alter button and two rows of voicing controls. Five rows keeps the
+  // preview readable without making its rotaries smaller than the rest of the rack.
+  'chord-player': { component: ChordPlayer, rows: 5 },
   // Eight outlets, so the back already asks for five rows and the front gets them for nothing. Which is
   // just as well: a row of four rotaries, a row of four buttons and a way through to the routing list is
   // about that tall, and a Combinator is a big device in Reason too.

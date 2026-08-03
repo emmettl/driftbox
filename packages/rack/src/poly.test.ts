@@ -3,7 +3,7 @@ import { compile } from './compile.js'
 import { Random } from './dsp/random.js'
 import { Graph } from './graph.js'
 import { MODULES } from './modules/index.js'
-import type { ModuleDef, Patch, Processor, Registry } from './types.js'
+import type { ModuleDef, Patch, Processor, ProcessorVoice, Registry } from './types.js'
 
 // Polyphony, which is entirely a property of the compiler and the Graph — no module changed to get it.
 //
@@ -52,6 +52,30 @@ class SinkProcessor implements Processor {
   }
 }
 
+/** Adds a small lane mark so an expanded voice is measurable after ordinary downstream modules. */
+class ExpandProcessor implements Processor {
+  private readonly lane: number
+
+  constructor(
+    _sampleRate: number,
+    _deps: Record<string, unknown>,
+    _id: string,
+    _data: unknown,
+    voice?: ProcessorVoice,
+  ) {
+    this.lane = voice?.lane ?? 0
+  }
+
+  process(
+    inlets: Float32Array[],
+    outlets: Float32Array[],
+    _params: Float32Array[],
+    frames: number,
+  ): void {
+    for (let i = 0; i < frames; i++) outlets[0][i] = inlets[0][i] + this.lane * 0.01
+  }
+}
+
 const def = (over: Partial<ModuleDef> & { type: string }): ModuleDef => ({
   version: 1,
   name: over.type,
@@ -74,6 +98,7 @@ const REGISTRY: Registry = {
   monothru: def({ type: 'monothru', poly: false }),
   sink: def({ type: 'sink', poly: false, terminal: true, processor: SinkProcessor }),
   polyout: def({ type: 'polyout', terminal: true }),
+  expand3: def({ type: 'expand3', processor: ExpandProcessor, voiceExpansion: 3 }),
 }
 
 function build(patch: Patch, registry: Registry = REGISTRY) {
@@ -219,6 +244,65 @@ describe('the four cases', () => {
     render(graph, 3)
     expect(SinkProcessor.seen.length).toBe(3)
     expect(SinkProcessor.seen[2]).toBeCloseTo(1, 4)
+  })
+})
+
+describe('variable-width voice streams', () => {
+  it('compiles an expander and carries its width through ordinary polyphonic modules', () => {
+    const plan = compile(
+      chain(2, [['m', 'mark'], ['x', 'expand3'], ['t', 'thru']], [
+        ['m', 'out', 'x', 'in'],
+        ['x', 'out', 't', 'in'],
+      ]),
+      REGISTRY,
+    )
+    const x = plan.nodes.find((node) => node.id === 'x')!
+    const t = plan.nodes.find((node) => node.id === 't')!
+    expect(x.voices).toBe(6)
+    expect(x.voiceLanes).toBe(3)
+    expect(t.voices).toBe(6)
+    expect(plan.voiceWidths?.[x.outlets[0]]).toBe(6)
+    expect(plan.voiceWidths?.[t.outlets[0]]).toBe(6)
+  })
+
+  it('fans every input voice into measurable child lanes through a real graph', () => {
+    const { graph, plan } = build(
+      chain(2, [['m', 'mark'], ['x', 'expand3'], ['t', 'thru'], ['o', 'polyout']], [
+        ['m', 'out', 'x', 'in'],
+        ['x', 'out', 't', 'in'],
+        ['t', 'out', 'o', 'in'],
+      ]),
+    )
+    graph.setParam(plan.slots.m.value, 0.01, 0)
+    graph.setParam(plan.slots.m.value, 0.02, 1)
+    const audio = render(graph, 3)
+    // 0.01+0.02+0.03 from source voice zero, then 0.02+0.03+0.04 from source voice one.
+    expect(audio[audio.length - 1]).toBeCloseTo(0.15, 4)
+  })
+
+  it('collapses every expanded child before a shared module', () => {
+    SinkProcessor.seen = []
+    const { graph, plan } = build(
+      chain(2, [['m', 'mark'], ['x', 'expand3'], ['s', 'sink']], [
+        ['m', 'out', 'x', 'in'],
+        ['x', 'out', 's', 'in'],
+      ]),
+    )
+    graph.setParam(plan.slots.m.value, 0.01, 0)
+    graph.setParam(plan.slots.m.value, 0.02, 1)
+    render(graph, 3)
+    expect(SinkProcessor.seen[2]).toBeCloseTo(0.15, 4)
+  })
+
+  it('bounds stacked expanders without allocating a partial chord', () => {
+    const plan = compile(
+      chain(8, [['a', 'expand3'], ['b', 'expand3']], [['a', 'out', 'b', 'in']]),
+      REGISTRY,
+    )
+    expect(plan.nodes.find((node) => node.id === 'a')?.voices).toBe(24)
+    expect(plan.nodes.find((node) => node.id === 'b')?.voices).toBe(24)
+    expect(plan.nodes.find((node) => node.id === 'b')?.voiceLanes).toBe(1)
+    expect(plan.notes.some((note) => note.kind === 'voice-cap' && note.module === 'b')).toBe(true)
   })
 })
 

@@ -32,6 +32,12 @@ import type {
 const ZERO = 0
 
 /**
+ * Eight played notes through an eight-lane chord expander. Bounded here, where graph shape is decided, so a
+ * chain of expanders cannot accidentally turn one key into hundreds of audio-thread processors.
+ */
+const MAX_RENDER_VOICES = 64
+
+/**
  * A composite key for one port of one module.
  *
  * `JSON.stringify` rather than joining with a separator, because both halves come out of a
@@ -125,6 +131,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   const patch = applyModulation(rawPatch, registry)
   const modules = Array.isArray(patch?.modules) ? patch.modules : []
   const cables = Array.isArray(patch?.cables) ? patch.cables : []
+  // The performed voice count. Expanded streams can be wider, but a keyboard still addresses these base
+  // voices and an old patch still means exactly one.
+  const voices = Math.max(1, Math.min(8, Math.round(clamp(patch?.voices, 1, 8, 1))))
 
   // ---- Modules -------------------------------------------------------------------------
   //
@@ -178,8 +187,10 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   /** Per buffer: is it written per voice? Index 0 is the zero buffer, which belongs to nobody and is read by
    *  every unconnected inlet of every voice — mono is the only answer that makes sense for it. */
   const bufferPoly: boolean[] = [false]
+  const bufferOwner: number[] = [-1]
   let buffers = 1
-  for (const module of live) {
+  for (let moduleIndex = 0; moduleIndex < live.length; moduleIndex++) {
+    const module = live[moduleIndex]
     const def = registry[module.type]
     // A buffer is polyphonic exactly when the module writing it is. Recorded here rather than worked out on
     // the audio thread, because a question `process()` has to answer at run time is one it can get wrong.
@@ -190,6 +201,7 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       const channels: number[] = []
       for (let channel = 0; channel < channelCount(port); channel++) {
         bufferPoly[buffers] = poly
+        bufferOwner[buffers] = moduleIndex
         channels.push(buffers)
         buffers++
       }
@@ -383,6 +395,60 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     position[module] = at
   })
 
+  // ---- Voice widths --------------------------------------------------------------------
+  //
+  // The old graph had one bit per buffer: mono, or exactly `patch.voices`. Keep that bit for old readers and
+  // add the actual width beside it. Ordinary polyphonic modules inherit the widest stream reaching them;
+  // an expander multiplies that stream by a whole number of child lanes. This is the honest representation
+  // of a chord — several pitch buffers — and it lets every downstream VCO/filter/envelope stay unchanged.
+  //
+  // Repeated to a fixed point because a delayed feedback cable can point backwards in execution order. Widths
+  // only grow from the performed count and are bounded at forty, so this always settles quickly.
+  const moduleVoices = live.map((module) => registry[module.type].poly === false ? 1 : voices)
+  const moduleLanes = live.map(() => 1)
+  const sourceWidth = (index: number): number => {
+    const owner = bufferOwner[index]
+    return owner === undefined || owner < 0 ? 1 : moduleVoices[owner]
+  }
+
+  for (let pass = 0; pass < MAX_RENDER_VOICES; pass++) {
+    let changed = false
+    for (const index of order) {
+      const module = live[index]
+      const def = registry[module.type]
+      if (def.poly === false) continue
+      let incoming = voices
+      for (const inlet of def.inlets) {
+        const source = inletSource.get(key(module.id, inlet.id))
+        for (const channel of source?.channels ?? [ZERO]) incoming = Math.max(incoming, sourceWidth(channel))
+      }
+      const asked = Math.max(1, Math.min(8, Math.round(def.voiceExpansion ?? 1)))
+      // Never allocate a partial lane set: every source voice either gets the same chord or the expander is
+      // held at its input width. That makes the bound musically predictable and prevents later source voices
+      // from disappearing merely because earlier ones consumed the remaining slots.
+      const lanes = incoming * asked <= MAX_RENDER_VOICES ? asked : 1
+      const width = incoming * lanes
+      moduleLanes[index] = lanes
+      if (width > moduleVoices[index]) {
+        moduleVoices[index] = width
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
+
+  const voiceWidths = Array.from({ length: buffers }, (_, buffer) => sourceWidth(buffer))
+  for (let index = 0; index < live.length; index++) {
+    const def = registry[live[index].type]
+    const asked = Math.max(1, Math.min(8, Math.round(def.voiceExpansion ?? 1)))
+    if (asked <= 1 || moduleLanes[index] === asked) continue
+    notes.push({
+      kind: 'voice-cap',
+      module: live[index].id,
+      detail: `${live[index].id} kept ${moduleVoices[index]} voices: another ${asked}-lane expansion would exceed ${MAX_RENDER_VOICES}`,
+    })
+  }
+
   // ---- Params --------------------------------------------------------------------------
   //
   // Slots are allocated in patch order rather than execution order, so that adding a cable
@@ -475,6 +541,8 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       outlets: def.outlets.flatMap((port) => outletBuffer.get(key(module.id, port.id)) ?? [ZERO]),
       params: def.params.map((param) => slots[module.id][param.id]),
       poly: def.poly !== false,
+      voices: moduleVoices[index],
+      voiceLanes: moduleLanes[index],
       // Carried through untouched. `compile` has no opinion about what a module's data means — it is the module
       // that knows whether a run of numbers is a pattern or a wavetable — and validating it here would need a
       // schema per module type, which is the sort of thing the placeholder rule exists to avoid.
@@ -537,9 +605,5 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     })
   }
 
-  // 1 to 8. Clamped here so that no later stage has to guard against a patch asking for nine hundred, and
-  // rounded because a plan with 2.5 voices is not a thing the Graph should have to have an opinion about.
-  const voices = Math.max(1, Math.min(8, Math.round(clamp(patch?.voices, 1, 8, 1))))
-
-  return { buffers, voices, poly: bufferPoly, nodes, outputs, params, slots, inputTrims, notes }
+  return { buffers, voices, poly: bufferPoly, voiceWidths, nodes, outputs, params, slots, inputTrims, notes }
 }
