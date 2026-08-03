@@ -43,7 +43,26 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 ctx.createMediaStreamSource(stream).connect(rack.input(RACK_LIVE_INPUT))
 ```
 
-## Embedding it: a third host
+## Embedding it in a web game
+
+The whole rack is a `Rack` on a context you own, so a game embeds it the way it embeds any Web Audio: make
+the context on a user gesture, start the rack, connect it wherever the game's audio goes.
+
+```js
+const ctx = new AudioContext()               // on a click, tap or key — browsers require a gesture
+const rack = new Rack(ctx)
+if (!(await rack.start())) return            // no AudioWorklet, no rack: the one failure to handle
+rack.patch = decodePatch(levelMusic) ?? PATCHES[0].build()
+rack.output.connect(musicBus)                // your own gain, so the game can duck it
+rack.setTransport(rack.patch.tempo ?? 120, true)
+```
+
+Nothing about that is rack-specific except `start()`, which resolves `false` where worklets are unavailable
+— a rack without one is not a degraded rack, it is no rack, and saying so beats looking broken. From there
+the two sections below are what a game reaches for: `Adaptive` to follow the scene, and `RackRenderer` if
+any of the music wants rendering ahead of time rather than played live.
+
+## Rendering it without a browser
 
 `Rack` and `renderPatch` are both Web Audio — a live context and an offline one. The DSP is not: `Graph` is
 arithmetic over `Float32Array`s, so a patch can be rendered anywhere JavaScript runs. `RackRenderer` is that
@@ -90,6 +109,11 @@ const score = new Adaptive(rack, {
 
 score.update(danger, rack.beat)   // in the game's update loop
 ```
+
+`beat` is answered the same way by both hosts — `Rack` derives it from `ctx.currentTime`, `RackRenderer`
+counts frames — so one score drives a live rack and an offline render without being written twice. An
+`OfflineAudioContext` is the exception: its clock does not advance while it renders, so drive a score
+through `RackRenderer.render`'s `onBlock` rather than off a `Rack` on an offline context.
 
 **It moves parameters inside one patch rather than swapping patches**, and that is the load-bearing
 decision. Applying a plan rebuilds every processor, so a patch swap restarts oscillator phase, filter state
@@ -202,6 +226,7 @@ None of them need a browser.
 | `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
 | `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
 | `api.test.ts` | The exported names, in two tiers. Adding an export fails it by name, which is the point |
+| `host.test.ts` | Where the live host thinks the music is: that the position advances at the tempo, that changing tempo does not move the past, and that a pause holds while a restart rewinds |
 | `headless.test.ts` | The browser-free host: that it makes sound with no `AudioContext` defined at all, that it is sample-for-sample the same as driving the Graph by hand, that a scheduled change lands mid-block, and that its musical position survives a tempo change |
 | `adaptive.test.ts` | The score: what a curve reads, that it holds the end rather than extrapolating, that a bar-locked control waits and lands on the value wanted *at* the bar, that a seek counts as a boundary, and that a steady scene sends nothing |
 | `modulation.test.ts` | Combinator routing: which of two routes onto one target wins, what a route onto a stepped param lands on, that a chain sees the value an earlier route wrote, that a cycle settles rather than oscillating, and that a route this build cannot resolve survives a round trip |
