@@ -176,8 +176,17 @@ Ordered by return, not by how big Reason's version was.
   note. A *held-chord* arpeggiator needs the compiler and the Graph to hand a mono module the per-voice
   buffers, and that is the work this gap still names.
 
-  Still absent outright: a note echo, and a scale-and-chord generator that transposes a figure by degree
-  rather than by semitone.
+  **Note Echo has landed** as a polyphonic pitch/gate/velocity transform: free or tempo-synced spacing,
+  one to sixteen repeats, semitone movement, a linear velocity slope, gate length, dry mute and a portable
+  seventeen-step enable pattern. Echo Matrix draws that pattern as velocity-scaled pulses, keeps muted
+  echoes on the timeline, and leaves all eight playback controls on the same faceplate. Each input voice
+  repeats independently, so ordinary chords echo together.
+  The fixed-voice CV graph still cannot express Reason's zero-length cluster trick, where one input note
+  becomes several simultaneous output voices; that remains part of the same structural expansion as a
+  held-chord arpeggiator.
+
+  Still absent outright: a scale-and-chord generator that transposes a figure by degree rather than by
+  semitone.
 - **~~A multisample instrument.~~ Landed.** `Multisampler` sits beside the unchanged
   break-slicing `Sampler`: it maps session-loaded recordings by key and velocity, respects root key and
   source sample rate, sustains between per-zone loop points, and instantiates per MIDI voice. Zone maps

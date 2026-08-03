@@ -23,6 +23,7 @@ import { MIDI_MODULE } from './midi.js'
 import { METER_MODULE } from './meter.js'
 import { MIXER_MODULE } from './mixer.js'
 import { MULTISAMPLER_MODULE } from './multisampler.js'
+import { NOTE_ECHO_MODULE } from './note-echo.js'
 import { NOISE_MODULE } from './noise.js'
 import { OFFSET_MODULE } from './offset.js'
 import { OUT_MODULE } from './out.js'
@@ -42,7 +43,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Forty-two modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty-three modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -126,6 +127,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   TRACKER_MODULE,
   ARRANGER_MODULE,
   ARP_MODULE,
+  NOTE_ECHO_MODULE,
   MIDI_MODULE,
 
   METER_MODULE,
@@ -170,6 +172,7 @@ export {
   unpackMultisampleZones,
   type MultisampleZone,
 } from './multisampler.js'
+export { NOTE_ECHO_MODULE, NOTE_ECHO_STEPS, NoteEchoProcessor } from './note-echo.js'
 export { NOISE_MODULE, NoiseProcessor } from './noise.js'
 export { OFFSET_MODULE, OffsetProcessor } from './offset.js'
 export { OUT_MODULE, OutProcessor } from './out.js'

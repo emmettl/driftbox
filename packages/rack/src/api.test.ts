@@ -69,6 +69,7 @@ const PROMISED = [
   'MIDI_MODULE',
   'MIXER_MODULE',
   'MULTISAMPLER_MODULE',
+  'NOTE_ECHO_MODULE',
   'NOISE_MODULE',
   'OFFSET_MODULE',
   'OUT_MODULE',
@@ -94,6 +95,8 @@ const PROMISED = [
   'multisampleSlot',
   'packMultisampleZones',
   'unpackMultisampleZones',
+  // The repeat pattern is dry plus sixteen echoes; hosts use this to build a stable step editor.
+  'NOTE_ECHO_STEPS',
   // Content: patches to open, chunks to drop in.
   'PATCHES',
   'patchPresetById',

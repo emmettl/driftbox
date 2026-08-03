@@ -153,6 +153,7 @@ export {
   unpackMultisampleZones,
   type MultisampleZone,
 } from './modules/multisampler.js'
+export { NOTE_ECHO_MODULE, NOTE_ECHO_STEPS } from './modules/note-echo.js'
 export { NOISE_MODULE } from './modules/noise.js'
 export { OFFSET_MODULE } from './modules/offset.js'
 export { QUANTIZER_MODULE } from './modules/quantizer.js'
