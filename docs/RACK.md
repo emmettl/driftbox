@@ -1697,6 +1697,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    once and waits for a new note or Reset, while figures containing a chord continue to run. The control is routed
    and visible on Arp Field. It defaults to `On`, which keeps the OG Driftbox retrigger behavior unchanged.
 
+   **5v. Arp shuffle.** ✅ The routed `Shuffle` switch reads the rack transport's shared 0–1 shuffle amount,
+   supplied by a retained Groovebox song's master swing. It delays sixteenth-note positions between eighths
+   as long/short pairs, leaves eighth and triplet grids intact, and defaults to `Off`. Hosts that do not supply
+   a global value remain straight, so neither older patches nor the original External-clock path moves.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

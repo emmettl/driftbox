@@ -83,3 +83,10 @@ it('can disable single-note retriggering without rebuilding the graph', () => {
   expect(useRack.getState().paramValue('arp', 'singleRepeat')).toBe(0)
   expect(useRack.getState().revision).toBe(before)
 })
+
+it('opts into the rack transport shuffle without rebuilding the graph', () => {
+  const before = useRack.getState().revision
+  choose('Shuffle', 'On')
+  expect(useRack.getState().paramValue('arp', 'shuffle')).toBe(1)
+  expect(useRack.getState().revision).toBe(before)
+})

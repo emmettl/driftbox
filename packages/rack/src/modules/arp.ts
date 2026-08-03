@@ -40,6 +40,8 @@ export class ArpProcessor implements Processor {
   private interval = 0
   private internalLeft = 0
   private timingWas = 0
+  private tempoPosition = 0
+  private tempoDelay = 0
   private patternStep = 0
   private patternStarted = false
   private insertPhase = 0
@@ -80,6 +82,7 @@ export class ArpProcessor implements Processor {
     timing: number,
     division: number,
     rate: number,
+    shuffle: boolean,
     transport?: Transport,
   ): number {
     if (timing === 2) {
@@ -98,7 +101,19 @@ export class ArpProcessor implements Processor {
     ]
     const at = Math.max(0, Math.min(beats.length - 1, Math.round(division)))
     const tempo = transport && transport.tempo > 0 ? transport.tempo : 120
-    return Math.max(2, Math.round(beats[at] * this.sampleRate * 60 / tempo))
+    const stepBeats = beats[at]
+    const nextPosition = this.tempoPosition + stepBeats
+    const sixteenth = Math.round(nextPosition * 4)
+    const onSixteenth = Math.abs(nextPosition - sixteenth / 4) < 1e-7
+    const amount = shuffle ? Math.max(0, Math.min(1, transport?.shuffle ?? 0)) : 0
+    // Global shuffle delays the odd sixteenths between each pair of eighth notes. Store the delay in beats,
+    // then subtract the previous event's delay: the next eighth stays fixed, producing the intended long/short
+    // pair instead of slowing the whole arpeggio down. Triplet positions do not land on this grid and remain exact.
+    const nextDelay = onSixteenth && Math.abs(sixteenth % 2) === 1 ? amount / 8 : 0
+    const intervalBeats = stepBeats + nextDelay - this.tempoDelay
+    this.tempoPosition = nextPosition
+    this.tempoDelay = nextDelay
+    return Math.max(2, Math.round(intervalBeats * this.sampleRate * 60 / tempo))
   }
 
   private clearLatch(): void {
@@ -292,6 +307,7 @@ export class ArpProcessor implements Processor {
     const patternLengthParam = params[12]
     const insertParam = params[13]
     const singleRepeatParam = params[14]
+    const shuffleParam = params[15]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -352,6 +368,8 @@ export class ArpProcessor implements Processor {
       const timing = Math.max(0, Math.min(2, Math.round(timingParam[i])))
       if (timing !== this.timingWas) {
         this.internalLeft = 0
+        this.tempoPosition = 0
+        this.tempoDelay = 0
         this.started = false
         this.patternStarted = false
         this.timingWas = timing
@@ -366,7 +384,13 @@ export class ArpProcessor implements Processor {
       if (timing !== 0) {
         if (this.internalLeft <= 0) {
           clockEdge = true
-          this.internalLeft = this.internalInterval(timing, divisionParam[i], rateParam[i], transport)
+          this.internalLeft = this.internalInterval(
+            timing,
+            divisionParam[i],
+            rateParam[i],
+            shuffleParam[i] >= 0.5,
+            transport,
+          )
         }
         this.internalLeft--
       }
@@ -467,7 +491,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 7,
+  version: 8,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -482,7 +506,7 @@ export const ARP_MODULE: ModuleDef = {
       },
       {
         title: 'Choose one timing authority',
-        body: 'External advances from Clock cable edges. Tempo uses the rack transport and Division. Free runs at Free Rate. The inactive timing controls keep their values but do not affect playback.',
+        body: 'External advances from Clock cable edges. Tempo uses the rack transport, Division and optional shared Shuffle. Free runs at Free Rate. The inactive timing controls keep their values but do not affect playback.',
       },
       {
         title: 'Pitch order and rhythm are independent',
@@ -496,6 +520,7 @@ export const ARP_MODULE: ModuleDef = {
     ],
     watchFor: [
       'External timing needs Clock edges; Tempo timing needs the rack transport running.',
+      'Shuffle affects Tempo timing only and uses the host transport’s global amount.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -587,6 +612,15 @@ export const ARP_MODULE: ModuleDef = {
       min: 0,
       max: 1,
       default: 1,
+      stepped: true,
+      labels: ['Off', 'On'],
+    },
+    {
+      id: 'shuffle',
+      name: 'Shuffle',
+      min: 0,
+      max: 1,
+      default: 0,
       stepped: true,
       labels: ['Off', 'On'],
     },

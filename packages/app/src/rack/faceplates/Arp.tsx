@@ -9,6 +9,7 @@ const CONTROL_IDS = [
   'timing', 'division', 'rate', 'patternLength',
   'insert',
   'singleRepeat',
+  'shuffle',
 ] as const
 
 export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
@@ -26,6 +27,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(value('patternLength'))))
   const insert = Math.max(0, Math.min(4, Math.round(value('insert'))))
   const singleRepeat = value('singleRepeat') >= 0.5
+  const shuffle = value('shuffle') >= 0.5
   const param = (id: string) => def.params.find((candidate) => candidate.id === id)!
   const sourceName = param('source').labels?.[source] ?? (source === 0 ? 'Root' : 'Played')
   const modeName = param('mode').labels?.[mode] ?? `Mode ${mode + 1}`
@@ -45,7 +47,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const timingName = timing === 0
     ? 'external clock'
     : timing === 1
-      ? `${param('division').labels?.[division] ?? `division ${division + 1}`} tempo`
+      ? `${param('division').labels?.[division] ?? `division ${division + 1}`} tempo${shuffle ? ' · shuffle' : ''}`
       : `${rate < 10 ? rate.toFixed(1) : Math.round(rate)} Hz`
   const insertName = param('insert').labels?.[insert] ?? `Insert ${insert}`
 

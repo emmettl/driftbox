@@ -11,7 +11,7 @@ describe('the Arp faceplate', () => {
     const values: Record<string, number> = {
       source: 0, chord: 3, octaves: 2, mode: 0, gate: 0.5,
       hold: 0, shift: 0, velocityMode: 0, velocity: 0.8,
-      timing: 0, division: 4, rate: 8, patternLength: 16, insert: 0, singleRepeat: 1,
+      timing: 0, division: 4, rate: 8, patternLength: 16, insert: 0, singleRepeat: 1, shuffle: 0,
     }
     const markup = renderToStaticMarkup(createElement(Arp, {
       def,
@@ -62,5 +62,19 @@ describe('the Arp faceplate', () => {
   it('names Played anchors without guessing which collector lane has the extreme pitch', () => {
     const preview = arpInsertPreview({ source: 1, chord: 0, octaves: 1, mode: 5, shift: 0, insert: 2, steps: 2 })
     expect(preview[1]).toMatchObject({ label: 'hi', description: 'Highest held input note' })
+  })
+
+  it('shows when Tempo timing follows the global shuffle amount', () => {
+    const def = MODULES.arp
+    const values = Object.fromEntries(def.params.map((param) => [param.id, param.default]))
+    values.timing = 1
+    values.shuffle = 1
+    const markup = renderToStaticMarkup(createElement(Arp, {
+      def,
+      module: { id: 'arp', type: 'arp' },
+      value: (id: string) => values[id],
+      onChange: () => {},
+    }))
+    expect(markup).toContain('1/16 tempo · shuffle')
   })
 })
