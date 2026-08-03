@@ -380,7 +380,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Thirty-seven modules
+## Forty-two modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -392,11 +392,13 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Voice** | a whole synth in one module: two oscillators, a ladder and two envelopes, playable in chords |
 | **Noise** | white and pink |
 | **Sampler** | loaded or generated audio, sliced and retriggered from CV |
+| **Multisampler** | key and velocity zones, root tuning and sustain loops, played polyphonically from MIDI |
 | **Ladder** | the existing 4-pole. Already written, already tested |
 | **SVF** | state-variable multimode — LP/HP/BP/notch, cheap, and unlike the ladder |
 | **VCA** | linear and exponential, CV inlet |
 | **Drive** | waveshaper |
 | **Distortion** | tube, tape, fuzz and digital as four curves, with a tone control after the hit |
+| **Cabinet** | driven preamp, three-band tone stack and speaker-shaped rolloffs |
 | **EQ** | low shelf, sweepable mid with a Q, high shelf — stereo |
 | **Imager** | independent low and high width around one crossover, so the bottom stays centred |
 | **Delay** | CV'able time, tempo-syncable |
@@ -414,6 +416,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Arranger** | a list of sections, each a pattern and a count of bars — a song, driving a Tracker |
 | **Arp** | one held note becomes a running line: a chord, a direction and a clock |
 | **Compressor** | dynamics and sidechain control for glue and ducking |
+| **Limiter** | stereo-linked look-ahead peak control with gain-reduction CV |
 | **Reverb** | an in-worklet feedback-delay network |
 | **Phaser** | six swept allpass stages, stereo motion built in, sweep CV in octaves |
 | **Quantizer** | scale-lock. The highest musical return per line of code in the list |
@@ -422,14 +425,16 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Vocoder** | 8, 16 or 32 bands: one sound wearing another's spectral shape, with a formant shift |
 | **Combinator** | four rotaries and four buttons, each driving any parameter of any module — and each also a CV outlet |
 | **VU Meter** | patchable needle, LED and waveform displays; unchanged Thru signal and a ballistic envelope outlet |
+| **Tuner** | chromatic pitch and confidence analysis, with a silent-tuning thru mute |
+| **Looper** | stereo record, play and overdub with session-only capture |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
 Two original omissions were later reversed for the rack specifically. The **sampler** and
 its generated or user-loaded breaks are the subject of [docs/DNB.md](DNB.md); the drum
 machines themselves still ship no recorded audio or ROM data. **Reverb** is an in-worklet
 feedback-delay network, because the engine's convolver is unavailable inside an
-`AudioWorkletGlobalScope`. The graph supports polyphony, but no note source drives more than
-one voice yet — see below.
+`AudioWorkletGlobalScope`. MIDI, Voice and Multisampler use the graph's per-voice processors;
+mono effects still receive their voices summed — see below.
 
 ## Monophonic first — and polyphony is cheaper than this section used to claim
 
@@ -1559,6 +1564,23 @@ both bundle cost on the editing-only path and visual competition with a readable
    audio thread. Its waveform, duration and playhead use the existing meter telemetry. The captured take is
    intentionally session state — params and device placement save, megabytes of performed audio do not —
    so a shared patch reopens as the same empty pedal rather than as a covert audio file.
+
+   **5l. A multisample instrument engine.** ✅ Built beside the break-slicing Sampler, whose trigger,
+   slice and reverse contract remains untouched. Multisampler takes pitch, gate and velocity, chooses a
+   key-and-velocity zone on the gate edge, and keeps that recording latched while pitch remains bendable.
+   Root keys, source sample rates and normalized sustain-loop points turn recordings into one playable
+   instrument; overlapping zones choose the nearest root deterministically.
+
+   Zone maps are compact numeric metadata in `PatchModule.data`, so they survive encoding and sharing.
+   PCM remains in `sample0`, `sample1`, … session data slots, where large audio buffers already belong;
+   a patch never silently grows by megabytes. The module is explicitly polyphonic, which makes a chord
+   one MIDI-to-Multisampler cable rather than a bank of manually duplicated samplers.
+
+   The stacked editor completes the human half. Key Atlas accepts a multi-file picker or drop, recognises
+   note names, MIDI numbers and dynamic/velocity suffixes in filenames, fills the ranges between roots,
+   and turns duplicate roots into velocity layers. Its two-dimensional map uses key horizontally and
+   velocity vertically; selecting a zone exposes exact root, low/high key, low/high velocity and sustain
+   loop points. The rack keyboard patches pitch, gate and velocity into the instrument on its first note.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

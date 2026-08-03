@@ -144,6 +144,15 @@ export { LIMITER_MODULE } from './modules/limiter.js'
 export { LOOPER_MODULE } from './modules/looper.js'
 export { METER_MODULE } from './modules/meter.js'
 export { MIXER_MODULE } from './modules/mixer.js'
+export {
+  MULTISAMPLER_MODULE,
+  MULTISAMPLE_ZONE_FIELDS,
+  MULTISAMPLE_ZONE_STRIDE,
+  multisampleSlot,
+  packMultisampleZones,
+  unpackMultisampleZones,
+  type MultisampleZone,
+} from './modules/multisampler.js'
 export { NOISE_MODULE } from './modules/noise.js'
 export { OFFSET_MODULE } from './modules/offset.js'
 export { QUANTIZER_MODULE } from './modules/quantizer.js'

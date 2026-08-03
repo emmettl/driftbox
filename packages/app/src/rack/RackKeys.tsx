@@ -65,7 +65,9 @@ const ROOT = 36
 export function RackKeys({ open, onOpenChange, wake, down, up, allOff, sounding }: Props) {
   const ensureMidi = useRack((s) => s.ensureMidi)
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
-  const hasVco = useRack((s) => s.patch.modules.some((m) => m.type === 'vco'))
+  const hasInstrument = useRack((s) =>
+    s.patch.modules.some((m) => ['vco', 'voice', 'multisampler'].includes(m.type)),
+  )
 
   const [octave, setOctave] = useState(0)
   const [velocity, setVelocity] = useState(0.8)
@@ -280,8 +282,8 @@ export function RackKeys({ open, onOpenChange, wake, down, up, allOff, sounding 
           </svg>
 
           <p className="rk-keys-hint">
-            {!hasMidi && !hasVco
-              ? 'Add a VCO and these keys will have something to play.'
+            {!hasMidi && !hasInstrument
+              ? 'Add a VCO, Voice or Multisampler and these keys will have something to play.'
               : !hasMidi
                 ? 'Playing a key patches a Keys module in, taking over the pitch and gate it lands on.'
                 : null}

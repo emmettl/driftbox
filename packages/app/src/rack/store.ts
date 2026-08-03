@@ -474,6 +474,14 @@ interface RackState {
   setSamplePreviewer: (preview: RackState['previewSample']) => void
   previewingSample: string | null
   setPreviewingSample: (moduleId: string | null) => void
+  /** Display metadata for each Multisampler recording, in the same order as its `sampleN` data slots. */
+  multisamples: Record<string, readonly MultisampleInfo[]>
+  setMultisamples: (moduleId: string, samples: readonly MultisampleInfo[] | null) => void
+  /** Decode and map a batch of local recordings into one Multisampler. Installed by `RackApp`. */
+  loadMultisamplesInto:
+    | ((moduleId: string, files: readonly File[]) => Promise<void>)
+    | null
+  setMultisampleLoader: (load: RackState['loadMultisamplesInto']) => void
   /** Session state, not part of the patch. */
   running: boolean
   setRunning: (running: boolean) => void
@@ -575,6 +583,14 @@ export interface SampleInfo {
   peaks: readonly number[]
   /** A shipped break can be re-rendered from its id; somebody's own file cannot travel in a link. */
   source: 'break' | 'file'
+}
+
+/** What a Multisampler faceplate needs to show for one session-loaded recording. PCM stays in RackApp. */
+export interface MultisampleInfo {
+  name: string
+  seconds: number
+  sampleRate: number
+  peaks: readonly number[]
 }
 
 export const useRack = create<RackState>((set, get) => {
@@ -1021,6 +1037,16 @@ export const useRack = create<RackState>((set, get) => {
     setSamplePreviewer: (previewSample) => set({ previewSample }),
     previewingSample: null,
     setPreviewingSample: (previewingSample) => set({ previewingSample }),
+    multisamples: {},
+    setMultisamples: (moduleId, entries) =>
+      set((state) => {
+        const multisamples = { ...state.multisamples }
+        if (entries && entries.length > 0) multisamples[moduleId] = entries
+        else delete multisamples[moduleId]
+        return { multisamples }
+      }),
+    loadMultisamplesInto: null,
+    setMultisampleLoader: (loadMultisamplesInto) => set({ loadMultisamplesInto }),
 
     setMidi: (midiNote, inputs) =>
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),
@@ -1397,8 +1423,11 @@ export const useRack = create<RackState>((set, get) => {
       // Somewhere for the notes to go. Without a pitch inlet to drive there is nothing useful to build —
       // a MIDI module wired to nothing is the silent no-op this exists to prevent, so say so instead.
       const patch = get().patch
+      // Prefer a complete instrument, newest first: it already owns articulation and is normally the thing
+      // somebody just added. Fall back to the older VCO + envelope/VCA convention.
+      const instrument = [...patch.modules].reverse().find((m) => m.type === 'multisampler' || m.type === 'voice')
       const vco = patch.modules.find((m) => m.type === 'vco')
-      if (!vco) return null
+      if (!instrument && !vco) return null
 
       const id = freshId(patch, 'midi')
       structural((current) => {
@@ -1415,7 +1444,15 @@ export const useRack = create<RackState>((set, get) => {
           if (at >= 0) cables.splice(at, 1)
           cables.push({ from: [id, from], to })
         }
-        takeOver('pitch', [vco.id, 'pitch'])
+        if (instrument) {
+          takeOver('pitch', [instrument.id, 'pitch'])
+          takeOver('gate', [instrument.id, 'gate'])
+          // Voice has no velocity inlet; Multisampler uses it both to choose a layer and set level.
+          if (instrument.type === 'multisampler') takeOver('velocity', [instrument.id, 'velocity'])
+          return { ...current, modules, cables }
+        }
+
+        takeOver('pitch', [vco!.id, 'pitch'])
         // The gate goes to an envelope if there is one; a VCA's own CV inlet otherwise, so a patch with no
         // ADSR still articulates rather than droning.
         const adsr = current.modules.find((m) => m.type === 'adsr')
