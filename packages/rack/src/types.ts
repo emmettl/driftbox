@@ -161,6 +161,10 @@ export interface MeterReading {
   envelope: number
   /** A small, display-only view of the latest render block. */
   waveform: Float32Array
+  /** Fundamental estimate from an analyser such as the Tuner. Absent for an ordinary level meter. */
+  frequency?: number
+  /** Normalised confidence in `frequency`; zero means the faceplate should show no note. */
+  clarity?: number
 }
 
 /**

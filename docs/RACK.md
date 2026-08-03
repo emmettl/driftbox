@@ -1231,9 +1231,9 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Twenty modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
+   Twenty-one modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
    Distortion, Groovebox, Imager, Limiter, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
-   Transport and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
+   Transport, Tuner and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
    to the rack rather than to one voice. Delay is the clearest example — eight two-second buffers would
    be eight separate delays — and Imager makes the other failure vivid: widening each voice before the
    polyphonic collapse would simply throw that width away. `poly.test.ts` pins this list so a new module
@@ -1539,8 +1539,16 @@ both bundle cost on the editing-only path and visual competition with a readable
    corners without pretending three filters are measured convolution IRs.
 
    Stereo state is independent throughout so the device also works after wide pedals and on buses. The
-   factory now reads Audio Input → high-pass → Drive → Amp / Cab → EQ → Compressor before its visible
-   dry/delay path. Tuner and looper are the two remaining enforced guitar-rig handoffs.
+   factory now reads Audio Input → Tuner → high-pass → Drive → Amp / Cab → EQ → Compressor before its
+   visible dry/delay path.
+
+   **5j. A chromatic tuner.** ✅ Built on the existing analysis telemetry rather than a second audio-thread
+   message path. A rolling window is low-pass filtered and downsampled before normalised autocorrelation;
+   choosing the first credible peak avoids calling a bright guitar's second harmonic the note, and
+   interpolating around it gives the faceplate a useful cents error. Silence and weak periodicity blank the
+   display rather than freezing an old answer. Reference A is patch state, pitch is not, and Mute silences
+   only Thru so the detector keeps listening. The Guitar Pedalboard now starts Audio Input → Tuner, leaving
+   the looper as its one remaining enforced handoff.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

@@ -10,6 +10,7 @@ import { Meter } from './Meter.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
 import { Tracker } from './Tracker.js'
+import { Tuner } from './Tuner.js'
 import { Vco } from './Vco.js'
 import type { FaceplateComponent } from './types.js'
 
@@ -68,6 +69,7 @@ const FACEPLATES: Record<string, Entry> = {
   // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.
   // The Tracker was the tallest module in the rack and the least use — a pattern you could not see.
   tracker: { component: Tracker, rows: 7 },
+  tuner: { component: Tuner, span: 1, rows: 3 },
 }
 
 export function faceplateFor(type: string): FaceplateComponent {

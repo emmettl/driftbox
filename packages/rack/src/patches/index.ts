@@ -570,6 +570,7 @@ const wobbler = (): Patch => ({
 const guitarPedalboard = (): Patch => ({
   modules: [
     { id: 'input-1', type: 'audio-input', params: { level: 1, channel: 0 } },
+    { id: 'tuner-1', type: 'tuner', params: { reference: 440, mute: 0 } },
     { id: 'meter-input', type: 'meter', params: { mode: 0, gain: 1.5, release: 0.34 } },
     { id: 'highpass-1', type: 'svf', params: { cutoff: 70, resonance: 0 } },
     { id: 'drive-1', type: 'drive', params: { drive: 4.5, bias: 0.04 } },
@@ -603,7 +604,8 @@ const guitarPedalboard = (): Patch => ({
     { id: 'out-1', type: 'out', params: { level: 0.75 } },
   ],
   cables: [
-    { from: ['input-1', 'out'], to: ['meter-input', 'in'] },
+    { from: ['input-1', 'out'], to: ['tuner-1', 'in'] },
+    { from: ['tuner-1', 'thru'], to: ['meter-input', 'in'] },
     { from: ['meter-input', 'thru'], to: ['highpass-1', 'in'] },
     { from: ['highpass-1', 'hp'], to: ['drive-1', 'in'] },
     { from: ['drive-1', 'out'], to: ['cabinet-1', 'in'] },

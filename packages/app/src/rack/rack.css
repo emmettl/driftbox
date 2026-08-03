@@ -1523,6 +1523,145 @@ kbd {
   }
 }
 
+/* ---- Chromatic tuner ---------------------------------------------------------
+ *
+ * A dark frequency counter with a wide cents scale. Green means within five cents; uncertainty blanks the
+ * note instead of freezing yesterday's answer, which is the only honest display when the string has died.
+ */
+
+.rk-tuner-title {
+  align-items: center;
+}
+
+.rk-tuner-model {
+  color: var(--nine);
+  font: 8px var(--mono);
+  letter-spacing: 0.13em;
+}
+
+.rk-tuner-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 62px;
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
+}
+
+.rk-tuner-display {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(95, 240, 208, 0.2);
+  border-radius: 6px;
+  color: rgba(232, 228, 255, 0.35);
+  background:
+    linear-gradient(rgba(95, 240, 208, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 45%, rgba(20, 74, 65, 0.24), rgba(3, 12, 12, 0.98) 72%);
+  background-size: 12px 12px, auto;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.75);
+}
+
+.rk-tuner-display[data-detected='yes'] {
+  color: var(--nine);
+}
+
+.rk-tuner-display[data-tuned='yes'] {
+  border-color: rgba(95, 240, 208, 0.7);
+  box-shadow:
+    inset 0 0 18px rgba(0, 0, 0, 0.75),
+    0 0 10px rgba(95, 240, 208, 0.22);
+}
+
+.rk-tuner-note {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 1;
+  text-shadow: 0 0 9px currentColor;
+}
+
+.rk-tuner-note strong {
+  font: 700 30px/1 var(--mono);
+}
+
+.rk-tuner-note sup {
+  margin-left: 2px;
+  font: 10px var(--mono);
+}
+
+.rk-tuner-readout,
+.rk-tuner-cents {
+  position: absolute;
+  top: 12px;
+  font: 8px var(--mono);
+  letter-spacing: 0.08em;
+}
+
+.rk-tuner-readout {
+  left: 8px;
+}
+
+.rk-tuner-cents {
+  right: 8px;
+}
+
+.rk-tuner-scale {
+  position: absolute;
+  right: 12px;
+  bottom: 18px;
+  left: 12px;
+  height: 22px;
+  border-bottom: 1px solid rgba(232, 228, 255, 0.18);
+}
+
+.rk-tuner-scale i {
+  position: absolute;
+  bottom: -4px;
+  width: 1px;
+  height: 10px;
+  background: rgba(232, 228, 255, 0.25);
+}
+
+.rk-tuner-scale i:nth-child(3) {
+  height: 15px;
+  background: rgba(95, 240, 208, 0.65);
+}
+
+.rk-tuner-scale i span {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(232, 228, 255, 0.38);
+  font: 6px var(--mono);
+}
+
+.rk-tuner-scale b {
+  position: absolute;
+  bottom: 1px;
+  width: 2px;
+  height: 25px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 7px currentColor;
+  transition: left 55ms linear;
+}
+
+.rk-tuner-controls {
+  display: grid;
+  grid-template-columns: repeat(2, 58px);
+  justify-content: center;
+  align-items: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-tuner-scale b {
+    transition: none;
+  }
+}
+
 /* A real grid with a fixed column count and a fixed cell, so `genericRows` can compute a module's height
  * by arithmetic rather than by measuring. The numbers here are the ones in `layout.ts`: CELL_WIDTH 58,
  * CELL_HEIGHT 62, seven columns for a full-width module and three for a half. Two copies of a number that

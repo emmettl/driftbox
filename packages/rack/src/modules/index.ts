@@ -34,12 +34,13 @@ import { SVF_MODULE } from './svf.js'
 import { REVERB_MODULE } from './reverb.js'
 import { TRACKER_MODULE } from './tracker.js'
 import { TRANSPORT_MODULE } from './transport.js'
+import { TUNER_MODULE } from './tuner.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-nine modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -124,6 +125,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   MIDI_MODULE,
 
   METER_MODULE,
+  TUNER_MODULE,
 
   MIXER_MODULE,
   OUT_MODULE,
@@ -167,6 +169,7 @@ export { COMPRESSOR_MODULE, CompressorProcessor } from './compressor.js'
 export { REVERB_MODULE, ReverbProcessor } from './reverb.js'
 export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './tracker.js'
 export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
+export { TUNER_MODULE, TunerProcessor } from './tuner.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
 export { VOICE_MODULE, VoiceProcessor } from './voice.js'

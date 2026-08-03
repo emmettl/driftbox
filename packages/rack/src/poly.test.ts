@@ -145,7 +145,7 @@ describe('what the compiler says about voices', () => {
     expect(mono.sort()).toEqual([
       'arp', 'arranger', 'audio-input', 'cabinet', 'clock', 'combi', 'delay', 'distortion', 'groovebox', 'imager',
       'limiter', 'meter', 'out', 'phaser', 'ping-pong', 'reverb', 'seq',
-      'tracker', 'transport', 'vocoder',
+      'tracker', 'transport', 'tuner', 'vocoder',
     ])
   })
 })
