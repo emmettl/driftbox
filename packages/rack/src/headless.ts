@@ -185,11 +185,11 @@ export class RackRenderer {
 
   /** Set the tempo and whether the transport is running. Starting from a stop rewinds the position, which
    *  is what the Graph does with its own — the two must not disagree about where bar one is. */
-  setTransport(tempo: number, running: boolean): void {
+  setTransport(tempo: number, running: boolean, shuffle = 0): void {
     if (Number.isFinite(tempo) && tempo > 0) this.tempoValue = Math.max(20, Math.min(400, tempo))
     if (running && !this.runningValue) this.beats = 0
     this.runningValue = running
-    this.graph.setTransport(tempo, running)
+    this.graph.setTransport(tempo, running, shuffle)
   }
 
   get tempo(): number {

@@ -115,6 +115,7 @@ export class Graph {
   private tempo = 120
   private running = false
   private beat = 0
+  private shuffle = 0
 
   /**
    * Bulk data, in two layers on purpose.
@@ -276,8 +277,9 @@ export class Graph {
   }
 
   /** Where the transport is now. Tempo may change while running; position does not jump when it does. */
-  setTransport(tempo: number, running: boolean): void {
+  setTransport(tempo: number, running: boolean, shuffle = 0): void {
     if (Number.isFinite(tempo) && tempo > 0) this.tempo = Math.max(20, Math.min(400, tempo))
+    if (Number.isFinite(shuffle)) this.shuffle = Math.max(0, Math.min(1, shuffle))
     // Restarting from a stop rewinds; changing tempo while running does not.
     if (running && !this.running) this.beat = 0
     this.running = running
@@ -386,6 +388,7 @@ export class Graph {
       tempo: this.tempo,
       running: this.running,
       beat: this.beat,
+      shuffle: this.shuffle,
       // Zero while stopped, because no beats pass in a block during which nothing is playing. Reporting the
       // running figure regardless was a real bug: a module interpolating position across the block then crept
       // forward and snapped back every block, so a stopped bar ramp wobbled instead of holding still. `tempo` is

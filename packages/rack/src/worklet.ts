@@ -61,7 +61,7 @@ export type RackMessage =
    * from the start of the context — `currentFrame` here, `Rack.frameFor` on the other side.
    */
   | { kind: 'param'; slot: number; value: number; voice?: number; frame?: number }
-  | { kind: 'transport'; tempo: number; running: boolean }
+  | { kind: 'transport'; tempo: number; running: boolean; shuffle?: number }
   /** Enable low-rate meter readings only while a host faceplate is listening. */
   | { kind: 'monitor'; enabled: boolean }
   /** `data` is transferred rather than copied — see `Rack.setData`. */
@@ -126,7 +126,7 @@ class RackProcessor extends AudioWorkletProcessor {
     const seed = options && options.processorOptions
     if (seed) {
       if (seed.plan) this.graph.setPlan(seed.plan)
-      if (seed.transport) this.graph.setTransport(seed.transport.tempo, seed.transport.running)
+      if (seed.transport) this.graph.setTransport(seed.transport.tempo, seed.transport.running, seed.transport.shuffle)
       for (const entry of seed.data || []) this.graph.setData(entry.module, entry.slot, entry.data)
       // Scheduled param changes, for the same reason as the plan and the data: an offline render never
       // sees a port message posted before it started, so automation would silently not be in the file.
@@ -145,7 +145,7 @@ class RackProcessor extends AudioWorkletProcessor {
       } else if (message.kind === 'param') {
         this.graph.setParam(message.slot, message.value, message.voice, message.frame)
       } else if (message.kind === 'transport') {
-        this.graph.setTransport(message.tempo, message.running)
+        this.graph.setTransport(message.tempo, message.running, message.shuffle)
       } else if (message.kind === 'monitor') {
         this.monitoring = message.enabled === true
       } else if (message.kind === 'data') {

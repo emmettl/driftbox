@@ -244,6 +244,7 @@ export class Rack {
   private absent: string[] = []
   private tempoValue = 120
   private runningValue = false
+  private shuffleValue = 0
   /** Beats from every span already finished — every span before the current tempo. See `beat`. */
   private banked = 0
   /** The context time the current span began at, in seconds. */
@@ -284,7 +285,7 @@ export class Rack {
       // and no sound. See the note in the processor's constructor.
       processorOptions: {
         plan: this.compiled,
-        transport: { tempo: this.tempoValue, running: this.runningValue },
+        transport: { tempo: this.tempoValue, running: this.runningValue, shuffle: this.shuffleValue },
         data: this.pending,
         params: this.pendingParams,
       },
@@ -449,7 +450,7 @@ export class Rack {
    * because a patch reload has to re-send it, since the audio thread's Graph is not rebuilt but its transport
    * state is not part of the plan either.
    */
-  setTransport(tempo: number, running: boolean): void {
+  setTransport(tempo: number, running: boolean, shuffle = 0): void {
     // Bank what has already played, at the tempo it played at, BEFORE anything here changes. Multiplying
     // total elapsed seconds by the current tempo would move every beat already gone by the moment somebody
     // nudged the tempo — a position recorded at 174 drifting the instant you tried the patch at 172.
@@ -464,7 +465,8 @@ export class Rack {
 
     this.tempoValue = tempo
     this.runningValue = running
-    this.node?.port.postMessage({ kind: 'transport', tempo, running })
+    this.shuffleValue = Number.isFinite(shuffle) ? Math.max(0, Math.min(1, shuffle)) : 0
+    this.node?.port.postMessage({ kind: 'transport', tempo, running, shuffle: this.shuffleValue })
   }
 
   get tempo(): number {

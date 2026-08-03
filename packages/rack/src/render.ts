@@ -1,4 +1,5 @@
 import { STEPS_PER_BAR } from './automation.js'
+import { grooveboxSong } from './groovebox.js'
 import { Rack } from './index.js'
 import type { Patch, Registry } from './types.js'
 
@@ -101,7 +102,7 @@ export async function renderPatch(patch: Patch, options: RenderOptions): Promise
       rack.setData(module, slot, values.slice())
     }
   }
-  rack.setTransport(tempo, true)
+  rack.setTransport(tempo, true, grooveboxSong(patch)?.swing ?? 0)
 
   // Recorded parameter moves, scheduled before `start()` for exactly the reason above — this is the case
   // the seeding path in `Rack.scheduleParam` exists for. Without it an exported file would have the patch

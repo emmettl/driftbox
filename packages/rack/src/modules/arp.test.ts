@@ -27,6 +27,7 @@ interface Options {
   rate?: number
   insert?: number
   singleRepeat?: number
+  shuffle?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -307,6 +308,32 @@ describe('single-note repeat', () => {
 })
 
 describe('how it is clocked', () => {
+  const internalEdges = (
+    division: number,
+    shuffle: number,
+    globalShuffle: number,
+    timing = 1,
+    rate = 10,
+  ) => {
+    const sampleRate = 1200
+    const frames = 1001
+    const arp = new ArpProcessor(sampleRate, deps, `arp-shuffle-${division}-${shuffle}-${globalShuffle}`)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('timing')].fill(timing)
+    params[param('division')].fill(division)
+    params[param('rate')].fill(rate)
+    params[param('shuffle')].fill(shuffle)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      Array.from({ length: 5 }, (_, inlet) => new Float32Array(frames).fill(inlet === 2 ? 1 : 0)),
+      out,
+      params,
+      frames,
+      { tempo: 120, running: false, beat: 0, beatsPerBlock: 0, shuffle: globalShuffle },
+    )
+    return [...out[3]].flatMap((value, index) => value >= 0.5 ? [index] : [])
+  }
+
   it('keeps explicit Clock as the default timing source', () => {
     expect(ARP_MODULE.params[param('timing')].default).toBe(0)
     expect(ARP_MODULE.params[param('timing')].labels?.[0]).toBe('External')
@@ -364,6 +391,24 @@ describe('how it is clocked', () => {
     expect(pitchesAt(180)).toBe(11)
   })
 
+  it('delays odd sixteenths without moving their surrounding eighth-note anchors', () => {
+    // At this sample rate and tempo a sixteenth is 150 samples. 80% shuffle delays the odd one by 60,
+    // so the intervals become 210/90 while the even positions remain exactly 300 samples apart.
+    expect(internalEdges(4, 1, 0.8).slice(0, 7)).toEqual([0, 210, 300, 510, 600, 810, 900])
+  })
+
+  it('keeps Shuffle off by default and ignores a missing global amount', () => {
+    expect(ARP_MODULE.params[param('shuffle')].default).toBe(0)
+    expect(internalEdges(4, 0, 1).slice(0, 5)).toEqual([0, 150, 300, 450, 600])
+    expect(internalEdges(4, 1, 0).slice(0, 5)).toEqual([0, 150, 300, 450, 600])
+  })
+
+  it('leaves eighth, triplet and free-rate timing straight', () => {
+    expect(internalEdges(2, 1, 0.8).slice(0, 4)).toEqual([0, 300, 600, 900])
+    expect(internalEdges(3, 1, 0.8).slice(0, 5)).toEqual([0, 200, 400, 600, 800])
+    expect(internalEdges(4, 1, 0.8, 2, 10).slice(0, 5)).toEqual([0, 120, 240, 360, 480])
+  })
+
   it('completes the dotted and triplet tempo values without moving shipped division indices', () => {
     expect(ARP_MODULE.params[param('division')].labels?.slice(0, 10)).toEqual([
       '1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128',
@@ -408,6 +453,42 @@ describe('how it is clocked', () => {
     }
     expect(held(0.25)).toBeLessThan(held(0.9))
     expect(held(0.9)).toBeGreaterThan(STEP / 2)
+  })
+
+  it('closes Gate completely at zero while keeping Trig available', () => {
+    expect(ARP_MODULE.params[param('gate')].min).toBe(0)
+    const { out } = run(4, { chord: 2, octaves: 1, gate: 0 })
+    expect(out[1].every((value) => value === 0)).toBe(true)
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, true, true, true,
+    ])
+  })
+
+  it('keeps Tie open from the first note without gaps between steps', () => {
+    const { out } = run(4, { chord: 2, octaves: 1, gate: 1 })
+    expect(out[1].every((value) => value === 1)).toBe(true)
+  })
+
+  it('still closes a tied gate for a rhythm rest', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[1] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-tied-rest', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 3
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('gate')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    expect(out[1].slice(0, STEP).every((value) => value === 1)).toBe(true)
+    expect(out[1].slice(STEP, STEP * 2).every((value) => value === 0)).toBe(true)
+    expect(out[1].slice(STEP * 2).every((value) => value === 1)).toBe(true)
   })
 
   it('sounds its first note even though there is no previous step to measure', () => {

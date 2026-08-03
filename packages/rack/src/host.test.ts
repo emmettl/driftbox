@@ -131,6 +131,7 @@ describe('Rack.start', () => {
       audioWorklet: { addModule: async () => {} },
     } as unknown as BaseAudioContext
     const rack = new Rack(context, MODULES)
+    rack.setTransport(132, true, 0.67)
     rack.patch = {
       modules: [
         { id: 'o', type: 'offset' },
@@ -143,9 +144,13 @@ describe('Rack.start', () => {
     expect(await rack.start()).toBe(true)
     expect(seeded?.processorOptions).toMatchObject({
       plan: rack.plan,
+      transport: { tempo: 132, running: true, shuffle: 0.67 },
       params: [{ slot: rack.plan?.slots.o.offset, value: 0.5, frame: 1000 }],
     })
     // Posting this plan again can race the first render quantum and clear the seeded params.
     expect(messages).toEqual([])
+
+    rack.setTransport(140, false, 2)
+    expect(messages).toEqual([{ kind: 'transport', tempo: 140, running: false, shuffle: 1 }])
   })
 })
