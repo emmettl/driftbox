@@ -43,6 +43,105 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 ctx.createMediaStreamSource(stream).connect(rack.input(RACK_LIVE_INPUT))
 ```
 
+## Embedding it in a web game
+
+The whole rack is a `Rack` on a context you own, so a game embeds it the way it embeds any Web Audio: make
+the context on a user gesture, start the rack, connect it wherever the game's audio goes.
+
+```js
+const ctx = new AudioContext()               // on a click, tap or key — browsers require a gesture
+const rack = new Rack(ctx)
+if (!(await rack.start())) return            // no AudioWorklet, no rack: the one failure to handle
+rack.patch = decodePatch(levelMusic) ?? PATCHES[0].build()
+rack.output.connect(musicBus)                // your own gain, so the game can duck it
+rack.setTransport(rack.patch.tempo ?? 120, true)
+```
+
+Nothing about that is rack-specific except `start()`, which resolves `false` where worklets are unavailable
+— a rack without one is not a degraded rack, it is no rack, and saying so beats looking broken. From there
+the two sections below are what a game reaches for: `Adaptive` to follow the scene, and `RackRenderer` if
+any of the music wants rendering ahead of time rather than played live.
+
+## Playing what was recorded
+
+A patch can carry recorded parameter moves, and **it does not play them by itself**. The rack's own
+sequencing runs on the audio thread, but automation lanes live in the document, so something host-side has
+to hand them over in time. `LanePlayer` is that, and it used to exist only inside this repo's app — which
+meant a patch opened anywhere else played the patch and not the performance, silently.
+
+```js
+const lanes = new LanePlayer(rack)
+setInterval(() => lanes.advance(rack.patch.automation), 100)   // or in the game's update loop
+```
+
+Each point is handed over with the frame it belongs at, so how often you call `advance` decides only how
+far ahead work is done, never where a value lands. It queues nothing while stopped and re-queues from the
+current position after a seek or a loop.
+
+## Rendering it without a browser
+
+`Rack` and `renderPatch` are both Web Audio — a live context and an offline one. The DSP is not: `Graph` is
+arithmetic over `Float32Array`s, so a patch can be rendered anywhere JavaScript runs. `RackRenderer` is that
+path, made supported, so an embedder is not reaching for `compile` and `Graph` — the tier this package
+explicitly does not promise — and reassembling the module registry by hand.
+
+```js
+import { RackRenderer, PATCHES } from '@driftbox/rack'
+
+const renderer = new RackRenderer({ sampleRate: 48000 })
+renderer.patch = PATCHES[0].build()
+renderer.setTransport(renderer.patch.tempo ?? 120, true)
+
+const block = [new Float32Array(128), new Float32Array(128)]
+renderer.process(block)          // fill your own buffers, forever
+const file = renderer.render(8)  // or render a stretch in one call
+```
+
+It is the same `compile`, the same modules and the same `Graph` the worklet runs — not a second
+implementation — and `headless.test.ts` pins that the two produce identical samples.
+
+**The groovebox does not come with it.** A patch's 808, 909 and 303s arrive on the host inputs from
+`@driftbox/engine`, whose renderer is Web Audio from end to end, so headless you get the rack's own modules
+and whatever you feed `process`'s `hostInputs`. In a browser, both halves work as they always have.
+
+`examples/headless.mjs` renders a shipped patch to a WAV and prints what it cost. On this machine a full
+preset is around 20x realtime at 48kHz — a few percent of one core.
+
+## Following a scene
+
+A game has a number describing how things are going and wants the music to know. `Adaptive` is the mapping
+from that number to the patch's knobs, and the rule about when each one is allowed to move.
+
+```js
+import { Adaptive } from '@driftbox/rack'
+
+const score = new Adaptive(rack, {
+  controls: [
+    { target: ['macro', 'rotary1'], points: [{ at: 0, value: 0 }, { at: 1, value: 127 }] },
+    { target: ['drums', 'pattern'], points: [{ at: 0, value: 0 }, { at: 1, value: 3 }],
+      onBar: true, step: true },
+  ],
+})
+
+score.update(danger, rack.beat)   // in the game's update loop
+```
+
+`beat` is answered the same way by both hosts — `Rack` derives it from `ctx.currentTime`, `RackRenderer`
+counts frames — so one score drives a live rack and an offline render without being written twice. An
+`OfflineAudioContext` is the exception: its clock does not advance while it renders, so drive a score
+through `RackRenderer.render`'s `onBlock` rather than off a `Rack` on an offline context.
+
+**It moves parameters inside one patch rather than swapping patches**, and that is the load-bearing
+decision. Applying a plan rebuilds every processor, so a patch swap restarts oscillator phase, filter state
+and envelope stages — a hard cut with a click on it. A Combinator rotary already reaches any parameter of
+any module, including the stepped ones no cable can touch, so there is nothing a swap would buy.
+
+The other rule is *when*. A level or a cutoff moves at once and the Graph ramps it across the block, so it
+slides. A pattern index or a waveform waits for the bar line, because a drum pattern that changes on beat
+three is not a transition. `onBar` is that, and it is the only thing `update`'s `beat` argument is read for.
+
+Call `update` as often as you like: it sends only what changed, so a steady scene costs nothing.
+
 ## Why it is not part of `@driftbox/engine`
 
 That engine is trigger-shaped: a voice is a pure function from knobs to a `VoiceSpec`, and
@@ -143,6 +242,11 @@ None of them need a browser.
 | `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
 | `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
 | `api.test.ts` | The exported names, in two tiers. Adding an export fails it by name, which is the point |
+| `minified.test.ts` | The package bundled and minified by rolldown, with the worklet then assembled from what came out and measured against the same patch unminified. The `toString()` scheme's failure is silent and happens only in a consumer's build |
+| `lanes.test.ts` | The lookahead scheduler: that a point lands on the frame its position falls on, that it is queued exactly once across the seam, that a stopped transport queues nothing, and that a seek re-queues |
+| `host.test.ts` | Where the live host thinks the music is: that the position advances at the tempo, that changing tempo does not move the past, and that a pause holds while a restart rewinds |
+| `headless.test.ts` | The browser-free host: that it makes sound with no `AudioContext` defined at all, that it is sample-for-sample the same as driving the Graph by hand, that a scheduled change lands mid-block, and that its musical position survives a tempo change |
+| `adaptive.test.ts` | The score: what a curve reads, that it holds the end rather than extrapolating, that a bar-locked control waits and lands on the value wanted *at* the bar, that a seek counts as a boundary, and that a steady scene sends nothing |
 | `modulation.test.ts` | Combinator routing: which of two routes onto one target wins, what a route onto a stepped param lands on, that a chain sees the value an earlier route wrote, that a cycle settles rather than oscillating, and that a route this build cannot resolve survives a round trip |
 | per-module | The claims each module's comments make: alias suppression against an additive reference, the pink slope, every ADSR time knob against a stopwatch, the delay's interpolation, the quantizer's octave boundaries |
 

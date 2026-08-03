@@ -52,6 +52,15 @@ export type {
   ModuleDef,
   MeterReading,
 } from './types.js'
+export type {
+  AdaptiveChange,
+  AdaptiveControl,
+  AdaptiveHost,
+  AdaptivePoint,
+  AdaptiveScore,
+} from './adaptive.js'
+export type { RackRendererOptions, RenderedAudio } from './headless.js'
+export type { LaneHost, LanePlayerOptions } from './lanes.js'
 
 // ---- Tier 2: still moving ---------------------------------------------------------------
 //
@@ -139,6 +148,9 @@ export {
 } from './modules/vocoder.js'
 export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './worklet.js'
 export { renderLength, renderPatch, type RenderOptions } from './render.js'
+export { RackRenderer } from './headless.js'
+export { Adaptive, adaptiveValue, adaptiveValues } from './adaptive.js'
+export { LanePlayer } from './lanes.js'
 
 export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
 /** Host input 4 is reserved for a browser MediaStream; 0..3 are the groovebox sections. */
@@ -164,6 +176,10 @@ export class Rack {
   private absent: string[] = []
   private tempoValue = 120
   private runningValue = false
+  /** Beats from every span already finished — every span before the current tempo. See `beat`. */
+  private banked = 0
+  /** The context time the current span began at, in seconds. */
+  private spanFrom = 0
   /** Data set before there was a node to send it to. Handed over in `processorOptions` at construction. */
   private pending: { module: string; slot: string; data: Float32Array }[] = []
   /** Scheduled param changes made before there was a node to send them to. See `scheduleParam`. */
@@ -364,6 +380,18 @@ export class Rack {
    * state is not part of the plan either.
    */
   setTransport(tempo: number, running: boolean): void {
+    // Bank what has already played, at the tempo it played at, BEFORE anything here changes. Multiplying
+    // total elapsed seconds by the current tempo would move every beat already gone by the moment somebody
+    // nudged the tempo — a position recorded at 174 drifting the instant you tried the patch at 172.
+    // `app/src/rack/playhead.ts` learned that the hard way and this is the same arithmetic, owned here so
+    // that every host does not have to repeat it.
+    const now = this.ctx.currentTime
+    if (this.runningValue) this.banked += ((now - this.spanFrom) * this.tempoValue) / 60
+    // Starting from a stop rewinds, which is what the Graph does with its own position. The two must not
+    // disagree about where bar one is.
+    if (running && !this.runningValue) this.banked = 0
+    this.spanFrom = now
+
     this.tempoValue = tempo
     this.runningValue = running
     this.node?.port.postMessage({ kind: 'transport', tempo, running })
@@ -375,6 +403,38 @@ export class Rack {
 
   get running(): boolean {
     return this.runningValue
+  }
+
+  /**
+   * This host's clock, in seconds — `ctx.currentTime`, named so that anything driving both hosts does not
+   * have to know which one it has. `LanePlayer` schedules against it.
+   */
+  get time(): number {
+    return this.ctx.currentTime
+  }
+
+  /**
+   * Where the transport is, in beats since it started.
+   *
+   * **Derived from the context clock rather than reported from the worklet**, which is the same decision
+   * `live.ts` and `playhead.ts` already made twice: the audio thread does accumulate a position, but
+   * reporting it would grow the message ABI `docs/RACK.md` says to keep small, and it would arrive as a
+   * sample of the past at whatever rate the meter channel happens to be running. `ctx.currentTime` is
+   * available always and exactly, and it is the same clock `frameFor` converts against — so a beat read
+   * here and a frame scheduled there cannot disagree about when now is.
+   *
+   * It exists because `Adaptive` needs it. A score is written once and driven from either host, so `Rack`
+   * and `RackRenderer` have to answer the same question the same way; without this, the adaptive layer
+   * worked in an offline render and not in the browser, which is backwards.
+   *
+   * **An offline context cannot answer it.** `currentTime` on an `OfflineAudioContext` does not advance
+   * while `startRendering` is running, so this reads zero throughout an export. That is why `renderPatch`
+   * schedules against frames rather than positions, and why a score driven through an offline render should
+   * use `RackRenderer.render`'s `onBlock`, which counts frames itself.
+   */
+  get beat(): number {
+    if (!this.runningValue) return this.banked
+    return this.banked + ((this.ctx.currentTime - this.spanFrom) * this.tempoValue) / 60
   }
 
   /**

@@ -63,9 +63,16 @@ const PROMISED = [
   'valueAt',
   'pointsIn',
   'automationLength',
-  // Rendering a patch without a browser.
+  // Rendering a patch offline, in a browser.
   'renderPatch',
   'renderLength',
+  // Rendering with no browser at all, and following a game while it does.
+  'RackRenderer',
+  'Adaptive',
+  'adaptiveValue',
+  'adaptiveValues',
+  // Playing a patch's recorded automation back, which nothing outside this repo could do before.
+  'LanePlayer',
   // Reading somebody else's rack.
   'importVcv',
   'importVcvPatch',

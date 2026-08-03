@@ -3,12 +3,12 @@ import {
   MODULES,
   GROOVEBOX_PORTS,
   RACK_LIVE_INPUT,
+  LanePlayer,
   Rack,
   compile,
   grooveboxSong,
   renderRetainedSongMix,
   patchCompatibility,
-  pointsIn,
   valueAt,
   renderPatch,
   type Patch,
@@ -20,7 +20,7 @@ import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
 import { clearLive, publishLive } from './live.js'
-import { moveTo, stepAt, STOPPED, timeOfStep, type Playhead } from './playhead.js'
+import { moveTo, stepAt, STOPPED, type Playhead } from './playhead.js'
 import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { SCENES } from '../visual/scenes/index.js'
@@ -134,8 +134,6 @@ export default function RackApp() {
   const rack = useRef<Rack | null>(null)
   /** Where the rack's transport is, in musical time. See `playhead.ts`. */
   const playhead = useRef<Playhead>(STOPPED)
-  /** The last step the automation scheduler has already queued, so a point is never sent twice. */
-  const scheduledTo = useRef(-1)
   /** The retained song playing beside the rack graph, through the same final performance bus. */
   const groovebox = useRef<DriftboxEngine | null>(null)
   /** Exact envelope currently hosted, so rack-only edits do not rebuild the song engine. */
@@ -1062,10 +1060,6 @@ export default function RackApp() {
       playing,
       tempo,
     )
-    // A fresh run replays the lanes from the top, so the window starts before the first step rather than
-    // at it — `pointsIn` is open at the start, and a point at step zero would otherwise never be due.
-    if (playing) scheduledTo.current = -1
-
     // An AudioWorkletNode's context is typed as BaseAudioContext, which has neither suspend nor resume — the rack
     // is always given a real AudioContext, so this is a narrowing rather than an assumption.
     const ctx = live.output?.context as AudioContext | undefined
@@ -1105,42 +1099,30 @@ export default function RackApp() {
   /**
    * Play the lanes back.
    *
-   * A host-side lookahead scheduler, which `docs/RACK.md` argues the rack's *own* sequencer does not need
-   * because that one lives on the audio thread. Automation is different: the lanes are in the document, on
-   * this side, so something here has to hand them over in time. What makes it accurate rather than merely
-   * timely is `scheduleParam` — each point is sent with the frame it belongs at, so the 100ms tick decides
-   * only how far ahead work is done and never where a value lands.
+   * `LanePlayer` is this, moved into `@driftbox/rack` — it was forty lines here, which meant a patch opened
+   * by anything that is not this app played the patch and not the performance. The scheduler is unchanged
+   * in design: a lookahead window, each point handed over with `scheduleParam` and the frame it belongs at,
+   * so the 100ms tick decides only how far ahead work is done and never where a value lands.
    *
-   * The window advances by `scheduledTo`, so a point is queued exactly once. `pointsIn` is open at the
-   * start and closed at the end for that reason, and the seam is where getting it wrong shows up as a knob
-   * that jumps twice.
+   * It reads its position from `Rack.beat`, which is the same banked arithmetic `playhead.ts` does for the
+   * screen — one clock, two readers, so the knob and the sound cannot disagree.
+   *
+   * Playback goes straight to the audio thread rather than through the store, and that is load-bearing:
+   * recording writes through `setParam`, which is also what a knob does, so a lane played back into the
+   * store would record itself, one point per tick, for ever.
    */
   useEffect(() => {
     if (!playing) return
-    const AHEAD = 0.25
+    // Built on the first tick that finds a rack rather than when the effect runs, because `playing` can
+    // turn true before the node exists and an effect that gave up then would leave the lanes silent until
+    // somebody pressed stop and play again. A fresh player also replays from the top: it seeds its window
+    // just before the current position, so a point at step zero is due rather than skipped.
+    let lanes: LanePlayer | null = null
     const tick = () => {
       const live = rack.current
-      const ctx = live?.output?.context
-      if (!live || !ctx) return
-      const lanes = useRack.getState().patch.automation
-      if (!lanes || lanes.length === 0) return
-
-      const until = stepAt(playhead.current, ctx.currentTime + AHEAD)
-      if (until <= scheduledTo.current) return
-      for (const lane of lanes) {
-        for (const point of pointsIn(lane, scheduledTo.current, until)) {
-          // Recording writes through `setParam`, which is also what a knob does — so a lane played back
-          // into the store would record itself, one point per tick, for ever. Straight to the audio thread
-          // instead: playback is performance, not an edit, exactly as a MIDI note is.
-          live.scheduleParam(
-            lane.target[0],
-            lane.target[1],
-            point.value,
-            live.frameFor(timeOfStep(playhead.current, point.at)),
-          )
-        }
-      }
-      scheduledTo.current = until
+      if (!live) return
+      lanes ??= new LanePlayer(live)
+      lanes.advance(useRack.getState().patch.automation)
     }
     tick()
     const timer = window.setInterval(tick, 100)
