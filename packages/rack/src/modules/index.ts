@@ -21,6 +21,7 @@ import { MIXER_MODULE } from './mixer.js'
 import { NOISE_MODULE } from './noise.js'
 import { OFFSET_MODULE } from './offset.js'
 import { OUT_MODULE } from './out.js'
+import { PHASER_MODULE } from './phaser.js'
 import { PING_PONG_MODULE } from './ping-pong.js'
 import { QUANTIZER_MODULE } from './quantizer.js'
 import { SAMPLE_HOLD_MODULE } from './sample-hold.js'
@@ -35,7 +36,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-five modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-six modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -95,6 +96,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
 
   DELAY_MODULE,
   PING_PONG_MODULE,
+  PHASER_MODULE,
   REVERB_MODULE,
 
   ADSR_MODULE,
@@ -145,6 +147,7 @@ export { MIXER_MODULE, MixerProcessor } from './mixer.js'
 export { NOISE_MODULE, NoiseProcessor } from './noise.js'
 export { OFFSET_MODULE, OffsetProcessor } from './offset.js'
 export { OUT_MODULE, OutProcessor } from './out.js'
+export { PHASER_MODULE, PhaserProcessor } from './phaser.js'
 export { PING_PONG_MODULE, PingPongProcessor } from './ping-pong.js'
 export { QUANTIZER_MODULE, QuantizerProcessor } from './quantizer.js'
 export { SAMPLE_HOLD_MODULE, SampleHoldProcessor } from './sample-hold.js'

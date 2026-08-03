@@ -1219,10 +1219,10 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Sixteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
-   Groovebox, Imager, Meter, Out, Ping-Pong Delay, Reverb, Seq, Tracker, Transport and Vocoder**. They
-   are shared buses, clocks, controllers or processors whose state belongs to the rack rather than to
-   one voice. Delay is the clearest example — eight two-second buffers would be eight separate delays —
+   Seventeen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
+   Groovebox, Imager, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker, Transport and Vocoder**.
+   They are shared buses, clocks, controllers or processors whose state belongs to the rack rather than
+   to one voice. Delay is the clearest example — eight two-second buffers would be eight separate delays —
    and Imager makes the other failure vivid: widening each voice before the polyphonic collapse would
    simply throw that width away. `poly.test.ts` pins this list so a new module cannot become shared
    merely because nobody made the decision.
@@ -1492,6 +1492,15 @@ both bundle cost on the editing-only path and visual competition with a readable
    Keeping the types separate is compatibility work, not catalogue padding. Turning the existing Delay's
    ports stereo would make a centred mono cable feed two identical lines and change the sound of every old
    patch. The new type breaks that symmetry deliberately while `delay` stays sample-for-sample itself.
+
+   **5f. A phaser.** ✅ Built. Six allpass stages per channel supply the primitive no existing patch could
+   fake: frequency-dependent phase rotation without a magnitude curve. Mixing that result back with dry
+   audio creates three moving notches; an internal LFO sweeps them, the right channel follows a quarter-cycle
+   later, and the Sweep inlet moves both sides in octaves from any rack CV.
+
+   The Mix knob is topology rather than convenience. At one hundred percent wet the cascade is an allpass
+   and measures flat; at half wet its phase cancellation is the sound. Keeping that recombination inside
+   the device is what makes it a phaser rather than six invisible utility filters and a Mixer.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

@@ -158,9 +158,10 @@ Ordered by return, not by how big Reason's version was.
 - **~~A stereo imager and a ping-pong delay.~~ Landed.** The Imager has independent low and high
   mid/side width around a crossover. Ping-Pong is a separate mono-in, stereo-out module whose repeats
   cross from left to right; the original Delay stays untouched, so every saved patch keeps its sound.
-- **A phaser.** Chorus and flanger are patchable and `delay.ts` says so in its header — a delay
-  whose time an LFO sweeps. A phaser is not: it is a chain of allpass sections and there is no
-  allpass anywhere.
+- **~~A phaser.~~ Landed.** Six first-order allpass stages per channel, swept by a quadrature stereo
+  LFO or an octave-scaled cable at the Sweep inlet. The dry/wet control is part of the effect rather
+  than convenience: an allpass alone has flat magnitude, and its moving notches only exist when the
+  phase-shifted signal meets dry audio.
 - **~~Note effects.~~ Partly landed.** Something sits between a note source and a voice now: `Arp`
   takes one held note, builds a chord under it — eight shapes, one to four octaves — and walks it up,
   down, up-down, down-up or at random against a clock. That is the RPG-8 mode people actually leave
