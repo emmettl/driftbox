@@ -34,6 +34,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 /**
  * Bumped when the shape changes in a way a reader cannot infer from the value alone.
  *
+ * 6 — a 303 step may retain pitch while its Note/Pause gate is off.
  * 5 — songs may carry recordable parameter automation lanes.
  * 4 — patterns may carry 909 flam marks and the kit may carry their global width.
  * 3 — chain entries may independently select an 808, 909 and each 303 clip.
@@ -46,7 +47,7 @@ import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
  * rather than against the version number, because a v1 file and a hand-written one with
  * no version at all are the same problem, and only one of them announces itself.
  */
-export const SONG_FORMAT = 5
+export const SONG_FORMAT = 6
 
 interface Envelope {
   v: number
@@ -98,6 +99,7 @@ function bassLine(value: unknown, length: number): BassStep[] | null {
       note: typeof note === 'number' && Number.isFinite(note) ? clamp(note, 0, 24, 0) : null,
       accent: step.accent === true,
       slide: step.slide === true,
+      ...(typeof step.gate === 'boolean' ? { gate: step.gate } : {}),
     }
   })
 }

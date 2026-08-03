@@ -44,6 +44,38 @@ describe('a round trip', () => {
     expect(step).toEqual({ note: 12, accent: true, slide: true })
   })
 
+  it('keeps a pitch assigned to a paused 303 step', () => {
+    const withPause = song()
+    withPause.patterns[0].bass!['303.a'][1] = {
+      note: 5,
+      accent: false,
+      slide: true,
+      gate: false,
+    }
+    expect(decodeSong(encodeSong(withPause))!.patterns[0].bass!['303.a'][1]).toEqual({
+      note: 5,
+      accent: false,
+      slide: true,
+      gate: false,
+    })
+  })
+
+  it('migrates legacy note-or-null bass steps without changing their sound', () => {
+    const legacy = JSON.parse(encodeSong(song()))
+    legacy.v = 5
+    const loaded = decodeSong(JSON.stringify(legacy))!
+    expect(loaded.patterns[0].bass!['303.a'][0]).toEqual({
+      note: 12,
+      accent: true,
+      slide: true,
+    })
+    expect(loaded.patterns[0].bass!['303.a'][1]).toEqual({
+      note: null,
+      accent: false,
+      slide: false,
+    })
+  })
+
   it('keeps independent machine clips', () => {
     const withClips = song({
       patterns: [

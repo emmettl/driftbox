@@ -809,6 +809,11 @@ aside {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+.step.bass-note.pause {
+  color: rgba(255, 216, 138, 0.62);
+  border-color: rgba(255, 216, 138, 0.28);
+}
+
 .step.bass-note.entry {
   box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255, 176, 46, 0.75);
 }
@@ -828,10 +833,9 @@ aside {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* A flag on a step with no note does nothing yet. Kept rather than cleared, so removing
-   a note and putting it back does not silently lose the slide you set on it. */
-.step.bass-accent.idle,
-.step.bass-slide.idle {
+/* Accent needs a gate. Slide deliberately remains fully visible on a pause because its
+   retained pitch bends the following note in, matching ReBirth's silent-step slide. */
+.step.bass-accent.idle {
   opacity: 0.3;
 }
 

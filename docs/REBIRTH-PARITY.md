@@ -51,7 +51,7 @@ user could approximate it from oscillators.
 | Authored 808 and 909 kits | Yes | Patchable stereo outputs, retained pattern editor and all six authored controls per voice | Landed; generated PCM character remains deliberate |
 | Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
-| 303 note/accent/slide/tie editing | Direct grid plus stopped keyboard/MIDI entry with note, rest and tie | Same retained editor and advancing cursor plus Tracker primitives | Landed |
+| 303 pitch/note-pause/accent/slide editing | Direct grid plus stopped keyboard/MIDI entry; paused steps retain pitch for silent slides and same-pitch Slide writes ties | Same retained editor and advancing cursor plus Tracker primitives | Landed |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
 | Pattern transforms | Rotate, transpose, randomise, alter and focused cut/copy/paste | Retained lane/machine rotate, focused randomise/alter, 303 transpose, 909 flam and focused cut/copy/paste | Landed |
 | Song arrangement | Multi-clip sections | Hosted multi-clip sections plus the rack Arranger | Landed |
@@ -93,8 +93,10 @@ work is ordered by dependency:
    material-preserving alter and 909 flam are present. Rack mode now exposes retained drum
    steps, pitched/accented/sliding 303 steps, lane or machine transforms and flam programming
    without restarting playback. Rack mode also quantises the shared keyboard into the focused
-   retained drum or 303 clip at the hosted playhead. Rack mode now cuts, copies and pastes
-   the focused drum lane/whole machine or 303 line without losing accents, flams or slides.
+   retained drum or 303 clip at the hosted playhead. Both retained editors keep pitch
+   independent from Note/Pause, including ReBirth's slide from a silent step. Rack mode
+   now cuts, copies and pastes the focused drum lane/whole machine or 303 line without
+   losing accents, flams or slides.
    The original editor now exposes the same engine clipboard for one lane, the visible drum
    machine, one 303 or both 303s, so the two modes cannot disagree about pasted material.
 5. **Interchange.** Mastered full-song rendering is now shared by both modes: rack mode
@@ -147,7 +149,9 @@ swing, per-voice swing, every drum/303 knob, voice sends and shared effects; rec
 remain in the compatible song envelope and clearing them is undoable. Rack keyboard taps now
 record into the focused retained clip without passing through generic rack MIDI: running taps
 quantise at the playhead, while a stopped 303 advances a visible session cursor. The original
-editor uses the same note/rest/tie transforms and cursor. Focused
+editor uses the same note/rest/tie transforms and cursor. Song format 6 keeps 303 pitch
+independent from Note/Pause; older note-or-null songs migrate without changing playback,
+while older builds refuse the new envelope instead of sounding a paused pitch. Focused
 cut/copy/paste is present in both editors and uses the same host-neutral engine transforms.
 Both modes now export the same mastered retained-song WAV; rack mode labels that separately
 from its rack-graph render. Both modes now also use one browser MIDI host and one hardware

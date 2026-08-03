@@ -20,6 +20,8 @@ export function steps(notation: string): StepValue[] {
  *   0      a note, in semitones above the synth's root
  *   7a     accented
  *   12s    slides into whatever comes next
+ *   5p     paused but retaining pitch 5
+ *   5ps    paused pitch that slides into the next note
  *   0as    both
  *   |      ignored, for grouping into beats
  *
@@ -33,12 +35,13 @@ export function bassSteps(notation: string): BassStep[] {
     .filter((token) => token !== '|')
     .map((token) => {
       if (token === '.') return { note: null, accent: false, slide: false }
-      const [, digits, flags] = /^(-?\d+)([as]*)$/.exec(token) ?? []
+      const [, digits, flags] = /^(-?\d+)([asp]*)$/.exec(token) ?? []
       if (digits === undefined) throw new Error(`Unreadable bass step: ${token}`)
       return {
         note: Number(digits),
         accent: flags.includes('a'),
         slide: flags.includes('s'),
+        ...(flags.includes('p') ? { gate: false } : {}),
       }
     })
 }

@@ -71,8 +71,9 @@ tracks the requested cutoff within 3% from 300Hz to 2.4kHz, and stays bounded ho
 it is driven.
 
 Slide and accent are the rest of it. A slide glides between two notes sharing one
-envelope; an accent drives level, filter envelope depth *and* resonance together, as the
-accent voltage does on the hardware.
+envelope; a paused step retains its pitch and can bend the following attack from silence,
+as ReBirth did. An accent drives level, filter envelope depth *and* resonance together,
+as the accent voltage does on the hardware.
 
 If `AudioWorklet` is unavailable — an old browser, or a Content-Security-Policy that
 blocks blob scripts — the 303s fall back to a single biquad and sweep rather than squelch.
