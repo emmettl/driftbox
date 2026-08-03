@@ -68,6 +68,7 @@ const PROMISED = [
   'METER_MODULE',
   'MIDI_MODULE',
   'MIXER_MODULE',
+  'MULTISAMPLER_MODULE',
   'NOISE_MODULE',
   'OFFSET_MODULE',
   'OUT_MODULE',
@@ -86,6 +87,13 @@ const PROMISED = [
   'VCO_MODULE',
   'VOCODER_MODULE',
   'VOICE_MODULE',
+  // Portable multisample zone metadata. Hosts use these to embed maps in the patch while keeping PCM in
+  // session-only data slots.
+  'MULTISAMPLE_ZONE_FIELDS',
+  'MULTISAMPLE_ZONE_STRIDE',
+  'multisampleSlot',
+  'packMultisampleZones',
+  'unpackMultisampleZones',
   // Content: patches to open, chunks to drop in.
   'PATCHES',
   'patchPresetById',

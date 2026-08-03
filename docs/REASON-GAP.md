@@ -178,9 +178,11 @@ Ordered by return, not by how big Reason's version was.
 
   Still absent outright: a note echo, and a scale-and-chord generator that transposes a figure by degree
   rather than by semitone.
-- **A multisample instrument.** `Sampler` is one buffer plus slices. No key zones, no velocity
-  layers, no root key, no loop points — so a sampled instrument, as opposed to a sampled break,
-  cannot be built.
+- **A multisample instrument — engine landed, editor pending.** `Multisampler` sits beside the unchanged
+  break-slicing `Sampler`: it maps session-loaded recordings by key and velocity, respects root key and
+  source sample rate, sustains between per-zone loop points, and instantiates per MIDI voice. Zone maps
+  travel as compact patch metadata while PCM remains session-only. What is still missing is the human
+  half: multi-file loading, automatic root/range suggestions, and a dedicated zone/loop editor.
 - **~~Multi-mode distortion.~~ Landed.** `Distortion` keeps stereo intact and selects four genuinely
   different curves — tube sigmoid, tape arctangent, exponential fuzz, and hard-clipped bit reduction —
   before a shared tone stage and output level. The original normalised `Drive` stays the predictable
