@@ -162,9 +162,22 @@ Ordered by return, not by how big Reason's version was.
 - **A phaser.** Chorus and flanger are patchable and `delay.ts` says so in its header — a delay
   whose time an LFO sweeps. A phaser is not: it is a chain of allpass sections and there is no
   allpass anywhere.
-- **Note effects.** Nothing sits between a note source and a voice. No arpeggiator (RPG-8), no
-  note echo, no scale-and-chord generator. `Quantizer` is CV scale-lock at audio rate, which is
-  a different thing: it cannot add a note that was not played.
+- **~~Note effects.~~ Partly landed.** Something sits between a note source and a voice now: `Arp`
+  takes one held note, builds a chord under it — eight shapes, one to four octaves — and walks it up,
+  down, up-down, down-up or at random against a clock. That is the RPG-8 mode people actually leave
+  switched on, and it is the half of this gap that suits a rack whose appeal is one held note doing a
+  lot. `Quantizer` remains a different thing: CV scale-lock at audio rate, which cannot add a note that
+  was not played.
+
+  **It builds its chord rather than listening to one, and the reason is structural.** A chord lives in a
+  *polyphonic* pitch signal, one note per voice, and a mono module reading a polyphonic inlet sees it
+  **summed** — `poly.test.ts` calls that the collapse, and it is the right rule for a Delay fed by four
+  voices. So a mono arpeggiator patched to a held chord would read the sum of the notes, which is not a
+  note. A *held-chord* arpeggiator needs the compiler and the Graph to hand a mono module the per-voice
+  buffers, and that is the work this gap still names.
+
+  Still absent outright: a note echo, and a scale-and-chord generator that transposes a figure by degree
+  rather than by semitone.
 - **A multisample instrument.** `Sampler` is one buffer plus slices. No key zones, no velocity
   layers, no root key, no loop points — so a sampled instrument, as opposed to a sampled break,
   cannot be built.

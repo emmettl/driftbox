@@ -83,8 +83,8 @@ describe('the shared cable renderer', () => {
       height: geometry.placements[0].height,
     })
     const all = jacks(moved, MODULES)
-    const from = jackAt(all, 'osc', 'out')!
-    const to = jackAt(all, 'speaker', 'in')!
+    const from = jackAt(all, 'osc', 'out', 'out')!
+    const to = jackAt(all, 'speaker', 'in', 'in')!
     const markup = renderToStaticMarkup(
       createElement(CablePaths, {
         all,

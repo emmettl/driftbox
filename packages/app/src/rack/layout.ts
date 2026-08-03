@@ -393,11 +393,26 @@ export function reordered<T>(items: readonly T[], from: number, to: number): rea
   return next
 }
 
-/** Find a jack by module and port. */
+/**
+ * Find a jack by module, port **and kind**.
+ *
+ * The kind is not optional, and that is the point. A port id is unique within its own column but not
+ * across both, and nothing ever said it had to be: `Arp` has a `pitch` inlet and a `pitch` outlet, which
+ * is the natural naming for a module that takes a note and gives back a different one, and the patch
+ * format has always allowed it — a cable's ends are an outlet and an inlet *by position*, so `from` and
+ * `to` carry the direction that a flat list of jacks throws away.
+ *
+ * Looking one up without saying which side you meant answered with the inlet every time, because
+ * `jacks()` builds the inlet column first. Every cable's endpoints are resolved through here, so a cable
+ * leaving `Arp` was drawn leaving the wrong hole — on the left, where its input is.
+ */
 export function jackAt(
   list: readonly Jack[],
   module: string,
   port: string,
+  kind: 'in' | 'out',
 ): Jack | undefined {
-  return list.find((jack) => jack.module === module && jack.port === port)
+  return list.find(
+    (jack) => jack.module === module && jack.port === port && jack.kind === kind,
+  )
 }

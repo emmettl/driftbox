@@ -91,6 +91,8 @@ const UNSTABLE = [
   'AlligatorProcessor',
   'AUDIO_INPUT_MODULE',
   'AudioInputProcessor',
+  'ARP_MODULE',
+  'ArpProcessor',
   'ARRANGER_MODULE',
   'ARRANGER_SECTIONS',
   'ArrangerProcessor',

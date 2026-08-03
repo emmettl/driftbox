@@ -67,8 +67,8 @@ export function CablePaths({
   disconnect,
 }: CablePathsProps) {
   return cables.map((cable) => {
-    const from = jackAt(all, cable.from[0], cable.from[1])
-    const to = jackAt(all, cable.to[0], cable.to[1])
+    const from = jackAt(all, cable.from[0], cable.from[1], 'out')
+    const to = jackAt(all, cable.to[0], cable.to[1], 'in')
     if (!from || !to) return null
     const key = `${cable.from.join('.')}>${cable.to.join('.')}`
     const isDelayed = delayed.has(cable.to[0])
@@ -135,8 +135,8 @@ interface CableUnplugsProps {
  */
 export function CableUnplugs({ all, cables, disconnect }: CableUnplugsProps) {
   return cables.map((cable) => {
-    const from = jackAt(all, cable.from[0], cable.from[1])
-    const to = jackAt(all, cable.to[0], cable.to[1])
+    const from = jackAt(all, cable.from[0], cable.from[1], 'out')
+    const to = jackAt(all, cable.to[0], cable.to[1], 'in')
     if (!from || !to) return null
 
     const key = `${cable.from.join('.')}>${cable.to.join('.')}`
@@ -240,8 +240,8 @@ export function CableEvaporations({ items, finished }: CableEvaporationsProps) {
 }
 
 function evaporation(cable: PatchCable, all: Jack[], id: number): CableEvaporation | null {
-  const from = jackAt(all, cable.from[0], cable.from[1])
-  const to = jackAt(all, cable.to[0], cable.to[1])
+  const from = jackAt(all, cable.from[0], cable.from[1], 'out')
+  const to = jackAt(all, cable.to[0], cable.to[1], 'in')
   if (!from || !to) return null
 
   const key = `${cable.from.join('.')}>${cable.to.join('.')}`
@@ -376,10 +376,13 @@ export function BackPanel({ layout }: Props) {
         return
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        // A cable's `to` is an inlet and its `from` is an outlet, so each end is only a candidate for a
+        // jack of the matching kind. Without that, deleting from `Arp`'s pitch *inlet* would unplug a
+        // cable leaving its pitch *outlet*, because both ends read as the same port id.
         const attached = patch.cables.find(
           (cable) =>
-            (cable.to[0] === jack.module && cable.to[1] === jack.port) ||
-            (cable.from[0] === jack.module && cable.from[1] === jack.port),
+            (jack.kind === 'in' && cable.to[0] === jack.module && cable.to[1] === jack.port) ||
+            (jack.kind === 'out' && cable.from[0] === jack.module && cable.from[1] === jack.port),
         )
         if (attached) {
           event.preventDefault()
@@ -393,7 +396,7 @@ export function BackPanel({ layout }: Props) {
         setArmed(jack)
         return
       }
-      if (armed.module === jack.module && armed.port === jack.port) {
+      if (armed.module === jack.module && armed.port === jack.port && armed.kind === jack.kind) {
         setArmed(null)
         return
       }
@@ -450,7 +453,7 @@ export function BackPanel({ layout }: Props) {
     ? preview.placements.find((placement) => placement.id === draggedId)
     : undefined
   const visibleArmed = armed
-    ? jackAt(visibleJacks, armed.module, armed.port) ?? armed
+    ? jackAt(visibleJacks, armed.module, armed.port, armed.kind) ?? armed
     : null
 
   const delayed = new Set(
@@ -598,7 +601,8 @@ export function BackPanel({ layout }: Props) {
           <path
             className="rk-cable-line rk-cable-live"
             d={cablePath(
-              jackAt(all, cableDrag.from.module, cableDrag.from.port) ?? cableDrag.at,
+              jackAt(all, cableDrag.from.module, cableDrag.from.port, cableDrag.from.kind) ??
+              cableDrag.at,
               cableDrag.at,
             )}
           />
@@ -606,7 +610,9 @@ export function BackPanel({ layout }: Props) {
 
         {renderedJacks.map((jack) => (
           <g
-            key={`${jack.module}.${jack.port}`}
+            // Kind included: a port id is unique down one column, not across both, and `Arp` has
+            // `pitch` on each side. Keyed on the pair alone, React saw two children claiming one key.
+            key={`${jack.kind}:${jack.module}.${jack.port}`}
             className={[
               'rk-jack',
               jack.kind === 'in' ? 'rk-jack-in' : 'rk-jack-out',
@@ -616,8 +622,15 @@ export function BackPanel({ layout }: Props) {
               // The jack a release would land on, highlighted. Feedback rather than decoration: with
               // snapping, where the cable ends is not always exactly where the pointer is, and on a
               // touchscreen the finger is covering the answer.
-              over && over.module === jack.module && over.port === jack.port ? 'rk-jack-over' : '',
-              armed && armed.module === jack.module && armed.port === jack.port ? 'rk-jack-armed' : '',
+              over && over.module === jack.module && over.port === jack.port && over.kind === jack.kind
+                ? 'rk-jack-over'
+                : '',
+              armed &&
+              armed.module === jack.module &&
+              armed.port === jack.port &&
+              armed.kind === jack.kind
+                ? 'rk-jack-armed'
+                : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -652,7 +665,7 @@ export function BackPanel({ layout }: Props) {
             >
               {jack.name}
             </text>
-            <title>{`${jack.module}.${jack.port}`}</title>
+            <title>{`${jack.module}.${jack.port} ${jack.kind}`}</title>
           </g>
         ))}
 
