@@ -126,7 +126,7 @@ had before the undo.
 | CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
 | Bypass | On / Bypass / Off on every effect | **Landed** | A flag on the module; the compiler drops its node and passes its first inlet through |
 | Device patches | A browser and a factory bank per device | Patch-level | The library saves whole racks; `PATCHES` and `CHUNKS` are whole-rack and multi-module |
-| Multi-select | Rubber-band a group of devices | Absent | Reordering and removal are one module at a time |
+| Multi-select | Rubber-band a group of devices | **Landed**, less the band | Click, shift-click for a span, platform modifier to toggle one. Removing a group is one structural edit and therefore one undo. The rubber band itself is a gesture refinement on top of this rather than the capability |
 | Undo | Full history | **Landed** | `history.ts` — sixty-four steps, a drag is one of them |
 
 None of these is architectural. All of them are the difference between a rack you demonstrate
@@ -216,9 +216,9 @@ Worth writing down so nobody builds them twice.
 3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, an export plays
    them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.
-5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate and bypass are
-   done; what is left there is auto-routing a bare module, CV trim per jack, per-device patches
-   and multi-select.
+5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate, bypass and
+   multi-select are done; what is left there is auto-routing a bare module, CV trim per jack,
+   per-device patches, and the rubber band over the multi-select that now exists.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.

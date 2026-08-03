@@ -27,7 +27,7 @@ beforeEach(() => {
     patch: STARTER(),
     revision: 0,
     history: NO_HISTORY,
-    selected: null,
+    selection: [],
     flipped: false,
     notes: [],
     name: null,
@@ -72,6 +72,121 @@ describe('turning a knob', () => {
 
   it('gives zero rather than throwing for a param that does not exist', () => {
     expect(useRack.getState().paramValue('nobody', 'nothing')).toBe(0)
+  })
+})
+
+describe('selecting several modules', () => {
+  // Reordering and removal were one module at a time, which `docs/REASON-GAP.md` lists as the multi-select
+  // gap. The interesting part is not the list but what happens at its edges: a range with no anchor, an
+  // anchor that has been removed, and a group removal that has to be a single undo step.
+
+  beforeEach(() => {
+    useRack.setState({
+      patch: {
+        modules: ['a', 'b', 'c', 'd'].map((id) => ({ id: `vco-${id}`, type: 'vco' })),
+        cables: [{ from: ['vco-a', 'out'], to: ['vco-b', 'fm'] }],
+      },
+      revision: 0,
+      history: NO_HISTORY,
+      selection: [],
+    })
+  })
+
+  const ids = () => [...useRack.getState().selection].sort()
+
+  it('replaces the selection on an ordinary click', () => {
+    useRack.getState().select('vco-a')
+    useRack.getState().select('vco-c')
+    expect(useRack.getState().selection).toEqual(['vco-c'])
+  })
+
+  it('adds to it when extending, and takes back out', () => {
+    // Toggling is the half people reach for immediately after picking one thing too many.
+    useRack.getState().select('vco-a')
+    useRack.getState().select('vco-c', true)
+    expect(ids()).toEqual(['vco-a', 'vco-c'])
+    useRack.getState().select('vco-a', true)
+    expect(useRack.getState().selection).toEqual(['vco-c'])
+  })
+
+  it('clears on null', () => {
+    useRack.getState().select('vco-a')
+    useRack.getState().select(null)
+    expect(useRack.getState().selection).toEqual([])
+  })
+
+  it('takes everything between, in rack order and either direction', () => {
+    useRack.getState().select('vco-b')
+    useRack.getState().selectRange('vco-d')
+    expect(ids()).toEqual(['vco-b', 'vco-c', 'vco-d'])
+
+    useRack.getState().select('vco-d')
+    useRack.getState().selectRange('vco-b')
+    expect(ids()).toEqual(['vco-b', 'vco-c', 'vco-d'])
+  })
+
+  it('keeps the anchor last, so extending again grows from where you started', () => {
+    // What every list in every application does. Anchored at the far end instead, a second shift-click
+    // would shrink the selection rather than extend it.
+    useRack.getState().select('vco-b')
+    useRack.getState().selectRange('vco-c')
+    const selection = useRack.getState().selection
+    expect(selection[selection.length - 1]).toBe('vco-b')
+    useRack.getState().selectRange('vco-d')
+    expect(ids()).toEqual(['vco-b', 'vco-c', 'vco-d'])
+  })
+
+  it('is an ordinary click when there is nothing to range from', () => {
+    // Silently, because a shortcut that reported an error would be worse than one that did the obvious
+    // thing. Same for an anchor that has since been removed.
+    useRack.getState().selectRange('vco-c')
+    expect(useRack.getState().selection).toEqual(['vco-c'])
+
+    useRack.setState({ selection: ['gone-1'] })
+    useRack.getState().selectRange('vco-c')
+    expect(useRack.getState().selection).toEqual(['vco-c'])
+  })
+
+  it('removes the whole group in one undo step', () => {
+    // Four modules removed as four edits would be four steps back, which is the thing that makes tidying
+    // up a rack tedious enough to avoid.
+    useRack.getState().select('vco-a')
+    useRack.getState().select('vco-b', true)
+    const before = useRack.getState().patch.modules.length
+    useRack.getState().removeSelected()
+    expect(useRack.getState().patch.modules).toHaveLength(before - 2)
+
+    useRack.getState().undo()
+    expect(useRack.getState().patch.modules).toHaveLength(before)
+  })
+
+  it('takes the cables of everything it removes', () => {
+    useRack.getState().select('vco-a')
+    useRack.getState().select('vco-b', true)
+    useRack.getState().removeSelected()
+    expect(useRack.getState().patch.cables).toEqual([])
+  })
+
+  it('removes what is selected when it is called, not what was selected when it was drawn', () => {
+    // The bug a browser found. The tools row sits inside the module's own section, which selects on
+    // pointerdown — so clicking Remove collapsed the group to one module and then removed only that,
+    // while the button still read "Remove 4 modules" because its label was decided at render time.
+    // `removeSelected` reading the store at call time is what makes the fix in `Chassis` sufficient, and
+    // this pins the half that lives here: the action is never handed a stale group.
+    useRack.getState().select('vco-a')
+    useRack.getState().select('vco-b', true)
+    useRack.getState().select('vco-c', true)
+    useRack.getState().select('vco-d')
+    useRack.getState().removeSelected()
+    expect(useRack.getState().patch.modules.map((m) => m.id)).toEqual(['vco-a', 'vco-b', 'vco-c'])
+  })
+
+  it('does nothing at all with an empty selection', () => {
+    // Declining by identity, the convention every structural edit here follows, so it is not an undo step
+    // that appears to do nothing.
+    const before = useRack.getState().patch
+    useRack.getState().removeSelected()
+    expect(useRack.getState().patch).toBe(before)
   })
 })
 
