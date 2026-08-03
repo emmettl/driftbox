@@ -28,6 +28,9 @@ beforeEach(() => {
     running: false,
     loop: null,
     automationRecording: false,
+    view: 'tr808',
+    selectedBass: '303.a',
+    bassEntryStep: null,
     patternClipboard: null,
     preset: null,
     libraryName: null,
@@ -99,6 +102,42 @@ describe('editing one thing does not disturb the others', () => {
     const before = song().patterns.find((p) => p.id === 'neon')
     useBox.getState().toggleStep('808.bd', 3)
     expect(song().patterns.find((p) => p.id === 'neon')).toEqual(before)
+  })
+})
+
+describe('stopped 303 step entry', () => {
+  it('writes notes, rests and ties at a wrapping session cursor', () => {
+    useBox.getState().setView('bass')
+    useBox.getState().toggleBassEntry()
+    useBox.getState().setBassEntryStep(15)
+    useBox.getState().enterBassNote(7, true)
+    const entered = () =>
+      song().patterns.find((candidate) => candidate.id === useBox.getState().editing)!
+
+    expect(entered().bass?.['303.a']?.[15]).toMatchObject({
+      note: 7,
+      accent: true,
+    })
+    expect(useBox.getState().bassEntryStep).toBe(0)
+
+    useBox.getState().enterBassTie()
+    expect(entered().bass?.['303.a']?.[15].slide).toBe(true)
+    expect(entered().bass?.['303.a']?.[0].note).toBe(7)
+    useBox.getState().enterBassRest()
+    expect(entered().bass?.['303.a']?.[1].note).toBeNull()
+    expect(useBox.getState().bassEntryStep).toBe(2)
+  })
+
+  it('disarms when leaving the 303 editor or loading a song', () => {
+    useBox.getState().setView('bass')
+    useBox.getState().toggleBassEntry()
+    useBox.getState().setView('tr909')
+    expect(useBox.getState().bassEntryStep).toBeNull()
+
+    useBox.getState().setView('bass')
+    useBox.getState().toggleBassEntry()
+    useBox.getState().loadSong(defaultSong())
+    expect(useBox.getState().bassEntryStep).toBeNull()
   })
 })
 

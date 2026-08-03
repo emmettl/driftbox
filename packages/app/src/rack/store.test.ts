@@ -39,6 +39,7 @@ beforeEach(() => {
     grooveboxAutomationPosition: null,
     grooveboxTapRecording: false,
     grooveboxTapTarget: null,
+    grooveboxTapStep: 0,
   })
 })
 
@@ -864,6 +865,27 @@ describe('editing a retained Groovebox pattern', () => {
     expect(
       grooveboxSong(useRack.getState().patch)?.patterns[0].bass?.['303.a']?.[5],
     ).toEqual({ note: 24, accent: false, slide: true })
+  })
+
+  it('advances stopped 303 taps through the retained pattern as one undo gesture', () => {
+    const pattern = grooveboxSong(useRack.getState().patch)!.patterns[0]
+    useRack.getState().setGrooveboxTapTarget({
+      patternId: pattern.id,
+      section: '303.b',
+      voiceId: '303.b',
+    })
+    useRack.getState().setGrooveboxAutomationPosition(() => null)
+    useRack.getState().toggleGrooveboxTapRecording()
+
+    useRack.getState().recordGrooveboxTap(40, 0.9)
+    useRack.getState().recordGrooveboxTap(43, 0.4)
+
+    const line = grooveboxSong(useRack.getState().patch)?.patterns[0].bass?.['303.b']
+    expect(line?.[0]).toMatchObject({ note: 4, accent: true })
+    expect(line?.[1]).toMatchObject({ note: 7, accent: false })
+    expect(useRack.getState().grooveboxTapStep).toBe(2)
+    expect(useRack.getState().history.past).toHaveLength(1)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
   })
 
   it('does not claim a keyboard tap while disarmed or stopped', () => {

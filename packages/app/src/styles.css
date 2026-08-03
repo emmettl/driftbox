@@ -809,6 +809,10 @@ aside {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+.step.bass-note.entry {
+  box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255, 176, 46, 0.75);
+}
+
 .step.bass-accent,
 .step.bass-slide {
   height: 12px;
@@ -1705,6 +1709,43 @@ aside {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.keys-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.keys-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+}
+
+.keys-entry button {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--dim);
+  font: 9px var(--mono);
+}
+
+.keys-entry button.on {
+  background: var(--orange);
+  color: #1a1005;
+}
+
+.keys-entry span {
+  min-width: 44px;
+  color: var(--ink);
+  font: 9px var(--mono);
+  text-align: center;
 }
 
 .keys-head-tools {

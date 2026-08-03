@@ -29,6 +29,9 @@ import {
   alterBassLine,
   alterTrack,
   duplicatePattern,
+  enterBassNote as enterPatternBassNote,
+  enterBassRest as enterPatternBassRest,
+  enterBassTie as enterPatternBassTie,
   randomizeBassLine,
   randomizeTrack,
   pasteBassLine,
@@ -127,6 +130,8 @@ interface State {
   followPlayhead: boolean
   selectedVoice: string
   selectedBass: string
+  /** Stopped-transport 303 keyboard-entry cursor. Null means ordinary live playing. */
+  bassEntryStep: number | null
   /** 909 step buttons program flam marks instead of cycling hit velocity. */
   flamMode: boolean
   /** Detached editor clipboard. Session state: only cut/paste change the song. */
@@ -169,6 +174,11 @@ interface State {
   togglePcfStep: (step: number) => void
   setDrumStep: (voiceId: string, step: number, value: StepValue) => void
   editBassStep: (voiceId: string, step: number, value: BassStep) => void
+  toggleBassEntry: () => void
+  setBassEntryStep: (step: number) => void
+  enterBassNote: (note: number, accent: boolean) => void
+  enterBassRest: () => void
+  enterBassTie: () => void
   toggleFlamMode: () => void
   toggleFlamStep: (voiceId: string, step: number) => void
   setFlamWidth: (value: number) => void
@@ -351,6 +361,7 @@ function adopt(song: Song, engine: DriftboxEngine | null): Partial<State> {
     ...visualOfSong(song),
     editing: song.patterns[0]?.id ?? '',
     followPlayhead: true,
+    bassEntryStep: null,
     loop: null,
     automationRecording: false,
     libraryName: null,
@@ -389,6 +400,7 @@ export const useBox = create<State>()((set, get) => ({
   countIn: false,
   selectedVoice: '808.bd',
   selectedBass: BASS_VOICES[0].id,
+  bassEntryStep: null,
   flamMode: false,
   patternClipboard: null,
   // Touch devices land in the visuals.
@@ -426,6 +438,7 @@ export const useBox = create<State>()((set, get) => ({
       engine.stop()
       set({ running: false })
     } else {
+      set({ bassEntryStep: null })
       void engine.start().then(() => set({ running: true }))
     }
   },
@@ -435,6 +448,7 @@ export const useBox = create<State>()((set, get) => ({
     const engine = get().engine
     if (!engine) return
     if (engine.running) engine.stop()
+    set({ bassEntryStep: null })
     void engine.startAt(Math.max(0, Math.floor(bar))).then(() => set({ running: true }))
   },
 
@@ -520,10 +534,15 @@ export const useBox = create<State>()((set, get) => ({
   setView: (view) => {
     if (view === 'bass') return set({ view })
     const first = ALL_VOICES.find((v) => v.machine === view)
-    set({ view, selectedVoice: first?.id ?? get().selectedVoice })
+    set({ view, selectedVoice: first?.id ?? get().selectedVoice, bassEntryStep: null })
   },
 
-  setEditing: (editing) => set({ editing, followPlayhead: false }),
+  setEditing: (editing) =>
+    set({
+      editing,
+      followPlayhead: false,
+      bassEntryStep: get().bassEntryStep === null ? null : 0,
+    }),
   setFollowPlayhead: (followPlayhead) => set({ followPlayhead }),
   selectVoice: (selectedVoice) => set({ selectedVoice }),
   selectBass: (selectedBass) => set({ selectedBass }),
@@ -562,6 +581,60 @@ export const useBox = create<State>()((set, get) => ({
     const next = replacePattern(song, setBassStep(pattern, voiceId, step, value))
     if (engine) engine.song = next
     set({ song: next, selectedBass: voiceId })
+  },
+
+  toggleBassEntry: () => {
+    const { bassEntryStep, song, editing } = get()
+    if (bassEntryStep !== null) {
+      set({ bassEntryStep: null })
+      return
+    }
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (pattern) set({ bassEntryStep: 0 })
+  },
+
+  setBassEntryStep: (step) => {
+    const { bassEntryStep, song, editing } = get()
+    if (bassEntryStep === null) return
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern || pattern.length <= 0) return
+    set({
+      bassEntryStep: ((Math.floor(step) % pattern.length) + pattern.length) % pattern.length,
+    })
+  },
+
+  enterBassNote: (note, accent) => {
+    const { song, editing, engine, selectedBass, bassEntryStep, view, running } = get()
+    if (view !== 'bass' || bassEntryStep === null || running) return
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern) return
+    const entered = enterPatternBassNote(pattern, selectedBass, bassEntryStep, note, accent)
+    const next = replacePattern(song, entered.pattern)
+    if (engine) engine.song = next
+    set({ song: next, bassEntryStep: entered.nextStep })
+  },
+
+  enterBassRest: () => {
+    const { song, editing, engine, selectedBass, bassEntryStep, view, running } = get()
+    if (view !== 'bass' || bassEntryStep === null || running) return
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern) return
+    const entered = enterPatternBassRest(pattern, selectedBass, bassEntryStep)
+    const next = replacePattern(song, entered.pattern)
+    if (engine) engine.song = next
+    set({ song: next, bassEntryStep: entered.nextStep })
+  },
+
+  enterBassTie: () => {
+    const { song, editing, engine, selectedBass, bassEntryStep, view, running } = get()
+    if (view !== 'bass' || bassEntryStep === null || running) return
+    const pattern = song.patterns.find((candidate) => candidate.id === editing)
+    if (!pattern) return
+    const entered = enterPatternBassTie(pattern, selectedBass, bassEntryStep)
+    if (!entered.written) return
+    const next = replacePattern(song, entered.pattern)
+    if (engine) engine.song = next
+    set({ song: next, bassEntryStep: entered.nextStep })
   },
 
   toggleFlamMode: () => set({ flamMode: !get().flamMode }),
@@ -882,7 +955,12 @@ export const useBox = create<State>()((set, get) => ({
     if (pattern.flams) resized.flams = flams
     const next = replacePattern(song, resized)
     if (engine) engine.song = next
-    set({ song: next })
+    const bassEntryStep = get().bassEntryStep
+    set({
+      song: next,
+      bassEntryStep:
+        bassEntryStep === null ? null : Math.min(bassEntryStep, clamped - 1),
+    })
   },
 
   // A new or copied pattern becomes the one being edited. You made it in order to work

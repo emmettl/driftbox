@@ -150,7 +150,10 @@ current sequencer step in the focused retained clip. Drum velocity chooses hit o
 303 key writes its root-relative pitch and accent without erasing an existing slide. Claimed
 taps audition the authored machine instead of also reaching the generic MIDI graph, and the
 entire take coalesces into one rack undo step. The arm, focus and held notes remain session
-state; only the resulting pattern steps enter the compatible song envelope.
+state; only the resulting pattern steps enter the compatible song envelope. With transport
+stopped and a 303 focused, the same arm becomes sequential entry: each pointer, computer or
+MIDI note writes at the visible cursor and advances with pattern-length wrap. This is the
+retained-song counterpart of ReBirth entry, not a rack-only Tracker approximation.
 
 Focused cut/copy/paste stays at that authored-data boundary too. A drum clipboard carries
 its hit/accent states and any 909 flam marks; a 303 clipboard carries pitch, accent and

@@ -85,6 +85,13 @@ export function Keys() {
   const selectBass = useBox((s) => s.selectBass)
   const selectedVoice = useBox((s) => s.selectedVoice)
   const view = useBox((s) => s.view)
+  const song = useBox((s) => s.song)
+  const editing = useBox((s) => s.editing)
+  const bassEntryStep = useBox((s) => s.bassEntryStep)
+  const toggleBassEntry = useBox((s) => s.toggleBassEntry)
+  const setBassEntryStep = useBox((s) => s.setBassEntryStep)
+  const enterBassRest = useBox((s) => s.enterBassRest)
+  const enterBassTie = useBox((s) => s.enterBassTie)
   // Which instrument the keys drive. The 303s, or whichever pitched drum voice is
   // selected in the grid — you pick Low Tom over there and it becomes playable here.
   const [target, setTarget] = useState<string | null>(null)
@@ -184,6 +191,7 @@ export function Keys() {
           })
         } else {
           midiBass.current.set(channel, box.selectedBass)
+          box.enterBassNote(state.note - 33, state.velocity >= 0.8)
           box.engine?.bassNoteOn(box.selectedBass, state.note - 33, state.velocity >= 0.8, false)
         }
       }
@@ -270,6 +278,7 @@ export function Keys() {
         engine?.auditionPitched(drum.id, semitone, accent)
         return
       }
+      useBox.getState().enterBassNote(semitone, accent)
       // Legato when something is already down: the second note glides into the first
       // rather than restarting it, which is the 303's slide.
       const legato = heldRef.current.length > 1
@@ -315,6 +324,16 @@ export function Keys() {
         press(mapped.semitone + octave * 12)
         return
       }
+      if (bassEntryStep !== null && view === 'bass' && !drum && event.key === 'Backspace') {
+        event.preventDefault()
+        enterBassRest()
+        return
+      }
+      if (bassEntryStep !== null && view === 'bass' && !drum && event.key === 'Enter') {
+        event.preventDefault()
+        enterBassTie()
+        return
+      }
       if (event.key === 'z') setOctave((o) => Math.max(-1, o - 1))
       if (event.key === 'x') setOctave((o) => Math.min(MAX_OCTAVE, o + 1))
       if (event.key === 'Shift') setAccent(true)
@@ -344,7 +363,17 @@ export function Keys() {
       window.removeEventListener('blur', blur)
       blur()
     }
-  }, [collapsed, octave, press, lift])
+  }, [
+    bassEntryStep,
+    collapsed,
+    drum,
+    enterBassRest,
+    enterBassTie,
+    octave,
+    press,
+    lift,
+    view,
+  ])
 
   const semitoneOf = (k: (typeof LAYOUT)[number]) => k.semitone + octave * 12
 
@@ -354,6 +383,8 @@ export function Keys() {
   // tom, which is what the machine's three of them are for.
   const outOfRange = (semitone: number) =>
     drum?.pitched ? drum.pitched.low * Math.pow(2, semitone / 12) > drum.pitched.high : false
+  const entryPattern = song.patterns.find((candidate) => candidate.id === editing)
+  const entryAvailable = view === 'bass' && !drum && Boolean(entryPattern)
 
   return (
     <section
@@ -418,6 +449,41 @@ export function Keys() {
                   </button>
                 )}
               </div>
+              {entryAvailable && (
+                <div className="keys-entry" aria-label="303 step entry">
+                  <button
+                    className={`ghost${bassEntryStep !== null ? ' on' : ''}`}
+                    aria-pressed={bassEntryStep !== null}
+                    onClick={toggleBassEntry}
+                    title="Write keyboard notes into the stopped pattern and advance"
+                  >
+                    step entry
+                  </button>
+                  {bassEntryStep !== null && entryPattern && (
+                    <>
+                      <button
+                        aria-label="Previous entry step"
+                        onClick={() => setBassEntryStep(bassEntryStep - 1)}
+                      >
+                        ←
+                      </button>
+                      <span>step {bassEntryStep + 1}</span>
+                      <button
+                        aria-label="Next entry step"
+                        onClick={() => setBassEntryStep(bassEntryStep + 1)}
+                      >
+                        →
+                      </button>
+                      <button onClick={enterBassRest} title="Write a rest (Backspace)">
+                        rest
+                      </button>
+                      <button onClick={enterBassTie} title="Tie the previous note (Enter)">
+                        tie
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               <button
                 className={`ghost${accent ? ' on' : ''}`}
                 onClick={() => setAccent((a) => !a)}

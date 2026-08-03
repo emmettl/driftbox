@@ -41,8 +41,8 @@ list with a different order. Undo and stereo cables have landed; recorded automa
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. Its dependency order—independent machine clips,
-song automation, section buses/effects, fast pattern tools and interchange—has landed. Faster
-sequential note entry is the remaining editor refinement. `docs/RACK.md` remains the
+song automation, section buses/effects, fast pattern tools, sequential 303 keyboard entry and
+interchange—has landed. `docs/RACK.md` remains the
 implementation record for the modular engine itself.
 
 The first interchange layer is landed: rack patches can retain the complete versioned
@@ -56,8 +56,9 @@ mutating the arrangement, edit the full retained control set for every drum voic
 seek or loop sections and arbitrary whole-bar ranges on the hosted transport, rotate or
 transform focused retained lanes, program 909 flams, record tempo, global swing and authored
 instrument, per-voice swing, send and shared effect automation against the hosted engine
-clock, quantise keyboard taps into the focused authored clip, cut/copy/paste a focused lane
-or machine without losing articulation, and return to the sequencer without losing that
+clock, quantise playing keyboard taps into the focused authored clip, advance a stopped 303
+entry cursor, cut/copy/paste a focused lane or machine without losing articulation, and
+return to the sequencer without losing that
 document. The original editor now uses those same clipboard transforms for lane and machine
 focus. Both modes now expose the same mastered retained-song WAV, while rack mode keeps its
 patch render explicit and separate. They also share the browser MIDI host, monophonic note
@@ -70,9 +71,10 @@ views now host the same reactive scenes over the same master XY filter, with sce
 persisted inside a compatible song or at patch level for rack-native work. The retained
 Groovebox device also authors the same drive, PCF, compressor, delay and reverb settings as
 the original editor, including the PCF's off/on/accent pattern lane; rack mode still adds
-patchable Drive, SVF, Compressor and Delay modules around that compatible song. Next, close
-the remaining fast-entry refinements; the rack now shares the retained song's per-voice stem
-review/export desk while keeping its rack-graph WAV explicit and separate. Do not duplicate
+patchable Drive, SVF, Compressor and Delay modules around that compatible song. Next, add a
+deterministic retained-song render-equivalence acceptance test; the rack now shares the
+retained song's per-voice stem review/export desk while keeping its rack-graph WAV explicit
+and separate. Do not duplicate
 authored patterns into anonymous rack primitives.
 
 ## What is deliberate

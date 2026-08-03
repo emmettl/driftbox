@@ -33,19 +33,36 @@ const clampNote = (n: number) => Math.max(LOW, Math.min(HIGH, n))
 interface CellProps {
   step: BassStep
   live: boolean
+  entry: boolean
   downbeat: boolean
   label: string
+  onSelectEntry: () => void
   onChange: (next: BassStep) => void
   onPreview: (next: BassStep) => void
 }
 
-function NoteCell({ step, live, downbeat, label, onChange, onPreview }: CellProps) {
+function NoteCell({
+  step,
+  live,
+  entry,
+  downbeat,
+  label,
+  onSelectEntry,
+  onChange,
+  onPreview,
+}: CellProps) {
   // A drag that never moved is a click. Tracked here rather than by listening for both
   // events, because a pointer that moves one pixel while you click should still toggle
   // the step rather than silently retuning it.
   const drag = useRef<{ y: number; from: number; moved: boolean } | null>(null)
 
-  const classes = ['step', 'bass-note', downbeat ? 'downbeat' : '', live ? 'live' : '']
+  const classes = [
+    'step',
+    'bass-note',
+    downbeat ? 'downbeat' : '',
+    live ? 'live' : '',
+    entry ? 'entry' : '',
+  ]
   if (step.note !== null) classes.push(step.accent ? 'accent' : 'on')
 
   return (
@@ -53,6 +70,7 @@ function NoteCell({ step, live, downbeat, label, onChange, onPreview }: CellProp
       className={classes.filter(Boolean).join(' ')}
       aria-label={label}
       onPointerDown={(event) => {
+        onSelectEntry()
         event.currentTarget.setPointerCapture(event.pointerId)
         drag.current = { y: event.clientY, from: step.note ?? 0, moved: false }
       }}
@@ -99,6 +117,8 @@ export function BassGrid() {
   const editBassStep = useBox((s) => s.editBassStep)
   const selectBass = useBox((s) => s.selectBass)
   const auditionBass = useBox((s) => s.auditionBass)
+  const bassEntryStep = useBox((s) => s.bassEntryStep)
+  const setBassEntryStep = useBox((s) => s.setBassEntryStep)
 
   const live = useLiveStep()
   const pattern = song.patterns.find((p) => p.id === editing)
@@ -135,8 +155,14 @@ export function BassGrid() {
                         key={index}
                         step={step}
                         live={live === index}
+                        entry={voice.id === selectedBass && bassEntryStep === index}
                         downbeat={index % 4 === 0}
-                        label={`${voice.name} step ${index + 1} note`}
+                        label={`${voice.name} step ${index + 1} note${
+                          voice.id === selectedBass && bassEntryStep === index
+                            ? ', entry cursor'
+                            : ''
+                        }`}
+                        onSelectEntry={() => setBassEntryStep(index)}
                         onChange={(next) => edit(index, next)}
                         onPreview={(next) => auditionBass(voice.id, next)}
                       />

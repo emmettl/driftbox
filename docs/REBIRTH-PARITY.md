@@ -12,9 +12,9 @@ relationship Reason had to ReBirth:
 This is a product contract, not a claim about the current implementation. The rack is
 already a strict superset in routing, modulation, MIDI, sampling, sequencing and sound
 design. It now hosts the four authored instruments, their compact pattern workflow, song
-automation, effects, stem review and the shared performance visualiser without flattening
-them. The remaining groovebox-editor gap is faster sequential note entry; rack-native
-source export remains a separate modular-workflow concern.
+automation, effects, stem review, stopped 303 keyboard entry and the shared performance
+visualiser without flattening them. Rack-native source export remains a separate
+modular-workflow concern.
 
 ## What “strict superset” means
 
@@ -51,7 +51,7 @@ user could approximate it from oscillators.
 | Authored 808 and 909 kits | Yes | Patchable stereo outputs, retained pattern editor and all six authored controls per voice | Landed; generated PCM character remains deliberate |
 | Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
 | Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus bar-quantised session launch | Add finer launch quantisation if performance use demands it |
-| 303 note/accent/slide/tie editing | Partial | Retained 303 step editor plus Tracker primitives | Add faster sequential and keyboard entry |
+| 303 note/accent/slide/tie editing | Direct grid plus stopped keyboard/MIDI entry with note, rest and tie | Same retained editor and advancing cursor plus Tracker primitives | Landed |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
 | Pattern transforms | Rotate, transpose, randomise, alter and focused cut/copy/paste | Retained lane/machine rotate, focused randomise/alter, 303 transpose, 909 flam and focused cut/copy/paste | Landed |
 | Song arrangement | Multi-clip sections | Arranger | Adapt shared sections and independent clips to rack scenes |
@@ -145,7 +145,9 @@ arbitrary whole-bar loop ranges may cross section boundaries without entering th
 Rack mode now arms the shared recorder against the hosted engine clock for tempo, global
 swing, per-voice swing, every drum/303 knob, voice sends and shared effects; recorded lanes
 remain in the compatible song envelope and clearing them is undoable. Rack keyboard taps now
-record into the focused retained clip without passing through generic rack MIDI. Focused
+record into the focused retained clip without passing through generic rack MIDI: running taps
+quantise at the playhead, while a stopped 303 advances a visible session cursor. The original
+editor uses the same note/rest/tie transforms and cursor. Focused
 cut/copy/paste is present in both editors and uses the same host-neutral engine transforms.
 Both modes now export the same mastered retained-song WAV; rack mode labels that separately
 from its rack-graph render. Both modes now also use one browser MIDI host and one hardware
@@ -161,8 +163,8 @@ that same compatible envelope, and both editors program the PCF's off/on/accent 
 Rack-native equivalents remain additive modules, not substitutes for retained song data.
 The same boundary now applies to export: rack mode reviews and saves the retained song's
 pre-master voice stems without claiming that they contain rack-only cables or processing;
-Patch WAV remains a separately labelled render. Next, close the faster sequential-entry
-refinements. Do not
+Patch WAV remains a separately labelled render. Next, add a deterministic retained-song
+render-equivalence acceptance test. Do not
 compile a song into anonymous VCOs, steps and cables and then attempt to
 reverse-engineer it later. A dual-303 device can expose patch points and still retain
 “this is 303 A, pattern Acid 2” as authored structure.
