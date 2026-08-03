@@ -190,6 +190,9 @@ Ordered by return, not by how big Reason's version was.
   Start now has the RPG rear-panel contract too: leaving it unplugged preserves immediate playback, while
   patching it arms the Arp until a trigger restarts the figure; Start Out opens at every figure restart and
   matches the first note's Gate Length, including the closed and Tie endpoints.
+  The four RPG modulation inputs are additive rear jacks now too: Gate Length and Velocity use normalized
+  offsets, Octave Shift adds quantized octaves, and Rate uses the rack's usual exponential frequency CV.
+  Fixed/Played velocity policy also remains active in converter mode, as it does in RPG's MIDI-CV section.
 
   **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
   one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern

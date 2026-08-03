@@ -119,8 +119,6 @@ describe('converter bypass', () => {
     const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
     params[param('enable')].fill(0)
     params[param('shift')].fill(3)
-    params[param('velocityMode')].fill(1)
-    params[param('velocity')].fill(0.9)
     params[param('timing')].fill(2)
     const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
     arp.process(
@@ -152,8 +150,6 @@ describe('converter bypass', () => {
     params[param('source')].fill(1)
     params[param('hold')].fill(1)
     params[param('shift')].fill(-3)
-    params[param('velocityMode')].fill(1)
-    params[param('velocity')].fill(0.99)
     const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
     arp.process(
       [zero, zero, zero, zero, zero],
@@ -245,8 +241,88 @@ describe('start of arpeggio', () => {
   })
 
   it('appends stable Start ports without moving the existing cable ids', () => {
-    expect(ARP_MODULE.inlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'clock', 'reset', 'start'])
+    expect(ARP_MODULE.inlets.map((port) => port.id)).toEqual([
+      'pitch', 'gate', 'velocity', 'clock', 'reset', 'start', 'gateCv', 'velocityCv', 'rateCv', 'shiftCv',
+    ])
     expect(ARP_MODULE.outlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'trig', 'start'])
+  })
+})
+
+describe('rear CV modulation', () => {
+  it('merges Gate Length and Octave Shift CV with their panel values', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-cv-shape')
+    const frames = STEP * 2
+    const zero = new Float32Array(frames)
+    const clock = Float32Array.from({ length: frames }, (_, i) => i % STEP < STEP / 2 ? 1 : 0)
+    const gateCv = new Float32Array(frames).fill(-0.5)
+    gateCv.fill(0.5, STEP)
+    const shiftCv = new Float32Array(frames).fill(0.8)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    params[param('gate')].fill(0.5)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+
+    arp.process([zero, zero, zero, clock, zero, zero, gateCv, zero, zero, shiftCv], out, params, frames)
+
+    expect(out[1].slice(0, STEP).every((value) => value === 0)).toBe(true)
+    expect(out[1].slice(STEP).every((value) => value === 1)).toBe(true)
+    expect(Math.round(out[0][8] * 12)).toBe(12)
+    expect(Math.round(out[0][STEP + 8] * 12)).toBe(16)
+  })
+
+  it('uses octave-scaled Rate CV in Free timing', () => {
+    const edges = (rateCv: number) => {
+      const sampleRate = 1000
+      const frames = 260
+      const arp = new ArpProcessor(sampleRate, deps, `arp-rate-cv-${rateCv}`)
+      const zero = new Float32Array(frames)
+      const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+      params[param('timing')].fill(2)
+      params[param('rate')].fill(10)
+      const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+      arp.process(
+        [zero, zero, zero, zero, zero, zero, zero, zero, new Float32Array(frames).fill(rateCv), zero],
+        out,
+        params,
+        frames,
+      )
+      return [...out[3]].flatMap((value, index) =>
+        value >= 0.5 && (index === 0 || out[3][index - 1] < 0.5) ? [index] : [],
+      )
+    }
+
+    expect(edges(0)).toEqual([0, 100, 200])
+    expect(edges(1)).toEqual([0, 50, 100, 150, 200, 250])
+  })
+
+  it('merges Velocity CV with played or fixed velocity in the figure and converter', () => {
+    const render = (enable: number, fixed: boolean) => {
+      const frames = STEP
+      const arp = new ArpProcessor(SR, deps, `arp-velocity-cv-${enable}-${fixed}`)
+      const zero = new Float32Array(frames)
+      const gate = new Float32Array(frames).fill(1)
+      const velocity = new Float32Array(frames).fill(0.4)
+      const clock = new Float32Array(frames).fill(1)
+      const velocityCv = new Float32Array(frames).fill(-0.2)
+      const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+      params[param('enable')].fill(enable)
+      params[param('velocityMode')].fill(fixed ? 1 : 0)
+      params[param('velocity')].fill(0.8)
+      const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+      arp.process(
+        [zero, gate, velocity, clock, zero, zero, zero, velocityCv, zero, zero],
+        out,
+        params,
+        frames,
+      )
+      return out[2][8]
+    }
+
+    expect(render(1, false)).toBeCloseTo(0.2)
+    expect(render(1, true)).toBeCloseTo(0.6)
+    expect(render(0, false)).toBeCloseTo(0.2)
+    expect(render(0, true)).toBeCloseTo(0.6)
   })
 })
 
