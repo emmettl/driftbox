@@ -16,16 +16,16 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 parent steps plus independent drum-voice loop lengths; off / on / accent / 909 flam; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
 | Song | Multi-clip sections with repeat counts, section seek and arbitrary whole-bar looping; recordable versioned tempo, swing, instrument, send and effect automation |
 | Ships with | Seventeen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro and Driftlings |
-| Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |
+| Vibes mode | A player: now-playing, skip, filter pad, eighteen scenes — no grid required |
 | Basslines | Pitch / Note-Pause / accent / slide per step, including silent-step slides, plus a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Drive, pattern-controlled filter and compressor as master inserts; tempo-synced delay and generated-IR reverb as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL; scene identity travels with the document |
-| Visuals | Four meters, seventeen 3D scenes that react to music and touch, and a full-screen XY filter pad |
+| Visuals | Four meters, eighteen 3D scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.3.0, with provenance |
-| Rack | An unpublished work in progress with 31 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Rack | An unpublished work in progress with 37 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -592,13 +592,21 @@ evaluated in isolation. A consumer minifying differently is the one genuine risk
 shipping this, and `ladder.test.ts` can only guard our own build. If it ever breaks, the
 symptom is silence on the first bass note, not a build error.
 
-One new data point on that, from building the rack: under rolldown with minify on, the class
-comes out **anonymous** — `class{s0=0;s1=0;...}`, with no name at all. The engine is
-untouched by that, because both halves of its reference are literal text inside the template
-in `dsp/worklet.ts` (`const Ladder = ` and `new Ladder(sampleRate)`), which a bundler never
-sees. What it rules out is any scheme that derives an identifier from `Class.name` at
-assembly time. `packages/rack/src/worklet.ts` has the long version and passes its
-dependencies by string key for this reason.
+One new data point on that, from building the rack: under rolldown with minify on, the class's
+**source text** comes out anonymous — `class{s0=0;s1=0;...}`. The engine is untouched by that,
+because both halves of its reference are literal text inside the template in `dsp/worklet.ts`
+(`const Ladder = ` and `new Ladder(sampleRate)`), which a bundler never sees. What it rules out
+is any scheme that derives an identifier from `Class.name` at assembly time.
+
+**`Class.name` is a separate question from the source text, and the answer moved.** This said
+the class came out "with no name at all", which was measured and was true of the bundler of the
+day. Re-measured under rolldown 1.2.2 while adding `packages/rack/src/minified.test.ts`, `.name`
+reads as the *mangled binding* — `me`, `Sn`, `Xt` — not the empty string. That makes a
+name-derived scheme **bundler-dependently** broken rather than reliably broken: it would work
+here and go silent wherever the name really is empty, which is the worse of the two failures and
+a stronger argument for the string keys `packages/rack/src/worklet.ts` uses. The lesson to keep
+is the one about measuring rather than the number: this is a property of somebody else's
+minifier, and it can move again.
 
 ## Releasing
 
