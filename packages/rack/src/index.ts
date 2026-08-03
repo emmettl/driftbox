@@ -129,6 +129,7 @@ export { MODULES, MODULE_LIST } from './modules/index.js'
 // them; the rest are here because a supported way to control the bundle cannot be built out of imports that
 // are not offered.
 export { ADSR_MODULE } from './modules/adsr.js'
+export { CABINET_MODULE } from './modules/cabinet.js'
 export { DISTORTION_MODULE } from './modules/distortion.js'
 export { IMAGER_MODULE } from './modules/imager.js'
 export { PHASER_MODULE } from './modules/phaser.js'
