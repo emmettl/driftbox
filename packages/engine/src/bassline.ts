@@ -141,7 +141,7 @@ export class Bassline {
       // Exponential, not linear: a glide that sounds even has to move by ratio, because
       // that is how pitch is heard. A linear ramp between two notes rushes the bottom
       // of the interval and crawls the top.
-      frequency.setValueAtTime(this.lastFrequency, time)
+      frequency.setValueAtTime(note.glideFrom ?? this.lastFrequency, time)
       frequency.exponentialRampToValueAtTime(note.frequency, time + note.glide)
     } else {
       frequency.setValueAtTime(note.frequency, time)

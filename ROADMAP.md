@@ -17,7 +17,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Song | Multi-clip sections with repeat counts, section seek and arbitrary whole-bar looping; recordable versioned tempo, swing, instrument, send and effect automation |
 | Ships with | Seventeen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro and Driftlings |
 | Vibes mode | A player: now-playing, skip, filter pad, seventeen scenes — no grid required |
-| Basslines | Note / accent / slide per step, a real 4-pole ladder filter |
+| Basslines | Pitch / Note-Pause / accent / slide per step, including silent-step slides, plus a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Drive, pattern-controlled filter and compressor as master inserts; tempo-synced delay and generated-IR reverb as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL; scene identity travels with the document |
@@ -690,8 +690,6 @@ typed shelf on the first new save; the legacy key is not deleted.
 - **Lanes within one machine share a clip length.** A section independently selects its
   808, 909 and both 303 clips, so those four machines can loop at different lengths.
   Individual voices inside an 808 or 909 clip still share that clip's length.
-- **The 303s have no per-note tie separate from slide, and no rests inside a held note.**
-  Both are on the real machine. Neither is hard; they need somewhere in the grid to live.
 - **No AudioWorklet means no squelch.** The fallback is a single biquad — two poles,
   linear, no self-oscillation. The 303 panel says so when it is in use, but it is worth
   knowing that "the basslines sound tame" has one likely cause.

@@ -93,7 +93,9 @@ that remains separate work alongside the looper gap.
 
 The front panel also edits the retained pattern bank directly. Pattern and machine selectors
 open one 16-step page at a time; drum steps cycle rest, hit and accent, while each 303 step
-can set pitch, accent and slide. Longer polymetric patterns page rather than being truncated.
+can set pitch, Note/Pause, accent and slide. Pausing retains the pitch, and Slide remains
+editable on that silent step so the following attack bends in from it as it does in ReBirth.
+Longer polymetric patterns page rather than being truncated.
 Edits replace the versioned song envelope and reach the hosted scheduler on its next step
 without recompiling the rack graph, restarting the arrangement or turning a compatible song
 into a rack-extended document. A section selector beside the steps assigns any pattern from

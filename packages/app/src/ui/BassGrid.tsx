@@ -1,5 +1,12 @@
 import { useRef } from 'react'
-import { BASS_VOICES, bassStepAt, type BassStep } from '@driftbox/engine'
+import {
+  BASS_VOICES,
+  bassStepAt,
+  bassStepSounds,
+  setBassStepGate,
+  setBassStepSlide,
+  type BassStep,
+} from '@driftbox/engine'
 import { useBox } from '../store'
 import { useLiveStep } from './useLiveStep'
 
@@ -63,7 +70,9 @@ function NoteCell({
     live ? 'live' : '',
     entry ? 'entry' : '',
   ]
-  if (step.note !== null) classes.push(step.accent ? 'accent' : 'on')
+  const sounds = bassStepSounds(step)
+  if (sounds) classes.push(step.accent ? 'accent' : 'on')
+  else if (step.note !== null) classes.push('pause')
 
   return (
     <button
@@ -88,12 +97,11 @@ function NoteCell({
         drag.current = null
         event.currentTarget.releasePointerCapture(event.pointerId)
         if (!state || state.moved) return
-        // A plain click turns the step on and off. New notes come in at the root, which
-        // is almost always where you want to start before dragging it somewhere.
-        const next: BassStep =
-          step.note === null ? { ...step, note: 0 } : { ...step, note: null }
+        // ReBirth separates pitch from Note/Pause. A paused step keeps its pitch so its
+        // Slide flag can bend the following attack from a silent starting note.
+        const next = setBassStepGate(step, !sounds)
         onChange(next)
-        if (next.note !== null) onPreview(next)
+        if (bassStepSounds(next)) onPreview(next)
       }}
       onPointerCancel={() => {
         drag.current = null
@@ -105,7 +113,7 @@ function NoteCell({
         if (event.key === 'ArrowDown') onChange({ ...step, note: clampNote(step.note - by) })
       }}
     >
-      {step.note === null ? '' : noteName(step.note)}
+      {step.note === null ? '' : `${sounds ? '' : '·'}${noteName(step.note)}`}
     </button>
   )
 }
@@ -157,7 +165,13 @@ export function BassGrid() {
                         live={live === index}
                         entry={voice.id === selectedBass && bassEntryStep === index}
                         downbeat={index % 4 === 0}
-                        label={`${voice.name} step ${index + 1} note${
+                        label={`${voice.name} step ${index + 1} ${
+                          bassStepSounds(step)
+                            ? 'note'
+                            : step.note === null
+                              ? 'empty'
+                              : 'paused pitch'
+                        }${
                           voice.id === selectedBass && bassEntryStep === index
                             ? ', entry cursor'
                             : ''
@@ -174,16 +188,22 @@ export function BassGrid() {
                           `bass-${lane}`,
                           index % 4 === 0 ? 'downbeat' : '',
                           step[lane] ? 'on' : '',
-                          // Only meaningful on a step that has a note. Dimmed rather
-                          // than disabled, so the flag survives you clearing a note and
-                          // putting it back.
-                          step.note === null ? 'idle' : '',
+                          // Accent needs a sounding step. Slide does not: ReBirth uses a
+                          // silent step's retained pitch as the next glide's origin.
+                          lane === 'accent' && !bassStepSounds(step) ? 'idle' : '',
                         ]
                           .filter(Boolean)
                           .join(' ')}
                         aria-label={`${voice.name} step ${index + 1} ${lane}`}
                         aria-pressed={step[lane]}
-                        onClick={() => edit(index, { ...step, [lane]: !step[lane] })}
+                        onClick={() =>
+                          edit(
+                            index,
+                            lane === 'slide'
+                              ? setBassStepSlide(step, !step.slide)
+                              : { ...step, accent: !step.accent },
+                          )
+                        }
                       />
                     ),
                   )}

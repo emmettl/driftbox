@@ -1,4 +1,12 @@
-import { BASS_VOICES, DEFAULT_BASS_PARAMS, REST, type BassParams, type BassStep } from './bass.js'
+import {
+  BASS_VOICES,
+  DEFAULT_BASS_PARAMS,
+  REST,
+  bassStepSounds,
+  setBassStepGate,
+  type BassParams,
+  type BassStep,
+} from './bass.js'
 import { DEFAULT_FX, type FxParams, type SendLevels } from './effects.js'
 import { DEFAULT_PARAMS, type VoiceParams } from './types.js'
 
@@ -441,7 +449,7 @@ export function rotateBassLine(pattern: Pattern, voiceId: string, delta: number)
   }
 }
 
-/** Transpose the sounding notes in one 303 line; rests and articulation stay untouched. */
+/** Transpose every assigned 303 pitch, including silent pitches used to start a slide. */
 export function transposeBassLine(
   pattern: Pattern,
   voiceId: string,
@@ -617,15 +625,19 @@ export function enterBassNote(
   if (pattern.length <= 0) return { pattern, nextStep: 0, written: false }
   const index = bassEntryIndex(pattern, step)
   const current = bassStepAt(pattern, voiceId, index)
-  const next = setBassStep(pattern, voiceId, index, {
-    note: Math.max(0, Math.min(24, Math.round(note))),
-    accent,
-    slide: current.slide,
-  })
+  const value = setBassStepGate(
+    {
+      note: Math.max(0, Math.min(24, Math.round(note))),
+      accent,
+      slide: current.slide,
+    },
+    true,
+  )
+  const next = setBassStep(pattern, voiceId, index, value)
   return { pattern: next, nextStep: (index + 1) % pattern.length, written: true }
 }
 
-/** Clear the cursor step and advance, for leaving deliberate space while entering notes. */
+/** Pause the cursor step and advance without discarding a pitch already stored there. */
 export function enterBassRest(
   pattern: Pattern,
   voiceId: string,
@@ -634,7 +646,12 @@ export function enterBassRest(
   if (pattern.length <= 0) return { pattern, nextStep: 0, written: false }
   const index = bassEntryIndex(pattern, step)
   return {
-    pattern: setBassStep(pattern, voiceId, index, { ...REST }),
+    pattern: setBassStep(
+      pattern,
+      voiceId,
+      index,
+      setBassStepGate(bassStepAt(pattern, voiceId, index), false),
+    ),
     nextStep: (index + 1) % pattern.length,
     written: true,
   }
@@ -650,15 +667,19 @@ export function enterBassTie(
   const index = bassEntryIndex(pattern, step)
   const previousIndex = (index - 1 + pattern.length) % pattern.length
   const previous = bassStepAt(pattern, voiceId, previousIndex)
-  if (previous.note === null) return { pattern, nextStep: index, written: false }
+  if (!bassStepSounds(previous)) return { pattern, nextStep: index, written: false }
   const current = bassStepAt(pattern, voiceId, index)
   const withHold = setBassStep(pattern, voiceId, previousIndex, { ...previous, slide: true })
-  return {
-    pattern: setBassStep(withHold, voiceId, index, {
+  const tied = setBassStepGate(
+    {
       note: previous.note,
       accent: false,
       slide: current.slide,
-    }),
+    },
+    true,
+  )
+  return {
+    pattern: setBassStep(withHold, voiceId, index, tied),
     nextStep: (index + 1) % pattern.length,
     written: true,
   }

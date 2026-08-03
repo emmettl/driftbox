@@ -9,25 +9,46 @@ import { range, ratioRange } from './voices/common.js'
 // a synth playing sixteenths is in how the notes RELATE to each other, which is why
 // this takes the previous step as an argument:
 //
-//   SLIDE  a step marked slide does not end. The next note glides into it on the same
-//          envelope, so two notes share one attack. This is the sound of an acid line
-//          leaning rather than stepping.
+//   SLIDE  a sounding step marked slide does not end. The next note glides into it on
+//          the same envelope, so two notes share one attack. A paused step may also
+//          retain a silent starting pitch for the next note's glide, as in ReBirth.
 //   ACCENT louder, brighter, and more resonant — one flag driving three things at once,
 //          because on the hardware the accent voltage feeds the VCA, the filter
 //          envelope and the resonance circuit together.
 //
 // Take either away and you have a monosynth playing a pattern.
 
-/** Off, or a note. `note` is semitones above the synth's root. */
+/** A pitched 303 step. Legacy rests have no pitch; newly authored pauses retain one. */
 export interface BassStep {
-  /** Semitones above the root, or null for a rest. */
+  /** Semitones above the root, or null when no pitch has ever been assigned. */
   note: number | null
   accent: boolean
   /** Hold through the next step and glide into it, rather than stopping. */
   slide: boolean
+  /** Whether the pitch sounds. Omitted preserves the original `note !== null` schema. */
+  gate?: boolean
 }
 
 export const REST: BassStep = { note: null, accent: false, slide: false }
+
+/** Whether a step strikes a note. A paused step may still retain pitch and slide data. */
+export function bassStepSounds(step: BassStep): boolean {
+  return step.note !== null && step.gate !== false
+}
+
+/** Toggle Note/Pause without throwing away the pitch authored for a silent step. */
+export function setBassStepGate(step: BassStep, sounds: boolean): BassStep {
+  if (!sounds) return step.note === null ? { ...step } : { ...step, gate: false }
+  const { gate: _gate, ...pitched } = step
+  return pitched.note === null ? { ...pitched, note: 0 } : pitched
+}
+
+/** Toggle Slide; assigning it to a blank rest creates a silent root pitch to edit. */
+export function setBassStepSlide(step: BassStep, slide: boolean): BassStep {
+  return slide && step.note === null
+    ? { ...step, note: 0, gate: false, slide: true }
+    : { ...step, slide }
+}
 
 export interface BassParams {
   /** Root pitch, two octaves centred on A1. */
@@ -81,8 +102,10 @@ export function bassVoiceById(id: string): BassVoice | undefined {
 /** One note, ready to be scheduled. Frequencies in Hz, times in seconds. */
 export interface BassNote {
   frequency: number
-  /** Seconds to glide from the previous note. 0 means this note starts on pitch. */
+  /** Seconds to glide from the previous stored pitch. 0 means this note starts on pitch. */
   glide: number
+  /** Explicit starting pitch for a glide, including one authored on a silent step. */
+  glideFrom?: number
   /** Whether the envelopes start again. False when sliding out of the previous note —
    *  that shared envelope is the whole point of a slide. */
   retrigger: boolean
@@ -125,13 +148,16 @@ export function bassNote(
   previous: BassStep,
   stepSeconds: number,
 ): BassNote | null {
-  if (step.note === null) return null
+  const pitch = step.note
+  if (!bassStepSounds(step) || pitch === null) return null
 
   const root = ratioRange(params.tune, ROOT_HZ / 2, ROOT_HZ * 2)
-  const frequency = root * Math.pow(2, step.note / 12)
+  const frequency = root * Math.pow(2, pitch / 12)
 
-  // Sliding in: the previous step said hold, and it had a note to hold.
-  const slidingIn = previous.slide && previous.note !== null
+  // A paused step still owns pitch in ReBirth. Its Slide flag bends the next attack
+  // from that silent pitch; only a sounding predecessor also suppresses retriggering.
+  const glidingIn = previous.slide && previous.note !== null
+  const slidingIn = glidingIn && bassStepSounds(previous)
   const accent = step.accent ? range(params.accent, 0.15, 1) : 0
 
   const base = ratioRange(params.cutoff, 90, 4200)
@@ -143,7 +169,8 @@ export function bassNote(
 
   return {
     frequency,
-    glide: slidingIn ? SLIDE_SECONDS : 0,
+    glide: glidingIn ? SLIDE_SECONDS : 0,
+    ...(glidingIn ? { glideFrom: root * Math.pow(2, previous.note! / 12) } : {}),
     retrigger: !slidingIn,
     // A sliding note has to outlast its own step or there is nothing left sounding for
     // the next note to glide out of. An ordinary one stops short, leaving the gap that

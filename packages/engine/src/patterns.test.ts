@@ -345,12 +345,13 @@ describe('sequential 303 entry', () => {
     expect(entered.nextStep).toBe(2)
   })
 
-  it('writes a rest and wraps the cursor', () => {
+  it('writes a pause, retains its pitch and wraps the cursor', () => {
     const entered = enterBassRest(line(), '303.a', 4)
     expect(entered.pattern.bass?.['303.a']?.[0]).toEqual({
-      note: null,
+      note: 5,
       accent: false,
       slide: false,
+      gate: false,
     })
     expect(entered.nextStep).toBe(1)
   })

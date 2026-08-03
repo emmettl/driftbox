@@ -213,6 +213,48 @@ describe('the shared step planner', () => {
     expect(second.bass.map((hit) => hit.voiceId)).toEqual(['303.a'])
   })
 
+  it('slides a struck note from the retained pitch of the preceding pause', () => {
+    const base = defaultSong()
+    const pattern: Pattern = {
+      id: 'silent-slide',
+      name: 'Silent slide',
+      length: 4,
+      tracks: {},
+      bass: {
+        '303.a': [
+          { note: 2, accent: false, slide: true, gate: false },
+          { note: 9, accent: false, slide: false },
+          { note: null, accent: false, slide: false },
+          { note: null, accent: false, slide: false },
+        ],
+      },
+    }
+    const song = {
+      ...base,
+      patterns: [pattern],
+      chain: [{ pattern: pattern.id, repeat: 1 }],
+    }
+
+    expect(planStep(song, {
+      absolute: 0,
+      index: 0,
+      bar: 0,
+      time: 0,
+      stepSeconds: 0.1,
+    }).bass).toHaveLength(0)
+
+    const hit = planStep(song, {
+      absolute: 1,
+      index: 1,
+      bar: 0,
+      time: 0.1,
+      stepSeconds: 0.1,
+    }).bass[0].note
+    expect(hit.glide).toBeGreaterThan(0)
+    expect(hit.glideFrom).toBeLessThan(hit.frequency)
+    expect(hit.retrigger).toBe(true)
+  })
+
   it('lets a live selection override one machine without changing the song', () => {
     const base = defaultSong()
     const primary: Pattern = {

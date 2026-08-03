@@ -182,7 +182,9 @@ nothing at half resonance, and stays bounded however hard it is driven.
 
 Slide and accent are the rest of it. A slide is a glide between two notes that share one
 envelope — which is why a 303 here is one continuous oscillator rather than a node per
-note, as the drums are. An accent drives level, filter envelope depth *and* resonance
+note, as the drums are. ReBirth's stranger silent slide is present too: a paused step
+retains its pitch and bends the following attack from there. An accent drives level,
+filter envelope depth *and* resonance
 together, the way the accent voltage does on the hardware; wiring it to the level alone
 is the usual way one of these ends up sounding flat.
 

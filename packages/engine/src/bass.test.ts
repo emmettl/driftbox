@@ -4,7 +4,10 @@ import {
   DEFAULT_BASS_PARAMS,
   REST,
   bassNote,
+  bassStepSounds,
   previousStep,
+  setBassStepGate,
+  setBassStepSlide,
   type BassParams,
   type BassStep,
 } from './bass.js'
@@ -33,6 +36,23 @@ describe('a 303 note', () => {
     const low = bassNote(knobs(), note(0), REST, STEP)!
     const high = bassNote(knobs(), note(12), REST, STEP)!
     expect(high.frequency / low.frequency).toBeCloseTo(2, 6)
+  })
+
+  it('can pause a step without discarding its pitch', () => {
+    const paused = setBassStepGate(note(9, { accent: true, slide: true }), false)
+    expect(paused).toEqual({ note: 9, accent: true, slide: true, gate: false })
+    expect(bassStepSounds(paused)).toBe(false)
+    expect(bassNote(knobs(), paused, REST, STEP)).toBeNull()
+    expect(setBassStepGate(paused, true)).toEqual({ note: 9, accent: true, slide: true })
+  })
+
+  it('gives a blank rest a silent pitch when slide is enabled', () => {
+    expect(setBassStepSlide(REST, true)).toEqual({
+      note: 0,
+      accent: false,
+      slide: true,
+      gate: false,
+    })
   })
 
   it('sits in bass register across the whole tune range', () => {
@@ -113,6 +133,14 @@ describe('slide', () => {
   it('does not glide out of a rest that happens to be marked sliding', () => {
     const built = bassNote(knobs(), note(7), { note: null, accent: false, slide: true }, STEP)!
     expect(built.glide).toBe(0)
+    expect(built.retrigger).toBe(true)
+  })
+
+  it('glides from the retained pitch of a paused step but still strikes the envelope', () => {
+    const paused = note(2, { gate: false, slide: true })
+    const built = bassNote(knobs(), note(9), paused, STEP)!
+    expect(built.glide).toBeGreaterThan(0)
+    expect(built.glideFrom).toBeLessThan(built.frequency)
     expect(built.retrigger).toBe(true)
   })
 

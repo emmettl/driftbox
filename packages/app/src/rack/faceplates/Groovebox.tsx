@@ -9,6 +9,7 @@ import {
   alterBassLine,
   alterTrack,
   bassStepAt,
+  bassStepSounds,
   chainBarAt,
   clearBassLine,
   clearTrack,
@@ -29,6 +30,8 @@ import {
   pasteBassLine,
   pasteDrumLane,
   setBassStep,
+  setBassStepGate,
+  setBassStepSlide,
   songBars,
   stepAt,
   swingFor,
@@ -472,15 +475,18 @@ export function GrooveboxPatternEditor({
         {steps.map((step) => {
           if (bass) {
             const value = bassStepAt(pattern, section, step)
+            const sounds = bassStepSounds(value)
             const label =
               value.note === null
                 ? 'rest'
-                : `note ${value.note}${value.accent ? ', accent' : ''}${value.slide ? ', slide' : ''}`
+                : `${sounds ? 'note' : 'paused pitch'} ${value.note}${
+                    value.accent ? ', accent' : ''
+                  }${value.slide ? ', slide' : ''}`
             return (
               <button
                 type="button"
                 key={step}
-                data-state={value.note === null ? 'rest' : value.accent ? 'accent' : 'hit'}
+                data-state={!sounds ? 'rest' : value.accent ? 'accent' : 'hit'}
                 aria-pressed={selected === step}
                 aria-label={`${sectionName(section)} step ${step + 1}: ${label}`}
                 onClick={() => {
@@ -907,19 +913,19 @@ export function GrooveboxPatternEditor({
           <strong>Step {selected + 1}</strong>
           <button
             type="button"
-            aria-pressed={bassStep.note !== null}
+            aria-pressed={bassStepSounds(bassStep)}
             onClick={() =>
               save(
                 setBassStep(
                   pattern,
                   section,
                   selected,
-                  bassStep.note === null ? { note: 0, accent: false, slide: false } : { ...REST },
+                  setBassStepGate(bassStep, !bassStepSounds(bassStep)),
                 ),
               )
             }
           >
-            {bassStep.note === null ? 'Add note' : 'Rest'}
+            {bassStepSounds(bassStep) ? 'Pause' : 'Note'}
           </button>
           <button
             type="button"
@@ -937,7 +943,7 @@ export function GrooveboxPatternEditor({
             −
           </button>
           <span className="rk-groovebox-note">
-            {bassStep.note === null ? '—' : bassStep.note}
+            {bassStep.note === null ? '—' : `${bassStepSounds(bassStep) ? '' : '·'}${bassStep.note}`}
           </span>
           <button
             type="button"
@@ -956,7 +962,7 @@ export function GrooveboxPatternEditor({
           </button>
           <button
             type="button"
-            disabled={bassStep.note === null}
+            disabled={!bassStepSounds(bassStep)}
             aria-pressed={bassStep.accent}
             onClick={() =>
               save(
@@ -971,14 +977,15 @@ export function GrooveboxPatternEditor({
           </button>
           <button
             type="button"
-            disabled={bassStep.note === null}
             aria-pressed={bassStep.slide}
             onClick={() =>
               save(
-                setBassStep(pattern, section, selected, {
-                  ...bassStep,
-                  slide: !bassStep.slide,
-                }),
+                setBassStep(
+                  pattern,
+                  section,
+                  selected,
+                  setBassStepSlide(bassStep, !bassStep.slide),
+                ),
               )
             }
           >
