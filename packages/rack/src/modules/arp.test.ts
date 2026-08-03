@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ARP_MODULE, ArpProcessor } from './arp.js'
+import { ARP_MODULE, ARP_PATTERN_STEPS, ArpProcessor } from './arp.js'
 import { Random } from '../dsp/random.js'
 
 // One note in, a line out.
@@ -293,6 +293,46 @@ describe('how it is clocked', () => {
       if (out[3][i] >= 0.5 && (i === 0 || out[3][i - 1] < 0.5)) edges++
     }
     expect(edges).toBe(4)
+  })
+
+  it('turns disabled pattern steps into rests without changing the note cycle', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[1] = 0
+    pattern[3] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-pattern', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 5
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    params[param('patternLength')].fill(4)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [
+        new Float32Array(frames),
+        new Float32Array(frames),
+        new Float32Array(frames).fill(1),
+        clock,
+        new Float32Array(frames),
+      ],
+      out,
+      params,
+      frames,
+    )
+
+    const sounded = Array.from({ length: 5 }, (_, step) => out[3][step * STEP] >= 0.5)
+    const notes = Array.from({ length: 5 }, (_, step) => Math.round(out[0][step * STEP] * 12))
+    expect(sounded).toEqual([true, false, true, false, true])
+    expect(notes).toEqual([0, 4, 7, 0, 4])
+  })
+
+  it('defaults every pattern position on when no pattern data was saved', () => {
+    expect(ARP_MODULE.params[param('patternLength')].default).toBe(ARP_PATTERN_STEPS)
+    const { out } = run(ARP_PATTERN_STEPS, { chord: 2, octaves: 1 })
+    const edges = Array.from({ length: ARP_PATTERN_STEPS }, (_, step) => out[3][step * STEP] >= 0.5)
+    expect(edges.every(Boolean)).toBe(true)
   })
 
   it('goes back to the start of the figure on reset', () => {
