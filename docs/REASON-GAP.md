@@ -123,7 +123,7 @@ had before the undo.
 |---|---|---|---|
 | Duplicate a device | Copy, paste, duplicate, with settings | **Landed** | Copies params and pattern data, lands beside the original, arrives unpatched |
 | Auto-routing | A new device connects to the next mixer channel | **Landed** | A new *source* arrives with its own Out wired, the way `insertChunk` already gave a chunk one. Gated on the def declaring an outlet named `out`, so the Noise and the Groovebox — which have no single primary output — still arrive unpatched |
-| CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
+| CV trim | A trim pot on every CV input | **Landed** | A saved bipolar −1…+1 pot beside every rear inlet, live-ramped without rebuilding the graph. Driftbox has one signal type for audio and CV, so audio inlets get the same control: a strict superset rather than a guessed distinction |
 | Bypass | On / Bypass / Off on every effect | **Landed** | A flag on the module; the compiler drops its node and passes its first inlet through |
 | Device patches | A browser and a factory bank per device | **Landed** | A browser in the corner of every faceplate — name, step, list, save, delete — rendered by the Chassis rather than by each panel, so the eleven hand-built faceplates and the generic fallback got one without any UI work. `DEVICE_PATCHES` is the factory bank; Init is **derived from the def**, so every device has a bank and a way back to its defaults even if nobody wrote it one. Which patch you are on is derived from the knobs, never remembered, so the name cannot start lying the moment you turn something. Knobs only — a device patch is a *sound*, and `data` is a pattern, which belongs to the song. Applying one is a single non-structural edit and therefore one undo and no click |
 | Multi-select | Rubber-band a group of devices | **Landed** | Click, shift-click for a span, platform modifier to toggle one, or drag across inert faceplate surface to rubber-band. Shift/Cmd/Ctrl-drag adds to the group. Removing a group is one structural edit and therefore one undo. |
@@ -229,9 +229,8 @@ Worth writing down so nobody builds them twice.
 3. ~~Recorded automation.~~ Landed — the ABI carries a frame, lanes live on the patch, an export plays
    them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.
-5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate, bypass,
-   auto-routing, device patches and multi-select — including its rubber band — are done. What is left
-   there is CV trim per jack.
+5. ~~The rack-wide table above.~~ Landed: duplicate, bypass, auto-routing, device patches,
+   multi-select (including its rubber band), and bipolar input trim.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.

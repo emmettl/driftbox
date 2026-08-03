@@ -293,6 +293,13 @@ export class Rack {
     this.node?.port.postMessage({ kind: 'param', slot, value, voice })
   }
 
+  /** Move the gain pot beside one rear-panel inlet. Like a knob, this ramps without rebuilding the graph. */
+  setInputTrim(moduleId: string, portId: string, value: number): void {
+    const slot = this.compiled?.inputTrims?.[moduleId]?.[portId]
+    if (slot === undefined) return
+    this.node?.port.postMessage({ kind: 'param', slot, value })
+  }
+
   /**
    * Move a knob **at a moment**, rather than at the next block boundary.
    *

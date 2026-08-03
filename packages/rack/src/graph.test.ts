@@ -280,6 +280,43 @@ describe('running a graph', () => {
     expect(rms(run(two, SECOND))).toBeCloseTo(rms(run(one, SECOND)) * 2, 2)
   })
 
+  it('applies a saved inlet trim without changing an old patch at unity', () => {
+    const withTrim = (inputTrim: number | undefined): Patch => ({
+      modules: [
+        { id: 'osc', type: 'vco' },
+        {
+          id: 'out',
+          type: 'out',
+          params: { level: 0.1 },
+          ...(inputTrim === undefined ? {} : { inputTrims: { in: inputTrim } }),
+        },
+      ],
+      cables: [{ from: ['osc', 'out'], to: ['out', 'in'] }],
+    })
+    const unity = rms(run(withTrim(undefined), 32), FRAMES * 8)
+    const quarter = rms(run(withTrim(0.25), 32), FRAMES * 8)
+    expect(quarter).toBeCloseTo(unity * 0.25, 4)
+  })
+
+  it('moves an inlet trim through its hidden ramped slot without rebuilding', () => {
+    const patch = chain(
+      [
+        { id: 'osc', type: 'vco' },
+        { id: 'out', type: 'out', params: { level: 0.1 } },
+      ],
+      [['osc', 'out', 'out', 'in']],
+    )
+    const plan = compile(patch, MODULES)
+    const { modules, deps } = build(MODULES)
+    const graph = new Graph(SR, FRAMES, modules, deps)
+    graph.setPlan(plan)
+    graph.setParam(plan.inputTrims!.out.in, 0)
+    const faded = render(graph, 1)
+    const silent = render(graph, 1)
+    expect(rms(faded)).toBeGreaterThan(0)
+    expect(rms(silent)).toBe(0)
+  })
+
   it('puts the same thing in every channel', () => {
     const graph = graphFor(
       chain(

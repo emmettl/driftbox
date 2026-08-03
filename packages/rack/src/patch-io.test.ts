@@ -12,7 +12,14 @@ const FULL: Patch = {
   visual: 'longhand',
   modules: [
     { id: 'osc', type: 'vco', version: 1, params: { tune: -12, shape: 1, width: 0.3 }, pos: [0, 0] },
-    { id: 'filter', type: 'ladder', version: 1, params: { cutoff: 940, resonance: 0.72 }, pos: [1, 0] },
+    {
+      id: 'filter',
+      type: 'ladder',
+      version: 1,
+      params: { cutoff: 940, resonance: 0.72 },
+      inputTrims: { cutoff: -0.4 },
+      pos: [1, 0],
+    },
     { id: 'out', type: 'out', params: { level: 0.65 }, pos: [2, 1] },
   ],
   cables: [
@@ -227,6 +234,20 @@ describe('repairing a patch', () => {
     })
     expect(back?.modules[0]).toEqual({ id: 'a', type: 'vco' })
     expect('params' in back!.modules[0]).toBe(false)
+  })
+
+  it('keeps finite input trims and drops malformed ones', () => {
+    const back = decode({
+      modules: [
+        {
+          id: 'a',
+          type: 'vco',
+          inputTrims: { pitch: -0.5, fm: null, sync: 'full', width: Number.NaN },
+        },
+      ],
+      cables: [],
+    })
+    expect(back?.modules[0].inputTrims).toEqual({ pitch: -0.5 })
   })
 
   it('drops a position it cannot read', () => {

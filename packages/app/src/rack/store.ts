@@ -157,6 +157,9 @@ interface RackState {
 
   setParam: (moduleId: string, paramId: string, value: number) => void
   paramValue: (moduleId: string, paramId: string) => number
+  /** Rear-panel inlet gain. Absent in the patch means unity. */
+  inputTrimValue: (moduleId: string, portId: string) => number
+  setInputTrim: (moduleId: string, portId: string, value: number) => void
 
   /**
    * Whether a knob turn is also recorded onto a lane.
@@ -697,6 +700,33 @@ export const useRack = create<RackState>((set, get) => {
         }
         if (at === null || at === undefined) return moved
         return { ...moved, automation: setPoint(moved.automation, [moduleId, paramId], at, value) }
+      })
+    },
+
+    inputTrimValue: (moduleId, portId) =>
+      get().patch.modules.find((module) => module.id === moduleId)?.inputTrims?.[portId] ?? 1,
+
+    setInputTrim: (moduleId, portId, value) => {
+      const next = Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 1
+      // Same live path and coalescing rule as an ordinary knob. The compiler has already allocated a hidden
+      // param slot for every inlet, so rebuilding the graph here would reset the sound on every pixel.
+      write(`input-trim:${moduleId}:${portId}`, false, (patch) => {
+        const at = patch.modules.findIndex((module) => module.id === moduleId)
+        if (at < 0) return patch
+        const module = patch.modules[at]
+        const def = MODULES[module.type]
+        if (!def?.inlets.some((inlet) => inlet.id === portId)) return patch
+        if ((module.inputTrims?.[portId] ?? 1) === next) return patch
+
+        const inputTrims = { ...module.inputTrims }
+        if (next === 1) delete inputTrims[portId]
+        else inputTrims[portId] = next
+        const { inputTrims: _old, ...plain } = module
+        const changed =
+          Object.keys(inputTrims).length === 0 ? plain : { ...plain, inputTrims }
+        const modules = [...patch.modules]
+        modules[at] = changed
+        return { ...patch, modules }
       })
     },
 

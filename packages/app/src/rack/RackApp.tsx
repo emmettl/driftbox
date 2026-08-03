@@ -1209,6 +1209,18 @@ export default function RackApp() {
             if (before.params?.[id] !== value) live.setParam(module.id, id, value)
           }
         }
+        if (before.inputTrims !== module.inputTrims) {
+          const ports = new Set([
+            ...Object.keys(before.inputTrims ?? {}),
+            ...Object.keys(module.inputTrims ?? {}),
+          ])
+          for (const port of ports) {
+            const value = module.inputTrims?.[port] ?? 1
+            if ((before.inputTrims?.[port] ?? 1) !== value) {
+              live.setInputTrim(module.id, port, value)
+            }
+          }
+        }
         // Pattern data takes the same road as a knob, and for the same reason: `data` is compiled into the
         // plan, so treating an edit as structural would rebuild every processor on every cell you touched.
         // Sent as a `data` message instead, which the Graph keeps in `pushed` — and `pushed` beats `seeded`,

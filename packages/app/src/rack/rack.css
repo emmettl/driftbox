@@ -2362,6 +2362,31 @@ kbd {
   stroke-linejoin: round;
 }
 
+.rk-input-trim {
+  cursor: ns-resize;
+  outline: none;
+}
+.rk-input-trim-hit {
+  fill: transparent;
+}
+.rk-input-trim-track {
+  fill: #171026;
+  stroke: rgba(95, 240, 208, 0.62);
+  stroke-width: 1.2;
+}
+.rk-input-trim-pointer {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.rk-input-trim:hover .rk-input-trim-track,
+.rk-input-trim:focus-visible .rk-input-trim-track {
+  fill: #2a1f4a;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
 /* Cables. Two paths per cable: a dark one offset by nothing but blurred, and the bright one on top —
  * which is what stops a cable crossing another from dissolving into it. */
 .rk-cable-shadow {

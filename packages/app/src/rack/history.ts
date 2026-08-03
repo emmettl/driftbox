@@ -141,8 +141,9 @@ export function stepForward(
  * voice count. **Params and pattern data are deliberately absent from this list**, even though both are
  * compiled into the plan, because both also reach the audio thread as messages — a param ramps across
  * one block and data lands in the Graph's `pushed` map, which beats `seeded` and survives a rebuild.
- * The retained groovebox song is absent too: it belongs to a hosted engine that swaps its song live,
- * not to the worklet graph.
+ * Input trims are absent for the same reason as params: each has its own hidden ramped slot. The retained
+ * groovebox song is absent too: it belongs to a hosted engine that swaps its song live, not to the worklet
+ * graph.
  */
 export function needsRebuild(before: Patch, after: Patch): boolean {
   if (before === after) return false
