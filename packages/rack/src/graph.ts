@@ -31,6 +31,7 @@ import type {
  *   poly      narrower the source voice shared by this child lane
  *   poly      mono     the one buffer, the same for every voice
  *   mono      poly     a scratch holding every voice summed
+ *   collector poly     that sum, plus every independent voice in `voiceInlets`
  *   mono      mono     the one buffer
  *
  * Deciding them once and storing the answer keeps `process()` a list-walker. Deciding them per sample would
@@ -48,6 +49,10 @@ interface Node {
   collapse: { into: Float32Array; from: Float32Array[] }[]
   /** Per-sample inlet gain, after any polyphonic collapse and before the processor sees the signal. */
   trims: { into: Float32Array; from: Float32Array; gain: Float32Array }[]
+  /** Independent per-inlet voice buffers for a mono collector. Empty for every ordinary module. */
+  voiceInlets: Float32Array[][]
+  /** Per-voice input trims applied before a collector reads `voiceInlets`. */
+  voiceTrims: { into: Float32Array; from: Float32Array; gain: Float32Array }[]
 }
 
 /** A param change waiting for its frame. `voice` undefined means every voice, which is what a knob means. */
@@ -403,7 +408,18 @@ export class Graph {
       for (const { into, from, gain } of node.trims) {
         for (let i = 0; i < frames; i++) into[i] = from[i] * gain[i]
       }
-      node.processor.process(node.inlets, node.outlets, node.params, frames, transport, hostInputs)
+      for (const { into, from, gain } of node.voiceTrims) {
+        for (let i = 0; i < frames; i++) into[i] = from[i] * gain[i]
+      }
+      node.processor.process(
+        node.inlets,
+        node.outlets,
+        node.params,
+        frames,
+        transport,
+        hostInputs,
+        node.voiceInlets.length > 0 ? node.voiceInlets : undefined,
+      )
     }
 
     if (this.outputs.length === 0) {
@@ -635,7 +651,24 @@ export class Graph {
       for (let voice = 0; voice < instances; voice++) {
         const collapse: Node['collapse'] = []
         const trims: Node['trims'] = []
+        const voiceInlets: Node['voiceInlets'] = []
+        const voiceTrims: Node['voiceTrims'] = []
         const inlets = node.inlets.map((index, inlet) => {
+          const perVoice = this.buffers[index] ?? [this.scratch]
+          const slot = node.inletTrims?.[inlet]
+          if (!poly && node.collectVoices === true) {
+            if (slot === undefined) voiceInlets.push(perVoice)
+            else {
+              const gain = this.paramBuffers[slot]?.[0] ?? this.scratch
+              const gathered = perVoice.map((from) => {
+                const into = new Float32Array(this.frames)
+                voiceTrims.push({ into, from, gain })
+                return into
+              })
+              voiceInlets.push(gathered)
+            }
+          }
+
           let source: Float32Array
           if (poly) {
             const width = this.buffers[index]?.length ?? 1
@@ -657,7 +690,6 @@ export class Graph {
 
           // Plans from before input trim have no slot and keep the direct buffer path. New plans always
           // allocate one, even at unity, because the host can turn it without rebuilding this graph.
-          const slot = node.inletTrims?.[inlet]
           if (slot === undefined) return source
           const into = new Float32Array(this.frames)
           const gain = this.paramBuffers[slot]?.[poly ? voice : 0] ?? this.scratch
@@ -696,6 +728,8 @@ export class Graph {
           ),
           collapse,
           trims,
+          voiceInlets,
+          voiceTrims,
         })
       }
     }

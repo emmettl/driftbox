@@ -1649,6 +1649,16 @@ both bundle cost on the editing-only path and visual competition with a readable
    its behaviour is the point: pointer or keyboard press writes one and release, cancellation or lost focus
    writes zero, matching Reason's momentary button instead of turning it into a misleading latch.
 
+   **5q. Mono voice collectors.** ✅ A shared controller can now declare `voiceCollector` and receive the
+   independent buffers at each polyphonic inlet alongside the old summed inlet. It still runs once and writes
+   mono outlets; this is observation, not another kind of voice expansion. The Graph prepares the grouped
+   buffers at rebuild time and applies each inlet trim to every voice before the processor sees them, so the
+   audio loop remains a walk over fixed arrays and the rear-panel contract does not acquire an exception.
+
+   Ordinary mono modules still receive only the collapse, and old plans have no collector flag. The first
+   intended consumer is the Arp: it can finally sequence the pitches a player is actually holding without
+   turning a Delay, Out or other shared device into something that understands note identity.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

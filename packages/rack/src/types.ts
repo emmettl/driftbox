@@ -131,6 +131,14 @@ export interface Processor {
      * from any oscillator or sampler signal and travels down normal cables.
      */
     hostInputs?: Float32Array[][],
+    /**
+     * Independent voices at each inlet, supplied only to a mono module that declares `voiceCollector`.
+     *
+     * Ordinary mono modules receive their familiar summed inlet and this is absent. A collector receives
+     * both: `inlets` keeps the backwards-compatible collapse while this view preserves note identity for a
+     * controller such as an arpeggiator. Input trims have already been applied to every voice.
+     */
+    voiceInlets?: Float32Array[][],
   ): void
   /**
    * A low-rate visual reading for a host faceplate.
@@ -318,6 +326,14 @@ export interface ModuleDef {
    * `poly: false` modules cannot expand: their defining behaviour is to collapse to one shared instance.
    */
   voiceExpansion?: number
+  /**
+   * Give one shared processor a second, unsummed view of every voice reaching each inlet.
+   *
+   * This is deliberately narrower than `poly`: the module still runs once and writes mono outlets, but it
+   * can distinguish the notes in a performed chord instead of receiving their voltages added together. The
+   * ordinary collapsed `inlets` remain available for old behavior and old patches. Ignored for poly modules.
+   */
+  voiceCollector?: boolean
   /** Repair the params of an older saved version. Lives here rather than in a central
    *  table because at forty modules a central table is unmaintainable, and the person
    *  adding a param is the person who knows what the old value meant. */
@@ -542,6 +558,8 @@ export interface PlanNode {
   voices?: number
   /** Number of adjacent instances that descend from the same input voice. Absent means one. */
   voiceLanes?: number
+  /** A mono processor also receives every unsummed source voice at each inlet. Absent means collapse only. */
+  collectVoices?: boolean
   /** Bulk data carried in the patch, seeded into the Graph when the plan is applied. */
   data?: Record<string, number[]>
 }

@@ -3,7 +3,7 @@ import { compile } from './compile.js'
 import { Random } from './dsp/random.js'
 import { Graph } from './graph.js'
 import { MODULES } from './modules/index.js'
-import type { ModuleDef, Patch, Processor, ProcessorVoice, Registry } from './types.js'
+import type { ModuleDef, Patch, Processor, ProcessorVoice, Registry, Transport } from './types.js'
 
 // Polyphony, which is entirely a property of the compiler and the Graph — no module changed to get it.
 //
@@ -48,6 +48,26 @@ class SinkProcessor implements Processor {
     frames: number,
   ): void {
     SinkProcessor.seen.push(inlets[0][0])
+    for (let i = 0; i < frames; i++) outlets[0][i] = inlets[0][i]
+  }
+}
+
+/** Records the ordinary collapse and the independent view a mono voice collector receives beside it. */
+class CollectProcessor implements Processor {
+  static collapsed: number[] = []
+  static voices: number[][] = []
+
+  process(
+    inlets: Float32Array[],
+    outlets: Float32Array[],
+    _params: Float32Array[],
+    frames: number,
+    _transport?: Transport,
+    _hostInputs?: Float32Array[][],
+    voiceInlets?: Float32Array[][],
+  ): void {
+    CollectProcessor.collapsed.push(inlets[0][0])
+    CollectProcessor.voices.push((voiceInlets?.[0] ?? []).map((voice) => voice[0]))
     for (let i = 0; i < frames; i++) outlets[0][i] = inlets[0][i]
   }
 }
@@ -97,6 +117,13 @@ const REGISTRY: Registry = {
   thru: def({ type: 'thru' }),
   monothru: def({ type: 'monothru', poly: false }),
   sink: def({ type: 'sink', poly: false, terminal: true, processor: SinkProcessor }),
+  collector: def({
+    type: 'collector',
+    poly: false,
+    terminal: true,
+    voiceCollector: true,
+    processor: CollectProcessor,
+  }),
   polyout: def({ type: 'polyout', terminal: true }),
   expand3: def({ type: 'expand3', processor: ExpandProcessor, voiceExpansion: 3 }),
 }
@@ -214,6 +241,44 @@ describe('the four cases', () => {
     // One instance, so one call per block — not four.
     expect(SinkProcessor.seen.length).toBe(3)
     expect(SinkProcessor.seen[2]).toBeCloseTo(1, 4)
+  })
+
+  it('poly to collector: one mono processor also sees every independent voice', () => {
+    CollectProcessor.collapsed = []
+    CollectProcessor.voices = []
+    const { graph, plan } = build(
+      chain(4, [['m', 'mark'], ['c', 'collector']], [['m', 'out', 'c', 'in']]),
+    )
+    spread(graph, plan, 'm', [0.1, 0.2, 0.3, 0.4])
+    render(graph, 3)
+
+    expect(plan.nodes.find((node) => node.id === 'c')?.collectVoices).toBe(true)
+    expect(CollectProcessor.collapsed[2]).toBeCloseTo(1, 4)
+    expect(CollectProcessor.voices[2]).toEqual([
+      expect.closeTo(0.1, 4),
+      expect.closeTo(0.2, 4),
+      expect.closeTo(0.3, 4),
+      expect.closeTo(0.4, 4),
+    ])
+  })
+
+  it('applies an inlet trim to every collected voice as well as the collapse', () => {
+    CollectProcessor.collapsed = []
+    CollectProcessor.voices = []
+    const patch: Patch = {
+      voices: 2,
+      modules: [
+        { id: 'm', type: 'mark' },
+        { id: 'c', type: 'collector', inputTrims: { in: 0.5 } },
+      ],
+      cables: [{ from: ['m', 'out'], to: ['c', 'in'] }],
+    }
+    const { graph, plan } = build(patch)
+    spread(graph, plan, 'm', [0.2, 0.4])
+    render(graph, 3)
+
+    expect(CollectProcessor.collapsed[2]).toBeCloseTo(0.3, 4)
+    expect(CollectProcessor.voices[2]).toEqual([expect.closeTo(0.1, 4), expect.closeTo(0.2, 4)])
   })
 
   it('mono to poly: every voice reads the same buffer', () => {
