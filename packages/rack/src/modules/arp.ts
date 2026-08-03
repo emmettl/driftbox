@@ -11,6 +11,7 @@ interface RandomLike {
 // direct processor callers still take the same road.
 export class ArpProcessor implements Processor {
   private readonly rng: RandomLike
+  private readonly sampleRate: number
   private readonly trigSamples: number
   private readonly chords = [
     [0],
@@ -34,6 +35,8 @@ export class ArpProcessor implements Processor {
   private trigLeft = 0
   private since = 0
   private interval = 0
+  private internalLeft = 0
+  private timingWas = 0
 
   // Input identity survives between blocks. Hold latches by source voice: a released slot remains in the
   // figure, while a new note allocated to that slot replaces it rather than creating a duplicate ghost note.
@@ -55,7 +58,27 @@ export class ArpProcessor implements Processor {
   constructor(sampleRate: number, deps: Record<string, unknown>, id: string) {
     const Rng = deps.Random as new (seed: string | number) => RandomLike
     this.rng = new Rng(id)
-    this.trigSamples = Math.max(1, Math.round(sampleRate * 0.001))
+    this.sampleRate = sampleRate > 0 ? sampleRate : 44100
+    this.trigSamples = Math.max(1, Math.round(this.sampleRate * 0.001))
+  }
+
+  private internalInterval(
+    timing: number,
+    division: number,
+    rate: number,
+    transport?: Transport,
+  ): number {
+    if (timing === 2) {
+      return Math.max(2, Math.round(this.sampleRate / Math.max(0.1, Math.min(250, rate))))
+    }
+
+    // Beat lengths for the labelled whole-note divisions below. Tempo sync deliberately follows the rack
+    // tempo even while its transport is stopped: like the RPG-8, an Arp is playable without starting the
+    // song. External remains the compatibility default for patches that want explicit Clock/Reset wiring.
+    const beats = [2, 1, 0.5, 1 / 3, 0.25, 1 / 6, 0.125, 1 / 12, 1 / 16, 1 / 32]
+    const at = Math.max(0, Math.min(beats.length - 1, Math.round(division)))
+    const tempo = transport && transport.tempo > 0 ? transport.tempo : 120
+    return Math.max(2, Math.round(beats[at] * this.sampleRate * 60 / tempo))
   }
 
   private clearLatch(): void {
@@ -156,7 +179,7 @@ export class ArpProcessor implements Processor {
     outlets: Float32Array[],
     params: Float32Array[],
     frames: number,
-    _transport?: Transport,
+    transport?: Transport,
     _hostInputs?: Float32Array[][],
     voiceInlets?: Float32Array[][],
   ): void {
@@ -179,6 +202,9 @@ export class ArpProcessor implements Processor {
     const shiftParam = params[6]
     const velocityModeParam = params[7]
     const velocityParam = params[8]
+    const timingParam = params[9]
+    const divisionParam = params[10]
+    const rateParam = params[11]
 
     const pitchVoices = voiceInlets?.[0] ?? [pitchIn]
     const gateVoices = voiceInlets?.[1] ?? [gateIn]
@@ -231,7 +257,21 @@ export class ArpProcessor implements Processor {
 
       this.since++
       const clock = clockIn[i] >= 0.5 ? 1 : 0
-      if (clock === 1 && this.lastClock === 0) {
+      const timing = Math.max(0, Math.min(2, Math.round(timingParam[i])))
+      if (timing !== this.timingWas) {
+        this.internalLeft = 0
+        this.started = false
+        this.timingWas = timing
+      }
+      let clockEdge = timing === 0 && clock === 1 && this.lastClock === 0
+      if (timing !== 0) {
+        if (this.internalLeft <= 0) {
+          clockEdge = true
+          this.internalLeft = this.internalInterval(timing, divisionParam[i], rateParam[i], transport)
+        }
+        this.internalLeft--
+      }
+      if (clockEdge) {
         let mode = Math.round(modeParam[i])
         if (mode < 0) mode = 0
         else if (mode > 5) mode = 5
@@ -304,7 +344,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 2,
+  version: 3,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -359,6 +399,25 @@ export const ARP_MODULE: ModuleDef = {
       labels: ['Played', 'Fixed'],
     },
     { id: 'velocity', name: 'Fixed Velocity', min: 0.01, max: 1, default: 0.8 },
+    {
+      id: 'timing',
+      name: 'Timing',
+      min: 0,
+      max: 2,
+      default: 0,
+      stepped: true,
+      labels: ['External', 'Tempo', 'Free'],
+    },
+    {
+      id: 'division',
+      name: 'Division',
+      min: 0,
+      max: 9,
+      default: 4,
+      stepped: true,
+      labels: ['1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128'],
+    },
+    { id: 'rate', name: 'Free Rate', min: 0.1, max: 250, default: 8 },
   ],
   processor: ArpProcessor,
   deps: { Random },

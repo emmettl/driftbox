@@ -22,6 +22,9 @@ interface Options {
   gate?: number
   root?: number
   reset?: (i: number) => boolean
+  timing?: number
+  division?: number
+  rate?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -199,6 +202,63 @@ describe('played chords', () => {
 })
 
 describe('how it is clocked', () => {
+  it('keeps explicit Clock as the default timing source', () => {
+    expect(ARP_MODULE.params[param('timing')].default).toBe(0)
+    expect(ARP_MODULE.params[param('timing')].labels?.[0]).toBe('External')
+  })
+
+  it('can run from the rack tempo without a Clock cable', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-tempo')
+    const frames = SR + 1
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('timing')].fill(1)
+    params[param('division')].fill(4) // 1/16: a quarter beat, or 5512.5 samples at 120 BPM.
+    params[param('chord')].fill(2)
+    params[param('octaves')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [
+        new Float32Array(frames),
+        new Float32Array(frames),
+        new Float32Array(frames).fill(1),
+        new Float32Array(frames),
+        new Float32Array(frames),
+      ],
+      out,
+      params,
+      frames,
+      { tempo: 120, running: false, beat: 0, beatsPerBlock: 0 },
+    )
+    const edges = [...out[3]].reduce(
+      (count, value, index) => count + (value >= 0.5 && (index === 0 || out[3][index - 1] < 0.5) ? 1 : 0),
+      0,
+    )
+    expect(edges).toBe(8)
+  })
+
+  it('offers a free-running rate independent of the transport tempo', () => {
+    const pitchesAt = (tempo: number) => {
+      const arp = new ArpProcessor(1000, deps, `arp-free-${tempo}`)
+      const frames = 1001
+      const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+      params[param('timing')].fill(2)
+      params[param('rate')].fill(10)
+      params[param('chord')].fill(2)
+      params[param('octaves')].fill(1)
+      const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+      arp.process(
+        Array.from({ length: 5 }, (_, inlet) => new Float32Array(frames).fill(inlet === 2 ? 1 : 0)),
+        out,
+        params,
+        frames,
+        { tempo, running: true, beat: 0, beatsPerBlock: tempo / 60 },
+      )
+      return [...out[3]].filter((value, index) => value >= 0.5 && (index === 0 || out[3][index - 1] < 0.5)).length
+    }
+    expect(pitchesAt(60)).toBe(11)
+    expect(pitchesAt(180)).toBe(11)
+  })
+
   it('gates for a fraction of the step, so the feel survives a tempo change', () => {
     // A gate in seconds would turn legato into staccato as the tempo rose. Measured across one step, with
     // the first skipped because it has no previous interval to be a fraction of.
