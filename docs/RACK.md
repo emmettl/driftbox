@@ -1194,10 +1194,12 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Four modules are `poly: false`: **Out** (one master bus), **Delay** (a shared delay is the point,
-   and eight two-second buffers is not), **Clock** (eight identical ones would tick together) and
-   **Seq** (eight copies on one clock would play the same step — which is why polyphony has to come
-   from somewhere that can hold eight different notes, and why MIDI stays polyphonic).
+   Fifteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
+   Groovebox, Imager, Meter, Out, Reverb, Seq, Tracker, Transport and Vocoder**. They are shared buses,
+   clocks, controllers or processors whose state belongs to the rack rather than to one voice. Delay is
+   the clearest example — eight two-second buffers would be eight separate delays — and Imager the newest:
+   widening each voice before the polyphonic collapse would simply throw that width away. `poly.test.ts`
+   pins this list so a new module cannot become shared merely because nobody made the decision.
 
    Two things needed adding that the plan did not mention:
 
@@ -1441,6 +1443,20 @@ both bundle cost on the editing-only path and visual competition with a readable
    and spin a core but cannot exfiltrate anything. The stringify-and-string-key design means
    opening this later is a small change rather than a rewrite, so there is nothing to pay in
    advance.
+
+   **5d. A stereo imager.** ✅ Built. Stereo cables stopped being plumbing and became an instrument:
+   the Imager splits the side signal around one crossover and gives the low and high bands independent
+   widths, so a mix can keep its kick and bass centred while opening the top.
+
+   Mid/side is the load-bearing choice. The centre never moves; zero width is mono, one is exactly the
+   signal that arrived, and two doubles only the difference between the speakers. The crossover is a
+   one-pole lowpass plus its exact residual rather than two unrelated filters, so the bands reconstruct
+   the original side sample-for-sample whenever both width controls are at one. That makes Init genuinely
+   transparent even during the filter's first block, not just after it has settled.
+
+   A separate module rather than a mode on EQ keeps both devices honest: EQ changes spectrum equally on
+   both channels, Imager changes only their difference. It also leaves every saved patch untouched while
+   closing the first of the two stereo-device gaps in `REASON-GAP.md`.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
