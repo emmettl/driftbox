@@ -390,6 +390,7 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
 
   const params: PlanParam[] = []
   const slots: Record<string, Record<string, number>> = {}
+  const inputTrims: Record<string, Record<string, number>> = {}
   for (const module of live) {
     const def = registry[module.type]
     const saved = migrated(module, def, notes)
@@ -402,6 +403,15 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       })
     }
     slots[module.id] = mine
+    const trims: Record<string, number> = {}
+    for (const inlet of def.inlets) {
+      trims[inlet.id] = params.length
+      params.push({
+        value: clamp(module.inputTrims?.[inlet.id], -1, 1, 1),
+        stepped: false,
+      })
+    }
+    inputTrims[module.id] = trims
   }
 
   // ---- Nodes and output ----------------------------------------------------------------
@@ -419,6 +429,11 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       // is total — an unconnected inlet arrives as the zero buffer and comes back as one or two of it.
       inlets: def.inlets.flatMap((port) =>
         wire(inletSource.get(key(module.id, port.id))?.channels ?? [ZERO], channelCount(port)),
+      ),
+      // One pot per physical inlet. A stereo inlet occupies two processor slots but has one pot, so both
+      // channels read the same hidden param slot.
+      inletTrims: def.inlets.flatMap((port) =>
+        Array.from({ length: channelCount(port) }, () => inputTrims[module.id][port.id]),
       ),
       outlets: def.outlets.flatMap((port) => outletBuffer.get(key(module.id, port.id)) ?? [ZERO]),
       params: def.params.map((param) => slots[module.id][param.id]),
@@ -489,5 +504,5 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   // rounded because a plan with 2.5 voices is not a thing the Graph should have to have an opinion about.
   const voices = Math.max(1, Math.min(8, Math.round(clamp(patch?.voices, 1, 8, 1))))
 
-  return { buffers, voices, poly: bufferPoly, nodes, outputs, params, slots, notes }
+  return { buffers, voices, poly: bufferPoly, nodes, outputs, params, slots, inputTrims, notes }
 }

@@ -272,6 +272,86 @@ interface ModuleDragging extends ModuleDragGeometry {
   index: number
 }
 
+interface InputTrimProps {
+  jack: Jack
+  value: number
+  onChange: (value: number) => void
+}
+
+const clampTrim = (value: number) => Math.max(-1, Math.min(1, value))
+const trimText = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)}×`
+
+/** The small bipolar pot beside every rear inlet. Audio and CV are intentionally the same signal here. */
+function InputTrim({ jack, value, onChange }: InputTrimProps) {
+  const drag = useRef<{ y: number; from: number } | null>(null)
+  const angle = -135 + ((value + 1) / 2) * 270
+  const change = (next: number) => onChange(Math.round(clampTrim(next) * 100) / 100)
+
+  return (
+    <g
+      className="rk-input-trim"
+      transform={`translate(${jack.x + 84} ${jack.y})`}
+      role="slider"
+      tabIndex={0}
+      aria-label={`${jack.module} ${jack.name} input trim`}
+      aria-valuemin={-1}
+      aria-valuemax={1}
+      aria-valuenow={value}
+      aria-valuetext={trimText(value)}
+      onPointerDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        event.currentTarget.setPointerCapture(event.pointerId)
+        drag.current = { y: event.clientY, from: value }
+      }}
+      onPointerMove={(event) => {
+        event.stopPropagation()
+        const held = drag.current
+        if (!held) return
+        const scale = event.shiftKey ? 0.005 : 0.02
+        change(held.from + (held.y - event.clientY) * scale)
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation()
+        drag.current = null
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }}
+      onPointerCancel={(event) => {
+        event.stopPropagation()
+        drag.current = null
+      }}
+      onDoubleClick={(event) => {
+        event.stopPropagation()
+        change(1)
+      }}
+      onKeyDown={(event) => {
+        const step = event.shiftKey ? 0.01 : 0.05
+        let next: number | null = null
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') next = value + step
+        if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') next = value - step
+        if (event.key === 'Home') next = -1
+        if (event.key === 'End') next = 1
+        if (next === null) return
+        event.preventDefault()
+        event.stopPropagation()
+        change(next)
+      }}
+    >
+      <circle className="rk-input-trim-hit" r="12" />
+      <circle className="rk-input-trim-track" r="7" />
+      <line
+        className="rk-input-trim-pointer"
+        x1="0"
+        y1="-2"
+        x2="0"
+        y2="-6"
+        transform={`rotate(${angle})`}
+      />
+      <title>{`${jack.module}.${jack.port} input trim ${trimText(value)}; double-click for unity`}</title>
+    </g>
+  )
+}
+
 export function BackPanel({ layout }: Props) {
   const patch = useRack((s) => s.patch)
   const connect = useRack((s) => s.connect)
@@ -280,6 +360,8 @@ export function BackPanel({ layout }: Props) {
   const flipped = useRack((s) => s.flipped)
   const select = useRack((s) => s.select)
   const dropModule = useRack((s) => s.dropModule)
+  const inputTrimValue = useRack((s) => s.inputTrimValue)
+  const setInputTrim = useRack((s) => s.setInputTrim)
 
   /** How long ago the rack was spun, and which way. Null between flips, and the cables hang still. */
   const swing = useSwing(flipped)
@@ -668,6 +750,17 @@ export function BackPanel({ layout }: Props) {
             <title>{`${jack.module}.${jack.port} ${jack.kind}`}</title>
           </g>
         ))}
+
+        {renderedJacks
+          .filter((jack) => jack.kind === 'in')
+          .map((jack) => (
+            <InputTrim
+              key={`trim:${jack.module}.${jack.port}`}
+              jack={jack}
+              value={inputTrimValue(jack.module, jack.port)}
+              onChange={(value) => setInputTrim(jack.module, jack.port, value)}
+            />
+          ))}
 
         <CableUnplugs all={visibleJacks} cables={patch.cables} disconnect={unplug} />
       </svg>

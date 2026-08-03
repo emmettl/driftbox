@@ -45,6 +45,8 @@ interface Node {
   /** Inlets that need summing before this instance runs, with the voice buffers to sum. Empty for a
    *  polyphonic module, which never collapses anything. */
   collapse: { into: Float32Array; from: Float32Array[] }[]
+  /** Per-sample inlet gain, after any polyphonic collapse and before the processor sees the signal. */
+  trims: { into: Float32Array; from: Float32Array; gain: Float32Array }[]
 }
 
 /** A param change waiting for its frame. `voice` undefined means every voice, which is what a knob means. */
@@ -394,6 +396,9 @@ export class Graph {
           for (let i = 0; i < frames; i++) into[i] += other[i]
         }
       }
+      for (const { into, from, gain } of node.trims) {
+        for (let i = 0; i < frames; i++) into[i] = from[i] * gain[i]
+      }
       node.processor.process(node.inlets, node.outlets, node.params, frames, transport, hostInputs)
     }
 
@@ -610,17 +615,31 @@ export class Graph {
 
       for (let voice = 0; voice < instances; voice++) {
         const collapse: Node['collapse'] = []
-        const inlets = node.inlets.map((index) => {
-          if (poly) return at(index, voice)
-          const perVoice = this.buffers[index]
-          // Mono module, polyphonic source: this is the collapse. A scratch buffer per inlet, summed before
-          // the module runs — a module has no idea how many voices exist and should not have to.
-          if (perVoice && perVoice.length > 1) {
-            const into = new Float32Array(this.frames)
-            collapse.push({ into, from: perVoice })
-            return into
+        const trims: Node['trims'] = []
+        const inlets = node.inlets.map((index, inlet) => {
+          let source: Float32Array
+          if (poly) {
+            source = at(index, voice)
+          } else {
+            const perVoice = this.buffers[index]
+            // Mono module, polyphonic source: this is the collapse. A scratch buffer per inlet, summed before
+            // the module runs — a module has no idea how many voices exist and should not have to.
+            if (perVoice && perVoice.length > 1) {
+              source = new Float32Array(this.frames)
+              collapse.push({ into: source, from: perVoice })
+            } else {
+              source = at(index, 0)
+            }
           }
-          return at(index, 0)
+
+          // Plans from before input trim have no slot and keep the direct buffer path. New plans always
+          // allocate one, even at unity, because the host can turn it without rebuilding this graph.
+          const slot = node.inletTrims?.[inlet]
+          if (slot === undefined) return source
+          const into = new Float32Array(this.frames)
+          const gain = this.paramBuffers[slot]?.[poly ? voice : 0] ?? this.scratch
+          trims.push({ into, from: source, gain })
+          return into
         })
 
         this.nodes.push({
@@ -645,6 +664,7 @@ export class Graph {
             (slot) => this.paramBuffers[slot]?.[poly ? voice : 0] ?? this.scratch,
           ),
           collapse,
+          trims,
         })
       }
     }

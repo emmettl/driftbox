@@ -422,6 +422,46 @@ describe('editing the rack', () => {
   })
 })
 
+describe('rear-panel input trims', () => {
+  beforeEach(() => {
+    useRack.setState({
+      patch: {
+        modules: [{ id: 'filter', type: 'ladder' }],
+        cables: [],
+      },
+      revision: 0,
+      history: NO_HISTORY,
+    })
+  })
+
+  it('starts at unity, persists a bipolar setting, and omits unity again', () => {
+    expect(useRack.getState().inputTrimValue('filter', 'cutoff')).toBe(1)
+    useRack.getState().setInputTrim('filter', 'cutoff', -0.35)
+    expect(useRack.getState().patch.modules[0].inputTrims).toEqual({ cutoff: -0.35 })
+    expect(useRack.getState().revision).toBe(0)
+
+    useRack.getState().setInputTrim('filter', 'cutoff', 1)
+    expect(useRack.getState().patch.modules[0].inputTrims).toBeUndefined()
+  })
+
+  it('clamps the pot and ignores a port the device does not have', () => {
+    useRack.getState().setInputTrim('filter', 'cutoff', -20)
+    expect(useRack.getState().inputTrimValue('filter', 'cutoff')).toBe(-1)
+    const before = useRack.getState().patch
+    useRack.getState().setInputTrim('filter', 'not-a-port', 0)
+    expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('coalesces a drag into one undo step', () => {
+    useRack.getState().setInputTrim('filter', 'cutoff', 0.8)
+    useRack.getState().setInputTrim('filter', 'cutoff', 0.4)
+    useRack.getState().setInputTrim('filter', 'cutoff', 0)
+    expect(useRack.getState().history.past).toHaveLength(1)
+    useRack.getState().undo()
+    expect(useRack.getState().inputTrimValue('filter', 'cutoff')).toBe(1)
+  })
+})
+
 describe('the starter patch', () => {
   it('makes a sound rather than being an empty rack', () => {
     // An empty rack is a correct empty state and a terrible first impression: a modular with nothing in it

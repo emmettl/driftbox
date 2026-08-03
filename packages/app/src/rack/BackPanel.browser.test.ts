@@ -56,3 +56,45 @@ describe('unplugging a cable from the back panel', () => {
     }
   })
 })
+
+describe('rear-panel input trims', () => {
+  it('puts an accessible bipolar pot beside every inlet and edits without repatching', () => {
+    useRack.getState().load(structuredClone(patch))
+    const geometry = layout(patch.modules, sizeFor(MODULES))
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+
+    try {
+      flushSync(() => root.render(createElement(BackPanel, { layout: geometry })))
+      const inlets = geometry.placements.reduce(
+        (count, placement) => count + MODULES[placement.type].inlets.length,
+        0,
+      )
+      expect(host.querySelectorAll('.rk-input-trim')).toHaveLength(inlets)
+
+      const trim = host.querySelector<SVGGElement>(
+        '[role="slider"][aria-label="speaker In input trim"]',
+      )!
+      expect(trim).toBeTruthy()
+      expect(trim.getAttribute('aria-valuemin')).toBe('-1')
+      expect(trim.getAttribute('aria-valuemax')).toBe('1')
+      expect(trim.getAttribute('aria-valuenow')).toBe('1')
+
+      flushSync(() =>
+        trim.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })),
+      )
+      expect(useRack.getState().inputTrimValue('speaker', 'in')).toBe(0.95)
+      expect(useRack.getState().patch.cables).toEqual(patch.cables)
+      expect(trim.getAttribute('aria-valuenow')).toBe('0.95')
+
+      flushSync(() =>
+        trim.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true })),
+      )
+      expect(useRack.getState().inputTrimValue('speaker', 'in')).toBe(-1)
+    } finally {
+      flushSync(() => root.unmount())
+      host.remove()
+    }
+  })
+})

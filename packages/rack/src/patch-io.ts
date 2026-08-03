@@ -123,6 +123,8 @@ function module(value: unknown): PatchModule | null {
   if (knobs) out.params = knobs
   const bulk = data(value.data)
   if (bulk) out.data = bulk
+  const inputTrims = params(value.inputTrims)
+  if (inputTrims) out.inputTrims = inputTrims
   const pos = position(value.pos)
   if (pos) out.pos = pos
   // Only `true` is written, never `false`. A module in circuit says nothing, so a patch that has never had

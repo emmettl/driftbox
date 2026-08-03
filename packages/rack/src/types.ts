@@ -299,6 +299,14 @@ export interface PatchModule {
    * sample cannot travel in a URL, and has to say so.
    */
   data?: Record<string, number[]>
+  /**
+   * Gain at a named inlet, from −1 through +1. Absent means unity.
+   *
+   * Held on the device rather than on its cable because the pot belongs to the jack: unplugging and
+   * repatching it must not reset the setting. The negative half inverts a control signal, matching the
+   * bipolar trims on hardware and making this a strict superset of a one-way level control.
+   */
+  inputTrims?: Record<string, number>
   /** Where it sits in the rack. The engine does not read this; the UI does. */
   pos?: [number, number]
   /**
@@ -466,6 +474,8 @@ export interface PlanNode {
   id: string
   type: string
   inlets: number[]
+  /** Param slot per inlet buffer. Stereo ports repeat their one trim slot for both channels. */
+  inletTrims?: number[]
   outlets: number[]
   /** Slot index per param, in def order. */
   params: number[]
@@ -546,5 +556,7 @@ export interface Plan {
   params: PlanParam[]
   /** `moduleId` → `paramId` → slot, so the host can address a knob by name. */
   slots: Record<string, Record<string, number>>
+  /** `moduleId` → `portId` → hidden param slot, kept separate from a module's authored params. */
+  inputTrims?: Record<string, Record<string, number>>
   notes: PlanNote[]
 }
