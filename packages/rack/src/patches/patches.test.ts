@@ -117,9 +117,10 @@ describe('the patch library', () => {
 describe('the guitar pedalboard', () => {
   const modules = () => patchPresetById('guitar-pedalboard')!.build().modules
 
-  it('starts at the live input and includes the distortion and EQ already available', () => {
+  it('starts at the live input and includes the drive, cabinet and EQ already available', () => {
     expect(modules()[0].type).toBe('audio-input')
     expect(modules().some((module) => module.type === 'drive')).toBe(true)
+    expect(modules().some((module) => module.type === 'cabinet')).toBe(true)
     expect(modules().some((module) => module.type === 'eq')).toBe(true)
   })
 

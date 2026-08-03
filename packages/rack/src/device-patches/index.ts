@@ -234,6 +234,17 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
     params: { mode: 3, amount: 0.78, tone: 12000, level: 0.7 },
   },
 
+  // ---- Amp / cabinet ----------------------------------------------------------------------------
+  { id: 'clean', type: 'cabinet', name: 'Clean Combo', params: { drive: 1.1, treble: 2 } },
+  { id: 'crunch', type: 'cabinet', name: 'Combo Crunch', params: { drive: 5, bass: 1, mid: 2, treble: -1 } },
+  {
+    id: 'stack',
+    type: 'cabinet',
+    name: 'Big Stack',
+    params: { cabinet: 1, drive: 8, bass: 3, mid: 1, treble: -2, level: 0.65 },
+  },
+  { id: 'bright', type: 'cabinet', name: 'Bright Bite', params: { cabinet: 2, drive: 3, mid: -1, treble: 3 } },
+
   // ---- Delay ------------------------------------------------------------------------------------
   { id: 'slap', type: 'delay', name: 'Slap', params: { time: 0.09, feedback: 0.15 } },
   { id: 'eighth', type: 'delay', name: 'Eighth', params: { time: 0.25, feedback: 0.4 } },

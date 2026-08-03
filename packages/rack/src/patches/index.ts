@@ -562,10 +562,10 @@ const wobbler = (): Patch => ({
 /**
  * A practical live guitar chain, rather than a synth patch waiting for a note.
  *
- * The SVF removes subsonic handling noise before the Drive; the EQ after it shapes the
- * harmonics the distortion created and rolls off the direct-interface fizz while the
- * cabinet stage remains a documented gap. Delay is wet-only by design, so the Mixer
- * makes its dry/wet path visible before the small room.
+ * The SVF removes subsonic handling noise before the Drive; Amp / Cab supplies the
+ * driven preamp and speaker rolloff the direct interface cannot, then EQ shapes the
+ * recorded tone. Delay is wet-only by design, so the Mixer makes its dry/wet path
+ * visible before the small room.
  */
 const guitarPedalboard = (): Patch => ({
   modules: [
@@ -573,6 +573,11 @@ const guitarPedalboard = (): Patch => ({
     { id: 'meter-input', type: 'meter', params: { mode: 0, gain: 1.5, release: 0.34 } },
     { id: 'highpass-1', type: 'svf', params: { cutoff: 70, resonance: 0 } },
     { id: 'drive-1', type: 'drive', params: { drive: 4.5, bias: 0.04 } },
+    {
+      id: 'cabinet-1',
+      type: 'cabinet',
+      params: { cabinet: 0, drive: 1.4, bass: 1, mid: 0.5, treble: -1.5, level: 0.9 },
+    },
     {
       id: 'eq-1',
       type: 'eq',
@@ -601,7 +606,8 @@ const guitarPedalboard = (): Patch => ({
     { from: ['input-1', 'out'], to: ['meter-input', 'in'] },
     { from: ['meter-input', 'thru'], to: ['highpass-1', 'in'] },
     { from: ['highpass-1', 'hp'], to: ['drive-1', 'in'] },
-    { from: ['drive-1', 'out'], to: ['eq-1', 'in'] },
+    { from: ['drive-1', 'out'], to: ['cabinet-1', 'in'] },
+    { from: ['cabinet-1', 'out'], to: ['eq-1', 'in'] },
     { from: ['eq-1', 'out'], to: ['compressor-1', 'in'] },
     { from: ['compressor-1', 'out'], to: ['wet-dry-1', 'in1'] },
     { from: ['compressor-1', 'out'], to: ['delay-1', 'in'] },

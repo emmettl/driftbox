@@ -1231,7 +1231,7 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Nineteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
+   Twenty modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
    Distortion, Groovebox, Imager, Limiter, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
    Transport and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
    to the rack rather than to one voice. Delay is the clearest example — eight two-second buffers would
@@ -1532,6 +1532,15 @@ both bundle cost on the editing-only path and visual competition with a readable
    That keeps the work proportional to samples rather than sample rate times window length. The last
    ceiling comparison catches the fraction left by the attack ramp, so this device's number is a promise;
    the terminal limiter remains the invariant for patches that never add one.
+
+   **5i. An amp and cabinet.** ✅ Built, and immediately adopted by the Guitar Pedalboard factory whose
+   gap list reserved its stable `cabinet` identity. A level-normalised preamp feeds a three-band tone
+   stack, a rumble high-pass and two speaker low-pass poles; Combo, Stack and Bright choose useful upper
+   corners without pretending three filters are measured convolution IRs.
+
+   Stereo state is independent throughout so the device also works after wide pedals and on buses. The
+   factory now reads Audio Input → high-pass → Drive → Amp / Cab → EQ → Compressor before its visible
+   dry/delay path. Tuner and looper are the two remaining enforced guitar-rig handoffs.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

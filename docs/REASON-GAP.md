@@ -197,14 +197,16 @@ Ordered by return, not by how big Reason's version was.
 
 ### The guitar-chain ledger
 
-The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches
-Audio Input → high-pass SVF → Drive → EQ → Compressor, with a visible dry/delay Mixer,
-Reverb and Out. **Distortion is present** through `Drive`, while the new multi-mode Distortion adds
+The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches Audio Input →
+high-pass SVF → Drive → Amp / Cab → EQ → Compressor, with a visible dry/delay Mixer, Reverb and Out.
+**Distortion is present** through `Drive`, while the new multi-mode Distortion adds
 four more characters and its own post-curve tone stage without changing the factory's existing
 sound.
 
-What is still missing for a complete guitar rig is an **amp/cabinet** stage, a **tuner**,
-and a **looper**. Those three future module ids are recorded in `GUITAR_PEDALBOARD_GAPS`,
+The **amp/cabinet stage has landed and is wired into that factory**: a driven preamp, three-band tone
+stack and three speaker rolloffs remove direct-interface fizz without an unavailable convolution IR.
+What is still missing for a complete guitar rig is a **tuner** and a **looper**. Their stable ids, along
+with the now-adopted cabinet id, are recorded in `GUITAR_PEDALBOARD_GAPS`,
 and `patches.test.ts` enforces the handoff: the moment any is registered, the factory test
 fails until that device is actually incorporated. The EQ followed that path immediately
 when it landed. This is deliberately stronger than a roadmap note that can go stale.

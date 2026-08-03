@@ -4,6 +4,7 @@ import { AUDIO_INPUT_MODULE } from './audio-input.js'
 import { ARP_MODULE } from './arp.js'
 import { ARRANGER_MODULE } from './arranger.js'
 import { ALLIGATOR_MODULE } from './alligator.js'
+import { CABINET_MODULE } from './cabinet.js'
 import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
 import { COMPRESSOR_MODULE } from './compressor.js'
@@ -38,7 +39,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-eight modules: enough to make a track, something to play it with, something that knows what a bar
+// Thirty-nine modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -93,6 +94,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   VCA_MODULE,
   DRIVE_MODULE,
   DISTORTION_MODULE,
+  CABINET_MODULE,
   EQ_MODULE,
   IMAGER_MODULE,
   COMPRESSOR_MODULE,
@@ -136,6 +138,7 @@ export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './audio-input.js'
 export { ARP_MODULE, ArpProcessor } from './arp.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
+export { CABINET_MODULE, CabinetProcessor } from './cabinet.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
