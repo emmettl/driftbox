@@ -185,9 +185,10 @@ Ordered by return, not by how big Reason's version was.
   different curves — tube sigmoid, tape arctangent, exponential fuzz, and hard-clipped bit reduction —
   before a shared tone stage and output level. The original normalised `Drive` stays the predictable
   one-curve tool and every patch using it keeps its sound.
-- **A limiter.** `Compressor` is dynamics; the ±4 clamp in the Graph is the only ceiling.
-  `RACK.md` records eight voices of the Acid patch peaking at 3.93 against that clamp, which is
-  the measurement that says a maximiser has somewhere to go.
+- **~~A limiter.~~ Landed.** The Graph now has a fixed terminal limiter as its safety invariant, and the
+  patch has the mastering device that is a creative decision: stereo-linked 5 ms look-ahead, input gain,
+  a ceiling, release, and gain reduction as an outlet. The final comparison guarantees the stated ceiling;
+  the terminal still protects patches that do not use the device.
 - **~~Audio input~~ — landed.** `getUserMedia()` capture enters the worklet on a fifth host bus
   and the Audio Input source makes it patchable. The app enumerates `audioinput` devices after
   permission, switches them by exact `deviceId`, disables speech processing, and stops every
@@ -196,17 +197,24 @@ Ordered by return, not by how big Reason's version was.
 
 ### The guitar-chain ledger
 
-The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches
-Audio Input → high-pass SVF → Drive → EQ → Compressor, with a visible dry/delay Mixer,
-Reverb and Out. **Distortion is present** through `Drive`, while the new multi-mode Distortion adds
+The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches Audio Input →
+Tuner → high-pass SVF → Drive → Amp / Cab → EQ → Compressor, with a visible dry/delay Mixer, Reverb,
+Loop Station and Out.
+**Distortion is present** through `Drive`, while the new multi-mode Distortion adds
 four more characters and its own post-curve tone stage without changing the factory's existing
 sound.
 
-What is still missing for a complete guitar rig is an **amp/cabinet** stage, a **tuner**,
-and a **looper**. Those three future module ids are recorded in `GUITAR_PEDALBOARD_GAPS`,
+The **amp/cabinet stage and tuner have landed and are wired into that factory**. The cabinet's driven
+preamp, three-band tone stack and speaker rolloffs remove direct-interface fizz without pretending to be
+an unavailable convolution IR. The chromatic tuner uses normalised autocorrelation rather than a crossing
+count, reports frequency and confidence over the Meter telemetry path, and can mute Thru for silent tuning.
+The **stereo Loop Station completes the enforced guitar chain**: thirty seconds of preallocated capture,
+record/play/overdub/stop, feedback, dry/loop balance and a session waveform. Captured audio deliberately
+does not enter the patch document; reopening a shared rack powers up an empty pedal. Its stable id, along
+with the adopted cabinet and tuner ids, remains recorded in `GUITAR_PEDALBOARD_GAPS`,
 and `patches.test.ts` enforces the handoff: the moment any is registered, the factory test
-fails until that device is actually incorporated. The EQ followed that path immediately
-when it landed. This is deliberately stronger than a roadmap note that can go stale.
+fails until that device is actually incorporated. Cabinet, tuner and looper all followed that path
+immediately when they landed. This is deliberately stronger than a roadmap note that can go stale.
 
 ## Deliberately not gaps
 

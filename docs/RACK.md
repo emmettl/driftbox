@@ -1231,14 +1231,13 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Eighteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
-   Distortion, Groovebox, Imager, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker, Transport
-   and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs to the
-   rack rather than to one voice. Delay is the clearest example — eight two-second buffers would be
-   eight separate delays —
-   and Imager makes the other failure vivid: widening each voice before the polyphonic collapse would
-   simply throw that width away. `poly.test.ts` pins this list so a new module cannot become shared
-   merely because nobody made the decision.
+   Twenty-two modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
+   Distortion, Groovebox, Imager, Limiter, Loop Station, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
+   Transport, Tuner and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
+   to the rack rather than to one voice. Delay is the clearest example — eight two-second buffers would
+   be eight separate delays — and Imager makes the other failure vivid: widening each voice before the
+   polyphonic collapse would simply throw that width away. `poly.test.ts` pins this list so a new module
+   cannot become shared merely because nobody made the decision.
 
    Two things needed adding that the plan did not mention:
 
@@ -1523,6 +1522,43 @@ both bundle cost on the editing-only path and visual competition with a readable
    It is stereo because this device also belongs across a bus, with independent tone and DC-blocker state
    per channel. `Drive` remains the level-normalised predictable curve and no saved patch changes sound;
    choosing the larger device is an explicit request for character rather than an upgrade side effect.
+
+   **5h. A look-ahead limiter.** ✅ Built as a patchable mastering device above the Graph's fixed terminal
+   safety limiter. A five-millisecond stereo delay gives one linked detector time to see a peak and move
+   both channels together; input gain drives the master into it, ceiling and release define the result,
+   and a GR outlet makes the reduction available elsewhere in the patch.
+
+   The look-ahead maximum is a monotonic queue rather than a scan of the whole delay for every sample.
+   That keeps the work proportional to samples rather than sample rate times window length. The last
+   ceiling comparison catches the fraction left by the attack ramp, so this device's number is a promise;
+   the terminal limiter remains the invariant for patches that never add one.
+
+   **5i. An amp and cabinet.** ✅ Built, and immediately adopted by the Guitar Pedalboard factory whose
+   gap list reserved its stable `cabinet` identity. A level-normalised preamp feeds a three-band tone
+   stack, a rumble high-pass and two speaker low-pass poles; Combo, Stack and Bright choose useful upper
+   corners without pretending three filters are measured convolution IRs.
+
+   Stereo state is independent throughout so the device also works after wide pedals and on buses. The
+   factory now reads Audio Input → Tuner → high-pass → Drive → Amp / Cab → EQ → Compressor before its
+   visible dry/delay path.
+
+   **5j. A chromatic tuner.** ✅ Built on the existing analysis telemetry rather than a second audio-thread
+   message path. A rolling window is low-pass filtered and downsampled before normalised autocorrelation;
+   choosing the first credible peak avoids calling a bright guitar's second harmonic the note, and
+   interpolating around it gives the faceplate a useful cents error. Silence and weak periodicity blank the
+   display rather than freezing an old answer. Reference A is patch state, pitch is not, and Mute silences
+   only Thru so the detector keeps listening. That made the Guitar Pedalboard start Audio Input → Tuner and,
+   at the time, left the looper as its one remaining enforced handoff.
+
+   **5k. A performance looper.** ✅ Built, adopted by the Guitar Pedalboard after Reverb, and the last
+   enforced handoff in that factory. Record monitors dry; Play adds the stereo take; Dub writes the input
+   over the old loop with Feedback while monitoring both; Stop and an alternating Clear trigger complete
+   the performance surface. Dub on an empty pedal records the first pass, so no button is a dead end.
+
+   The processor allocates thirty seconds of stereo storage once rather than growing and copying it on the
+   audio thread. Its waveform, duration and playhead use the existing meter telemetry. The captured take is
+   intentionally session state — params and device placement save, megabytes of performed audio do not —
+   so a shared patch reopens as the same empty pedal rather than as a covert audio file.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

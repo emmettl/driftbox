@@ -129,6 +129,7 @@ export { MODULES, MODULE_LIST } from './modules/index.js'
 // them; the rest are here because a supported way to control the bundle cannot be built out of imports that
 // are not offered.
 export { ADSR_MODULE } from './modules/adsr.js'
+export { CABINET_MODULE } from './modules/cabinet.js'
 export { DISTORTION_MODULE } from './modules/distortion.js'
 export { IMAGER_MODULE } from './modules/imager.js'
 export { PHASER_MODULE } from './modules/phaser.js'
@@ -139,6 +140,8 @@ export { DELAY_MODULE } from './modules/delay.js'
 export { DRIVE_MODULE } from './modules/drive.js'
 export { EQ_MODULE } from './modules/eq.js'
 export { LFO_MODULE } from './modules/lfo.js'
+export { LIMITER_MODULE } from './modules/limiter.js'
+export { LOOPER_MODULE } from './modules/looper.js'
 export { METER_MODULE } from './modules/meter.js'
 export { MIXER_MODULE } from './modules/mixer.js'
 export { NOISE_MODULE } from './modules/noise.js'
@@ -150,6 +153,7 @@ export { SAMPLER_MODULE } from './modules/sampler.js'
 export { SEQ_MODULE } from './modules/seq.js'
 export { SVF_MODULE } from './modules/svf.js'
 export { TRANSPORT_MODULE } from './modules/transport.js'
+export { TUNER_MODULE } from './modules/tuner.js'
 export { VCA_MODULE } from './modules/vca.js'
 
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
@@ -288,9 +292,11 @@ export class Rack {
     }
     this.node = node
     if (this.meterListeners.size > 0) node.port.postMessage({ kind: 'monitor', enabled: true })
-    // A patch set before start() is not lost — the common order is to build a patch from a
-    // URL and only then get a gesture to start audio with.
-    this.send()
+    // A patch set before start() is already in `processorOptions` above. Do not post the same plan again:
+    // an OfflineAudioContext can deliver that message after the constructor has seeded its scheduled params,
+    // and rebuilding the Graph then correctly clears those events as belonging to the old plan. The result
+    // is a timing-dependent export with its automation missing. Live edits still travel through `send()` in
+    // the patch setter once `this.node` exists.
     return true
   }
 

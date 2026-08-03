@@ -5,11 +5,13 @@ import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
 import { Groovebox } from './Groovebox.js'
 import { Ladder } from './Ladder.js'
+import { Looper } from './Looper.js'
 import { Midi } from './Midi.js'
 import { Meter } from './Meter.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
 import { Tracker } from './Tracker.js'
+import { Tuner } from './Tuner.js'
 import { Vco } from './Vco.js'
 import type { FaceplateComponent } from './types.js'
 
@@ -59,6 +61,7 @@ const FACEPLATES: Record<string, Entry> = {
   // Declared here because custom panels opt out of the automatic generic sizing below.
   vco: { component: Vco, span: 1, rows: 2 },
   ladder: { component: Ladder, span: 1 },
+  looper: { component: Looper, rows: 3 },
   midi: { component: Midi, span: 1, rows: 2 },
   meter: { component: Meter, rows: 3 },
   out: { component: Out, span: 1 },
@@ -68,6 +71,7 @@ const FACEPLATES: Record<string, Entry> = {
   // Seven rows is what its twelve jacks already demanded, and the grid fits in the space that was empty.
   // The Tracker was the tallest module in the rack and the least use — a pattern you could not see.
   tracker: { component: Tracker, rows: 7 },
+  tuner: { component: Tuner, span: 1, rows: 3 },
 }
 
 export function faceplateFor(type: string): FaceplateComponent {

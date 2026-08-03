@@ -234,6 +234,17 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
     params: { mode: 3, amount: 0.78, tone: 12000, level: 0.7 },
   },
 
+  // ---- Amp / cabinet ----------------------------------------------------------------------------
+  { id: 'clean', type: 'cabinet', name: 'Clean Combo', params: { drive: 1.1, treble: 2 } },
+  { id: 'crunch', type: 'cabinet', name: 'Combo Crunch', params: { drive: 5, bass: 1, mid: 2, treble: -1 } },
+  {
+    id: 'stack',
+    type: 'cabinet',
+    name: 'Big Stack',
+    params: { cabinet: 1, drive: 8, bass: 3, mid: 1, treble: -2, level: 0.65 },
+  },
+  { id: 'bright', type: 'cabinet', name: 'Bright Bite', params: { cabinet: 2, drive: 3, mid: -1, treble: 3 } },
+
   // ---- Delay ------------------------------------------------------------------------------------
   { id: 'slap', type: 'delay', name: 'Slap', params: { time: 0.09, feedback: 0.15 } },
   { id: 'eighth', type: 'delay', name: 'Eighth', params: { time: 0.25, feedback: 0.4 } },
@@ -284,6 +295,11 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
     name: 'Pump',
     params: { threshold: -22, ratio: 8, attack: 0.03, release: 0.35, makeup: 5, knee: 1 },
   },
+
+  // ---- Limiter ----------------------------------------------------------------------------------
+  { id: 'transparent', type: 'limiter', name: 'Transparent', params: { release: 0.18 } },
+  { id: 'loud', type: 'limiter', name: 'Loud', params: { inputGain: 6, ceiling: -1, release: 0.1 } },
+  { id: 'punch', type: 'limiter', name: 'Punch', params: { inputGain: 3, ceiling: -0.3, release: 0.05 } },
   // Not a limiter — `REASON-GAP.md` still wants one of those — but it is what this device can do in that
   // direction, and a hard knee is the part that matters.
   {

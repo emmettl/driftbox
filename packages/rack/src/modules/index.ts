@@ -4,6 +4,7 @@ import { AUDIO_INPUT_MODULE } from './audio-input.js'
 import { ARP_MODULE } from './arp.js'
 import { ARRANGER_MODULE } from './arranger.js'
 import { ALLIGATOR_MODULE } from './alligator.js'
+import { CABINET_MODULE } from './cabinet.js'
 import { CLOCK_MODULE } from './clock.js'
 import { COMBI_MODULE } from './combi.js'
 import { COMPRESSOR_MODULE } from './compressor.js'
@@ -15,7 +16,9 @@ import { FOLLOWER_MODULE } from './follower.js'
 import { GROOVEBOX_MODULE } from './groovebox.js'
 import { IMAGER_MODULE } from './imager.js'
 import { LADDER_MODULE } from './ladder.js'
+import { LIMITER_MODULE } from './limiter.js'
 import { LFO_MODULE } from './lfo.js'
+import { LOOPER_MODULE } from './looper.js'
 import { MIDI_MODULE } from './midi.js'
 import { METER_MODULE } from './meter.js'
 import { MIXER_MODULE } from './mixer.js'
@@ -32,12 +35,13 @@ import { SVF_MODULE } from './svf.js'
 import { REVERB_MODULE } from './reverb.js'
 import { TRACKER_MODULE } from './tracker.js'
 import { TRANSPORT_MODULE } from './transport.js'
+import { TUNER_MODULE } from './tuner.js'
 import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Thirty-seven modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty-one modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -92,14 +96,17 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   VCA_MODULE,
   DRIVE_MODULE,
   DISTORTION_MODULE,
+  CABINET_MODULE,
   EQ_MODULE,
   IMAGER_MODULE,
   COMPRESSOR_MODULE,
+  LIMITER_MODULE,
 
   DELAY_MODULE,
   PING_PONG_MODULE,
   PHASER_MODULE,
   REVERB_MODULE,
+  LOOPER_MODULE,
 
   ADSR_MODULE,
   LFO_MODULE,
@@ -120,6 +127,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   MIDI_MODULE,
 
   METER_MODULE,
+  TUNER_MODULE,
 
   MIXER_MODULE,
   OUT_MODULE,
@@ -134,6 +142,7 @@ export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './audio-input.js'
 export { ARP_MODULE, ArpProcessor } from './arp.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './alligator.js'
+export { CABINET_MODULE, CabinetProcessor } from './cabinet.js'
 export { CLOCK_MODULE, ClockProcessor } from './clock.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './combi.js'
 export { DELAY_MODULE, DelayProcessor } from './delay.js'
@@ -143,7 +152,9 @@ export { FOLLOWER_MODULE, FollowerProcessor } from './follower.js'
 export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './groovebox.js'
 export { IMAGER_MODULE, ImagerProcessor } from './imager.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
+export { LIMITER_MODULE, LimiterProcessor } from './limiter.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
+export { LOOPER_MODULE, LooperProcessor } from './looper.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
 export { METER_MODULE, MeterProcessor } from './meter.js'
 export { MIXER_MODULE, MixerProcessor } from './mixer.js'
@@ -161,6 +172,7 @@ export { COMPRESSOR_MODULE, CompressorProcessor } from './compressor.js'
 export { REVERB_MODULE, ReverbProcessor } from './reverb.js'
 export { TRACKER_LANES, TRACKER_MODULE, TrackerProcessor } from './tracker.js'
 export { TRANSPORT_MODULE, TransportProcessor } from './transport.js'
+export { TUNER_MODULE, TunerProcessor } from './tuner.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
 export { VOICE_MODULE, VoiceProcessor } from './voice.js'
