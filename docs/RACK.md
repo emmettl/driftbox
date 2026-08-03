@@ -1033,8 +1033,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    Web MIDI is Chromium-only, so absence has to read as absence rather than as breakage — the
    same standard `loadRack` already holds itself to.
 
-   **5b. Polyphony.** 🚧 The graph half is built and tested; nothing drives more than one voice yet.
-   Same discipline as step 1 — the part with the risk in it first, with no UI.
+   **5b. Polyphony.** ✅ Both halves are done: the compiler and the Graph carry the voices, and a
+   `Keyboard` drives them. Same discipline as step 1 — the part with the risk in it first, with no UI —
+   which is why they landed apart, and why this line went on saying "the graph half is built; nothing
+   drives more than one voice yet" for a good while after that had stopped being true. A status marker
+   is a claim about the tree like any other, and this one was checkable in `midi.test.ts` the whole time.
 
    The corrected section above held: **no module changed to get polyphony.** All of it is in the
    compiler and the Graph. What the compiler emits is `voices`, a `poly` flag per node, and a
@@ -1066,7 +1069,7 @@ both bundle cost on the editing-only path and visual competition with a readable
      bug as the instance-counter seeding from step 3, one level up. Voice zero keeps the plain id, so
      a one-voice patch is byte-identical to before polyphony existed. `poly.test.ts` asserts that.
 
-   ✅ Finished. A `Keyboard` allocates a controller across the voices, MIDI writes each voice's note,
+   What drives it: a `Keyboard` allocates a controller across the voices, MIDI writes each voice's note,
    and a voice-count control sits in the header.
 
    **One class for one voice and for eight, and that is the point.** At one voice `Keyboard` is exactly
