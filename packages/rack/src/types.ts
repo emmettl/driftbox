@@ -141,6 +141,14 @@ export interface Processor {
      * controller such as an arpeggiator. Input trims have already been applied to every voice.
      */
     voiceInlets?: Float32Array[][],
+    /**
+     * Whether each processor inlet slot has a physical cable, in the same flattened order as `inlets`.
+     *
+     * This is structural metadata, not a signal test: a cable from a placeholder or bypassed source is still
+     * connected even when its buffer is silent. Modules that normalise an unplugged jack or arm themselves
+     * when a trigger jack is patched therefore do not have to confuse "unplugged" with "currently low".
+     */
+    inletConnected?: boolean[],
   ): void
   /**
    * A low-rate visual reading for a host faceplate.
@@ -571,6 +579,11 @@ export interface PlanNode {
    * the direct path.
    */
   inletTrims?: (number | undefined)[]
+  /**
+   * Cable presence per flattened inlet buffer. Absent on older plans; the Graph then falls back to whether
+   * that inlet names a non-zero signal buffer, which preserves their previous best available meaning.
+   */
+  inletConnected?: boolean[]
   outlets: number[]
   /** Slot index per param, in def order. */
   params: number[]

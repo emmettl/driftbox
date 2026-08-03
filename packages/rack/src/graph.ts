@@ -53,6 +53,8 @@ interface Node {
   voiceInlets: Float32Array[][]
   /** Per-voice input trims applied before a collector reads `voiceInlets`. */
   voiceTrims: { into: Float32Array; from: Float32Array; gain: Float32Array }[]
+  /** Physical cable presence, distinct from whether the current sample happens to be zero. */
+  inletConnected: boolean[]
 }
 
 /** A param change waiting for its frame. `voice` undefined means every voice, which is what a knob means. */
@@ -422,6 +424,7 @@ export class Graph {
         transport,
         hostInputs,
         node.voiceInlets.length > 0 ? node.voiceInlets : undefined,
+        node.inletConnected,
       )
     }
 
@@ -733,6 +736,9 @@ export class Graph {
           trims,
           voiceInlets,
           voiceTrims,
+          // Plans written before jack-presence metadata can only answer from their buffer indices. New plans
+          // carry the physical fact, so a patched placeholder or bypassed source remains connected at zero.
+          inletConnected: node.inletConnected ?? node.inlets.map((index) => index > 0),
         })
       }
     }

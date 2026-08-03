@@ -530,6 +530,12 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       inlets: def.inlets.flatMap((port) =>
         wire(inletSource.get(key(module.id, port.id))?.channels ?? [ZERO], channelCount(port)),
       ),
+      // Presence follows the cable, not its samples. A valid cable from a placeholder or a bypassed source
+      // can resolve to the zero buffer and is still physically plugged in — the distinction devices with
+      // normalled or arming jacks need. Stereo ports repeat the one jack fact for both processor slots.
+      inletConnected: def.inlets.flatMap((port) =>
+        Array.from({ length: channelCount(port) }, () => inletSource.has(key(module.id, port.id))),
+      ),
       // One pot per physical inlet. A stereo inlet occupies two processor slots but has one pot, so both
       // channels read the same hidden param slot.
       // Sparse: an inlet with nothing patched to it, or a pot sitting at unity, has no slot — and

@@ -116,6 +116,53 @@ class ProbeProcessor implements Processor {
   }
 }
 
+class InletPresenceProcessor implements Processor {
+  process(
+    _inlets: Float32Array[],
+    outlets: Float32Array[],
+    _params: Float32Array[],
+    frames: number,
+    _transport?: Parameters<Processor['process']>[4],
+    _hostInputs?: Float32Array[][],
+    _voiceInlets?: Float32Array[][],
+    inletConnected?: boolean[],
+  ): void {
+    outlets[0].fill(inletConnected?.[0] ? 1 : 0, 0, frames)
+  }
+}
+
+const PRESENCE_REGISTRY: Registry = {
+  presence: {
+    type: 'presence',
+    version: 1,
+    name: 'Presence',
+    group: 'Utility',
+    blurb: 'test',
+    inlets: [{ id: 'in', name: 'In' }],
+    outlets: [{ id: 'out', name: 'Out' }],
+    params: [],
+    processor: InletPresenceProcessor,
+    terminal: true,
+  },
+}
+
+it('tells a processor that a silent placeholder cable is physically connected', () => {
+  const patched: Patch = {
+    modules: [
+      { id: 'future', type: 'future-source' },
+      { id: 'presence', type: 'presence' },
+    ],
+    cables: [{ from: ['future', 'silent'], to: ['presence', 'in'] }],
+  }
+  const unplugged: Patch = {
+    modules: [{ id: 'presence', type: 'presence' }],
+    cables: [],
+  }
+
+  expect(run(patched, 1, PRESENCE_REGISTRY)[0]).toBeGreaterThan(0.9)
+  expect(run(unplugged, 1, PRESENCE_REGISTRY)[0]).toBe(0)
+})
+
 const probe = (stepped: boolean): ModuleDef => ({
   type: stepped ? 'probe-stepped' : 'probe',
   version: 1,
