@@ -5,12 +5,14 @@ import {
   JACK,
   ROW,
   SNAP,
+  boundsBetween,
   dragBounds,
   dropIndex,
   jackAt,
   jacks,
   layout,
   nearestJack,
+  placementsInBounds,
   reordered,
   rowsForJacks,
   withDraggedPlacement,
@@ -80,6 +82,53 @@ describe('stacking the rack', () => {
 
   it('is empty for an empty rack rather than throwing', () => {
     expect(layout([], sizes())).toMatchObject({ placements: [], rows: 0, height: 0 })
+  })
+})
+
+describe('rubber-band selection', () => {
+  const placements = layout(
+    [
+      module('top-left', 'small'),
+      module('top-right', 'small'),
+      module('bottom', 'wide'),
+    ],
+    sizes({ small: { span: 1 }, wide: { span: 2 } }),
+  ).placements
+
+  it('normalises a drag in every direction', () => {
+    expect(boundsBetween({ x: 430, y: 110 }, { x: 20, y: 15 })).toEqual({
+      x: 20,
+      y: 15,
+      width: 410,
+      height: 95,
+    })
+  })
+
+  it('takes every faceplate the band visibly overlaps, in rack order', () => {
+    expect(
+      placementsInBounds(placements, boundsBetween({ x: 20, y: 15 }, { x: 430, y: 90 })),
+    ).toEqual(['top-left', 'top-right', 'bottom'])
+  })
+
+  it('distinguishes the two halves of a paired row', () => {
+    expect(
+      placementsInBounds(placements, boundsBetween({ x: 10, y: 10 }, { x: COLUMN - 1, y: 50 })),
+    ).toEqual(['top-left'])
+    expect(
+      placementsInBounds(placements, boundsBetween({ x: COLUMN + 1, y: 10 }, { x: 470, y: 50 })),
+    ).toEqual(['top-right'])
+  })
+
+  it('does not count merely touching the next row or column', () => {
+    expect(
+      placementsInBounds(placements, { x: 0, y: 0, width: COLUMN, height: ROW }),
+    ).toEqual(['top-left'])
+  })
+
+  it('takes nothing from a zero-area click', () => {
+    expect(
+      placementsInBounds(placements, boundsBetween({ x: 10, y: 10 }, { x: 10, y: 10 })),
+    ).toEqual([])
   })
 })
 

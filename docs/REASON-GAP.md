@@ -126,7 +126,7 @@ had before the undo.
 | CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
 | Bypass | On / Bypass / Off on every effect | **Landed** | A flag on the module; the compiler drops its node and passes its first inlet through |
 | Device patches | A browser and a factory bank per device | **Landed** | A browser in the corner of every faceplate — name, step, list, save, delete — rendered by the Chassis rather than by each panel, so the eleven hand-built faceplates and the generic fallback got one without any UI work. `DEVICE_PATCHES` is the factory bank; Init is **derived from the def**, so every device has a bank and a way back to its defaults even if nobody wrote it one. Which patch you are on is derived from the knobs, never remembered, so the name cannot start lying the moment you turn something. Knobs only — a device patch is a *sound*, and `data` is a pattern, which belongs to the song. Applying one is a single non-structural edit and therefore one undo and no click |
-| Multi-select | Rubber-band a group of devices | **Landed**, less the band | Click, shift-click for a span, platform modifier to toggle one. Removing a group is one structural edit and therefore one undo. The rubber band itself is a gesture refinement on top of this rather than the capability |
+| Multi-select | Rubber-band a group of devices | **Landed** | Click, shift-click for a span, platform modifier to toggle one, or drag across inert faceplate surface to rubber-band. Shift/Cmd/Ctrl-drag adds to the group. Removing a group is one structural edit and therefore one undo. |
 | Undo | Full history | **Landed** | `history.ts` — sixty-four steps, a drag is one of them |
 
 None of these is architectural. All of them are the difference between a rack you demonstrate
@@ -230,8 +230,8 @@ Worth writing down so nobody builds them twice.
    them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate, bypass,
-   auto-routing and multi-select are done; what is left there is CV trim per jack, per-device patches,
-   and the rubber band over the multi-select that now exists.
+   auto-routing, device patches and multi-select — including its rubber band — are done. What is left
+   there is CV trim per jack.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.

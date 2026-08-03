@@ -75,6 +75,52 @@ export interface Layout {
   height: number
 }
 
+/** A rectangle in rack design units. */
+export interface Bounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** The direction-independent rectangle swept between two pointer positions. */
+export function boundsBetween(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): Bounds {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width: Math.abs(end.x - start.x),
+    height: Math.abs(end.y - start.y),
+  }
+}
+
+/**
+ * Devices touched by a rubber-band rectangle, in rack order.
+ *
+ * Edge contact alone does not count. That keeps a band ending exactly on a row or column boundary from
+ * unexpectedly taking the device on the far side, while any visible overlap does — the convention used
+ * by desktop editors rather than requiring somebody to surround a whole faceplate.
+ */
+export function placementsInBounds(
+  placements: readonly Placement[],
+  bounds: Bounds,
+): string[] {
+  if (bounds.width <= 0 || bounds.height <= 0) return []
+  const right = bounds.x + bounds.width
+  const bottom = bounds.y + bounds.height
+  return placements
+    .filter(
+      (placement) =>
+        placement.x < right &&
+        placement.x + placement.width > bounds.x &&
+        placement.y < bottom &&
+        placement.y + placement.height > bounds.y,
+    )
+    .map((placement) => placement.id)
+}
+
 /** The geometry shared by the front and rear versions of a lifted module. */
 export interface ModuleDragGeometry {
   id: string
@@ -88,12 +134,7 @@ export interface ModuleDragGeometry {
 }
 
 /** Where a lifted module actually is, rather than the slot it would occupy if released. */
-export function dragBounds(drag: ModuleDragGeometry): {
-  x: number
-  y: number
-  width: number
-  height: number
-} {
+export function dragBounds(drag: ModuleDragGeometry): Bounds {
   return {
     x: drag.at.x - drag.grab.x,
     y: drag.at.y - drag.grab.y,

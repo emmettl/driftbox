@@ -505,6 +505,8 @@ interface RackState {
   /** Pick one, or with `extend` add it to the group — or take it back out, which is the half people reach
    *  for immediately after picking one thing too many. `null` clears. */
   select: (moduleId: string | null, extend?: boolean) => void
+  /** Replace the group at once. Used by gestures whose answer changes continuously, such as a rubber band. */
+  selectMany: (moduleIds: readonly string[]) => void
   /** Everything between the last thing picked and this one, in rack order. Shift-click. */
   selectRange: (moduleId: string) => void
   /** Remove everything selected, in one structural edit and therefore one undo step. */
@@ -1444,6 +1446,21 @@ export const useRack = create<RackState>((set, get) => {
         return state.selection.includes(moduleId)
           ? { selection: state.selection.filter((id) => id !== moduleId) }
           : { selection: [...state.selection, moduleId] }
+      }),
+
+    selectMany: (moduleIds) =>
+      set((state) => {
+        const existing = new Set(state.patch.modules.map((module) => module.id))
+        const seen = new Set<string>()
+        const selection = moduleIds.filter((id) => {
+          if (!existing.has(id) || seen.has(id)) return false
+          seen.add(id)
+          return true
+        })
+        return selection.length === state.selection.length &&
+          selection.every((id, index) => id === state.selection[index])
+          ? {}
+          : { selection }
       }),
 
     selectRange: (moduleId) =>

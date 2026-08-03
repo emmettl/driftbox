@@ -1197,6 +1197,22 @@ kbd {
   inset: 0;
 }
 
+.rk-face[data-selecting='true'] {
+  cursor: crosshair;
+}
+
+.rk-selection-band {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border: 1px solid rgba(95, 240, 208, 0.95);
+  border-radius: 4px;
+  background: rgba(95, 240, 208, 0.13);
+  box-shadow:
+    inset 0 0 14px rgba(95, 240, 208, 0.08),
+    0 0 0 1px rgba(7, 4, 15, 0.45);
+}
+
 .rk-module {
   position: absolute;
   padding: 10px 12px;

@@ -3,9 +3,12 @@ import { sizeFor } from './faceplates/index.js'
 import { DevicePatches } from './DevicePatches.js'
 import { Driven } from './Driven.js'
 import {
+  boundsBetween,
   dragBounds,
   dropIndex,
   layout as rackLayout,
+  placementsInBounds,
+  type Bounds,
   reordered,
   type Layout,
   type ModuleDragGeometry,
@@ -33,10 +36,24 @@ interface Dragging extends ModuleDragGeometry {
   index: number
 }
 
+interface Selecting {
+  pointerId: number
+  start: Point
+  at: Point
+  clientStart: Point
+  base: readonly string[]
+  extend: boolean
+  clearOnClick: boolean
+  moved: boolean
+}
+
+const SELECTION_DRAG_THRESHOLD = 4
+
 export function Chassis({ layout }: Props) {
   const patch = useRack((s) => s.patch)
   const selection = useRack((s) => s.selection)
   const select = useRack((s) => s.select)
+  const selectMany = useRack((s) => s.selectMany)
   const selectRange = useRack((s) => s.selectRange)
   const removeSelected = useRack((s) => s.removeSelected)
   const setParam = useRack((s) => s.setParam)
@@ -56,6 +73,7 @@ export function Chassis({ layout }: Props) {
    * person reaches for a thing they mean to move.
    */
   const [drag, setDrag] = useState<Dragging | null>(null)
+  const [selecting, setSelecting] = useState<Selecting | null>(null)
   const surface = useRef<HTMLDivElement | null>(null)
 
   /** Pointer position in design units rather than screen pixels, so the preview lines up with the layout at
@@ -94,19 +112,82 @@ export function Chassis({ layout }: Props) {
   const ghostSlot = draggedId
     ? preview.placements.find((placement) => placement.id === draggedId)
     : undefined
+  const selectionBounds: Bounds | null =
+    selecting?.moved ? boundsBetween(selecting.start, selecting.at) : null
+
+  /**
+   * Begin as a click and become a marquee only after crossing a few screen pixels.
+   *
+   * A rack has no reliable empty canvas: a stack of full-width devices occupies every design unit. The
+   * gesture therefore also starts on inert faceplate furniture, while actual controls and the title grip
+   * keep their own pointer gestures.
+   */
+  const beginSelection = useCallback(
+    (event: React.PointerEvent, base: readonly string[], clearOnClick: boolean) => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      surface.current?.setPointerCapture(event.pointerId)
+      const start = toDesign(event)
+      setSelecting({
+        pointerId: event.pointerId,
+        start,
+        at: start,
+        clientStart: { x: event.clientX, y: event.clientY },
+        base,
+        extend: event.shiftKey || event.metaKey || event.ctrlKey,
+        clearOnClick,
+        moved: false,
+      })
+    },
+    [toDesign],
+  )
 
   return (
     <div
       className="rk-face"
       ref={surface}
       data-dragging={drag ? drag.id : ''}
+      data-selecting={selecting?.moved ? 'true' : undefined}
+      onPointerDown={(event) => {
+        // Only the face itself is empty rack surface. Descendants either begin their own candidate band
+        // below or are controls whose gestures must be left alone.
+        if (event.target !== event.currentTarget) return
+        beginSelection(event, selection, true)
+      }}
       onPointerMove={(event) => {
+        if (selecting && event.pointerId === selecting.pointerId) {
+          const moved =
+            selecting.moved ||
+            Math.hypot(
+              event.clientX - selecting.clientStart.x,
+              event.clientY - selecting.clientStart.y,
+            ) >= SELECTION_DRAG_THRESHOLD
+          const at = toDesign(event)
+          if (moved) {
+            const hits = placementsInBounds(layout.placements, boundsBetween(selecting.start, at))
+            selectMany(
+              selecting.extend
+                ? [...selecting.base, ...hits.filter((id) => !selecting.base.includes(id))]
+                : hits,
+            )
+          }
+          setSelecting({ ...selecting, at, moved })
+          return
+        }
         if (!drag) return
         const at = toDesign(event)
         const index = dropIndex(layout.placements, at)
         setDrag({ ...drag, at, index })
       }}
       onPointerUp={(event) => {
+        if (selecting && event.pointerId === selecting.pointerId) {
+          // A press on empty rack that never became a band is the familiar click-away to clear. A
+          // modifier-click leaves the existing group alone.
+          if (!selecting.moved && selecting.clearOnClick && !selecting.extend) selectMany([])
+          setSelecting(null)
+          return
+        }
         if (!drag) return
         dropModule(drag.id, dropIndex(layout.placements, toDesign(event)))
         // Safari can occasionally keep a native selection alive after a captured pointer crosses
@@ -117,8 +198,26 @@ export function Chassis({ layout }: Props) {
       }}
       // Not onPointerLeave: with the pointer captured the drag can stray outside and come back, and
       // cancelling on leave killed a cable drag that wandered over the header. Same lesson, same fix.
-      onPointerCancel={() => setDrag(null)}
+      onPointerCancel={(event) => {
+        if (selecting && event.pointerId === selecting.pointerId) {
+          selectMany(selecting.base)
+          setSelecting(null)
+        }
+        setDrag(null)
+      }}
     >
+      {selectionBounds && (
+        <div
+          className="rk-selection-band"
+          aria-hidden="true"
+          style={{
+            left: selectionBounds.x,
+            top: selectionBounds.y,
+            width: selectionBounds.width,
+            height: selectionBounds.height,
+          }}
+        />
+      )}
       {ghostSlot && (
         <div
           className="rk-drag-slot"
@@ -177,8 +276,18 @@ export function Chassis({ layout }: Props) {
             // from the event rather than tracked, because a key released while the pointer is down would
             // otherwise leave the rack in a mode nobody could see.
             onPointerDown={(event) => {
+              const base = selection
               if (event.shiftKey) selectRange(placement.id)
               else select(placement.id, event.metaKey || event.ctrlKey)
+              const target = event.target instanceof Element ? event.target : null
+              if (
+                target?.closest(
+                  'button, input, select, textarea, [role="slider"], .rk-grip, .rk-device-patches, .rk-module-tools',
+                )
+              ) {
+                return
+              }
+              beginSelection(event, base, false)
             }}
           >
             {/* The drag handle, over the faceplate's own title strip. A transparent overlay rather than
