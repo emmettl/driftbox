@@ -81,6 +81,8 @@ export class RackRenderer {
    * that the same way.
    */
   private beats = 0
+  /** Frames handed out so far, which is this host's clock. See `time`. */
+  private rendered = 0
 
   constructor(options: RackRendererOptions = {}) {
     this.sampleRate = options.sampleRate ?? 48000
@@ -199,6 +201,16 @@ export class RackRenderer {
     return this.beats
   }
 
+  /**
+   * This host's clock, in seconds — how much audio has been rendered.
+   *
+   * Unlike `beat` it advances whether or not the transport is running, because it is a clock rather than a
+   * position in the music. `frameFor` converts against it, and `LanePlayer` schedules against both.
+   */
+  get time(): number {
+    return this.rendered / this.sampleRate
+  }
+
   /** Read the patch's meter modules. Free of the worklet's opt-in message, because there is no channel to
    *  keep quiet: reading them costs a walk of the nodes and nothing else. */
   meters(): MeterReading[] {
@@ -217,6 +229,7 @@ export class RackRenderer {
     const frames = channels[0]?.length ?? this.frames
     this.frames = frames
     this.graph.process(channels, hostInputs)
+    this.rendered += frames
     if (this.runningValue) this.beats += (frames * this.tempoValue) / (60 * this.sampleRate)
   }
 

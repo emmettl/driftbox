@@ -588,6 +588,27 @@ modules, and `hostInputs` on `process` is the seam anything else fills. That is 
 Measured on the machine this was written on: a shipped preset renders at about 20x realtime at 48kHz,
 which is a few percent of one core. `examples/headless.mjs` is that measurement, runnable.
 
+### What the app was holding that the package should have been
+
+Two things reached this package late, and both were found by asking what an embedding host would have to
+write for itself.
+
+**The automation scheduler.** Lanes are in the document, so a host has to hand them over in time — and that
+was forty lines inside `RackApp`. A patch opened anywhere else therefore played the patch and not the
+performance, with nothing to notice: no error, no missing module, just every recorded move absent. It is
+`lanes.ts` now, and the app uses it, because two copies of a scheduler would drift the way two copies of a
+filter would.
+
+**Where the music is.** `Adaptive` quantises to the bar, and the bar comes from the host. `RackRenderer`
+counted frames and `Rack` answered nothing, so the adaptive layer worked in an offline render and not in a
+browser. `Rack.beat` is derived from `ctx.currentTime` — the third time this codebase has made that choice,
+after `live.ts` and `playhead.ts`, and for the same three reasons: it does not grow the message ABI, it is
+available always and exactly, and it cannot disagree with what was scheduled because `frameFor` converts
+against the same clock.
+
+The pattern worth taking from both: **the app is where the gaps hide.** Anything a host must write for
+itself to make a patch sound the way its author left it is not a host's job, it is this package's.
+
 ### Following a scene, without swapping patches
 
 The obvious way to make music adapt is to keep several patches and swap between them. **It is wrong

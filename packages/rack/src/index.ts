@@ -60,6 +60,7 @@ export type {
   AdaptiveScore,
 } from './adaptive.js'
 export type { RackRendererOptions, RenderedAudio } from './headless.js'
+export type { LaneHost, LanePlayerOptions } from './lanes.js'
 
 // ---- Tier 2: still moving ---------------------------------------------------------------
 //
@@ -141,6 +142,7 @@ export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './workle
 export { renderLength, renderPatch, type RenderOptions } from './render.js'
 export { RackRenderer } from './headless.js'
 export { Adaptive, adaptiveValue, adaptiveValues } from './adaptive.js'
+export { LanePlayer } from './lanes.js'
 
 export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
 /** Host input 4 is reserved for a browser MediaStream; 0..3 are the groovebox sections. */
@@ -386,6 +388,14 @@ export class Rack {
 
   get running(): boolean {
     return this.runningValue
+  }
+
+  /**
+   * This host's clock, in seconds — `ctx.currentTime`, named so that anything driving both hosts does not
+   * have to know which one it has. `LanePlayer` schedules against it.
+   */
+  get time(): number {
+    return this.ctx.currentTime
   }
 
   /**

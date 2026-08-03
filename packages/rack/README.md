@@ -62,6 +62,22 @@ Nothing about that is rack-specific except `start()`, which resolves `false` whe
 the two sections below are what a game reaches for: `Adaptive` to follow the scene, and `RackRenderer` if
 any of the music wants rendering ahead of time rather than played live.
 
+## Playing what was recorded
+
+A patch can carry recorded parameter moves, and **it does not play them by itself**. The rack's own
+sequencing runs on the audio thread, but automation lanes live in the document, so something host-side has
+to hand them over in time. `LanePlayer` is that, and it used to exist only inside this repo's app — which
+meant a patch opened anywhere else played the patch and not the performance, silently.
+
+```js
+const lanes = new LanePlayer(rack)
+setInterval(() => lanes.advance(rack.patch.automation), 100)   // or in the game's update loop
+```
+
+Each point is handed over with the frame it belongs at, so how often you call `advance` decides only how
+far ahead work is done, never where a value lands. It queues nothing while stopped and re-queues from the
+current position after a seek or a loop.
+
 ## Rendering it without a browser
 
 `Rack` and `renderPatch` are both Web Audio — a live context and an offline one. The DSP is not: `Graph` is
@@ -226,6 +242,8 @@ None of them need a browser.
 | `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
 | `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
 | `api.test.ts` | The exported names, in two tiers. Adding an export fails it by name, which is the point |
+| `minified.test.ts` | The package bundled and minified by rolldown, with the worklet then assembled from what came out and measured against the same patch unminified. The `toString()` scheme's failure is silent and happens only in a consumer's build |
+| `lanes.test.ts` | The lookahead scheduler: that a point lands on the frame its position falls on, that it is queued exactly once across the seam, that a stopped transport queues nothing, and that a seek re-queues |
 | `host.test.ts` | Where the live host thinks the music is: that the position advances at the tempo, that changing tempo does not move the past, and that a pause holds while a restart rewinds |
 | `headless.test.ts` | The browser-free host: that it makes sound with no `AudioContext` defined at all, that it is sample-for-sample the same as driving the Graph by hand, that a scheduled change lands mid-block, and that its musical position survives a tempo change |
 | `adaptive.test.ts` | The score: what a curve reads, that it holds the end rather than extrapolating, that a bar-locked control waits and lands on the value wanted *at* the bar, that a seek counts as a boundary, and that a steady scene sends nothing |

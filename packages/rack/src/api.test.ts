@@ -65,6 +65,8 @@ const PROMISED = [
   'Adaptive',
   'adaptiveValue',
   'adaptiveValues',
+  // Playing a patch's recorded automation back, which nothing outside this repo could do before.
+  'LanePlayer',
   // Reading somebody else's rack.
   'importVcv',
   'importVcvPatch',
