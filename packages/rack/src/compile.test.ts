@@ -102,7 +102,7 @@ describe('compiling a patch', () => {
     expect(res).toBe(input)
   })
 
-  it('compiles one bounded hidden trim slot per physical inlet', () => {
+  it('compiles a bounded hidden trim slot for a patched inlet', () => {
     const source: Patch = {
       modules: [
         { id: 'osc', type: 'vco' },
@@ -114,12 +114,74 @@ describe('compiling a patch', () => {
     const node = plan.nodes.find((candidate) => candidate.id === 'filter')!
     const slots = plan.inputTrims!.filter
 
-    expect(node.inletTrims).toEqual([slots.in, slots.cutoff, slots.res])
-    expect(plan.params[slots.in].value).toBe(1)
     expect(plan.params[slots.cutoff].value).toBe(-0.4)
-    expect(plan.params[slots.res].value).toBe(1)
+    expect(node.inletTrims).toEqual([undefined, slots.cutoff, undefined])
     // Kept out of the authored param namespace even if a third-party module uses an unfortunate id.
     expect(plan.slots.filter).not.toHaveProperty('cutoff', slots.cutoff)
+  })
+
+  it('spends nothing on an inlet with nothing patched to it', () => {
+    // A slot is not free: the Graph gives a trimmed inlet a buffer of its own and multiplies it sample by
+    // sample, where an untrimmed one just points at the source's buffer. Allocating for every inlet of
+    // every module cost 4% of render time on the small bench patches and 10% on `pressure-system`, all of
+    // it spent multiplying silence by one.
+    const source: Patch = {
+      modules: [
+        { id: 'osc', type: 'vco' },
+        { id: 'filter', type: 'ladder', inputTrims: { in: 0.5, res: 0.25, cutoff: -0.4 } },
+      ],
+      cables: [{ from: ['osc', 'out'], to: ['filter', 'cutoff'] }],
+    }
+    const plan = compile(source, MODULES)
+    // `in` and `res` are unpatched: their pots are remembered in the patch and cost the graph nothing.
+    expect(Object.keys(plan.inputTrims!.filter)).toEqual(['cutoff'])
+    expect(plan.inputTrims!.osc).toEqual({})
+  })
+
+  it('bounds a trim however it was written down', () => {
+    const source: Patch = {
+      modules: [
+        { id: 'osc', type: 'vco' },
+        { id: 'filter', type: 'ladder', inputTrims: { in: -9 } },
+      ],
+      cables: [{ from: ['osc', 'out'], to: ['filter', 'in'] }],
+    }
+    const plan = compile(source, MODULES)
+    expect(plan.params[plan.inputTrims!.filter.in].value).toBe(-1)
+  })
+
+  it('gives a trim slot the moment a cable arrives, without forgetting the setting', () => {
+    // What makes the pot belong to the jack rather than to the cable: it is remembered while unpatched and
+    // starts working when something is plugged in, because plugging one in rebuilds.
+    const modules = [
+      { id: 'osc', type: 'vco' },
+      { id: 'filter', type: 'ladder', inputTrims: { in: -0.6 } },
+    ]
+    const unpatched = compile({ modules, cables: [] }, MODULES)
+    expect(unpatched.inputTrims!.filter).toEqual({})
+
+    const patched = compile(
+      { modules, cables: [{ from: ['osc', 'out'], to: ['filter', 'in'] }] },
+      MODULES,
+    )
+    expect(patched.params[patched.inputTrims!.filter.in].value).toBe(-0.6)
+  })
+
+  it('does not renumber a knob when a cable is patched', () => {
+    // Trim slots are decided by what is patched, so they are allocated in a pass of their own after every
+    // authored param. Interleaved, patching one thing would have shifted every knob after it — the
+    // guarantee the slot ordering above exists to give.
+    const modules = [
+      { id: 'osc', type: 'vco' },
+      { id: 'filter', type: 'ladder' },
+      { id: 'out', type: 'out' },
+    ]
+    const before = compile({ modules, cables: [] }, MODULES)
+    const after = compile(
+      { modules, cables: [{ from: ['osc', 'out'], to: ['filter', 'in'] }] },
+      MODULES,
+    )
+    expect(after.slots).toEqual(before.slots)
   })
 
   it('keeps a module whose type this build does not know, rather than deleting it', () => {

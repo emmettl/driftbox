@@ -403,13 +403,47 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       })
     }
     slots[module.id] = mine
+  }
+
+  // ---- Input trims ---------------------------------------------------------------------
+  //
+  // **A slot only where the pot is doing something**, and the reason is that a slot is far from free. The
+  // Graph gives a trimmed inlet a buffer of its own and multiplies it sample by sample, where an untrimmed
+  // one simply points at the source's buffer — no copy, which is the property the whole graph is built
+  // around. Allocating one for every inlet of every module meant every patch paid that on every inlet,
+  // whether or not it was patched and whether or not anybody had ever turned the pot. Measured against
+  // `graph.bench.ts`: 3–4% of render time on the small patches and about 5% on `pressure-system`, spent
+  // almost entirely on multiplying by one.
+  //
+  // Two conditions, and both have to hold:
+  //
+  //   - **Something is patched to it.** Silence times any gain is silence, so an unpatched inlet, a cable
+  //     from a module this build could not construct, and a cable that walked back through a ring of
+  //     bypassed modules all need nothing. A trim set on an unpatched inlet is still kept in the patch and
+  //     starts working the moment a cable arrives, which is what makes the pot belong to the jack rather
+  //     than to the cable.
+  //   - **The pot is off unity.** Unity is what the direct path already does, exactly, so paying a buffer
+  //     and a multiply to reproduce it is the whole of the waste above.
+  //
+  // The cost of the second condition is honest and worth stating: **engaging a trim rebuilds the graph
+  // once**, because a slot has to appear, and so does returning one to exactly unity. That is one click at
+  // each end of a pot's travel, against 3–5% of every block for every patch that never touches one. Every
+  // turn in between is a message to a slot that already exists, which is the property that mattered.
+  //
+  // Allocated in a **pass of its own, after every authored knob**. The loop above hands slots out in patch
+  // order so that adding a cable — which reorders execution — renumbers nothing the host is holding, and
+  // deciding a trim slot by what is patched puts cabling back into the numbering. Keeping them in their own
+  // pass means a cable can only ever move other trims.
+  for (const module of live) {
+    const def = registry[module.type]
     const trims: Record<string, number> = {}
     for (const inlet of def.inlets) {
+      const source = inletSource.get(key(module.id, inlet.id))
+      if (!source || source.channels.every((channel) => channel === ZERO)) continue
+      const wanted = clamp(module.inputTrims?.[inlet.id], -1, 1, 1)
+      if (wanted === 1) continue
       trims[inlet.id] = params.length
-      params.push({
-        value: clamp(module.inputTrims?.[inlet.id], -1, 1, 1),
-        stepped: false,
-      })
+      params.push({ value: wanted, stepped: false })
     }
     inputTrims[module.id] = trims
   }
@@ -432,6 +466,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       ),
       // One pot per physical inlet. A stereo inlet occupies two processor slots but has one pot, so both
       // channels read the same hidden param slot.
+      // Sparse: an inlet with nothing patched to it, or a pot sitting at unity, has no slot — and
+      // `undefined` is what tells the Graph to keep the direct buffer path, the same road a plan from
+      // before trims existed takes.
       inletTrims: def.inlets.flatMap((port) =>
         Array.from({ length: channelCount(port) }, () => inputTrims[module.id][port.id]),
       ),

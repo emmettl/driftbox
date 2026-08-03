@@ -708,9 +708,17 @@ export const useRack = create<RackState>((set, get) => {
 
     setInputTrim: (moduleId, portId, value) => {
       const next = Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 1
-      // Same live path and coalescing rule as an ordinary knob. The compiler has already allocated a hidden
-      // param slot for every inlet, so rebuilding the graph here would reset the sound on every pixel.
-      write(`input-trim:${moduleId}:${portId}`, false, (patch) => {
+      // Same live path and coalescing rule as an ordinary knob — one drag is one undo, and no rebuild, so
+      // the sound is not reset on every pixel.
+      //
+      // **Except at the two ends of the pot's travel.** The compiler only spends a hidden param slot on a
+      // trim that is doing something, because an inlet with a slot costs a buffer and a multiply per sample
+      // where one without simply points at the source's buffer. So the slot appears when the pot leaves
+      // unity and goes when it comes back, and both are changes to the shape of the plan. One rebuild at
+      // each end, against 3–5% of every block for every patch that never touches a trim; see the note in
+      // `compile.ts`. Everything in between is a message to a slot that is already there.
+      const engaged = (get().patch.modules.find((m) => m.id === moduleId)?.inputTrims?.[portId] ?? 1) !== 1
+      write(`input-trim:${moduleId}:${portId}`, engaged !== (next !== 1), (patch) => {
         const at = patch.modules.findIndex((module) => module.id === moduleId)
         if (at < 0) return patch
         const module = patch.modules[at]

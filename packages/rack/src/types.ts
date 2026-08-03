@@ -474,8 +474,16 @@ export interface PlanNode {
   id: string
   type: string
   inlets: number[]
-  /** Param slot per inlet buffer. Stereo ports repeat their one trim slot for both channels. */
-  inletTrims?: number[]
+  /**
+   * Param slot per inlet buffer, or `undefined` where there is none. Stereo ports repeat their one trim
+   * slot for both channels.
+   *
+   * **Sparse, and the gaps are the point.** An inlet only gets a slot when a signal actually reaches it,
+   * because a slot costs the Graph a buffer of its own and a multiply per sample where an untrimmed inlet
+   * just points at the source's buffer. A gap reads exactly as a plan from before trims existed did: keep
+   * the direct path.
+   */
+  inletTrims?: (number | undefined)[]
   outlets: number[]
   /** Slot index per param, in def order. */
   params: number[]
@@ -556,7 +564,12 @@ export interface Plan {
   params: PlanParam[]
   /** `moduleId` → `paramId` → slot, so the host can address a knob by name. */
   slots: Record<string, Record<string, number>>
-  /** `moduleId` → `portId` → hidden param slot, kept separate from a module's authored params. */
+  /**
+   * `moduleId` → `portId` → hidden param slot, kept separate from a module's authored params.
+   *
+   * Only inlets with something patched to them appear. A pot on an unpatched inlet is remembered in the
+   * patch and costs the graph nothing until a cable arrives.
+   */
   inputTrims?: Record<string, Record<string, number>>
   notes: PlanNote[]
 }
