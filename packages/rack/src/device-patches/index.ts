@@ -231,6 +231,11 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   // `delay.ts` says are patchable rather than modules of their own.
   { id: 'flange', type: 'delay', name: 'Flange Base', params: { time: 0.005, feedback: 0.55 } },
 
+  // ---- Ping-pong delay --------------------------------------------------------------------------
+  { id: 'slap', type: 'ping-pong', name: 'Stereo Slap', params: { time: 0.09, feedback: 0.25 } },
+  { id: 'eighth', type: 'ping-pong', name: 'Eighth Bounce', params: { time: 0.25, feedback: 0.6 } },
+  { id: 'dub', type: 'ping-pong', name: 'Dub Bounce', params: { time: 0.375, feedback: 0.78 } },
+
   // ---- Stereo imager ----------------------------------------------------------------------------
   { id: 'mono-bass', type: 'imager', name: 'Mono Bass', params: { lowWidth: 0, crossover: 180 } },
   { id: 'wide-top', type: 'imager', name: 'Wide Top', params: { lowWidth: 0.6, highWidth: 1.55 } },

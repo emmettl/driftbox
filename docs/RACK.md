@@ -1194,12 +1194,13 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Fifteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
-   Groovebox, Imager, Meter, Out, Reverb, Seq, Tracker, Transport and Vocoder**. They are shared buses,
-   clocks, controllers or processors whose state belongs to the rack rather than to one voice. Delay is
-   the clearest example — eight two-second buffers would be eight separate delays — and Imager the newest:
-   widening each voice before the polyphonic collapse would simply throw that width away. `poly.test.ts`
-   pins this list so a new module cannot become shared merely because nobody made the decision.
+   Sixteen modules are now `poly: false`: **Arp, Arranger, Audio Input, Clock, Combinator, Delay,
+   Groovebox, Imager, Meter, Out, Ping-Pong Delay, Reverb, Seq, Tracker, Transport and Vocoder**. They
+   are shared buses, clocks, controllers or processors whose state belongs to the rack rather than to
+   one voice. Delay is the clearest example — eight two-second buffers would be eight separate delays —
+   and Imager makes the other failure vivid: widening each voice before the polyphonic collapse would
+   simply throw that width away. `poly.test.ts` pins this list so a new module cannot become shared
+   merely because nobody made the decision.
 
    Two things needed adding that the plan did not mention:
 
@@ -1457,6 +1458,15 @@ both bundle cost on the editing-only path and visual competition with a readable
    A separate module rather than a mode on EQ keeps both devices honest: EQ changes spectrum equally on
    both channels, Imager changes only their difference. It also leaves every saved patch untouched while
    closing the first of the two stereo-device gaps in `REASON-GAP.md`.
+
+   **5e. A ping-pong delay.** ✅ Built, as a new module rather than a mode on Delay. One mono signal enters
+   the left line, then cross-feedback writes each repeat into the opposite line: left, right, left, right,
+   with one decay shared by the sequence. The wet outlet is stereo and the dry path remains a visible Mixer
+   cable, exactly as it is for the original Delay.
+
+   Keeping the types separate is compatibility work, not catalogue padding. Turning the existing Delay's
+   ports stereo would make a centred mono cable feed two identical lines and change the sound of every old
+   patch. The new type breaks that symmetry deliberately while `delay` stays sample-for-sample itself.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
