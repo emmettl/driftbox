@@ -560,6 +560,63 @@ The UI starts inside the app rather than as a third published package. Faceplate
 to live next to the app's existing knob components, and the cable layer has no shape yet to
 design a package boundary around.
 
+## A third host: the rack without a browser
+
+There were two hosts and both of them are Web Audio. `Rack` wraps an `AudioWorkletNode` on a live
+context; `renderPatch` does the same on an `OfflineAudioContext`. Neither is reachable from a game
+server, a Node process, or anything embedding a JS engine to make sound with — and the awkward part
+was that the rack could already do it. `Graph` is arithmetic over `Float32Array`s: `graph.test.ts`
+has run the whole thing in Node since the first week, measuring the samples that came out.
+
+So the capability existed and only the API did not. An embedder following the tests had to reach for
+`compile` and `Graph`, which `index.ts` lists in the tier this package explicitly does not promise,
+and to reassemble the registry into the `{modules, deps}` shape the Graph wants — a detail of how the
+worklet is built that nobody outside should have to know. `headless.ts` is that path made supported.
+
+**It is not a second engine, and that is the property worth defending.** Same `compile`, same module
+processors, same `Graph`. `worklet.test.ts` already pins that the assembled worklet produces the same
+samples as the graph running in-process, so all three hosts are one piece of arithmetic reached three
+ways; `headless.test.ts` pins the facade against a hand-driven Graph so it stays that way. A fourth
+implementation of the DSP for headless use would have been the obvious build and would have started
+drifting on the first module anybody touched.
+
+**What does not travel is the groovebox.** A patch's 808, 909 and 303s arrive on the host inputs from
+`@driftbox/engine`, whose renderer builds Web Audio nodes per hit — so headless you get the rack's own
+modules, and `hostInputs` on `process` is the seam anything else fills. That is a real limit on the
+"strict superset" claim outside a browser, and it is a limit of the engine's shape rather than of this.
+
+Measured on the machine this was written on: a shipped preset renders at about 20x realtime at 48kHz,
+which is a few percent of one core. `examples/headless.mjs` is that measurement, runnable.
+
+### Following a scene, without swapping patches
+
+The obvious way to make music adapt is to keep several patches and swap between them. **It is wrong
+here, and specifically wrong**: applying a plan rebuilds every processor, so an oscillator's phase, a
+filter's history and an envelope's stage all restart. A swap is a hard cut with a click on it. That is
+recorded at `Graph.setPlan`, along with the note that preserving state across an edit needs module
+identity across two plans, which the compiler does not carry.
+
+So `adaptive.ts` moves parameters **inside one patch**, which this rack is unusually well set up for: a
+Combinator rotary already reaches any parameter of any module through the patch's own `modulation`
+list — including stepped ones no cable can touch — and a Tracker's `pattern` param already selects one
+of eight patterns on the next step edge. What was missing was the mapping from a host's number to those
+knobs, and the rule about *when* each one may move:
+
+- **Continuous** — a level, a cutoff, a send — moves now, and the Graph ramps it across the block that
+  follows, so it slides rather than clicks.
+- **Discrete** — a pattern index, a waveform, a mute — moves on the **bar line**. A drum pattern that
+  changes on beat three is not a transition, and no amount of ramping fixes it, because there is nothing
+  between pattern 2 and pattern 3 to ramp through.
+
+It holds no clock. The caller says where the beat is, because the caller is the only one who knows
+whether it is driving a live `Rack` off `ctx.currentTime` or a `RackRenderer` running faster than real
+time. And it sends only what changed: a game's update loop runs at frame rate, and every send across a
+live `Rack` is a `postMessage` the audio thread has to drain.
+
+**What it is not** is a sequencer. Nothing here decides notes. A score is a list of curves onto knobs,
+which is the smallest thing that makes the rack follow a scene — and the largest thing that can be added
+without inventing a second place where music is decided.
+
 ## Other people's modules: the Wasm question
 
 Reading a VCV Rack `.vcv` patch is feasible and cheap. It is a zip with a `patch.json`

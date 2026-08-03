@@ -52,6 +52,14 @@ export type {
   ModuleDef,
   MeterReading,
 } from './types.js'
+export type {
+  AdaptiveChange,
+  AdaptiveControl,
+  AdaptiveHost,
+  AdaptivePoint,
+  AdaptiveScore,
+} from './adaptive.js'
+export type { RackRendererOptions, RenderedAudio } from './headless.js'
 
 // ---- Tier 2: still moving ---------------------------------------------------------------
 //
@@ -131,6 +139,8 @@ export {
 } from './modules/vocoder.js'
 export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './worklet.js'
 export { renderLength, renderPatch, type RenderOptions } from './render.js'
+export { RackRenderer } from './headless.js'
+export { Adaptive, adaptiveValue, adaptiveValues } from './adaptive.js'
 
 export const EMPTY_PATCH: Patch = { modules: [], cables: [] }
 /** Host input 4 is reserved for a browser MediaStream; 0..3 are the groovebox sections. */

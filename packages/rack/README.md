@@ -43,6 +43,65 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 ctx.createMediaStreamSource(stream).connect(rack.input(RACK_LIVE_INPUT))
 ```
 
+## Embedding it: a third host
+
+`Rack` and `renderPatch` are both Web Audio — a live context and an offline one. The DSP is not: `Graph` is
+arithmetic over `Float32Array`s, so a patch can be rendered anywhere JavaScript runs. `RackRenderer` is that
+path, made supported, so an embedder is not reaching for `compile` and `Graph` — the tier this package
+explicitly does not promise — and reassembling the module registry by hand.
+
+```js
+import { RackRenderer, PATCHES } from '@driftbox/rack'
+
+const renderer = new RackRenderer({ sampleRate: 48000 })
+renderer.patch = PATCHES[0].build()
+renderer.setTransport(renderer.patch.tempo ?? 120, true)
+
+const block = [new Float32Array(128), new Float32Array(128)]
+renderer.process(block)          // fill your own buffers, forever
+const file = renderer.render(8)  // or render a stretch in one call
+```
+
+It is the same `compile`, the same modules and the same `Graph` the worklet runs — not a second
+implementation — and `headless.test.ts` pins that the two produce identical samples.
+
+**The groovebox does not come with it.** A patch's 808, 909 and 303s arrive on the host inputs from
+`@driftbox/engine`, whose renderer is Web Audio from end to end, so headless you get the rack's own modules
+and whatever you feed `process`'s `hostInputs`. In a browser, both halves work as they always have.
+
+`examples/headless.mjs` renders a shipped patch to a WAV and prints what it cost. On this machine a full
+preset is around 20x realtime at 48kHz — a few percent of one core.
+
+## Following a scene
+
+A game has a number describing how things are going and wants the music to know. `Adaptive` is the mapping
+from that number to the patch's knobs, and the rule about when each one is allowed to move.
+
+```js
+import { Adaptive } from '@driftbox/rack'
+
+const score = new Adaptive(rack, {
+  controls: [
+    { target: ['macro', 'rotary1'], points: [{ at: 0, value: 0 }, { at: 1, value: 127 }] },
+    { target: ['drums', 'pattern'], points: [{ at: 0, value: 0 }, { at: 1, value: 3 }],
+      onBar: true, step: true },
+  ],
+})
+
+score.update(danger, rack.beat)   // in the game's update loop
+```
+
+**It moves parameters inside one patch rather than swapping patches**, and that is the load-bearing
+decision. Applying a plan rebuilds every processor, so a patch swap restarts oscillator phase, filter state
+and envelope stages — a hard cut with a click on it. A Combinator rotary already reaches any parameter of
+any module, including the stepped ones no cable can touch, so there is nothing a swap would buy.
+
+The other rule is *when*. A level or a cutoff moves at once and the Graph ramps it across the block, so it
+slides. A pattern index or a waveform waits for the bar line, because a drum pattern that changes on beat
+three is not a transition. `onBar` is that, and it is the only thing `update`'s `beat` argument is read for.
+
+Call `update` as often as you like: it sends only what changed, so a steady scene costs nothing.
+
 ## Why it is not part of `@driftbox/engine`
 
 That engine is trigger-shaped: a voice is a pure function from knobs to a `VoiceSpec`, and
@@ -143,6 +202,8 @@ None of them need a browser.
 | `worklet.test.ts` | The assembled worklet source, evaluated in a scope of its own, asserting it produces the same samples as the graph running in-process |
 | `keys.test.ts` | That module and port names containing spaces, quotes or a NUL cannot be confused for one another |
 | `api.test.ts` | The exported names, in two tiers. Adding an export fails it by name, which is the point |
+| `headless.test.ts` | The browser-free host: that it makes sound with no `AudioContext` defined at all, that it is sample-for-sample the same as driving the Graph by hand, that a scheduled change lands mid-block, and that its musical position survives a tempo change |
+| `adaptive.test.ts` | The score: what a curve reads, that it holds the end rather than extrapolating, that a bar-locked control waits and lands on the value wanted *at* the bar, that a seek counts as a boundary, and that a steady scene sends nothing |
 | `modulation.test.ts` | Combinator routing: which of two routes onto one target wins, what a route onto a stepped param lands on, that a chain sees the value an earlier route wrote, that a cycle settles rather than oscillating, and that a route this build cannot resolve survives a round trip |
 | per-module | The claims each module's comments make: alias suppression against an additive reference, the pink slope, every ADSR time knob against a stopwatch, the delay's interpolation, the quantizer's octave boundaries |
 
