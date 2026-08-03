@@ -178,7 +178,9 @@ Ordered by return, not by how big Reason's version was.
 
   **Note Echo has landed** as a polyphonic pitch/gate/velocity transform: free or tempo-synced spacing,
   one to sixteen repeats, semitone movement, a linear velocity slope, gate length, dry mute and a portable
-  seventeen-step enable pattern. Each input voice repeats independently, so ordinary chords echo together.
+  seventeen-step enable pattern. Echo Matrix draws that pattern as velocity-scaled pulses, keeps muted
+  echoes on the timeline, and leaves all eight playback controls on the same faceplate. Each input voice
+  repeats independently, so ordinary chords echo together.
   The fixed-voice CV graph still cannot express Reason's zero-length cluster trick, where one input note
   becomes several simultaneous output voices; that remains part of the same structural expansion as a
   held-chord arpeggiator.

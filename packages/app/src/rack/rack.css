@@ -4058,6 +4058,141 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   border-top: 1px solid rgba(174, 156, 255, 0.12);
 }
 
+/* ---- Echo Matrix note player -------------------------------------------------- */
+.rk-echo-title {
+  position: relative;
+  align-items: center;
+}
+
+.rk-echo-model {
+  color: var(--three);
+  font: 8px var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.rk-echo-readout {
+  position: absolute;
+  right: 126px;
+  color: rgba(255, 224, 153, 0.74);
+  font: 8px var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rk-echo-display {
+  position: relative;
+  height: 106px;
+  flex: 0 0 106px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 176, 46, 0.22);
+  border-radius: 6px;
+  background:
+    linear-gradient(rgba(255, 176, 46, 0.055) 1px, transparent 1px),
+    radial-gradient(circle at 50% 100%, rgba(99, 61, 12, 0.34), rgba(10, 6, 2, 0.95));
+  background-size: 100% 22px, auto;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.72);
+}
+
+.rk-echo-scale {
+  position: absolute;
+  inset: 9px 9px 23px;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  pointer-events: none;
+}
+
+.rk-echo-scale i {
+  border-top: 1px solid rgba(255, 176, 46, 0.08);
+}
+
+.rk-echo-steps {
+  position: absolute;
+  inset: 8px 9px 23px;
+  display: grid;
+  grid-template-columns: repeat(17, minmax(0, 1fr));
+  align-items: end;
+  gap: 2px;
+}
+
+.rk-echo-step {
+  position: relative;
+  height: 66px;
+  min-width: 0;
+  padding: 0;
+  color: rgba(232, 228, 255, 0.36);
+  border: 1px solid rgba(232, 228, 255, 0.1);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+}
+
+.rk-echo-step i {
+  position: absolute;
+  right: 3px;
+  bottom: 13px;
+  left: 3px;
+  min-height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: rgba(157, 149, 200, 0.16);
+}
+
+.rk-echo-step span {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  font: 7px var(--mono);
+  text-align: center;
+}
+
+.rk-echo-step-on[data-active='yes'] {
+  color: #2b1700;
+  border-color: rgba(255, 176, 46, 0.72);
+  background: rgba(255, 176, 46, 0.12);
+  box-shadow: 0 0 7px rgba(255, 176, 46, 0.18);
+}
+
+.rk-echo-step-on[data-active='yes'] i {
+  background: linear-gradient(#ffdf94, var(--three));
+  box-shadow: 0 0 7px rgba(255, 176, 46, 0.55);
+}
+
+.rk-echo-step[data-active='yes']:hover {
+  border-color: #ffdf94;
+}
+
+.rk-echo-step[data-active='no'] {
+  opacity: 0.22;
+  cursor: default;
+}
+
+.rk-echo-legend {
+  position: absolute;
+  right: 9px;
+  bottom: 5px;
+  left: 9px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--dim);
+  font: 7px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rk-echo-legend strong {
+  color: var(--three);
+  font-weight: 400;
+}
+
+.rk-echo-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 58px);
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 176, 46, 0.12);
+}
+
 /* A patch holding somebody's own file cannot travel in a link, and saying so beats sharing a broken one. */
 .rk-nolink {
   margin: 0 0 0 auto;

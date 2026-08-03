@@ -9,6 +9,7 @@ import { Looper } from './Looper.js'
 import { Midi } from './Midi.js'
 import { Meter } from './Meter.js'
 import { Multisampler } from './Multisampler.js'
+import { NoteEcho } from './NoteEcho.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
 import { Tracker } from './Tracker.js'
@@ -68,6 +69,9 @@ const FACEPLATES: Record<string, Entry> = {
   // Key/velocity map, selected-zone editor and five performance controls. Taller than the break sampler
   // because the map is two-dimensional and loop points belong to each recording rather than to the device.
   multisampler: { component: Multisampler, rows: 6 },
+  // Seventeen repeat pulses plus all eight playback controls. Two control rows keep the selectors and
+  // knobs at the same touch size as every other device instead of shrinking them to fit one line.
+  'note-echo': { component: NoteEcho, rows: 5 },
   out: { component: Out, span: 1 },
   // The waveform, direct slice picker and sample interpretation controls make this an instrument rather
   // than a file-name strip. Four rows keep those controls touchable without overflowing the fixed rack slot.

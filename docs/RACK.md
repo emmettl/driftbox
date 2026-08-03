@@ -1588,8 +1588,9 @@ both bundle cost on the editing-only path and visual competition with a readable
    tempo sync covers 1/128 through 1/2 notes. One to sixteen echoes can move by ±12 semitones per repeat,
    follow a linear 10–200% velocity slope and use a gate fraction that always leaves a real retrigger edge.
 
-   Dry plus sixteen repeat enables are portable `PatchModule.data`, even before a custom panel exists. That
-   separates the playback contract from its eventual step display and lets a host mute repeats without a
+   Dry plus sixteen repeat enables are portable `PatchModule.data`. The stacked Echo Matrix faceplate draws
+   them as velocity-scaled pulses, makes every active one directly muteable and still exposes all eight
+   playback params. Keeping the pattern in patch data rather than UI state lets any host edit it without a
    processor change. A retrigger on an already allocated voice starts a fresh train, which is the honest
    boundary of this graph: it repeats input chords voice-for-voice, but cannot turn one note into simultaneous
    zero-delay cluster voices. That expansion belongs with the held-chord player work, not in a fake CV sum.
