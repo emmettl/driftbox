@@ -24,13 +24,14 @@ interface Props {
   /** Overrides `def.labels`, for a hand-built faceplate that wants different words. Most do not — the
    *  def is the better place for them, because then the generic faceplate gets them too. */
   options?: readonly string[]
-  /** A Combinator rotary is driving this. Marked, never disabled — see `FaceplateProps.routed`. */
+  /** Something other than this knob is driving it — a Combinator rotary, or a recorded lane playing back.
+   *  Marked, never disabled — see `FaceplateProps.routed`. */
   routed?: boolean
 }
 
 export function ParamControl({ def, value, onChange, colour, options, routed }: Props) {
   const mark = routed
-    ? { 'data-routed': 'yes', title: `${def.name} is driven by a Combinator` }
+    ? { 'data-routed': 'yes', title: `${def.name} is driven by something other than this knob` }
     : undefined
 
   if (def.stepped) {

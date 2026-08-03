@@ -300,10 +300,27 @@ from the context clock rather than reported from the worklet, so it exists wheth
 screen) and a lookahead scheduler. The scheduler's 100ms tick decides only how far ahead work is done and
 never where a value lands — that is what the frame is for.
 
-One consequence worth stating plainly: **playback never goes through the patch**, so a knob does not move
-on screen while its lane plays. That is deliberate — a lane played back through `setParam` would record
-itself, one point per tick, for ever — and it is the same road a MIDI note already takes, with the same
-visible result. A live-value channel would fix both at once, and is one piece of work rather than two.
+**Playback never goes through the patch**, and that is deliberate: a lane played back through `setParam`
+would record itself, one point per tick, for ever. It takes the road a MIDI note takes.
+
+The knob still moves ✅ — `app/src/rack/live.ts`, and the shape of it is the part worth keeping. The
+obvious build was to grow the meter channel so the audio thread reports its current values, and it would
+have worked. It is worse three ways: it grows the ABI, which this file says to resist; it puts a few
+hundred floats a second on `postMessage` for something purely visual; and the reading would be a sample of
+the *past* while the schedule is the future, so the panel could disagree with the sound.
+
+**The host already has the lane and the playhead that decided what the audio thread was told.** Reading
+the same lane at the same position is the same arithmetic, so the knob and the sound are one number
+computed twice and cannot drift. No message, no ABI change, and it settles at exactly the moment playback
+does. `Driven.tsx` applies it in the one place the Chassis decides what `value` means, so every faceplate
+gets it and none of them changed — the same property that lets a module be added with no UI work at all.
+
+A correction worth recording, because it changed the design: the note above used to say a MIDI-driven
+param was invisible in the same way and that one channel would fix both. **It was wrong.** The MIDI
+module's note, gate and velocity are `hidden`, so no faceplate ever draws them; a learned CC goes through
+`setParam` and was always visible; a Combinator routing moves the patch. A lane was the only driver a
+panel could not see, and checking that rather than trusting it is what turned a general reporting channel
+into thirty lines of arithmetic.
 
 The message set is the ABI: `plan`, `param`, `transport`, `monitor` and `data`. Resist growing it — the
 frame is a field on a message that already existed, not a sixth kind, and that is the shape any further

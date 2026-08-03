@@ -16,7 +16,8 @@ export interface FaceplateProps {
   /** Move a knob. Reaches the audio thread this block; does not rebuild the graph. */
   onChange: (paramId: string, value: number) => void
   /**
-   * Whether a Combinator routing is driving this param.
+   * Whether something other than this knob is driving this param — a Combinator routing, or a recorded
+   * lane playing back.
    *
    * The one addition to this contract that is not about the module itself, and it earns its place: a knob
    * that moves on its own and snaps back when you grab it is a bug until you know why. Marking it is the

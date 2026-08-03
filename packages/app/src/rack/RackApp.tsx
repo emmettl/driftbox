@@ -9,6 +9,7 @@ import {
   renderRetainedSongMix,
   patchCompatibility,
   pointsIn,
+  valueAt,
   renderPatch,
   type Patch,
 } from '@driftbox/rack'
@@ -18,6 +19,7 @@ import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
 import { sizeFor } from './faceplates/index.js'
 import { layout } from './layout.js'
+import { clearLive, publishLive } from './live.js'
 import { moveTo, stepAt, STOPPED, timeOfStep, type Playhead } from './playhead.js'
 import { Palette } from './Palette.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
@@ -1142,6 +1144,48 @@ export default function RackApp() {
     tick()
     const timer = window.setInterval(tick, 100)
     return () => window.clearInterval(timer)
+  }, [playing])
+
+  /**
+   * Move the knobs the lanes are driving.
+   *
+   * The same lane and the same playhead that decided what the audio thread was told, read again for the
+   * screen — so the panel and the sound are the same number computed twice rather than two channels that
+   * can disagree. See `live.ts` for why this is derived here instead of reported from the worklet.
+   *
+   * An animation frame rather than the scheduler's 100ms tick: this is only ever a picture, and a knob
+   * that stepped ten times a second would read as a broken knob rather than a moving one.
+   */
+  useEffect(() => {
+    if (!playing) {
+      clearLive()
+      return
+    }
+    let frame = 0
+    const draw = () => {
+      frame = requestAnimationFrame(draw)
+      const ctx = rack.current?.output?.context
+      const lanes = useRack.getState().patch.automation
+      if (!ctx || !lanes || lanes.length === 0) return clearLive()
+      const at = stepAt(playhead.current, ctx.currentTime)
+      const next = new Map<string, Record<string, number>>()
+      for (const lane of lanes) {
+        const value = valueAt(lane, at)
+        // Undefined before a lane's first point, which is what leaves the knob its own value until the
+        // recording actually starts. Publishing a number there would take the knob over at the top of the
+        // arrangement, which is precisely what `valueAt` refuses to do.
+        if (value === undefined) continue
+        const forModule = next.get(lane.target[0]) ?? {}
+        forModule[lane.target[1]] = value
+        next.set(lane.target[0], forModule)
+      }
+      publishLive(next)
+    }
+    frame = requestAnimationFrame(draw)
+    return () => {
+      cancelAnimationFrame(frame)
+      clearLive()
+    }
   }, [playing])
 
   useEffect(() => {
