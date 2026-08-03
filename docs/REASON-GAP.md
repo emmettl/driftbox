@@ -189,7 +189,8 @@ Ordered by return, not by how big Reason's version was.
   than a second `Quantizer`: key and scale are sampled at each gate edge, out-of-scale notes move to the
   nearest valid pitch with downward tie-breaking, or Filter mode silences them. All thirteen Reason presets,
   Chromatic and a portable twelve-note Custom mask are present. Pitch bend remains live after the decision,
-  and each incoming chord voice is corrected independently.
+  and each incoming chord voice is corrected independently. The Scale Map faceplate makes the selected notes
+  visible in the current key; clicking any note copies a preset into Custom and edits it in place.
 
   Still absent: the chord half — one input voice becoming one to five simultaneous, scale-built voices,
   with inversion, open voicing and added colour/octaves. That needs the same honest voice-cardinality work

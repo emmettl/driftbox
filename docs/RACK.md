@@ -1602,10 +1602,16 @@ both bundle cost on the editing-only path and visual competition with a readable
    it in Filter mode. The scale decision is latched on the gate edge while the correction remains an offset,
    so pitch bend still moves a held note instead of being frozen out.
 
-   Custom scales are twelve portable enable flags in `PatchModule.data`, ready for a keyboard faceplate
-   without putting UI state into the processor contract. The module runs once per rack voice, so an incoming
+   Custom scales are twelve portable enable flags in `PatchModule.data`, keeping editor state out of the
+   processor contract. The module runs once per rack voice, so an incoming
    chord stays polyphonic and every note is corrected independently. Generating a multi-note chord from one
    voice remains separate: it needs an event/voice expansion layer, not several pitch CVs summed together.
+
+   Scale Map completes the editing path: twelve pitch-class keys show the preset after the selected root is
+   applied, with explicit note names and correction/filter status. Clicking a key copies the visible preset
+   into Custom before toggling it, so exploring a variation takes one gesture and never destroys the factory
+   shape. The last enabled note cannot be removed; missing or damaged custom data falls back to Major on both
+   the processor and panel instead of turning the device silently unusable.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
