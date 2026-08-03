@@ -1,6 +1,7 @@
 import {
   MIDI_INPUTS,
   MODULES,
+  multisampleSlot,
   GROOVEBOX_PORTS,
   RACK_LIVE_INPUT,
   LanePlayer,
@@ -9,6 +10,7 @@ import {
   grooveboxSong,
   renderRetainedSongMix,
   patchCompatibility,
+  packMultisampleZones,
   valueAt,
   renderPatch,
   type Patch,
@@ -33,6 +35,7 @@ import {
   toWav,
 } from '@driftbox/engine'
 import { guessBars, normalise, sampleName, tempoForBars, toMono, waveformPeaks } from './sample.js'
+import { suggestMultisampleZones } from './multisample.js'
 import { KeyboardBank, midiTargets, openMidi, type MidiHandle } from '../midi.js'
 import { publishMeters } from './meter.js'
 import { ccValue, targets as ccTargets } from '../midi-cc.js'
@@ -287,6 +290,7 @@ export default function RackApp() {
   /** Selected as the object, filtered outside. A selector that builds a new array returns a different
    *  reference every call and re-renders for ever — this app has had that bug once already. */
   const samples = useRack((s) => s.samples)
+  const multisamples = useRack((s) => s.multisamples)
   /**
    * What the AudioContext says about itself.
    *
@@ -565,6 +569,8 @@ export default function RackApp() {
    * needs it back.
    */
   const sampleAudio = useRef(new Map<string, Float32Array>())
+  /** Multisampler PCM, retained for export just like `sampleAudio`, ordered to match `sampleN` slots. */
+  const multisampleAudio = useRef(new Map<string, readonly Float32Array[]>())
   /** One raw-sample audition at a time, independent of the rack transport and patch cables. */
   const samplePreviewContext = useRef<AudioContext | null>(null)
   const samplePreviewSource = useRef<AudioBufferSourceNode | null>(null)
@@ -676,6 +682,46 @@ export default function RackApp() {
     useRack.getState().setSampleLoader(loadSampleInto)
   }, [loadSampleInto])
 
+  /** Decode a batch, infer its root/range/layer map, and push every recording into one Multisampler. */
+  const loadMultisamplesInto = useCallback(async (moduleId: string, files: readonly File[]) => {
+    if (files.length === 0) return
+    stopSamplePreview()
+    const decoded = await Promise.all(
+      files.map(async (file) => {
+        const bytes = await file.arrayBuffer()
+        const decoder = new OfflineAudioContext(1, 1, 44100)
+        const audio = await decoder.decodeAudioData(bytes)
+        const samples = normalise(toMono(audio))
+        return {
+          samples,
+          info: {
+            name: sampleName(file.name),
+            seconds: audio.length / audio.sampleRate,
+            sampleRate: audio.sampleRate,
+            peaks: waveformPeaks(samples, 48),
+          },
+        }
+      }),
+    )
+
+    const zones = suggestMultisampleZones(
+      decoded.map(({ info }) => ({ name: info.name, sampleRate: info.sampleRate })),
+    )
+    multisampleAudio.current.set(moduleId, decoded.map(({ samples }) => samples))
+    useRack.getState().setMultisamples(moduleId, decoded.map(({ info }) => info))
+    // Zone metadata is document state; PCM is deliberately session-only. The store subscription pushes
+    // `zones`, while these direct sends transfer copies of the retained audio into the live graph.
+    useRack.getState().setData(moduleId, 'zones', packMultisampleZones(zones))
+    for (let index = 0; index < decoded.length; index++) {
+      rack.current?.setData(moduleId, multisampleSlot(index), decoded[index].samples.slice())
+    }
+    setRunning(true)
+  }, [setRunning, stopSamplePreview])
+
+  useEffect(() => {
+    useRack.getState().setMultisampleLoader(loadMultisamplesInto)
+  }, [loadMultisamplesInto])
+
   /**
    * A library load can replace a hosted song with another song or a native patch after
    * audio has started. Rebuild only when the retained envelope changes; adding a cable
@@ -735,6 +781,11 @@ export default function RackApp() {
     // export something other than what is playing.
     for (const [moduleId, samples] of sampleAudio.current) {
       data[moduleId] = { sample: samples.slice() }
+    }
+    for (const [moduleId, samples] of multisampleAudio.current) {
+      data[moduleId] = Object.fromEntries(
+        samples.map((sample, index) => [multisampleSlot(index), sample.slice()]),
+      )
     }
     if (entry) {
       const rendered = await renderBreak(entry, { sampleRate: 44100 })
@@ -970,6 +1021,17 @@ export default function RackApp() {
 
     live.patch = useRack.getState().patch
     rack.current = live
+    // Files may be decoded before the first Start gesture. Their PCM is retained specifically because
+    // `setData` transfers buffers, so hydrate the new audio thread now; patch metadata was already seeded by
+    // `live.patch`. This also closes the same pre-start hole for the original break Sampler.
+    for (const [moduleId, samples] of sampleAudio.current) {
+      live.setData(moduleId, 'sample', samples.slice())
+    }
+    for (const [moduleId, samples] of multisampleAudio.current) {
+      for (let index = 0; index < samples.length; index++) {
+        live.setData(moduleId, multisampleSlot(index), samples[index].slice())
+      }
+    }
     if (hosted) routeGrooveboxSources(hosted, live, currentPatch)
     // A guitar preset should become an instrument from the same gesture that starts
     // audio. The permission prompt is still the browser's, and a refusal leaves the rack
@@ -1229,10 +1291,13 @@ export default function RackApp() {
   /** Samples that came from somebody's own file rather than a shipped break. Only these break a link. */
   const loadedFiles = useMemo(
     () =>
-      Object.values(samples)
-        .filter((entry) => entry.source === 'file')
-        .map((entry) => entry.name),
-    [samples],
+      [
+        ...Object.values(samples)
+          .filter((entry) => entry.source === 'file')
+          .map((entry) => entry.name),
+        ...Object.values(multisamples).flatMap((entries) => entries.map((entry) => entry.name)),
+      ],
+    [multisamples, samples],
   )
 
   const placeholders = useMemo(

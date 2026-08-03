@@ -8,6 +8,7 @@ import { Ladder } from './Ladder.js'
 import { Looper } from './Looper.js'
 import { Midi } from './Midi.js'
 import { Meter } from './Meter.js'
+import { Multisampler } from './Multisampler.js'
 import { Out } from './Out.js'
 import { Sampler } from './Sampler.js'
 import { Tracker } from './Tracker.js'
@@ -64,6 +65,9 @@ const FACEPLATES: Record<string, Entry> = {
   looper: { component: Looper, rows: 3 },
   midi: { component: Midi, span: 1, rows: 2 },
   meter: { component: Meter, rows: 3 },
+  // Key/velocity map, selected-zone editor and five performance controls. Taller than the break sampler
+  // because the map is two-dimensional and loop points belong to each recording rather than to the device.
+  multisampler: { component: Multisampler, rows: 6 },
   out: { component: Out, span: 1 },
   // The waveform, direct slice picker and sample interpretation controls make this an instrument rather
   // than a file-name strip. Four rows keep those controls touchable without overflowing the fixed rack slot.

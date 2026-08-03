@@ -610,6 +610,19 @@ describe('making somewhere to put a break', () => {
     expect(after.modules.find((m) => m.id === intoPitch[0].from[0])!.type).toBe('midi')
   })
 
+  it('patches pitch, gate and velocity straight into a multisample instrument', () => {
+    const patch: Patch = {
+      modules: [{ id: 'keys', type: 'multisampler' }],
+      cables: [],
+    }
+    useRack.setState({ patch, revision: 0 })
+    const id = useRack.getState().ensureMidi()!
+    const cables = useRack.getState().patch.cables.map((c) => `${c.from.join('.')}>${c.to.join('.')}`)
+    expect(cables).toContain(`${id}.pitch>keys.pitch`)
+    expect(cables).toContain(`${id}.gate>keys.gate`)
+    expect(cables).toContain(`${id}.velocity>keys.velocity`)
+  })
+
   it('gates a VCA directly when there is no envelope to open', () => {
     // Otherwise a patch with no ADSR would drone: the note would change pitch and nothing would ever
     // articulate it.
@@ -678,6 +691,22 @@ describe('previewing a loaded sample', () => {
 
     useRack.getState().setPreviewingSample(null)
     useRack.getState().setSamplePreviewer(null)
+  })
+})
+
+describe('loading a multisample set', () => {
+  it('bridges the host decoder and its display-only metadata into the faceplate store', () => {
+    const load = async () => {}
+    const entries = [{ name: 'Piano_C4', seconds: 1, sampleRate: 48_000, peaks: [0, 1] }]
+    useRack.getState().setMultisampleLoader(load)
+    useRack.getState().setMultisamples('keys', entries)
+
+    expect(useRack.getState().loadMultisamplesInto).toBe(load)
+    expect(useRack.getState().multisamples.keys).toBe(entries)
+
+    useRack.getState().setMultisamples('keys', null)
+    useRack.getState().setMultisampleLoader(null)
+    expect(useRack.getState().multisamples.keys).toBeUndefined()
   })
 })
 

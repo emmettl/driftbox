@@ -3787,6 +3787,277 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   font: 8px var(--mono);
 }
 
+/* ---- Key Atlas multisample instrument -----------------------------------------
+ *
+ * The map uses the same axes as the data: 128 keys across, velocity from bottom to top. Zone blocks are
+ * real buttons rather than canvas paint so an instrument remains selectable with a keyboard or screen reader.
+ */
+.rk-multi-title {
+  position: relative;
+  align-items: center;
+}
+
+.rk-multi-model {
+  color: #ae9cff;
+  font: 8px var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.rk-multi-map {
+  position: relative;
+  height: 88px;
+  flex: 0 0 88px;
+  overflow: hidden;
+  border: 1px solid rgba(174, 156, 255, 0.28);
+  border-radius: 6px;
+  background:
+    linear-gradient(rgba(174, 156, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(174, 156, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 50% 100%, rgba(70, 50, 130, 0.32), rgba(4, 3, 12, 0.96));
+  background-size: 100% 22px, 12px 100%, auto;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.72);
+}
+
+.rk-multi-map[data-empty='yes'] {
+  height: 212px;
+  flex: 0 0 212px;
+  border-style: dashed;
+  border-color: rgba(174, 156, 255, 0.3);
+}
+
+.rk-multi-map[data-dragging='yes'] {
+  border-color: #ae9cff;
+  box-shadow: inset 0 0 28px rgba(174, 156, 255, 0.2), 0 0 0 1px rgba(174, 156, 255, 0.3);
+}
+
+.rk-multi-octaves {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  pointer-events: none;
+}
+
+.rk-multi-octaves i {
+  border-left: 1px solid rgba(255, 176, 46, 0.14);
+}
+
+.rk-multi-zone {
+  position: absolute;
+  min-width: 4px;
+  padding: 0;
+  overflow: hidden;
+  color: rgba(232, 228, 255, 0.78);
+  border: 1px solid rgba(174, 156, 255, 0.52);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(174, 156, 255, 0.3), rgba(75, 54, 145, 0.45));
+  box-shadow: inset 0 0 7px rgba(174, 156, 255, 0.12);
+  cursor: pointer;
+}
+
+.rk-multi-zone:hover,
+.rk-multi-zone-on {
+  z-index: 2;
+  color: #0d0921;
+  border-color: #d9d0ff;
+  background: linear-gradient(180deg, #d9d0ff, #9681ed);
+  box-shadow: 0 0 9px rgba(174, 156, 255, 0.58);
+}
+
+.rk-multi-zone > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--three);
+  box-shadow: 0 0 4px rgba(255, 176, 46, 0.9);
+}
+
+.rk-multi-zone > span {
+  position: absolute;
+  left: 3px;
+  bottom: 1px;
+  font: 7px var(--mono);
+  pointer-events: none;
+}
+
+.rk-multi-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rk-multi-empty strong {
+  font: 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rk-multi-empty span {
+  color: var(--dim);
+  font: 8px var(--mono);
+}
+
+.rk-multi-toolbar {
+  height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rk-multi-toolbar button {
+  height: 22px;
+  flex: 0 0 auto;
+  padding: 0 7px;
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  font: 9px var(--mono);
+  cursor: pointer;
+}
+
+.rk-multi-toolbar button:hover:not(:disabled) {
+  color: #d9d0ff;
+  border-color: rgba(174, 156, 255, 0.65);
+}
+
+.rk-multi-toolbar strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #d9d0ff;
+  font: 9px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-multi-toolbar small {
+  margin-left: auto;
+  color: var(--dim);
+  font: 7px var(--mono);
+  white-space: nowrap;
+}
+
+.rk-multi-editor {
+  position: relative;
+  min-height: 89px;
+  padding: 5px 6px;
+  overflow: hidden;
+  border: 1px solid rgba(174, 156, 255, 0.13);
+  border-radius: 5px;
+  background: rgba(5, 3, 14, 0.54);
+}
+
+.rk-multi-fields {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.rk-multi-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1px 4px;
+  color: var(--dim);
+  font: 7px var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rk-multi-field input {
+  grid-column: 1;
+  width: 100%;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  color: var(--ink);
+  border: 1px solid rgba(174, 156, 255, 0.2);
+  border-radius: 3px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.42);
+  font: 9px var(--mono);
+}
+
+.rk-multi-field input:focus {
+  border-color: #ae9cff;
+}
+
+.rk-multi-field small {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 18px;
+  color: var(--three);
+  font: 7px var(--mono);
+}
+
+.rk-multi-loop {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 83px 26px 1fr 1fr 26px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  color: var(--dim);
+  font: 7px var(--mono);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.rk-multi-loop label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.rk-multi-loop input[type='range'] {
+  width: 100%;
+  accent-color: #ae9cff;
+}
+
+.rk-multi-wave {
+  position: absolute;
+  z-index: 1;
+  right: 6px;
+  bottom: 2px;
+  left: 6px;
+  width: calc(100% - 12px);
+  height: 30px;
+  opacity: 0.2;
+}
+
+.rk-multi-wave rect {
+  fill: #ae9cff;
+}
+
+.rk-multi-wave .rk-multi-loop-window {
+  fill: var(--three);
+  opacity: 0.45;
+}
+
+.rk-multi-controls {
+  display: grid;
+  grid-template-columns: repeat(5, 58px);
+  align-items: center;
+  justify-content: center;
+  padding-top: 1px;
+  border-top: 1px solid rgba(174, 156, 255, 0.12);
+}
+
 /* A patch holding somebody's own file cannot travel in a link, and saying so beats sharing a broken one. */
 .rk-nolink {
   margin: 0 0 0 auto;

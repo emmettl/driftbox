@@ -1576,8 +1576,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    a patch never silently grows by megabytes. The module is explicitly polyphonic, which makes a chord
    one MIDI-to-Multisampler cable rather than a bank of manually duplicated samplers.
 
-   This is the playback and document contract. The editor still needs its stacked half: multi-file
-   loading, automatic root/range suggestions, and a faceplate for editing zones and loop points.
+   The stacked editor completes the human half. Key Atlas accepts a multi-file picker or drop, recognises
+   note names, MIDI numbers and dynamic/velocity suffixes in filenames, fills the ranges between roots,
+   and turns duplicate roots into velocity layers. Its two-dimensional map uses key horizontally and
+   velocity vertically; selecting a zone exposes exact root, low/high key, low/high velocity and sustain
+   loop points. The rack keyboard patches pitch, gate and velocity into the instrument on its first note.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
