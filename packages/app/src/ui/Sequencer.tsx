@@ -1,5 +1,5 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react'
-import { ALL_VOICES, flamAt, pcfAt, stepAt, type StepValue } from '@driftbox/engine'
+import { ALL_VOICES, pcfAt, trackLength, type StepValue } from '@driftbox/engine'
 import { useBox } from '../store'
 import { useLiveStep } from './useLiveStep'
 
@@ -60,7 +60,7 @@ export function Sequencer() {
     const target = document
       .elementFromPoint(event.clientX, event.clientY)
       ?.closest<HTMLButtonElement>('button[data-step]')
-    if (!target || target.dataset.voice !== stroke.voiceId) return
+    if (!target || target.disabled || target.dataset.voice !== stroke.voiceId) return
     const step = Number(target.dataset.step)
     if (!Number.isInteger(step) || step === stroke.last) return
 
@@ -89,79 +89,84 @@ export function Sequencer() {
           ))}
         </div>
       </div>
-      {voices.map((voice) => (
-        <div
-          key={voice.id}
-          className={`row${voice.id === selectedVoice ? ' selected' : ''}`}
-          onPointerDown={() => selectVoice(voice.id)}
-        >
-          <button
-            className="row-name"
-            onClick={() => audition(voice.id)}
-            title={`Audition ${voice.name}`}
-          >
-            {voice.name}
-          </button>
+      {voices.map((voice) => {
+        const laneLength = trackLength(pattern, voice.id)
+        return (
           <div
-            className="row-steps"
-            // Driven by the pattern rather than fixed at 16 in CSS, so a 15-step loop
-            // still fills the row instead of leaving a gap where step 16 used to be.
-            style={{ gridTemplateColumns: `repeat(${pattern.length}, minmax(0, 1fr))` }}
+            key={voice.id}
+            className={`row${voice.id === selectedVoice ? ' selected' : ''}`}
+            onPointerDown={() => selectVoice(voice.id)}
           >
-            {Array.from({ length: pattern.length }, (_, step) => {
-              const value = stepAt(pattern, voice.id, step)
-              const flam = view === 'tr909' && flamAt(pattern, voice.id, step)
-              const classes = [
-                'step',
-                value === 1 ? 'on' : '',
-                value === 2 ? 'accent' : '',
-                flam ? 'flam' : '',
-                step % 4 === 0 ? 'downbeat' : '',
-                live === step ? 'live' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')
-              return (
-                <button
-                  key={step}
-                  className={classes}
-                  data-step={step}
-                  data-voice={voice.id}
-                  onPointerDown={(event) => {
-                    if (view === 'tr909' && flamMode) {
-                      paint.current = null
+            <button
+              className="row-name"
+              onClick={() => audition(voice.id)}
+              title={`Audition ${voice.name}`}
+            >
+              {voice.name}
+            </button>
+            <div
+              className="row-steps"
+              style={{ gridTemplateColumns: `repeat(${pattern.length}, minmax(0, 1fr))` }}
+            >
+              {Array.from({ length: pattern.length }, (_, step) => {
+                const active = step < laneLength
+                const value = active ? pattern.tracks[voice.id]?.[step] ?? 0 : 0
+                const flam =
+                  active && view === 'tr909' && pattern.flams?.[voice.id]?.[step] === true
+                const classes = [
+                  'step',
+                  value === 1 ? 'on' : '',
+                  value === 2 ? 'accent' : '',
+                  flam ? 'flam' : '',
+                  step % 4 === 0 ? 'downbeat' : '',
+                  live !== null && live % laneLength === step ? 'live' : '',
+                  !active ? 'lane-tail' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+                return (
+                  <button
+                    key={step}
+                    className={classes}
+                    data-step={step}
+                    data-voice={voice.id}
+                    disabled={!active}
+                    onPointerDown={(event) => {
+                      if (view === 'tr909' && flamMode) {
+                        paint.current = null
+                        suppressClick.current = false
+                        return
+                      }
+                      paint.current = {
+                        pointer: event.pointerId,
+                        voiceId: voice.id,
+                        start: step,
+                        last: step,
+                        value: value === 0 ? 1 : 0,
+                        moved: false,
+                      }
                       suppressClick.current = false
-                      return
-                    }
-                    paint.current = {
-                      pointer: event.pointerId,
-                      voiceId: voice.id,
-                      start: step,
-                      last: step,
-                      // Starting on an empty pad paints normal hits. Starting on either
-                      // kind of hit erases, matching ReBirth's drag gesture.
-                      value: value === 0 ? 1 : 0,
-                      moved: false,
-                    }
-                    suppressClick.current = false
-                  }}
-                  onClick={() => {
-                    if (suppressClick.current) {
-                      suppressClick.current = false
-                      return
-                    }
-                    if (view === 'tr909' && flamMode) toggleFlamStep(voice.id, step)
-                    else toggleStep(voice.id, step)
-                  }}
-                  onDragStart={(event) => event.preventDefault()}
-                  aria-label={`${voice.name} step ${step + 1}${flam ? ', flam' : ''}`}
-                  aria-pressed={value !== 0}
-                />
-              )
-            })}
+                    }}
+                    onClick={() => {
+                      if (suppressClick.current) {
+                        suppressClick.current = false
+                        return
+                      }
+                      if (view === 'tr909' && flamMode) toggleFlamStep(voice.id, step)
+                      else toggleStep(voice.id, step)
+                    }}
+                    onDragStart={(event) => event.preventDefault()}
+                    aria-label={active
+                      ? `${voice.name} step ${step + 1}${flam ? ', flam' : ''}`
+                      : `${voice.name} step ${step + 1}, outside ${laneLength}-step lane`}
+                    aria-pressed={value !== 0}
+                  />
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
       <div className="row pcf-row">
         <span className="row-name" title="Pattern-controlled master filter">PCF</span>
         <div

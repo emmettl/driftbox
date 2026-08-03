@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react'
-import { SONGS } from '@driftbox/engine'
+import { SONGS, trackLength } from '@driftbox/engine'
 import { useBox } from '../store'
 import { PatternBar } from './PatternBar'
 import { PatternTools } from './PatternTools'
@@ -34,6 +34,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const song = useBox((s) => s.song)
   const view = useBox((s) => s.view)
   const editing = useBox((s) => s.editing)
+  const selectedVoice = useBox((s) => s.selectedVoice)
   const toggleTransport = useBox((s) => s.toggleTransport)
   const setBpm = useBox((s) => s.setBpm)
   const setSwing = useBox((s) => s.setSwing)
@@ -49,6 +50,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
   const copyShareLink = useBox((s) => s.copyShareLink)
   const resetSong = useBox((s) => s.resetSong)
   const setPatternLength = useBox((s) => s.setPatternLength)
+  const setDrumLaneLength = useBox((s) => s.setDrumLaneLength)
   const loadPreset = useBox((s) => s.loadPreset)
   const rendering = useBox((s) => s.rendering)
   const metronome = useBox((s) => s.metronome)
@@ -165,9 +167,7 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
       </button>
 
       <div className={`transport-more${more ? ' open' : ''}`}>
-      {/* Pattern length. The model always supported any length; this is the control that
-          was missing, and polymetric loops — a 15-step hat line against a 16-step kick —
-          come free from it. */}
+      {/* Pattern length owns the bar; each selected drum voice may loop inside it. */}
       <label className="field">
         <span>Steps</span>
         <input
@@ -180,6 +180,22 @@ export function TransportBar({ playRef, vibesRef }: TransportBarProps = {}) {
           title="Steps in this pattern"
         />
       </label>
+
+      {view !== 'bass' && pattern && (
+        <label className="field">
+          <span>Lane</span>
+          <input
+            type="number"
+            min={1}
+            max={pattern.length}
+            step={1}
+            value={trackLength(pattern, selectedVoice)}
+            onChange={(event) => setDrumLaneLength(Number(event.target.value))}
+            title="Steps in the selected drum lane"
+            aria-label="Selected drum lane steps"
+          />
+        </label>
+      )}
 
       <PatternTools />
 

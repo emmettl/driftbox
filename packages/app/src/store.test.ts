@@ -341,6 +341,24 @@ describe('pattern length', () => {
     useBox.getState().setPatternLength(8)
     expect(song().patterns.find((p) => p.id === 'neon')).toEqual(before)
   })
+
+  it('sets the selected drum lane independently and normalises it when the parent shrinks', () => {
+    useBox.setState({ selectedVoice: '808.ch' })
+    useBox.getState().setDrumLaneLength(15)
+    expect(song().patterns.find((p) => p.id === 'drift')!.trackLengths).toEqual({
+      '808.ch': 15,
+    })
+
+    useBox.getState().setPatternLength(12)
+    expect(song().patterns.find((p) => p.id === 'drift')!.trackLengths).toBeUndefined()
+  })
+
+  it('removes a lane override when it returns to the parent length', () => {
+    useBox.setState({ selectedVoice: '808.ch' })
+    useBox.getState().setDrumLaneLength(7)
+    useBox.getState().setDrumLaneLength(16)
+    expect(song().patterns.find((p) => p.id === 'drift')!.trackLengths).toBeUndefined()
+  })
 })
 
 describe('focused pattern tools', () => {

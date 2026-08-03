@@ -22,7 +22,6 @@ import {
   pcfAt,
   pcfDecaySeconds,
   pcfFrequency,
-  flamAt,
   randomizeBassLine,
   randomizeTrack,
   rotateBassLine,
@@ -33,8 +32,9 @@ import {
   setBassStepGate,
   setBassStepSlide,
   songBars,
-  stepAt,
+  setTrackLength,
   swingFor,
+  trackLength,
   toggleFlam,
   transposeBassLine,
   type BassParams,
@@ -432,23 +432,38 @@ export function GrooveboxPatternEditor({
           </select>
         </label>
         {!bass && voice && (
-          <label>
-            Voice
-            <select
-              aria-label="Drum voice to edit"
-              value={voice.id}
-              onChange={(event) => {
-                setWantedVoice(event.target.value)
-                setTapTarget(tapTarget(pattern.id, section, event.target.value))
-              }}
-            >
-              {voices.map((candidate) => (
-                <option value={candidate.id} key={candidate.id}>
-                  {candidate.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            <label>
+              Voice
+              <select
+                aria-label="Drum voice to edit"
+                value={voice.id}
+                onChange={(event) => {
+                  setWantedVoice(event.target.value)
+                  setTapTarget(tapTarget(pattern.id, section, event.target.value))
+                }}
+              >
+                {voices.map((candidate) => (
+                  <option value={candidate.id} key={candidate.id}>
+                    {candidate.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Lane steps
+              <input
+                type="number"
+                min={1}
+                max={pattern.length}
+                value={trackLength(pattern, voice.id)}
+                onChange={(event) =>
+                  save(setTrackLength(pattern, voice.id, Number(event.target.value)), true)
+                }
+                aria-label="Drum lane steps"
+              />
+            </label>
+          </>
         )}
         <span className="rk-groovebox-page">
           <button
@@ -499,16 +514,23 @@ export function GrooveboxPatternEditor({
             )
           }
 
-          const value = voice ? stepAt(pattern, voice.id, step) : 0
+          const laneLength = voice ? trackLength(pattern, voice.id) : pattern.length
+          const active = step < laneLength
+          const value = active && voice ? pattern.tracks[voice.id]?.[step] ?? 0 : 0
           const flam =
-            section === 'tr909' && voice ? flamAt(pattern, voice.id, step) : false
+            active && section === 'tr909' && voice
+              ? pattern.flams?.[voice.id]?.[step] === true
+              : false
           return (
             <button
               type="button"
               key={step}
-              data-state={stepState(value)}
+              data-state={active ? stepState(value) : 'inactive'}
               data-flam={flam ? 'yes' : undefined}
-              aria-label={`${voice?.name ?? 'Drum'} step ${step + 1}: ${stepState(value)}${flam ? ', flam' : ''}`}
+              disabled={!active}
+              aria-label={active
+                ? `${voice?.name ?? 'Drum'} step ${step + 1}: ${stepState(value)}${flam ? ', flam' : ''}`
+                : `${voice?.name ?? 'Drum'} step ${step + 1}: outside ${laneLength}-step lane`}
               onClick={() => {
                 if (!voice) return
                 save(
