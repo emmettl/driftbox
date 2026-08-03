@@ -47,6 +47,16 @@ const PROMISED = [
   'routeValue',
   'routedParams',
   'sourcePosition',
+  // Recorded parameter moves, which are also part of the document, and for the same reason: reading or
+  // writing a lane is arithmetic on a patch rather than anything the audio thread owns.
+  'STEPS_PER_BAR',
+  'stepOf',
+  'laneFor',
+  'setPoint',
+  'clearLane',
+  'valueAt',
+  'pointsIn',
+  'automationLength',
   // Rendering a patch without a browser.
   'renderPatch',
   'renderLength',

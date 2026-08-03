@@ -1,4 +1,4 @@
-import type { ModRoute, Patch, PatchCable, PatchModule } from './types.js'
+import type { AutoLane, AutoPoint, ModRoute, Patch, PatchCable, PatchModule } from './types.js'
 
 // Turning a patch into text and back.
 //
@@ -209,6 +209,34 @@ export function decodePatch(text: string): Patch | null {
     modulation.push(route)
   }
 
+  // Recorded parameter moves. A lane naming a module the file does not contain is corruption with no
+  // repair — exactly the rule a cable and a Combinator routing follow — but a lane naming a *param* this
+  // build has never heard of is kept, because it may belong to a newer version of that module and the
+  // scheduler skips what it cannot resolve rather than deleting it.
+  const automation: AutoLane[] = []
+  for (const raw of Array.isArray(body.automation) ? body.automation : []) {
+    if (!isRecord(raw)) continue
+    const target = endpoint(raw.target)
+    if (!target || !ids.has(target[0])) continue
+    const points: AutoPoint[] = []
+    for (const rawPoint of Array.isArray(raw.points) ? raw.points : []) {
+      if (!isRecord(rawPoint)) continue
+      const at = rawPoint.at
+      const value = rawPoint.value
+      if (typeof at !== 'number' || !Number.isFinite(at) || at < 0) continue
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue
+      points.push({ at: Math.round(at), value })
+    }
+    // A lane with nothing in it says nothing and would accumulate across every save.
+    if (points.length === 0) continue
+    // Sorted on read as well as on write: the file may have been hand-edited or written by a build whose
+    // recorder was less careful, and every reader downstream assumes ascending order.
+    points.sort((a, b) => a.at - b.at)
+    const lane: AutoLane = { target, points }
+    if (raw.curve === 'hold') lane.curve = 'hold'
+    automation.push(lane)
+  }
+
   const patch: Patch = { modules, cables }
   // Presentation is host-owned, but its short opaque id is still authored document data.
   if (typeof body.visual === 'string' && body.visual.trim() !== '') {
@@ -233,6 +261,8 @@ export function decodePatch(text: string): Patch | null {
   if (typeof voices === 'number' && Number.isInteger(voices) && voices > 1 && voices <= 8) {
     patch.voices = voices
   }
+  // Absent means none, so a patch written before automation existed round-trips byte-identically.
+  if (automation.length > 0) patch.automation = automation
   // Absent means 120, so a patch written before tempo existed round-trips unchanged.
   const tempo = body.tempo
   if (typeof tempo === 'number' && Number.isFinite(tempo) && tempo >= 20 && tempo <= 400) {

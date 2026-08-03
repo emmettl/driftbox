@@ -123,6 +123,13 @@ body {
   border-color: var(--nine);
   color: var(--nine);
 }
+/* Armed. Red rather than the header's teal on-state, because "this is writing to your document" is not
+   the same kind of on as "the back panel is showing" and should not look like it. */
+.rk-arm-on {
+  border-color: #ff5470 !important;
+  color: #ff5470 !important;
+}
+
 .rk-primary {
   border-color: var(--nine) !important;
   color: var(--nine) !important;

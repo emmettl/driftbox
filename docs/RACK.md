@@ -291,8 +291,17 @@ Three things that were not obvious until it was built:
   `start()` is held and seeded with them, and without that, exporting a patch would silently produce a
   file with the automation missing.
 
-What this does *not* yet do is record. The lane and the recorder exist in `engine/automation.ts`; wiring
-them to rack mode is interchange work, and it is what the clock was missing.
+**And it records now** ✅ — `Patch.automation` is a lane per parameter, written when the transport is
+armed and played back through exactly this. `packages/rack/src/automation.ts` has the reasoning; the two
+pieces that were missing on this side were a host-visible playhead (`app/src/rack/playhead.ts`, derived
+from the context clock rather than reported from the worklet, so it exists whether or not a Meter is on
+screen) and a lookahead scheduler. The scheduler's 100ms tick decides only how far ahead work is done and
+never where a value lands — that is what the frame is for.
+
+One consequence worth stating plainly: **playback never goes through the patch**, so a knob does not move
+on screen while its lane plays. That is deliberate — a lane played back through `setParam` would record
+itself, one point per tick, for ever — and it is the same road a MIDI note already takes, with the same
+visible result. A live-value channel would fix both at once, and is one piece of work rather than two.
 
 The message set is the ABI: `plan`, `param`, `transport`, `monitor` and `data`. Resist growing it — the
 frame is a field on a message that already existed, not a sixth kind, and that is the shape any further

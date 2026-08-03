@@ -588,6 +588,100 @@ describe('an edit that changes nothing', () => {
   })
 })
 
+describe('recording a knob move', () => {
+  beforeEach(() => {
+    useRack.setState({
+      patch: ACID(),
+      revision: 0,
+      history: NO_HISTORY,
+      automating: false,
+      automationPosition: null,
+    })
+  })
+
+  /** Arm, and pretend the transport is at `at`. */
+  const armAt = (at: number | null) => {
+    useRack.setState({ automating: true, automationPosition: () => at })
+  }
+
+  it('records nothing at all when it is not armed', () => {
+    // The default, and the one that matters most: an ordinary session must not accumulate lanes.
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    expect(useRack.getState().patch.automation).toBeUndefined()
+  })
+
+  it('writes a point where the transport is when it is armed', () => {
+    armAt(32)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    const lane = useRack.getState().patch.automation?.[0]
+    expect(lane?.target).toEqual(['ladder-1', 'cutoff'])
+    expect(lane?.points).toEqual([{ at: 32, value: 900 }])
+  })
+
+  it('still moves the knob, and still does not rebuild the graph', () => {
+    // Recording must not turn a knob turn into a structural edit — that would be a click on every point.
+    const before = useRack.getState().revision
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(900)
+    expect(useRack.getState().revision).toBe(before)
+  })
+
+  it('records the move and the knob in one undo step', () => {
+    // Two writes would be two undo steps for one gesture, and a patch could be autosaved between them
+    // with the knob moved and the recording missing.
+    armAt(16)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation).toBeUndefined()
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).not.toBe(900)
+  })
+
+  it('records nothing when there is nowhere to record', () => {
+    // No rack yet, so no playhead. Arming before `Start audio` has to be a no-op rather than a pile of
+    // points at step zero.
+    armAt(null)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    expect(useRack.getState().patch.automation).toBeUndefined()
+    expect(useRack.getState().paramValue('ladder-1', 'cutoff')).toBe(900)
+  })
+
+  it('keeps a lane per parameter and one point per position', () => {
+    armAt(8)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().setParam('ladder-1', 'resonance', 0.4)
+    const lanes = useRack.getState().patch.automation
+    expect(lanes).toHaveLength(2)
+    expect(lanes?.find((l) => l.target[1] === 'cutoff')?.points).toEqual([{ at: 8, value: 900 }])
+  })
+
+  it('forgets one parameter without disturbing another', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().setParam('ladder-1', 'resonance', 0.4)
+    useRack.getState().clearAutomation('ladder-1', 'cutoff')
+    const lanes = useRack.getState().patch.automation
+    expect(lanes).toHaveLength(1)
+    expect(lanes?.[0].target[1]).toBe('resonance')
+  })
+
+  it('leaves the patch with no automation key at all once the last lane is cleared', () => {
+    // So a patch that was recorded onto and then cleared round-trips byte-identically with one that never
+    // was — the standard every optional field in this format holds itself to.
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().clearAutomation('ladder-1', 'cutoff')
+    expect('automation' in useRack.getState().patch).toBe(false)
+  })
+
+  it('does nothing when asked to clear a lane that was never recorded', () => {
+    const before = useRack.getState().patch
+    useRack.getState().clearAutomation('ladder-1', 'cutoff')
+    expect(useRack.getState().patch).toBe(before)
+  })
+})
+
 describe('writing a pattern', () => {
   beforeEach(() => {
     useRack.setState({ patch: STARTER(), revision: 0 })
