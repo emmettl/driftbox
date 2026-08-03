@@ -75,6 +75,96 @@ describe('turning a knob', () => {
   })
 })
 
+describe('loading a device patch', () => {
+  const LADDER = (): Patch => ({
+    modules: [{ id: 'f', type: 'ladder', params: { cutoff: 500, resonance: 0.92 } }],
+    cables: [],
+  })
+
+  it('sets the knobs without bumping the revision', () => {
+    // The same rule a knob follows, and for the same reason: nothing about the graph changes, so
+    // recompiling would rebuild every processor in the rack and click — for sixteen numbers.
+    useRack.setState({ patch: LADDER() })
+    const before = useRack.getState().revision
+    useRack.getState().loadDevicePatch('f', {
+      id: 'open',
+      type: 'ladder',
+      name: 'Wide Open',
+      params: { cutoff: 9000, resonance: 0.1 },
+    })
+    expect(useRack.getState().paramValue('f', 'cutoff')).toBe(9000)
+    expect(useRack.getState().revision).toBe(before)
+  })
+
+  it('states every knob, not only the ones the patch mentions', () => {
+    // The whole reason `completeParams` is on the way in. A patch that named only `cutoff` would leave
+    // the resonance where the last preset left it, and the panel would draw a default that disagreed
+    // with the sound.
+    useRack.setState({ patch: LADDER() })
+    useRack.getState().loadDevicePatch('f', {
+      id: 'x',
+      type: 'ladder',
+      name: 'X',
+      params: { cutoff: 2000 },
+    })
+    const params = useRack.getState().patch.modules[0].params!
+    expect(params.cutoff).toBe(2000)
+    expect(params.resonance).toBe(MODULES.ladder.params.find((p) => p.id === 'resonance')!.default)
+  })
+
+  it('is one undo, however many knobs it moved', () => {
+    // Sixteen `setParam` calls would be sixteen steps, and stepping back out of a preset you did not
+    // like would mean pressing undo until the sound stopped changing.
+    useRack.setState({ patch: LADDER(), history: NO_HISTORY })
+    useRack.getState().loadDevicePatch('f', {
+      id: 'x',
+      type: 'ladder',
+      name: 'X',
+      params: { cutoff: 9000, resonance: 0.1 },
+    })
+    useRack.getState().undo()
+    expect(useRack.getState().paramValue('f', 'cutoff')).toBe(500)
+    expect(useRack.getState().paramValue('f', 'resonance')).toBe(0.92)
+  })
+
+  it('refuses a patch belonging to a different device', () => {
+    // Declines by identity, so it costs no undo step. A Hall reverb loaded into a ladder would write
+    // knobs nothing reads into somebody's patch.
+    useRack.setState({ patch: LADDER() })
+    const before = useRack.getState().patch
+    useRack.getState().loadDevicePatch('f', {
+      id: 'hall',
+      type: 'reverb',
+      name: 'Hall',
+      params: { size: 0.85 },
+    })
+    expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('refuses a module that is not there', () => {
+    useRack.setState({ patch: LADDER() })
+    const before = useRack.getState().patch
+    useRack
+      .getState()
+      .loadDevicePatch('nobody', { id: 'x', type: 'ladder', name: 'X', params: { cutoff: 1 } })
+    expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('reports what a device is set to now, completed', () => {
+    // What the save button reads. A device saved before it was ever touched still stores every knob,
+    // rather than an empty object that would load as a no-op.
+    useRack.setState({ patch: { modules: [{ id: 'f', type: 'ladder' }], cables: [] } })
+    const params = useRack.getState().devicePatchOf('f')!
+    expect(params.cutoff).toBe(MODULES.ladder.params.find((p) => p.id === 'cutoff')!.default)
+    expect(params.resonance).toBe(MODULES.ladder.params.find((p) => p.id === 'resonance')!.default)
+  })
+
+  it('reports nothing for a module this build does not have', () => {
+    useRack.setState({ patch: { modules: [{ id: 'x', type: 'wavefolder' }], cables: [] } })
+    expect(useRack.getState().devicePatchOf('x')).toBeNull()
+  })
+})
+
 describe('selecting several modules', () => {
   // Reordering and removal were one module at a time, which `docs/REASON-GAP.md` lists as the multi-select
   // gap. The interesting part is not the list but what happens at its edges: a range with no anchor, an

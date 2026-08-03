@@ -3987,3 +3987,69 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
     justify-content: flex-end;
   }
 }
+
+/* ---- Device patch browser ----------------------------------------------------
+ *
+ * Reason put one in the top-left corner of every device: a name, arrows to step, a way to save. Here it
+ * sits top-right and above the drag grip, because the grip is a transparent sheet across the whole title
+ * strip — anything under it is decoration rather than a control.
+ *
+ * Small and quiet on purpose. It is the second thing you look at on a faceplate, never the first.
+ */
+
+.rk-device-patches {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rk-device-patches button {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
+.rk-device-patches button:hover {
+  color: var(--ink);
+  border-color: var(--edge);
+}
+
+.rk-device-name,
+.rk-device-naming {
+  font: 9px var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 1px 2px;
+  max-width: 92px;
+  cursor: pointer;
+}
+
+.rk-device-name:hover,
+.rk-device-naming:focus {
+  color: var(--ink);
+  border-color: var(--edge);
+}
+
+.rk-device-naming {
+  cursor: text;
+  width: 92px;
+}
+
+/* A one-span module has about half the width to spare, so the name gives way before the arrows do —
+   losing the tail of "Percussive" still leaves a browser you can step through. */
+.rk-module[data-span='1'] .rk-device-name {
+  max-width: 54px;
+}
