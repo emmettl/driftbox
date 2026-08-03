@@ -42,6 +42,12 @@ const PROMISED = [
   'CHUNKS',
   'chunkById',
   'insertChunk',
+  // One device's knobs, which is content in exactly the way the two above are — and the same promise:
+  // a host that shows a bank should not have to be this build.
+  'DEVICE_PATCHES',
+  'devicePatchesFor',
+  'initDevicePatch',
+  'completeParams',
   // Combinator routing, which is arithmetic on a patch and therefore part of the document.
   'applyModulation',
   'routeValue',
@@ -91,6 +97,8 @@ const UNSTABLE = [
   'AlligatorProcessor',
   'AUDIO_INPUT_MODULE',
   'AudioInputProcessor',
+  'ARP_MODULE',
+  'ArpProcessor',
   'ARRANGER_MODULE',
   'ARRANGER_SECTIONS',
   'ArrangerProcessor',

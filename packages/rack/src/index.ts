@@ -104,10 +104,18 @@ export {
 export { PATCH_FORMAT, decodePatch, encodePatch } from './patch-io.js'
 export { PATCHES, patchPresetById, type PatchPreset } from './patches/index.js'
 export { CHUNKS, chunkById, insertChunk, type Chunk, type Inserted } from './chunks/index.js'
+export {
+  DEVICE_PATCHES,
+  completeParams,
+  devicePatchesFor,
+  initDevicePatch,
+  type DevicePatch,
+} from './device-patches/index.js'
 export { VCV_MODELS, importVcv, importVcvPatch, type ImportNote, type Imported } from './vcv/index.js'
 export { MODULES, MODULE_LIST } from './modules/index.js'
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
 export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './modules/audio-input.js'
+export { ARP_MODULE, ArpProcessor } from './modules/arp.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './modules/arranger.js'
 export { COMBI_CONTROLS, COMBI_MODULE, COMBI_ROTARY_MAX, CombiProcessor } from './modules/combi.js'
 export { FOLLOWER_MODULE, FollowerProcessor } from './modules/follower.js'

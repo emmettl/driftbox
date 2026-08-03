@@ -139,10 +139,37 @@ describe('jacks', () => {
 
     for (const placement of placements) {
       const def = MODULES[placement.type]
-      for (const port of [...def.inlets, ...def.outlets]) {
-        expect(jackAt(all, placement.id, port.id), `${placement.type}.${port.id}`).toBeDefined()
+      // Each column asked for by name, because a port id is unique down one column but not across
+      // both — `Arp` has `pitch` on each side, and a kindless lookup would find the inlet twice and
+      // report an outlet it never checked as present.
+      for (const port of def.inlets) {
+        expect(jackAt(all, placement.id, port.id, 'in'), `${placement.type}.${port.id} in`).toBeDefined()
+      }
+      for (const port of def.outlets) {
+        expect(
+          jackAt(all, placement.id, port.id, 'out'),
+          `${placement.type}.${port.id} out`,
+        ).toBeDefined()
       }
     }
+  })
+
+  it('gives a module with the same port id on both sides two distinct jacks', () => {
+    // `Arp` takes a V/Oct in and gives a V/Oct out, so `pitch` names a jack in each column. The patch
+    // format has always allowed that — a cable's ends are an outlet and an inlet *by position*, so
+    // `from` and `to` carry a direction this flat list does not.
+    //
+    // Every cable endpoint is resolved through `jackAt`, and while it ignored the kind it answered with
+    // the inlet both times, because `jacks()` builds the inlet column first. A cable leaving the Arp was
+    // drawn leaving the hole its input goes in.
+    const { placements } = layout([module('a', 'arp')], sizes())
+    const all = jacks(placements, MODULES)
+    const inlet = jackAt(all, 'a', 'pitch', 'in')!
+    const outlet = jackAt(all, 'a', 'pitch', 'out')!
+    expect(inlet).toBeDefined()
+    expect(outlet).toBeDefined()
+    // Opposite edges of the slot, which is the whole difference the kind makes.
+    expect(inlet.x).toBeLessThan(outlet.x)
   })
 
   it('skips a module whose type this build does not have', () => {
@@ -162,8 +189,8 @@ describe('finding what a cable was dropped on', () => {
   // element the touch STARTED on. Patching was completely broken on touch while working on a mouse.
   const { placements } = layout([module('a', 'vco'), module('f', 'ladder')], sizes({ vco: { rows: 2 }, ladder: { rows: 2 } }))
   const all = jacks(placements, MODULES)
-  const pitch = jackAt(all, 'a', 'pitch')!
-  const out = jackAt(all, 'a', 'out')!
+  const pitch = jackAt(all, 'a', 'pitch', 'in')!
+  const out = jackAt(all, 'a', 'out', 'out')!
 
   it('finds a jack the pointer is exactly on', () => {
     expect(nearestJack(all, pitch, SNAP)).toMatchObject({ module: 'a', port: 'pitch' })
@@ -180,7 +207,7 @@ describe('finding what a cable was dropped on', () => {
   it('takes the nearest when two are in range', () => {
     // Jacks are 30 apart and the snap radius is 30, so a point between two is inside both — "nearest"
     // is what makes a generous radius safe rather than ambiguous.
-    const fm = jackAt(all, 'a', 'fm')!
+    const fm = jackAt(all, 'a', 'fm', 'in')!
     const between = { x: pitch.x, y: (pitch.y + fm.y) / 2 - 4 }
     expect(nearestJack(all, between, SNAP)).toMatchObject({ port: 'pitch' })
     const lower = { x: pitch.x, y: (pitch.y + fm.y) / 2 + 4 }

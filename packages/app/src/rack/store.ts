@@ -23,7 +23,9 @@ import {
 import {
   applyModulation,
   clearLane,
+  completeParams,
   setPoint,
+  type DevicePatch,
   EMPTY_PATCH,
   grooveboxSong,
   insertChunk,
@@ -204,6 +206,26 @@ interface RackState {
   setData: (moduleId: string, slot: string, values: readonly number[]) => void
   /** One data slot, or an empty array. */
   data: (moduleId: string, slot: string) => number[]
+
+  /**
+   * Set one device's knobs from a saved patch, in one edit.
+   *
+   * **Not structural**, which is the whole reason it is worth having as an action rather than as a loop
+   * of `setParam` at the call site. Nothing about the graph changes — no module appears, no cable moves —
+   * so recompiling would rebuild every processor in the rack and click, for a change that is sixteen
+   * numbers. It takes the road a knob takes, and the host's patch diff carries every one of them to the
+   * audio thread.
+   *
+   * One edit, so it is **one undo**. Sixteen `setParam` calls would be sixteen steps, and stepping back
+   * out of a preset you did not like would mean pressing undo until the sound stopped changing.
+   *
+   * The params are completed against the def first — see `completeParams`. A device patch that mentioned
+   * only what it cared about would leave everything else exactly as the last preset left it, which makes
+   * the browser's second click sound different from its first.
+   */
+  loadDevicePatch: (moduleId: string, patch: DevicePatch) => void
+  /** What a device is set to now, as a patch ready to be named and saved. */
+  devicePatchOf: (moduleId: string) => Record<string, number> | null
 
   addModule: (type: string) => void
   /**
@@ -705,6 +727,35 @@ export const useRack = create<RackState>((set, get) => {
 
     data: (moduleId, slot) =>
       get().patch.modules.find((m) => m.id === moduleId)?.data?.[slot] ?? [],
+
+    loadDevicePatch: (moduleId, device) => {
+      // Keyed to the module so that clicking through a bank coalesces into one undo step per device. The
+      // gesture is "audition presets until one is right", and undo should step out of the audition rather
+      // than back through every patch you rejected on the way.
+      write(`device:${moduleId}`, false, (patch) => {
+        const module = patch.modules.find((m) => m.id === moduleId)
+        const def = module ? MODULES[module.type] : undefined
+        // A module type this build does not have has no def to complete against, and guessing would write
+        // knobs nothing reads into somebody's patch. Declines by identity, so it costs no undo step.
+        if (!module || !def || def.type !== device.type) return patch
+        const params = completeParams(def, device.params)
+        return {
+          ...patch,
+          modules: patch.modules.map((candidate) =>
+            candidate.id === moduleId ? { ...candidate, params } : candidate,
+          ),
+        }
+      })
+    },
+
+    devicePatchOf: (moduleId) => {
+      const module = get().patch.modules.find((m) => m.id === moduleId)
+      const def = module ? MODULES[module.type] : undefined
+      if (!module || !def) return null
+      // Completed rather than handed back raw, so a device saved before it was ever touched still stores
+      // every knob rather than an empty object that would load as a no-op.
+      return completeParams(def, module.params)
+    },
 
     addRoute: (from, to) =>
       // A fresh route sweeps the target end to end, which it says by leaving both limits absent rather

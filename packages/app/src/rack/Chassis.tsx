@@ -1,5 +1,6 @@
 import { MODULES, routedParams } from '@driftbox/rack'
 import { sizeFor } from './faceplates/index.js'
+import { DevicePatches } from './DevicePatches.js'
 import { Driven } from './Driven.js'
 import {
   dragBounds,
@@ -211,6 +212,10 @@ export function Chassis({ layout }: Props) {
                 })
               }}
             />
+            {/* Above the grip in z-order, because the grip is a transparent sheet across the whole title
+                strip and a browser you cannot click is decoration. Rendered here rather than in each
+                faceplate for the same reason the grip is: a module needs no UI work to be complete. */}
+            {def && <DevicePatches moduleId={placement.id} def={def} />}
             {def ? (
               <Driven
                 def={def}

@@ -125,7 +125,7 @@ had before the undo.
 | Auto-routing | A new device connects to the next mixer channel | **Landed** | A new *source* arrives with its own Out wired, the way `insertChunk` already gave a chunk one. Gated on the def declaring an outlet named `out`, so the Noise and the Groovebox — which have no single primary output — still arrive unpatched |
 | CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
 | Bypass | On / Bypass / Off on every effect | **Landed** | A flag on the module; the compiler drops its node and passes its first inlet through |
-| Device patches | A browser and a factory bank per device | Patch-level | The library saves whole racks; `PATCHES` and `CHUNKS` are whole-rack and multi-module |
+| Device patches | A browser and a factory bank per device | **Landed** | A browser in the corner of every faceplate — name, step, list, save, delete — rendered by the Chassis rather than by each panel, so the eleven hand-built faceplates and the generic fallback got one without any UI work. `DEVICE_PATCHES` is the factory bank; Init is **derived from the def**, so every device has a bank and a way back to its defaults even if nobody wrote it one. Which patch you are on is derived from the knobs, never remembered, so the name cannot start lying the moment you turn something. Knobs only — a device patch is a *sound*, and `data` is a pattern, which belongs to the song. Applying one is a single non-structural edit and therefore one undo and no click |
 | Multi-select | Rubber-band a group of devices | **Landed**, less the band | Click, shift-click for a span, platform modifier to toggle one. Removing a group is one structural edit and therefore one undo. The rubber band itself is a gesture refinement on top of this rather than the capability |
 | Undo | Full history | **Landed** | `history.ts` — sixty-four steps, a drag is one of them |
 
@@ -162,9 +162,22 @@ Ordered by return, not by how big Reason's version was.
 - **A phaser.** Chorus and flanger are patchable and `delay.ts` says so in its header — a delay
   whose time an LFO sweeps. A phaser is not: it is a chain of allpass sections and there is no
   allpass anywhere.
-- **Note effects.** Nothing sits between a note source and a voice. No arpeggiator (RPG-8), no
-  note echo, no scale-and-chord generator. `Quantizer` is CV scale-lock at audio rate, which is
-  a different thing: it cannot add a note that was not played.
+- **~~Note effects.~~ Partly landed.** Something sits between a note source and a voice now: `Arp`
+  takes one held note, builds a chord under it — eight shapes, one to four octaves — and walks it up,
+  down, up-down, down-up or at random against a clock. That is the RPG-8 mode people actually leave
+  switched on, and it is the half of this gap that suits a rack whose appeal is one held note doing a
+  lot. `Quantizer` remains a different thing: CV scale-lock at audio rate, which cannot add a note that
+  was not played.
+
+  **It builds its chord rather than listening to one, and the reason is structural.** A chord lives in a
+  *polyphonic* pitch signal, one note per voice, and a mono module reading a polyphonic inlet sees it
+  **summed** — `poly.test.ts` calls that the collapse, and it is the right rule for a Delay fed by four
+  voices. So a mono arpeggiator patched to a held chord would read the sum of the notes, which is not a
+  note. A *held-chord* arpeggiator needs the compiler and the Graph to hand a mono module the per-voice
+  buffers, and that is the work this gap still names.
+
+  Still absent outright: a note echo, and a scale-and-chord generator that transposes a figure by degree
+  rather than by semitone.
 - **A multisample instrument.** `Sampler` is one buffer plus slices. No key zones, no velocity
   layers, no root key, no loop points — so a sampled instrument, as opposed to a sampled break,
   cannot be built.
