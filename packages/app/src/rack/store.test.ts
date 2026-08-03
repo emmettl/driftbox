@@ -76,6 +76,130 @@ describe('turning a knob', () => {
   })
 })
 
+describe('trimming a cable', () => {
+  const PATCHED = (): Patch => ({
+    modules: [
+      { id: 'osc', type: 'vco' },
+      { id: 'f', type: 'ladder' },
+    ],
+    cables: [{ from: ['osc', 'out'], to: ['f', 'in'] }],
+  })
+  const only = () => useRack.getState().patch.cables[0]
+
+  it('rebuilds on the first turn, because that is when the trim appears in the plan', () => {
+    // A cable with no trim compiles to nothing — its destination inlet points straight at the source's
+    // buffer. Engaging one changes the *shape* of the plan, so the graph genuinely has to be rebuilt.
+    useRack.setState({ patch: PATCHED() })
+    const before = useRack.getState().revision
+    useRack.getState().setTrim(only(), 0.5)
+    expect(only().trim).toBe(0.5)
+    expect(useRack.getState().revision).toBe(before + 1)
+  })
+
+  it('does not rebuild on any turn after that', () => {
+    // The whole reason a trim is a param slot. Rebuilding per pointer move resets every oscillator's
+    // phase and every filter's history, which is a continuous crackle while somebody drags.
+    useRack.setState({ patch: PATCHED() })
+    useRack.getState().setTrim(only(), 0.5)
+    const settled = useRack.getState().revision
+    useRack.getState().setTrim(only(), 0.4)
+    useRack.getState().setTrim(only(), 0.3)
+    expect(only().trim).toBe(0.3)
+    expect(useRack.getState().revision).toBe(settled)
+  })
+
+  it('stays at a written-down unity rather than snapping back to absent', () => {
+    // Removing the key mid-drag would rebuild the graph every time the knob passed +1, which is exactly
+    // the click this design exists to avoid.
+    useRack.setState({ patch: PATCHED() })
+    useRack.getState().setTrim(only(), 0.5)
+    const settled = useRack.getState().revision
+    useRack.getState().setTrim(only(), 1)
+    expect(only().trim).toBe(1)
+    expect(useRack.getState().revision).toBe(settled)
+  })
+
+  it('clamps to the range a trim is allowed', () => {
+    useRack.setState({ patch: PATCHED() })
+    useRack.getState().setTrim(only(), 9)
+    expect(only().trim).toBe(1)
+    useRack.getState().setTrim(only(), -9)
+    expect(only().trim).toBe(-1)
+  })
+
+  it('is one undo for a whole drag', () => {
+    useRack.setState({ patch: PATCHED(), history: NO_HISTORY })
+    useRack.getState().setTrim(only(), 0.9)
+    useRack.getState().setTrim(only(), 0.8)
+    useRack.getState().setTrim(only(), 0.7)
+    useRack.getState().undo()
+    expect(only().trim).toBeUndefined()
+  })
+
+  it('takes a cable back to no trim at all, not to a trim of one', () => {
+    // What frees the inlet buffer, the param slot and the multiply. Identical in sound, which is why it
+    // has to be asked for rather than something a drag can stumble into.
+    useRack.setState({ patch: PATCHED() })
+    useRack.getState().setTrim(only(), 0.5)
+    useRack.getState().clearTrim(only())
+    expect('trim' in only()).toBe(false)
+  })
+
+  it('declines to clear a cable that has no trim', () => {
+    useRack.setState({ patch: PATCHED() })
+    const before = useRack.getState().patch
+    useRack.getState().clearTrim(only())
+    expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('declines a turn that changes nothing', () => {
+    useRack.setState({ patch: PATCHED() })
+    useRack.getState().setTrim(only(), 0.5)
+    const before = useRack.getState().patch
+    useRack.getState().setTrim(only(), 0.5)
+    expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('declines a turn aimed at a cable that has been unplugged', () => {
+    // A stale reference held by a control that has not re-rendered yet. Declining by identity means it
+    // costs no undo step, which is the standard every edit here holds itself to.
+    useRack.setState({ patch: PATCHED() })
+    const stale = only()
+    useRack.getState().disconnect(stale)
+    const before = useRack.getState().patch
+    useRack.getState().setTrim(stale, 0.5)
+    expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('turns the cable it was given, not another one from the same outlet', () => {
+    // A source fans out; each destination has its own trim. Matching on the source alone would turn them
+    // all together, which is precisely the thing an inline Offset could not do and a trim can.
+    useRack.setState({
+      patch: {
+        modules: [
+          { id: 'osc', type: 'vco' },
+          { id: 'a', type: 'ladder' },
+          { id: 'b', type: 'ladder' },
+        ],
+        cables: [
+          { from: ['osc', 'out'], to: ['a', 'in'] },
+          { from: ['osc', 'out'], to: ['b', 'in'] },
+        ],
+      },
+    })
+    useRack.getState().setTrim(useRack.getState().patch.cables[1], 0.25)
+    expect(useRack.getState().patch.cables[0].trim).toBeUndefined()
+    expect(useRack.getState().patch.cables[1].trim).toBe(0.25)
+  })
+
+  it('reports what a cable is trimmed to', () => {
+    useRack.setState({ patch: PATCHED() })
+    expect(useRack.getState().trimOf(only())).toBeUndefined()
+    useRack.getState().setTrim(only(), 0.5)
+    expect(useRack.getState().trimOf(only())).toBe(0.5)
+  })
+})
+
 describe('loading a device patch', () => {
   const LADDER = (): Patch => ({
     modules: [{ id: 'f', type: 'ladder', params: { cutoff: 500, resonance: 0.92 } }],

@@ -4070,3 +4070,48 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 .rk-module[data-span='1'] .rk-device-name {
   max-width: 54px;
 }
+
+/* ---- Cable trims --------------------------------------------------------------
+ *
+ * A trim pot on every occupied inlet. Small and dim until one is turned away from unity, because a patch
+ * with forty cables has forty of these and furniture that shouts is furniture in the way.
+ */
+
+.rk-trim {
+  cursor: ns-resize;
+  touch-action: none;
+}
+.rk-trim:focus {
+  outline: none;
+}
+.rk-trim-hit {
+  fill: transparent;
+}
+.rk-trim-body {
+  fill: rgba(7, 4, 15, 0.94);
+  stroke: var(--edge);
+  stroke-width: 1.2;
+}
+.rk-trim-mark {
+  stroke: var(--dim);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.rk-trim:hover .rk-trim-body,
+.rk-trim:focus-visible .rk-trim-body {
+  stroke: var(--nine);
+}
+.rk-trim:hover .rk-trim-mark,
+.rk-trim:focus-visible .rk-trim-mark {
+  stroke: var(--ink);
+}
+
+/* Turned away from unity: the one state worth seeing across the whole panel, because a cable quietly at
+   40% is the thing you will otherwise go looking for in the modules. */
+.rk-trim-on .rk-trim-body {
+  stroke: var(--nine);
+}
+.rk-trim-on .rk-trim-mark {
+  stroke: var(--nine);
+}

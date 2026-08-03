@@ -104,6 +104,7 @@ export {
 export { PATCH_FORMAT, decodePatch, encodePatch } from './patch-io.js'
 export { PATCHES, patchPresetById, type PatchPreset } from './patches/index.js'
 export { CHUNKS, chunkById, insertChunk, type Chunk, type Inserted } from './chunks/index.js'
+export { TRIM_MAX, TRIM_MIN, readTrim } from './trim.js'
 export {
   DEVICE_PATCHES,
   completeParams,
@@ -291,6 +292,27 @@ export class Rack {
     const slot = this.compiled?.slots[moduleId]?.[paramId]
     if (slot === undefined) return
     this.node?.port.postMessage({ kind: 'param', slot, value, voice })
+  }
+
+  /**
+   * Turn the trim on the cable arriving at one inlet.
+   *
+   * Its own method rather than `setParam(moduleId, 'trim')`, because a trim is not a parameter of the
+   * module it lands on — it belongs to the cable — and putting it among that module's knobs would mean
+   * anything addressing a knob by name had to know which names were secretly cables.
+   *
+   * **The message ABI does not grow.** A trim is a param slot on the plan, so this posts exactly the
+   * message a knob posts and the audio thread ramps it exactly as it ramps a knob. That is the whole
+   * reason a trim can be dragged at all: the alternative — a constant compiled into the plan — would have
+   * meant recompiling on every pointer move, which rebuilds every processor and crackles continuously.
+   *
+   * Silently does nothing when the cable has no trim, which is the case for every cable until somebody
+   * turns one: an absent trim buys no slot, no buffer and no multiply.
+   */
+  setTrim(moduleId: string, inletId: string, value: number): void {
+    const slot = this.compiled?.trimSlots?.[moduleId]?.[inletId]
+    if (slot === undefined) return
+    this.node?.port.postMessage({ kind: 'param', slot, value })
   }
 
   /**

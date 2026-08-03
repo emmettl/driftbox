@@ -1,3 +1,4 @@
+import { readTrim } from './trim.js'
 import type { AutoLane, AutoPoint, ModRoute, Patch, PatchCable, PatchModule } from './types.js'
 
 // Turning a patch into text and back.
@@ -177,13 +178,23 @@ export function decodePatch(text: string): Patch | null {
     // naming an id nothing in the file has is corruption, and keeping it would mean it
     // accumulated across every save from here on.
     if (!ids.has(from[0]) || !ids.has(to[0])) continue
+    // A trim that is not a usable number is no trim, which is unity — the value every cable had before
+    // trims existed, and therefore the repair that changes nothing.
+    const trim = readTrim(raw.trim)
     // Deduped by destination as well as identity: `compile` takes the last cable into a
     // contested inlet, so an exact duplicate is noise that would show up as a
     // `replaced-cable` note for no reason.
-    const key = JSON.stringify([from, to])
+    //
+    // **The trim is part of that identity.** Two cables between the same two ports with different trims
+    // are not duplicates, and dropping the second would have kept the first while `compile` — which takes
+    // the *last* cable into an inlet — was working from the other one. The file and the sound would then
+    // disagree about which trim was in force.
+    const key = JSON.stringify([from, to, trim])
     if (seen.has(key)) continue
     seen.add(key)
-    cables.push({ from, to })
+    // Written back only when there is one, so a patch from before trims existed round-trips
+    // byte-identically — the standard every added field in this format has held itself to.
+    cables.push(trim === undefined ? { from, to } : { from, to, trim })
   }
 
   // Combinator routings. Both ends have to name a module the file actually contains, on the same reasoning

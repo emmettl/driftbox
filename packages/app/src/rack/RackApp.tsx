@@ -1222,6 +1222,24 @@ export default function RackApp() {
           }
         }
       }
+      // A cable trim takes the same road, and has to be pushed here for the same reason a knob is: turning
+      // one changes a param slot the plan already has, so nothing recompiles and nothing else would carry
+      // it. Only the *first* turn on a cable is structural — that is the one that buys the slot — and a
+      // rebuild seeds every param from the plan, so this loop has nothing to do on that pass.
+      if (state.patch.cables !== previous.patch.cables) {
+        for (const cable of state.patch.cables) {
+          if (cable.trim === undefined) continue
+          const before = previous.patch.cables.find(
+            (candidate) =>
+              candidate.from[0] === cable.from[0] &&
+              candidate.from[1] === cable.from[1] &&
+              candidate.to[0] === cable.to[0] &&
+              candidate.to[1] === cable.to[1],
+          )
+          if (before?.trim === cable.trim) continue
+          live.setTrim(cable.to[0], cable.to[1], cable.trim)
+        }
+      }
     })
   }, [])
 

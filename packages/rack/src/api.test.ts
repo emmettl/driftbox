@@ -48,6 +48,10 @@ const PROMISED = [
   'devicePatchesFor',
   'initDevicePatch',
   'completeParams',
+  // A cable's trim: what it may be, and the reader that repairs one arriving from outside the program.
+  'TRIM_MIN',
+  'TRIM_MAX',
+  'readTrim',
   // Combinator routing, which is arithmetic on a patch and therefore part of the document.
   'applyModulation',
   'routeValue',

@@ -25,7 +25,10 @@ import {
   applyModulation,
   clearLane,
   completeParams,
+  readTrim,
   setPoint,
+  TRIM_MAX,
+  TRIM_MIN,
   type DevicePatch,
   EMPTY_PATCH,
   grooveboxSong,
@@ -275,6 +278,30 @@ interface RackState {
 
   connect: (from: [string, string], to: [string, string]) => void
   disconnect: (cable: PatchCable) => void
+
+  /**
+   * Turn the trim on one cable: −1 to +1, where +1 is all of the source and −1 is all of it inverted.
+   *
+   * **Structural exactly once, on the way in.** A cable with no trim compiles to nothing — its destination
+   * inlet points straight at the source's buffer — so the first turn changes the *shape* of the plan and
+   * has to rebuild. Every turn after that changes a number in a slot the plan already has, which takes the
+   * road a knob takes: no recompile, no click, and the whole drag is one undo.
+   *
+   * That is why the knob writes a value at unity rather than removing the key. Snapping back to absent on
+   * the way through +1 would rebuild the graph in the middle of a drag, which is the continuous crackle
+   * `setParam` exists to avoid.
+   */
+  setTrim: (cable: PatchCable, value: number) => void
+  /**
+   * Take a cable back to having no trim at all, rather than to a trim of one.
+   *
+   * Structural, and deliberately a separate act from turning the knob to unity: this is what frees the
+   * inlet buffer, the param slot and the multiply. The sound is identical either way — which is precisely
+   * why it needs to be something you ask for rather than something a drag can stumble into.
+   */
+  clearTrim: (cable: PatchCable) => void
+  /** The trim on one cable, or `undefined` for a cable that has none. */
+  trimOf: (cable: PatchCable) => number | undefined
 
   /**
    * Point one Combinator control at one parameter. Reason's Modulation Routing.
@@ -571,6 +598,23 @@ export interface SampleInfo {
   /** A shipped break can be re-rendered from its id; somebody's own file cannot travel in a link. */
   source: 'break' | 'file'
 }
+
+/**
+ * The two ends of a cable, as one string.
+ *
+ * A cable has no id — it is identified by where it goes, and one cable per inlet makes the destination
+ * alone unique. Both ends are used anyway so the key reads as the cable it names in a coalescing key and
+ * in a test failure.
+ */
+const cableKey = (cable: PatchCable) => `${cable.from.join('.')}>${cable.to.join('.')}`
+
+/** The same cable, by its ends. Deliberately not by `trim`: the whole point of looking one up is to change
+ *  that, and matching on it would mean never finding the cable you were about to turn. */
+const sameCable = (a: PatchCable, b: PatchCable) =>
+  a.from[0] === b.from[0] &&
+  a.from[1] === b.from[1] &&
+  a.to[0] === b.to[0] &&
+  a.to[1] === b.to[1]
 
 export const useRack = create<RackState>((set, get) => {
   /**
@@ -930,6 +974,37 @@ export const useRack = create<RackState>((set, get) => {
         modules.splice(to, 0, module)
         return { ...patch, modules }
       }),
+
+    setTrim: (cable, value) => {
+      const clamped = Math.min(TRIM_MAX, Math.max(TRIM_MIN, value))
+      const engaging = readTrim(cable.trim) === undefined
+      // Coalesced by cable, so one drag of one trim is one undo rather than four hundred. Keyed the same
+      // way a knob is, and for the same reason.
+      write(`trim:${cableKey(cable)}`, engaging, (patch) => {
+        const at = patch.cables.findIndex((candidate) => sameCable(candidate, cable))
+        // Declines by identity, so a trim aimed at a cable that has since been unplugged costs no undo
+        // step — the same standard every other edit here holds itself to.
+        if (at < 0 || patch.cables[at].trim === clamped) return patch
+        const cables = [...patch.cables]
+        cables[at] = { ...cables[at], trim: clamped }
+        return { ...patch, cables }
+      })
+    },
+
+    clearTrim: (cable) =>
+      structural((patch) => {
+        const at = patch.cables.findIndex((candidate) => sameCable(candidate, cable))
+        if (at < 0 || patch.cables[at].trim === undefined) return patch
+        const cables = [...patch.cables]
+        // Dropped rather than set to 1, so the cable is byte-identical to one that never had a trim — the
+        // same standard `clearAutomation` and the routing list hold themselves to.
+        const { trim: _drop, ...rest } = cables[at]
+        cables[at] = rest
+        return { ...patch, cables }
+      }),
+
+    trimOf: (cable) =>
+      get().patch.cables.find((candidate) => sameCable(candidate, cable))?.trim,
 
     connect: (from, to) =>
       structural((patch) => ({

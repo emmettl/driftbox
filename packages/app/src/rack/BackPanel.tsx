@@ -8,6 +8,7 @@ import {
   swingSeed,
   type Point,
 } from './cable.js'
+import { CableTrims } from './CableTrims.js'
 import { sizeFor } from './faceplates/index.js'
 import {
   SNAP,
@@ -670,6 +671,9 @@ export function BackPanel({ layout }: Props) {
         ))}
 
         <CableUnplugs all={visibleJacks} cables={patch.cables} disconnect={unplug} />
+        {/* After the unplugs, so a trim sits above them in the SVG and its generous hit circle wins where
+            the two overlap — the trim is the one you reach for repeatedly. */}
+        <CableTrims all={visibleJacks} cables={patch.cables} />
       </svg>
     </div>
   )

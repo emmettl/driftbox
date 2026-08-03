@@ -1,5 +1,6 @@
 import { applyModulation } from './modulation.js'
 import { channelCount, wire } from './stereo.js'
+import { TRIM_MAX, readTrim } from './trim.js'
 import type {
   PlanOutput,
   ModuleDef,
@@ -211,6 +212,19 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     /** The cable's own endpoints, kept so bypass can be walked back through them. */
     fromId: string
     fromPort: string
+    /**
+     * Whether this cable carries a trim at all — presence, not value. The value lives in a param slot
+     * allocated below, because a trim has to be turnable while the rack plays.
+     */
+    trimmed: boolean
+    /**
+     * Every trim that has to be applied at this inlet, as destination-inlet keys.
+     *
+     * A list because bypass composes them: a trim on the cable into a bypassed module still has to be
+     * heard by whatever was redirected to that module's input. Filled in by `resolve` below; before that
+     * it holds this cable's own trim and nothing else.
+     */
+    trims: string[]
     /** The destination, carried rather than parsed back out of the map key. Deriving it from
      *  the key means the key format is load-bearing in two places, and it is exactly the kind
      *  of coupling that made a NUL separator look load-bearing when it was an accident. */
@@ -267,6 +281,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     } else {
       replaced.set(k, cable)
     }
+    // A trim into a placeholder scales silence, so it buys a buffer and a multiply to produce the zeros
+    // that inlet already had. Presence is what allocates, so it is decided here.
+    const trimmed = source.index !== null && readTrim(cable.trim) !== undefined
     inletSource.set(k, {
       // From a placeholder is silence rather than a dropped cable, so the patch keeps its
       // shape and only loses its sound.
@@ -274,6 +291,8 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       from: source.index,
       fromId,
       fromPort,
+      trimmed,
+      trims: trimmed ? [k] : [],
       to: dest.index,
       toId,
       toPort,
@@ -303,29 +322,45 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     fromId: string,
     fromPort: string,
     seen: Set<string>,
-  ): { channels: number[]; from: number | null } => {
+  ): { channels: number[]; from: number | null; trims: string[] } => {
     const entry = entries.get(fromId)
-    if (!entry || entry.index === null) return { channels: [ZERO], from: null }
+    if (!entry || entry.index === null) return { channels: [ZERO], from: null, trims: [] }
     if (!bypassed(entry.index)) {
-      return { channels: outletBuffer.get(key(fromId, fromPort)) ?? [ZERO], from: entry.index }
+      return {
+        channels: outletBuffer.get(key(fromId, fromPort)) ?? [ZERO],
+        from: entry.index,
+        trims: [],
+      }
     }
     // A ring of bypassed modules has nothing at the end of it to read. Silence rather than a throw or a
     // stack overflow: this is a patch from outside the program, and the placeholder rule's standard —
     // neutralise, never crash — applies to every other malformed thing in this file too.
-    if (seen.has(fromId)) return { channels: [ZERO], from: null }
+    if (seen.has(fromId)) return { channels: [ZERO], from: null, trims: [] }
     seen.add(fromId)
 
     const first = registry[entry.module.type].inlets[0]
-    if (!first) return { channels: [ZERO], from: null }
-    const feeding = inletSource.get(key(fromId, first.id))
-    if (!feeding) return { channels: [ZERO], from: null }
-    return resolve(feeding.fromId, feeding.fromPort, seen)
+    if (!first) return { channels: [ZERO], from: null, trims: [] }
+    const feedingKey = key(fromId, first.id)
+    const feeding = inletSource.get(feedingKey)
+    if (!feeding) return { channels: [ZERO], from: null, trims: [] }
+    const back = resolve(feeding.fromId, feeding.fromPort, seen)
+    // **The trim into a bypassed module survives the bypass**, and it has to. Bypass redirects everything
+    // reading a module's outlets to whatever reaches its first inlet; dropping that cable's trim on the
+    // way would mean bypassing a module changed the level going past it, which is not what taking
+    // something out of circuit means. Only the FIRST inlet is on this path — a trim on any other inlet of
+    // a bypassed module is genuinely not read, because nothing reads that inlet.
+    return {
+      channels: back.channels,
+      from: back.from,
+      trims: feeding.trimmed ? [feedingKey, ...back.trims] : back.trims,
+    }
   }
 
   for (const source of inletSource.values()) {
     const resolved = resolve(source.fromId, source.fromPort, new Set())
     source.channels = resolved.channels
     source.from = resolved.from
+    source.trims = [...source.trims, ...resolved.trims]
   }
 
   // ---- Order ---------------------------------------------------------------------------
@@ -404,7 +439,75 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     slots[module.id] = mine
   }
 
+  // ---- Trim slots ----------------------------------------------------------------------
+  //
+  // **After every module's params, never interleaved.** Slots are numbered, the host holds those numbers,
+  // and the Graph carries a knob's live position across a rebuild by slot — so a trim appearing in the
+  // middle of the table would hand every knob after it somebody else's value. Appending means adding or
+  // removing a trim can only renumber other trims, and a trim's value is never anything but what the patch
+  // says, so there is nothing there to carry across wrongly.
+  //
+  // Allocated in **patch cable order** for the same reason params go in patch order rather than execution
+  // order: it is the ordering a person can predict, and it does not move when the graph reorders.
+  const trimSlots: Record<string, Record<string, number>> = {}
+  /** The same allocation by inlet key, so nothing downstream has to parse a key back apart — the mistake
+   *  the `Source.to` field above already exists to avoid. */
+  const trimSlotAt = new Map<string, number>()
+  for (const cable of cables) {
+    if (!isCable(cable)) continue
+    const k = key(cable.to[0], cable.to[1])
+    // The cable that actually won this inlet. An earlier cable superseded by a later one into the same
+    // inlet is not in the plan at all, so its trim is not either.
+    const source = inletSource.get(k)
+    if (!source || !source.trimmed || replaced.get(k) !== cable) continue
+    const forModule = trimSlots[source.toId] ?? {}
+    forModule[source.toPort] = params.length
+    trimSlots[source.toId] = forModule
+    trimSlotAt.set(k, params.length)
+    params.push({
+      value: readTrim(cable.trim) ?? TRIM_MAX,
+      // Ramped like a knob rather than stepped: a trim is a level, and stepping one at a block boundary
+      // is the click that `setParam`'s ramp exists to avoid.
+      stepped: false,
+    })
+  }
+
   // ---- Nodes and output ----------------------------------------------------------------
+
+  /**
+   * The trim work one module's inlets need, keyed to inlet **slots** rather than ports.
+   *
+   * The slot walk has to mirror the `flatMap` that builds `inlets` exactly, which is why the running index
+   * is counted here rather than derived: a stereo port occupies two consecutive slots, and a trim that
+   * scaled only the left channel would turn a stereo cable into a pan.
+   *
+   * Absent when nothing is trimmed, so an ordinary patch's plan is byte-identical to one from a build with
+   * no trims in it.
+   */
+  const trimsFor = (moduleId: string, def: ModuleDef): { trims?: PlanNode['trims'] } => {
+    const trims: NonNullable<PlanNode['trims']> = []
+    let slot = 0
+    for (const port of def.inlets) {
+      const channels = channelCount(port)
+      const source = inletSource.get(key(moduleId, port.id))
+      const applies = source?.trims ?? []
+      if (applies.length > 0) {
+        // Resolved to numbers here rather than carried as keys, because a trim whose cable lost its inlet
+        // to a later one has no slot — and scaling by a slot that does not exist would read a param
+        // belonging to something else.
+        const numbers = applies
+          .map((inlet) => trimSlotAt.get(inlet))
+          .filter((value): value is number => value !== undefined)
+        if (numbers.length > 0) {
+          for (let channel = 0; channel < channels; channel++) {
+            trims.push({ inlet: slot + channel, slots: numbers })
+          }
+        }
+      }
+      slot += channels
+    }
+    return trims.length > 0 ? { trims } : {}
+  }
 
   // A bypassed module gets no node: nothing runs it, and everything that read its outlets was pointed at
   // its input by the pass above.
@@ -420,6 +523,7 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       inlets: def.inlets.flatMap((port) =>
         wire(inletSource.get(key(module.id, port.id))?.channels ?? [ZERO], channelCount(port)),
       ),
+      ...trimsFor(module.id, def),
       outlets: def.outlets.flatMap((port) => outletBuffer.get(key(module.id, port.id)) ?? [ZERO]),
       params: def.params.map((param) => slots[module.id][param.id]),
       poly: def.poly !== false,
@@ -489,5 +593,5 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   // rounded because a plan with 2.5 voices is not a thing the Graph should have to have an opinion about.
   const voices = Math.max(1, Math.min(8, Math.round(clamp(patch?.voices, 1, 8, 1))))
 
-  return { buffers, voices, poly: bufferPoly, nodes, outputs, params, slots, notes }
+  return { buffers, voices, poly: bufferPoly, nodes, outputs, params, slots, trimSlots, notes }
 }

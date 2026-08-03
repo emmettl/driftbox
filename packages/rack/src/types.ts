@@ -323,6 +323,17 @@ export interface PatchModule {
 export interface PatchCable {
   from: [string, string]
   to: [string, string]
+  /**
+   * How much of the source reaches the destination: −1 to +1, where +1 is all of it and −1 is all of it
+   * inverted. See `trim.ts` for why it goes bipolar and why it stops at unity.
+   *
+   * **Absent means +1, and absence is not the same as writing +1 down.** A cable with no trim compiles the
+   * way every cable always has — the destination inlet points straight at the source's buffer, no copy and
+   * no multiply. A cable *with* one, at any value including exactly +1, buys an inlet buffer of its own, a
+   * param slot and a multiply per sample. So the knob writes a number and keeps it, which is what makes
+   * dragging it smooth; taking it back to absent is a separate act, and the only one that costs a rebuild.
+   */
+  trim?: number
 }
 
 /**
@@ -473,6 +484,22 @@ export interface PlanNode {
   poly: boolean
   /** Bulk data carried in the patch, seeded into the Graph when the plan is applied. */
   data?: Record<string, number[]>
+  /**
+   * Inlets that have to be scaled before this module runs, by the cable trims that reach them.
+   *
+   * Sparse and usually absent, because an untrimmed inlet must go on costing nothing — it points straight
+   * at the source's buffer, which is the property the graph is built around. An entry buys that inlet a
+   * buffer of its own.
+   *
+   * `inlet` indexes into `inlets`, so it is a **slot** and not a port: a stereo port occupies two
+   * consecutive entries and a trim on it emits one of these for each, which is what keeps a trimmed stereo
+   * cable from turning one channel down and leaving the other alone.
+   *
+   * `slots` is a list rather than one slot because bypass composes them. A trim on the cable into a
+   * bypassed module still has to be heard by whatever was redirected to that module's input, and a chain
+   * of bypassed modules can stack several. Almost always one; the loop costs nothing when it is.
+   */
+  trims?: { inlet: number; slots: number[] }[]
 }
 
 /**
@@ -546,5 +573,19 @@ export interface Plan {
   params: PlanParam[]
   /** `moduleId` → `paramId` → slot, so the host can address a knob by name. */
   slots: Record<string, Record<string, number>>
+  /**
+   * `moduleId` → `inletId` → slot, for the trim on the cable arriving there.
+   *
+   * Its own map rather than a synthetic entry in `slots`, which would have worked and been worse: a trim
+   * is not a parameter of the module it lands on — it belongs to the cable — and hiding it among that
+   * module's knobs would mean anything walking `slots` had to know which entries were really cables.
+   *
+   * Keyed by the **destination** because one cable per inlet makes that unique, where a source may fan out
+   * to several inlets each with its own trim.
+   *
+   * It is a param slot, and that is the whole reason a trim can be turned while the rack plays: the value
+   * lives in a buffer the Graph already ramps, so moving one is a message rather than a recompile.
+   */
+  trimSlots: Record<string, Record<string, number>>
   notes: PlanNote[]
 }

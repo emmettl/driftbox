@@ -123,7 +123,7 @@ had before the undo.
 |---|---|---|---|
 | Duplicate a device | Copy, paste, duplicate, with settings | **Landed** | Copies params and pattern data, lands beside the original, arrives unpatched |
 | Auto-routing | A new device connects to the next mixer channel | **Landed** | A new *source* arrives with its own Out wired, the way `insertChunk` already gave a chunk one. Gated on the def declaring an outlet named `out`, so the Noise and the Groovebox — which have no single primary output — still arrive unpatched |
-| CV trim | A trim pot on every CV input | Absent | Needs an Offset module inline per connection |
+| CV trim | A trim pot on every CV input | **Landed**, and bipolar | A pot on every occupied inlet, drawn on the back panel beside the unplug button. −1 to +1 rather than Reason's 0 to full: the inline Offset it replaces was reached for two things, making a modulation smaller and making it go the other way, and an attenuator alone would have covered one of them. It stops at unity, because a cable that could amplify is a gain stage hidden in a wire. **Absent means unity and costs nothing** — an untrimmed inlet still points straight at the source's buffer, so only the cables you actually trim buy a buffer, a param slot and a multiply. The value is a param slot rather than a constant in the plan, which is what lets it be dragged: turning one is a message, not a recompile |
 | Bypass | On / Bypass / Off on every effect | **Landed** | A flag on the module; the compiler drops its node and passes its first inlet through |
 | Device patches | A browser and a factory bank per device | **Landed** | A browser in the corner of every faceplate — name, step, list, save, delete — rendered by the Chassis rather than by each panel, so the eleven hand-built faceplates and the generic fallback got one without any UI work. `DEVICE_PATCHES` is the factory bank; Init is **derived from the def**, so every device has a bank and a way back to its defaults even if nobody wrote it one. Which patch you are on is derived from the knobs, never remembered, so the name cannot start lying the moment you turn something. Knobs only — a device patch is a *sound*, and `data` is a pattern, which belongs to the song. Applying one is a single non-structural edit and therefore one undo and no click |
 | Multi-select | Rubber-band a group of devices | **Landed**, less the band | Click, shift-click for a span, platform modifier to toggle one. Removing a group is one structural edit and therefore one undo. The rubber band itself is a gesture refinement on top of this rather than the capability |
@@ -230,10 +230,9 @@ Worth writing down so nobody builds them twice.
    them, and the knob follows. Nothing remains.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.
 5. The rack-wide table above, in whatever order the annoyance surfaces. Duplicate, bypass,
-   auto-routing, multi-select and per-device patches are done; what is left there is **CV trim per
-   jack** and the rubber band over the multi-select that now exists. The trim is the substantive one —
-   the rubber band is a nicer way to do something you can already do, whereas without a trim every
-   modulation of a controlled amount still costs an inline Offset and two extra cables.
+   auto-routing, multi-select, per-device patches and CV trim are all done. What is left there is the
+   rubber band over the multi-select that now exists — a nicer way to do something you can already do,
+   which is why it is last rather than because it is hard.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.

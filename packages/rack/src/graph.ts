@@ -42,9 +42,24 @@ interface Node {
   inlets: Float32Array[]
   outlets: Float32Array[]
   params: Float32Array[]
-  /** Inlets that need summing before this instance runs, with the voice buffers to sum. Empty for a
-   *  polyphonic module, which never collapses anything. */
-  collapse: { into: Float32Array; from: Float32Array[] }[]
+  /**
+   * Inlets that need work done to them before this instance runs.
+   *
+   * Two jobs, both of which mean the inlet cannot simply point at the source's buffer and so has to own
+   * one. **Summing** is the collapse: every voice of a polyphonic outlet added together for a module that
+   * runs once. **Scaling** is a cable trim, one multiply per trim per sample.
+   *
+   * One list rather than two because an inlet can want both — a trimmed cable from a polyphonic source
+   * into a mono module — and doing them in two passes would mean two buffers and two walks for the case
+   * that needs one of each. Empty for the overwhelming majority of inlets, which is the point.
+   */
+  feeds: {
+    into: Float32Array
+    /** One entry for a mono source; one per voice when a mono module is reading a polyphonic one. */
+    from: Float32Array[]
+    /** Param buffers to multiply by, in no particular order. Empty when the cable has no trim. */
+    gains: Float32Array[]
+  }[]
 }
 
 /** A param change waiting for its frame. `voice` undefined means every voice, which is what a knob means. */
@@ -386,12 +401,19 @@ export class Graph {
     for (const node of this.nodes) {
       // The collapse: every voice of a polyphonic outlet summed into one buffer before a module that runs
       // once reads it. Done here rather than in the module, because a module has no idea how many voices
-      // exist and should not have to.
-      for (const { into, from } of node.collapse) {
+      // exist and should not have to. And the trim: a cable turned down or inverted, applied on the way in.
+      for (const { into, from, gains } of node.feeds) {
         into.set(from[0])
         for (let source = 1; source < from.length; source++) {
           const other = from[source]
           for (let i = 0; i < frames; i++) into[i] += other[i]
+        }
+        // A separate pass over the sum rather than scaling each voice as it is added: one multiply per
+        // sample instead of one per voice per sample, and the same answer because a gain distributes over
+        // a sum. Per sample rather than per block because a trim is a param buffer — it ramps, which is
+        // what keeps turning the knob from clicking.
+        for (const gain of gains) {
+          for (let i = 0; i < frames; i++) into[i] *= gain[i]
         }
       }
       node.processor.process(node.inlets, node.outlets, node.params, frames, transport, hostInputs)
@@ -609,18 +631,30 @@ export class Graph {
       const instances = poly ? this.voices : 1
 
       for (let voice = 0; voice < instances; voice++) {
-        const collapse: Node['collapse'] = []
-        const inlets = node.inlets.map((index) => {
-          if (poly) return at(index, voice)
+        const feeds: Node['feeds'] = []
+        const inlets = node.inlets.map((index, slot) => {
+          // A trim's value lives in a param buffer, so it ramps and can be turned while the rack plays.
+          // Per voice for a polyphonic module, the same rule its own params follow, so eight voices reading
+          // a trimmed cable all read the same number rather than eight copies drifting apart.
+          const gains = (node.trims ?? [])
+            .filter((trim) => trim.inlet === slot)
+            .flatMap((trim) => trim.slots)
+            .map((trimSlot) => this.paramBuffers[trimSlot]?.[poly ? voice : 0] ?? this.scratch)
           const perVoice = this.buffers[index]
           // Mono module, polyphonic source: this is the collapse. A scratch buffer per inlet, summed before
           // the module runs — a module has no idea how many voices exist and should not have to.
-          if (perVoice && perVoice.length > 1) {
-            const into = new Float32Array(this.frames)
-            collapse.push({ into, from: perVoice })
-            return into
-          }
-          return at(index, 0)
+          const collapsing = !poly && perVoice !== undefined && perVoice.length > 1
+          if (!collapsing && gains.length === 0) return poly ? at(index, voice) : at(index, 0)
+          // A buffer of this inlet's own, because whatever happens next writes to it — and an inlet
+          // pointing at a shared source buffer must never be written to. That rule is why a trim costs
+          // anything at all, and why an untrimmed cable goes on costing nothing.
+          const into = new Float32Array(this.frames)
+          feeds.push({
+            into,
+            from: collapsing ? perVoice : [poly ? at(index, voice) : at(index, 0)],
+            gains,
+          })
+          return into
         })
 
         this.nodes.push({
@@ -644,7 +678,7 @@ export class Graph {
           params: node.params.map(
             (slot) => this.paramBuffers[slot]?.[poly ? voice : 0] ?? this.scratch,
           ),
-          collapse,
+          feeds,
         })
       }
     }
