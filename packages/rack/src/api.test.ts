@@ -79,6 +79,7 @@ const PROMISED = [
   'REVERB_MODULE',
   'SAMPLE_HOLD_MODULE',
   'SAMPLER_MODULE',
+  'SCALE_PLAYER_MODULE',
   'SEQ_MODULE',
   'SVF_MODULE',
   'TRACKER_MODULE',
@@ -97,6 +98,8 @@ const PROMISED = [
   'unpackMultisampleZones',
   // The repeat pattern is dry plus sixteen echoes; hosts use this to build a stable step editor.
   'NOTE_ECHO_STEPS',
+  // A custom scale is one portable enabled-note flag for each pitch class.
+  'SCALE_PLAYER_CUSTOM_NOTES',
   // Content: patches to open, chunks to drop in.
   'PATCHES',
   'patchPresetById',

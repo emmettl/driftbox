@@ -185,8 +185,15 @@ Ordered by return, not by how big Reason's version was.
   becomes several simultaneous output voices; that remains part of the same structural expansion as a
   held-chord arpeggiator.
 
-  Still absent outright: a scale-and-chord generator that transposes a figure by degree rather than by
-  semitone.
+  **The scale half of Scales & Chords has landed** as `Scale Player`. It is deliberately note-shaped rather
+  than a second `Quantizer`: key and scale are sampled at each gate edge, out-of-scale notes move to the
+  nearest valid pitch with downward tie-breaking, or Filter mode silences them. All thirteen Reason presets,
+  Chromatic and a portable twelve-note Custom mask are present. Pitch bend remains live after the decision,
+  and each incoming chord voice is corrected independently.
+
+  Still absent: the chord half — one input voice becoming one to five simultaneous, scale-built voices,
+  with inversion, open voicing and added colour/octaves. That needs the same honest voice-cardinality work
+  as zero-time Note Echo clusters; adding several pitch numbers together would only produce one wrong note.
 - **~~A multisample instrument.~~ Landed.** `Multisampler` sits beside the unchanged
   break-slicing `Sampler`: it maps session-loaded recordings by key and velocity, respects root key and
   source sample rate, sustains between per-zone loop points, and instantiates per MIDI voice. Zone maps

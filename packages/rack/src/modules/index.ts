@@ -32,6 +32,7 @@ import { PING_PONG_MODULE } from './ping-pong.js'
 import { QUANTIZER_MODULE } from './quantizer.js'
 import { SAMPLE_HOLD_MODULE } from './sample-hold.js'
 import { SAMPLER_MODULE } from './sampler.js'
+import { SCALE_PLAYER_MODULE } from './scale-player.js'
 import { SEQ_MODULE } from './seq.js'
 import { SVF_MODULE } from './svf.js'
 import { REVERB_MODULE } from './reverb.js'
@@ -127,6 +128,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   TRACKER_MODULE,
   ARRANGER_MODULE,
   ARP_MODULE,
+  SCALE_PLAYER_MODULE,
   NOTE_ECHO_MODULE,
   MIDI_MODULE,
 
@@ -181,6 +183,11 @@ export { PING_PONG_MODULE, PingPongProcessor } from './ping-pong.js'
 export { QUANTIZER_MODULE, QuantizerProcessor } from './quantizer.js'
 export { SAMPLE_HOLD_MODULE, SampleHoldProcessor } from './sample-hold.js'
 export { SAMPLER_MODULE, SamplerProcessor } from './sampler.js'
+export {
+  SCALE_PLAYER_CUSTOM_NOTES,
+  SCALE_PLAYER_MODULE,
+  ScalePlayerProcessor,
+} from './scale-player.js'
 export { SEQ_MODULE, SeqProcessor } from './seq.js'
 export { SVF_MODULE, SvfProcessor } from './svf.js'
 export { COMPRESSOR_MODULE, CompressorProcessor } from './compressor.js'
