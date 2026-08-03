@@ -154,7 +154,8 @@ export default function RackApp() {
     )
     state.setGrooveboxLauncher(
       hosted
-        ? (section, patternId) => hosted.queueClip(section, patternId)
+        ? (section, patternId, quantization) =>
+            hosted.queueClip(section, patternId, quantization)
         : null,
     )
     state.setGrooveboxTransport(

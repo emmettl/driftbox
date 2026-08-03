@@ -51,8 +51,8 @@ an explicit compatibility state before a save. Song links can enter rack mode, p
 through the existing groovebox engine on the rack's shared performance output, expose
 their 808, 909 and two 303s as metered patchable stereo sources with level, pan and mute
 strips, edit retained drum and 303 patterns, assign machine clips per arrangement section
-without restarting playback, launch each machine's selected clip on the next bar without
-mutating the arrangement, edit the full retained control set for every drum voice and 303,
+without restarting playback, launch each machine's selected clip on the next step, beat or
+bar without mutating the arrangement, edit the full retained control set for every drum voice and 303,
 seek or loop sections and arbitrary whole-bar ranges on the hosted transport, rotate or
 transform focused retained lanes, program 909 flams, record tempo, global swing and authored
 instrument, per-voice swing, send and shared effect automation against the hosted engine

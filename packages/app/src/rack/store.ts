@@ -9,6 +9,7 @@ import {
   type BassParams,
   type ClipLaunchEvent,
   type ClipLaunchPhase,
+  type ClipLaunchQuantization,
   type Pattern,
   type FxParams,
   type SendLevels,
@@ -380,18 +381,28 @@ interface RackState {
    * Live clip launch is session performance state, never part of the patch or undo history.
    *
    * RackApp installs the engine callback after audio starts. The event map lets the
-   * faceplate distinguish a queued launch from the one active after the next bar.
+   * faceplate distinguish a queued launch from the one active after its requested boundary.
    */
   grooveboxLauncher: ((
     machine: GrooveboxSection,
     patternId: string | null,
+    quantization?: ClipLaunchQuantization,
   ) => boolean) | null
   setGrooveboxLauncher: (launcher: RackState['grooveboxLauncher']) => void
   grooveboxLaunches: Partial<
-    Record<GrooveboxSection, { patternId: string | null; phase: ClipLaunchPhase }>
+    Record<
+      GrooveboxSection,
+      {
+        patternId: string | null
+        phase: ClipLaunchPhase
+        quantization: ClipLaunchQuantization
+      }
+    >
   >
   setGrooveboxLaunch: (event: ClipLaunchEvent) => void
   clearGrooveboxLaunches: () => void
+  grooveboxLaunchQuantization: ClipLaunchQuantization
+  setGrooveboxLaunchQuantization: (quantization: ClipLaunchQuantization) => void
   /**
    * Hosted song navigation is session state. The engine owns the clock; the store only
    * gives the faceplate a host callback and the loop range it needs to draw.
@@ -643,6 +654,7 @@ export const useRack = create<RackState>((set, get) => {
     running: false,
     grooveboxLauncher: null,
     grooveboxLaunches: {},
+    grooveboxLaunchQuantization: 'bar',
     grooveboxTransport: null,
     grooveboxLoop: null,
     grooveboxAutomationRecording: false,
@@ -1232,11 +1244,14 @@ export const useRack = create<RackState>((set, get) => {
           grooveboxLaunches[event.section] = {
             patternId: event.patternId,
             phase: event.phase,
+            quantization: event.quantization,
           }
         }
         return { grooveboxLaunches }
       }),
     clearGrooveboxLaunches: () => set({ grooveboxLaunches: {} }),
+    setGrooveboxLaunchQuantization: (grooveboxLaunchQuantization) =>
+      set({ grooveboxLaunchQuantization }),
     setGrooveboxTransport: (grooveboxTransport) => set({ grooveboxTransport }),
     setGrooveboxLoop: (grooveboxLoop) => set({ grooveboxLoop }),
     toggleGrooveboxAutomationRecording: () =>
