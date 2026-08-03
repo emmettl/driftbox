@@ -1231,8 +1231,8 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Twenty-one modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
-   Distortion, Groovebox, Imager, Limiter, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
+   Twenty-two modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
+   Distortion, Groovebox, Imager, Limiter, Loop Station, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
    Transport, Tuner and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
    to the rack rather than to one voice. Delay is the clearest example — eight two-second buffers would
    be eight separate delays — and Imager makes the other failure vivid: widening each voice before the
@@ -1547,8 +1547,18 @@ both bundle cost on the editing-only path and visual competition with a readable
    choosing the first credible peak avoids calling a bright guitar's second harmonic the note, and
    interpolating around it gives the faceplate a useful cents error. Silence and weak periodicity blank the
    display rather than freezing an old answer. Reference A is patch state, pitch is not, and Mute silences
-   only Thru so the detector keeps listening. The Guitar Pedalboard now starts Audio Input → Tuner, leaving
-   the looper as its one remaining enforced handoff.
+   only Thru so the detector keeps listening. That made the Guitar Pedalboard start Audio Input → Tuner and,
+   at the time, left the looper as its one remaining enforced handoff.
+
+   **5k. A performance looper.** ✅ Built, adopted by the Guitar Pedalboard after Reverb, and the last
+   enforced handoff in that factory. Record monitors dry; Play adds the stereo take; Dub writes the input
+   over the old loop with Feedback while monitoring both; Stop and an alternating Clear trigger complete
+   the performance surface. Dub on an empty pedal records the first pass, so no button is a dead end.
+
+   The processor allocates thirty seconds of stereo storage once rather than growing and copying it on the
+   audio thread. Its waveform, duration and playhead use the existing meter telemetry. The captured take is
+   intentionally session state — params and device placement save, megabytes of performed audio do not —
+   so a shared patch reopens as the same empty pedal rather than as a covert audio file.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

@@ -198,7 +198,8 @@ Ordered by return, not by how big Reason's version was.
 ### The guitar-chain ledger
 
 The `Guitar Pedalboard` factory is the concrete consumer of these gaps. It now patches Audio Input →
-Tuner → high-pass SVF → Drive → Amp / Cab → EQ → Compressor, with a visible dry/delay Mixer, Reverb and Out.
+Tuner → high-pass SVF → Drive → Amp / Cab → EQ → Compressor, with a visible dry/delay Mixer, Reverb,
+Loop Station and Out.
 **Distortion is present** through `Drive`, while the new multi-mode Distortion adds
 four more characters and its own post-curve tone stage without changing the factory's existing
 sound.
@@ -207,11 +208,13 @@ The **amp/cabinet stage and tuner have landed and are wired into that factory**.
 preamp, three-band tone stack and speaker rolloffs remove direct-interface fizz without pretending to be
 an unavailable convolution IR. The chromatic tuner uses normalised autocorrelation rather than a crossing
 count, reports frequency and confidence over the Meter telemetry path, and can mute Thru for silent tuning.
-What is still missing for a complete guitar rig is a **looper**. Its stable id, along with the now-adopted
-cabinet and tuner ids, is recorded in `GUITAR_PEDALBOARD_GAPS`,
+The **stereo Loop Station completes the enforced guitar chain**: thirty seconds of preallocated capture,
+record/play/overdub/stop, feedback, dry/loop balance and a session waveform. Captured audio deliberately
+does not enter the patch document; reopening a shared rack powers up an empty pedal. Its stable id, along
+with the adopted cabinet and tuner ids, remains recorded in `GUITAR_PEDALBOARD_GAPS`,
 and `patches.test.ts` enforces the handoff: the moment any is registered, the factory test
-fails until that device is actually incorporated. The EQ followed that path immediately
-when it landed. This is deliberately stronger than a roadmap note that can go stale.
+fails until that device is actually incorporated. Cabinet, tuner and looper all followed that path
+immediately when they landed. This is deliberately stronger than a roadmap note that can go stale.
 
 ## Deliberately not gaps
 

@@ -600,6 +600,7 @@ const guitarPedalboard = (): Patch => ({
     { id: 'delay-1', type: 'delay', params: { time: 0.32, feedback: 0.24 } },
     { id: 'wet-dry-1', type: 'mixer', params: { level1: 1, level2: 0.2 } },
     { id: 'reverb-1', type: 'reverb', params: { size: 0.5, decay: 0.62, damp: 0.66, mix: 0.14 } },
+    { id: 'looper-1', type: 'looper', params: { mode: 0, feedback: 0.85, dry: 1, loop: 1 } },
     { id: 'meter-output', type: 'meter', params: { mode: 1, gain: 1.2, release: 0.24 } },
     { id: 'out-1', type: 'out', params: { level: 0.75 } },
   ],
@@ -615,7 +616,8 @@ const guitarPedalboard = (): Patch => ({
     { from: ['compressor-1', 'out'], to: ['delay-1', 'in'] },
     { from: ['delay-1', 'out'], to: ['wet-dry-1', 'in2'] },
     { from: ['wet-dry-1', 'out'], to: ['reverb-1', 'in'] },
-    { from: ['reverb-1', 'out'], to: ['meter-output', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['looper-1', 'in'] },
+    { from: ['looper-1', 'out'], to: ['meter-output', 'in'] },
     { from: ['meter-output', 'thru'], to: ['out-1', 'in'] },
   ],
 })

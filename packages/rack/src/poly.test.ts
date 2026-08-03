@@ -144,7 +144,7 @@ describe('what the compiler says about voices', () => {
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
     expect(mono.sort()).toEqual([
       'arp', 'arranger', 'audio-input', 'cabinet', 'clock', 'combi', 'delay', 'distortion', 'groovebox', 'imager',
-      'limiter', 'meter', 'out', 'phaser', 'ping-pong', 'reverb', 'seq',
+      'limiter', 'looper', 'meter', 'out', 'phaser', 'ping-pong', 'reverb', 'seq',
       'tracker', 'transport', 'tuner', 'vocoder',
     ])
   })

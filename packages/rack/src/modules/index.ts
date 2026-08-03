@@ -18,6 +18,7 @@ import { IMAGER_MODULE } from './imager.js'
 import { LADDER_MODULE } from './ladder.js'
 import { LIMITER_MODULE } from './limiter.js'
 import { LFO_MODULE } from './lfo.js'
+import { LOOPER_MODULE } from './looper.js'
 import { MIDI_MODULE } from './midi.js'
 import { METER_MODULE } from './meter.js'
 import { MIXER_MODULE } from './mixer.js'
@@ -40,7 +41,7 @@ import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 
-// Forty modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty-one modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -105,6 +106,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   PING_PONG_MODULE,
   PHASER_MODULE,
   REVERB_MODULE,
+  LOOPER_MODULE,
 
   ADSR_MODULE,
   LFO_MODULE,
@@ -152,6 +154,7 @@ export { IMAGER_MODULE, ImagerProcessor } from './imager.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
 export { LIMITER_MODULE, LimiterProcessor } from './limiter.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
+export { LOOPER_MODULE, LooperProcessor } from './looper.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
 export { METER_MODULE, MeterProcessor } from './meter.js'
 export { MIXER_MODULE, MixerProcessor } from './mixer.js'

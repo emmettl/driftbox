@@ -5,6 +5,7 @@ import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
 import { Groovebox } from './Groovebox.js'
 import { Ladder } from './Ladder.js'
+import { Looper } from './Looper.js'
 import { Midi } from './Midi.js'
 import { Meter } from './Meter.js'
 import { Out } from './Out.js'
@@ -60,6 +61,7 @@ const FACEPLATES: Record<string, Entry> = {
   // Declared here because custom panels opt out of the automatic generic sizing below.
   vco: { component: Vco, span: 1, rows: 2 },
   ladder: { component: Ladder, span: 1 },
+  looper: { component: Looper, rows: 3 },
   midi: { component: Midi, span: 1, rows: 2 },
   meter: { component: Meter, rows: 3 },
   out: { component: Out, span: 1 },

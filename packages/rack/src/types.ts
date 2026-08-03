@@ -165,6 +165,10 @@ export interface MeterReading {
   frequency?: number
   /** Normalised confidence in `frequency`; zero means the faceplate should show no note. */
   clarity?: number
+  /** A performance looper's current playhead, normalised to its captured length. */
+  loopPosition?: number
+  /** Captured loop duration. Absent for devices that do not hold a performance. */
+  loopSeconds?: number
 }
 
 /**
