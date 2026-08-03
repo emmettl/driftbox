@@ -6,6 +6,7 @@ import {
   Rack,
   compile,
   grooveboxSong,
+  renderRetainedSongMix,
   patchCompatibility,
   renderPatch,
   type Patch,
@@ -24,7 +25,6 @@ import {
   DriftboxEngine,
   GROOVEBOX_SECTIONS,
   Kaoss,
-  renderMix,
   songBars,
   toWav,
 } from '@driftbox/engine'
@@ -757,7 +757,8 @@ export default function RackApp() {
    */
   const exportGrooveboxMix = useCallback(async () => {
     if (!retainedSong) return
-    const buffer = await renderMix(retainedSong)
+    const buffer = await renderRetainedSongMix(useRack.getState().patch)
+    if (!buffer) return
     const url = URL.createObjectURL(toWav(buffer))
     const link = document.createElement('a')
     link.href = url

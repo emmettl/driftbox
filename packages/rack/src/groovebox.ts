@@ -1,4 +1,10 @@
-import { decodeSong, encodeSong, type Song } from '@driftbox/engine'
+import {
+  decodeSong,
+  encodeSong,
+  renderMix,
+  type MixOptions,
+  type Song,
+} from '@driftbox/engine'
 import { GROOVEBOX_MODULE } from './modules/groovebox.js'
 import type { Patch } from './types.js'
 
@@ -60,6 +66,21 @@ export function embedGrooveboxSong(
  */
 export function grooveboxSong(patch: Patch): Song | null {
   return patch.groovebox ? decodeSong(patch.groovebox) : null
+}
+
+/**
+ * Render exactly the authored mix retained by a rack document.
+ *
+ * This is intentionally not `renderPatch`: rack modules and cables are additive work and
+ * belong to Patch WAV. Song WAV must cross the same Song boundary as the sequencer export,
+ * including after the patch and embedded Song codecs have round-tripped the document.
+ */
+export async function renderRetainedSongMix(
+  patch: Patch,
+  options: MixOptions = {},
+): Promise<AudioBuffer | null> {
+  const song = grooveboxSong(patch)
+  return song ? renderMix(song, options) : null
 }
 
 /**

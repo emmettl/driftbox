@@ -5,6 +5,7 @@ import {
   grooveboxSong,
   isGrooveboxEditable,
   patchCompatibility,
+  renderRetainedSongMix,
   withGrooveboxSource,
 } from './groovebox.js'
 import { decodePatch, encodePatch } from './patch-io.js'
@@ -125,6 +126,13 @@ describe('the groovebox document bridge', () => {
   it('classifies a patch without a retained song as rack-native', () => {
     expect(patchCompatibility({ modules: [], cables: [] })).toBe('rack-native')
     expect(isGrooveboxEditable({ modules: [], cables: [] })).toBe(false)
+  })
+
+  it('declines retained-song rendering when the patch has no decodable song', async () => {
+    await expect(renderRetainedSongMix({ modules: [], cables: [] })).resolves.toBeNull()
+    await expect(
+      renderRetainedSongMix({ modules: [], cables: [], groovebox: '{"v":999}' }),
+    ).resolves.toBeNull()
   })
 
   it('treats an explicit single voice like the patch codec does: as the default', () => {

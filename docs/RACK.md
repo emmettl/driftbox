@@ -34,7 +34,7 @@ to another `AudioNode`. That is the seam for patchable rack devices: retain and 
 one Song, route its machines separately, and never maintain a second 303 or drum engine.
 
 [REBIRTH-PARITY.md](REBIRTH-PARITY.md) holds the capability ledger, document states and
-render-equivalence completion test. This file continues to describe how the persistent
+executable render-equivalence completion test. This file continues to describe how the persistent
 graph works. The distinction matters: two execution engines can serve one product without
 duplicating their DSP or making interchange lossy.
 
@@ -142,7 +142,10 @@ the retained mastered mix, while **Patch WAV** renders the modular graph; keepin
 labels separate prevents a compatible export from silently flattening rack-only work or a
 rack render from masquerading as editable song stems. A future rack-native stem workflow must
 first define stable source ownership for arbitrary modules rather than borrowing Groovebox
-voice names.
+voice names. `renderRetainedSongMix` is the public boundary used by Song WAV: it decodes the
+Song from the Patch and calls the engine-owned mastered renderer. A Chromium acceptance matrix
+round-trips a purpose-built all-machine song and every shipped song through both codecs, then
+compares sequencer and rack samples under a 2e-5 maximum-sample tolerance (below -93 dBFS).
 
 The pattern editor's tap arm gives the rack keyboard a second, explicit destination. While
 the hosted transport runs, computer, pointer and MIDI-keyboard note-ons are quantised to the

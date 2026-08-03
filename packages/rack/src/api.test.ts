@@ -31,6 +31,7 @@ const PROMISED = [
   'GROOVEBOX_SOURCE_ID',
   'isGrooveboxEditable',
   'patchCompatibility',
+  'renderRetainedSongMix',
   'withGrooveboxSource',
   // The modules it ships with.
   'MODULES',
