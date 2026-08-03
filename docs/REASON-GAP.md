@@ -162,28 +162,30 @@ Ordered by return, not by how big Reason's version was.
   LFO or an octave-scaled cable at the Sweep inlet. The dry/wet control is part of the effect rather
   than convenience: an allpass alone has flat magnitude, and its moving notches only exist when the
   phase-shifted signal meets dry audio.
-- **~~Note effects.~~ Partly landed.** Something sits between a note source and a voice now: `Arp`
+- **~~Note effects.~~ The core set has landed.** Something sits between a note source and a voice now: `Arp`
   takes one held note, builds a chord under it — eight shapes, one to four octaves — and walks it up,
   down, up-down, down-up or at random against a clock. That is the RPG-8 mode people actually leave
   switched on, and it is the half of this gap that suits a rack whose appeal is one held note doing a
   lot. `Quantizer` remains a different thing: CV scale-lock at audio rate, which cannot add a note that
   was not played.
 
-  **It builds its chord rather than listening to one, and the reason is structural.** A chord lives in a
-  *polyphonic* pitch signal, one note per voice, and a mono module reading a polyphonic inlet sees it
-  **summed** — `poly.test.ts` calls that the collapse, and it is the right rule for a Delay fed by four
-  voices. So a mono arpeggiator patched to a held chord would read the sum of the notes, which is not a
-  note. A *held-chord* arpeggiator needs the compiler and the Graph to hand a mono module the per-voice
-  buffers, and that is the work this gap still names.
+  **It can now listen to the chord as well.** A chord still lives in a polyphonic pitch signal and every
+  ordinary mono module still receives the summed collapse — the right rule for a Delay fed by four voices.
+  A declared voice collector receives the independent, already-trimmed buffers beside that sum, so Played
+  mode can sort the notes actually held while the Arp itself remains one monophonic controller. Root mode
+  preserves the original Driftbox behavior and every saved patch. Played mode adds ascending, descending,
+  turning, random and note-on-order figures; Hold latches the last chord, the one-to-four-octave range and
+  ±3-octave shift match the RPG-8 shape, and velocity can follow each source note or use a fixed value.
+  Arp Field makes Root intervals or the Played collector walk visible across sixteen positions while keeping
+  every engine control on the ordinary routed parameter path.
 
   **Note Echo has landed** as a polyphonic pitch/gate/velocity transform: free or tempo-synced spacing,
   one to sixteen repeats, semitone movement, a linear velocity slope, gate length, dry mute and a portable
   seventeen-step enable pattern. Echo Matrix draws that pattern as velocity-scaled pulses, keeps muted
   echoes on the timeline, and leaves all eight playback controls on the same faceplate. Each input voice
   repeats independently, so ordinary chords echo together.
-  The fixed-voice CV graph still cannot express Reason's zero-length cluster trick, where one input note
-  becomes several simultaneous output voices; that remains part of the same structural expansion as a
-  held-chord arpeggiator.
+  Chord Player supplies the other side of that old structural gap: one input note can now become several
+  simultaneous output voices without summing their pitch values.
 
   **The scale half of Scales & Chords has landed** as `Scale Player`. It is deliberately note-shaped rather
   than a second `Quantizer`: key and scale are sampled at each gate edge, out-of-scale notes move to the

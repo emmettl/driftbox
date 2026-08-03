@@ -1649,6 +1649,33 @@ both bundle cost on the editing-only path and visual competition with a readable
    its behaviour is the point: pointer or keyboard press writes one and release, cancellation or lost focus
    writes zero, matching Reason's momentary button instead of turning it into a misleading latch.
 
+   **5q. Mono voice collectors.** ✅ A shared controller can now declare `voiceCollector` and receive the
+   independent buffers at each polyphonic inlet alongside the old summed inlet. It still runs once and writes
+   mono outlets; this is observation, not another kind of voice expansion. The Graph prepares the grouped
+   buffers at rebuild time and applies each inlet trim to every voice before the processor sees them, so the
+   audio loop remains a walk over fixed arrays and the rear-panel contract does not acquire an exception.
+
+   Ordinary mono modules still receive only the collapse, and old plans have no collector flag. The first
+   intended consumer is the Arp: it can finally sequence the pitches a player is actually holding without
+   turning a Delay, Out or other shared device into something that understands note identity.
+
+   **5r. Held-chord Arp.** ✅ The original one-finger chord builder remains the default `Root` source, while
+   `Played` reads independent Pitch, Gate and Velocity voices through the collector boundary and emits one
+   monophonic line. Up, Down, both turning directions, Random and Manual note-on order operate over one to
+   four octaves; Hold retains the last chord, Octave Shift moves the figure ±3 octaves, and velocity either
+   follows the selected input note or uses a fixed level. Two new device patches expose the played modes.
+
+   The new Gate and Velocity ports are additive and every old cable still resolves by stable port id. The
+   existing chord, direction, octave and gate parameters keep their ids and defaults, so a saved Arp remains
+   the same Root figure after the module version advances. Duplicate collected pitches are emitted once, and
+   all note/order/latch workspaces are fixed typed arrays rather than allocations in the audio loop.
+
+   Arp Field completes the editor with sixteen visible configuration steps and all nine routed controls. Root
+   mode shows the exact semitone intervals the chosen chord and direction will produce. Played mode shows the
+   collector lanes and octave walk without inventing live pitch telemetry the host has not received; the legend
+   keeps Hold and the played/fixed velocity policy visible. Random uses an explicitly representative unordered
+   permutation rather than pretending a display-only RNG can predict the audio processor's seeded state.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

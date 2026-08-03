@@ -39,12 +39,62 @@ function run(steps: number, options: Options = {}) {
   }
 
   const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
-  arp.process([pitch, clock, reset], out, params, frames)
+  arp.process(
+    [pitch, new Float32Array(frames), new Float32Array(frames).fill(1), clock, reset],
+    out,
+    params,
+    frames,
+  )
 
   /** The note held in the middle of each step, in semitones above the root. */
   const notes: number[] = []
   for (let s = 0; s < steps; s++) notes.push(Math.round(out[0][s * STEP + STEP / 2] * 12))
   return { notes, out }
+}
+
+interface PlayedOptions {
+  mode?: number
+  octaves?: number
+  hold?: number
+  shift?: number
+  velocityMode?: number
+  velocity?: number
+  releaseAt?: number
+}
+
+/** Feed independent pitch/gate/velocity lanes through the same collector view the Graph supplies. */
+function runPlayed(steps: number, semitones: number[], options: PlayedOptions = {}) {
+  const arp = new ArpProcessor(SR, deps, 'arp-played')
+  const frames = steps * STEP
+  const pitch = semitones.map((note) => new Float32Array(frames).fill(note / 12))
+  const gate = semitones.map(() => Float32Array.from(
+    { length: frames },
+    (_, i) => i < (options.releaseAt ?? frames) ? 1 : 0,
+  ))
+  const velocity = semitones.map((_, voice) => new Float32Array(frames).fill(0.25 + voice * 0.2))
+  const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+  const zero = new Float32Array(frames)
+  const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+  params[param('source')].fill(1)
+  for (const [id, value] of Object.entries(options)) {
+    const at = param(id)
+    if (at >= 0 && typeof value === 'number') params[at].fill(value)
+  }
+  const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+  arp.process(
+    [zero, zero, zero, clock, zero],
+    out,
+    params,
+    frames,
+    undefined,
+    undefined,
+    [pitch, gate, velocity, [clock], [zero]],
+  )
+  return {
+    notes: Array.from({ length: steps }, (_, step) => Math.round(out[0][step * STEP + STEP / 2] * 12)),
+    velocities: Array.from({ length: steps }, (_, step) => out[2][step * STEP + STEP / 2]),
+    out,
+  }
 }
 
 describe('what it plays', () => {
@@ -100,9 +150,51 @@ describe('what it plays', () => {
     const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
     params[param('mode')].fill(0)
     const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
-    arp.process([pitch, clock, new Float32Array(frames)], out, params, frames)
+    arp.process(
+      [pitch, new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
     // The second step was struck before the root moved, so it keeps the pitch it was struck with.
     expect(out[0][frames - 1]).toBeCloseTo(out[0][STEP + 4], 6)
+  })
+})
+
+describe('played chords', () => {
+  it('arpeggiates held input voices from lowest to highest instead of summing their pitches', () => {
+    const { notes } = runPlayed(4, [7, 0, 4], { octaves: 1, mode: 0 })
+    expect(notes).toEqual([0, 4, 7, 0])
+  })
+
+  it('keeps note-on order in Manual mode', () => {
+    const { notes } = runPlayed(4, [7, 0, 4], { octaves: 1, mode: 5 })
+    expect(notes).toEqual([7, 0, 4, 7])
+  })
+
+  it('extends the performed chord over the selected octaves and applies octave shift', () => {
+    const { notes } = runPlayed(5, [0, 7], { octaves: 2, shift: -1 })
+    expect(notes).toEqual([-12, -5, 0, 7, -12])
+  })
+
+  it('latches the last played chord only when Hold is on', () => {
+    const held = runPlayed(4, [0, 4, 7], { octaves: 1, hold: 1, releaseAt: STEP }).out
+    const released = runPlayed(4, [0, 4, 7], { octaves: 1, hold: 0, releaseAt: STEP }).out
+    expect(held[1][STEP * 2]).toBe(1)
+    expect(released[1].slice(STEP).every((gate) => gate === 0)).toBe(true)
+  })
+
+  it('passes the selected note velocity or replaces it with a fixed value', () => {
+    const played = runPlayed(3, [0, 4, 7], { octaves: 1 }).velocities
+    expect(played[0]).toBeCloseTo(0.25, 5)
+    expect(played[1]).toBeCloseTo(0.45, 5)
+    expect(played[2]).toBeCloseTo(0.65, 5)
+    const fixed = runPlayed(3, [0, 4, 7], {
+      octaves: 1,
+      velocityMode: 1,
+      velocity: 0.72,
+    }).velocities
+    expect(fixed.every((value) => Math.abs(value - 0.72) < 1e-5)).toBe(true)
   })
 })
 
@@ -138,7 +230,7 @@ describe('how it is clocked', () => {
     // From zero, with the sample before the buffer taken as silence: the first trigger *begins* at index
     // 0, so a loop starting at 1 misses it and reports one step fewer than were played.
     for (let i = 0; i < out[2].length; i++) {
-      if (out[2][i] >= 0.5 && (i === 0 || out[2][i - 1] < 0.5)) edges++
+      if (out[3][i] >= 0.5 && (i === 0 || out[3][i - 1] < 0.5)) edges++
     }
     expect(edges).toBe(4)
   })
@@ -165,7 +257,7 @@ describe('how it is clocked', () => {
     const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
     const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
     arp.process(
-      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames)],
+      Array.from({ length: 5 }, () => new Float32Array(frames)),
       out,
       params,
       frames,
@@ -223,8 +315,9 @@ describe('the awkward settings', () => {
     const a = ARP_MODULE.outlets.map(() => new Float32Array(frames))
     const b = ARP_MODULE.outlets.map(() => new Float32Array(frames))
     const zero = new Float32Array(frames)
-    one.process([zero, clock, zero], a, params, frames)
-    two.process([zero, clock, zero], b, params, frames)
+    const inputs = [zero, zero, new Float32Array(frames).fill(1), clock, zero]
+    one.process(inputs, a, params, frames)
+    two.process(inputs, b, params, frames)
     expect([...a[0]]).not.toEqual([...b[0]])
   })
 })

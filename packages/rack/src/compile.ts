@@ -543,6 +543,7 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       poly: def.poly !== false,
       voices: moduleVoices[index],
       voiceLanes: moduleLanes[index],
+      ...(def.poly === false && def.voiceCollector === true ? { collectVoices: true } : {}),
       // Carried through untouched. `compile` has no opinion about what a module's data means — it is the module
       // that knows whether a run of numbers is a pattern or a wavetable — and validating it here would need a
       // schema per module type, which is the sort of thing the placeholder rule exists to avoid.

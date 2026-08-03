@@ -343,6 +343,8 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   { id: 'wander', type: 'arp', name: 'Min7 Wander', params: { chord: 5, octaves: 2, mode: 4, gate: 0.6 } },
   // Nearly legato and only octaves: the one that is a bassline rather than a figure.
   { id: 'octaves', type: 'arp', name: 'Octave Bass', params: { chord: 0, octaves: 2, mode: 0, gate: 0.9 } },
+  { id: 'played-up', type: 'arp', name: 'Played Chord Up', params: { source: 1, octaves: 1, mode: 0, gate: 0.55 } },
+  { id: 'manual-hold', type: 'arp', name: 'Manual Hold', params: { source: 1, octaves: 2, mode: 5, hold: 1, gate: 0.7 } },
 
   // ---- Scale Player -----------------------------------------------------------------------------
   { id: 'g-major', type: 'scale-player', name: 'G Major', params: { key: 7, scale: 0, filter: 0 } },
