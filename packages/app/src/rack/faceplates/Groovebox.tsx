@@ -161,8 +161,10 @@ export function GrooveboxPatternEditor({
   setSend,
   setFx,
   tapRecording = false,
+  tapStep = 0,
   toggleTapRecording,
   setTapTarget,
+  setTapStep,
   automationRecording = false,
   running = false,
   toggleAutomationRecording,
@@ -192,8 +194,10 @@ export function GrooveboxPatternEditor({
   setSend: (voiceId: string, key: keyof SendLevels, value: number) => void
   setFx: (key: keyof FxParams, value: number) => void
   tapRecording?: boolean
+  tapStep?: number
   toggleTapRecording: () => void
   setTapTarget: (target: GrooveboxTapTarget) => void
+  setTapStep?: (step: number) => void
   automationRecording?: boolean
   running?: boolean
   toggleAutomationRecording: () => void
@@ -252,7 +256,9 @@ export function GrooveboxPatternEditor({
   const voice =
     voices.find((candidate) => candidate.id === wantedVoice) ?? voices[0]
   const bass = section === '303.a' || section === '303.b'
-  const selected = Math.min(pattern.length - 1, Math.max(0, selectedStep))
+  const selected = bass
+    ? ((Math.floor(tapStep) % pattern.length) + pattern.length) % pattern.length
+    : Math.min(pattern.length - 1, Math.max(0, selectedStep))
   const bassStep = bass ? bassStepAt(pattern, section, selected) : REST
   const chain =
     song.chain.length > 0
@@ -392,6 +398,7 @@ export function GrooveboxPatternEditor({
               setWantedPattern(event.target.value)
               setPage(0)
               setSelectedStep(0)
+              setTapStep?.(0)
               setTapTarget(tapTarget(event.target.value, section, voice?.id))
             }}
           >
@@ -476,7 +483,10 @@ export function GrooveboxPatternEditor({
                 data-state={value.note === null ? 'rest' : value.accent ? 'accent' : 'hit'}
                 aria-pressed={selected === step}
                 aria-label={`${sectionName(section)} step ${step + 1}: ${label}`}
-                onClick={() => setSelectedStep(step)}
+                onClick={() => {
+                  setSelectedStep(step)
+                  setTapStep?.(step)
+                }}
               >
                 {step + 1}
               </button>
@@ -542,9 +552,11 @@ export function GrooveboxPatternEditor({
           }
           title={
             tapRecording
-              ? running
-                ? `Recording keyboard taps into ${focusedTarget} at the hosted playhead`
-                : 'Tap recording armed — start playback, then play the rack keyboard'
+              ? bass
+                ? `303 entry armed — stopped: cursor step ${selected + 1}; playing: hosted playhead`
+                : running
+                  ? `Recording keyboard taps into ${focusedTarget} at the hosted playhead`
+                  : 'Tap recording armed — start playback, then play the rack keyboard'
               : `Quantise rack keyboard taps into the focused ${focusedTarget} clip`
           }
           onClick={() => {
@@ -992,6 +1004,8 @@ function PatternEditor() {
   const tapRecording = useRack((state) => state.grooveboxTapRecording)
   const toggleTapRecording = useRack((state) => state.toggleGrooveboxTapRecording)
   const setTapTarget = useRack((state) => state.setGrooveboxTapTarget)
+  const tapStep = useRack((state) => state.grooveboxTapStep)
+  const setTapStep = useRack((state) => state.setGrooveboxTapStep)
   const automationRecording = useRack((state) => state.grooveboxAutomationRecording)
   const running = useRack((state) => state.running)
   const toggleAutomationRecording = useRack(
@@ -1015,8 +1029,10 @@ function PatternEditor() {
       setSend={setSend}
       setFx={setFx}
       tapRecording={tapRecording}
+      tapStep={tapStep}
       toggleTapRecording={toggleTapRecording}
       setTapTarget={setTapTarget}
+      setTapStep={setTapStep}
       automationRecording={automationRecording}
       running={running}
       toggleAutomationRecording={toggleAutomationRecording}

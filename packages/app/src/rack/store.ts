@@ -5,7 +5,6 @@ import {
   DEFAULT_PARAMS,
   DEFAULT_SENDS,
   ALL_VOICES,
-  bassStepAt,
   chainSetClip,
   type BassParams,
   type ClipLaunchEvent,
@@ -17,7 +16,7 @@ import {
   type GrooveboxSection,
   type VoiceParams,
   encodeSong,
-  setBassStep,
+  enterBassNote,
   setAutomationPoint,
   setStep,
 } from '@driftbox/engine'
@@ -362,9 +361,12 @@ interface RackState {
   /** Keyboard tap recording is armed and focused in the editor, but never saved in the patch. */
   grooveboxTapRecording: boolean
   grooveboxTapTarget: GrooveboxTapTarget | null
+  /** Stopped-transport 303 entry cursor. Session state, shared with the faceplate. */
+  grooveboxTapStep: number
   toggleGrooveboxTapRecording: () => void
   setGrooveboxTapTarget: (target: GrooveboxTapTarget) => void
-  /** Quantise one keyboard strike into the focused retained clip at the hosted playhead. */
+  setGrooveboxTapStep: (step: number) => void
+  /** Quantise at the playhead, or advance the focused 303 cursor while stopped. */
   recordGrooveboxTap: (note: number, velocity: number) => GrooveboxTapHit | null
   /**
    * What is loaded into each Sampler, by module id. **Session state, never part of the patch.**
@@ -565,6 +567,7 @@ export const useRack = create<RackState>((set, get) => {
     grooveboxAutomationPosition: null,
     grooveboxTapRecording: false,
     grooveboxTapTarget: null,
+    grooveboxTapStep: 0,
 
     paramValue: (moduleId, paramId) => {
       const module = get().patch.modules.find((m) => m.id === moduleId)
@@ -1091,11 +1094,12 @@ export const useRack = create<RackState>((set, get) => {
     toggleGrooveboxTapRecording: () =>
       set((state) => ({ grooveboxTapRecording: !state.grooveboxTapRecording })),
     setGrooveboxTapTarget: (grooveboxTapTarget) => set({ grooveboxTapTarget }),
+    setGrooveboxTapStep: (grooveboxTapStep) => set({ grooveboxTapStep }),
     recordGrooveboxTap: (note, velocity) => {
       const state = get()
       const song = grooveboxSong(state.patch)
       const position = state.grooveboxAutomationPosition?.()
-      if (!state.grooveboxTapRecording || !song || !position) return null
+      if (!state.grooveboxTapRecording || !song) return null
 
       const target = state.grooveboxTapTarget
       const pattern =
@@ -1105,6 +1109,7 @@ export const useRack = create<RackState>((set, get) => {
 
       const section = target?.section ?? 'tr808'
       const bass = section === '303.a' || section === '303.b'
+      if (!position && !bass) return null
       const voiceId = bass
         ? section
         : ALL_VOICES.some(
@@ -1114,15 +1119,15 @@ export const useRack = create<RackState>((set, get) => {
           : ALL_VOICES.find((voice) => voice.machine === section)?.id
       if (!voiceId) return null
 
-      const step = ((Math.floor(position.index) % pattern.length) + pattern.length) % pattern.length
+      const rawStep = position?.index ?? state.grooveboxTapStep
+      const step = ((Math.floor(rawStep) % pattern.length) + pattern.length) % pattern.length
       const accent = velocity >= 0.75
       const semitone = Math.max(0, Math.min(24, Math.round(note) - 36))
-      const nextPattern = bass
-        ? setBassStep(pattern, voiceId, step, {
-            note: semitone,
-            accent,
-            slide: bassStepAt(pattern, voiceId, step).slide,
-          })
+      const entered = bass
+        ? enterBassNote(pattern, voiceId, step, semitone, accent)
+        : null
+      const nextPattern = entered
+        ? entered.pattern
         : setStep(pattern, voiceId, step, accent ? 2 : 1)
 
       write(`groovebox:tap:${pattern.id}`, false, (patch) => {
@@ -1138,6 +1143,7 @@ export const useRack = create<RackState>((set, get) => {
           }),
         }
       })
+      if (!position && entered) set({ grooveboxTapStep: entered.nextStep })
       return { section, voiceId, semitone, accent }
     },
 
@@ -1233,6 +1239,7 @@ export const useRack = create<RackState>((set, get) => {
         history: NO_HISTORY,
         grooveboxTapRecording: false,
         grooveboxTapTarget: null,
+        grooveboxTapStep: 0,
       })
     },
 

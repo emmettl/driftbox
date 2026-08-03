@@ -9,6 +9,9 @@ import {
   defaultKit,
   duplicatePattern,
   emptyPattern,
+  enterBassNote,
+  enterBassRest,
+  enterBassTie,
   flamAt,
   randomizeBassLine,
   randomizeTrack,
@@ -313,6 +316,60 @@ describe('pattern-controlled filter steps', () => {
     const copy = next.patterns.find((pattern) => pattern.id === id)!
     copy.pcf![0] = 0
     expect(next.patterns[0].pcf?.[0]).toBe(1)
+  })
+})
+
+describe('sequential 303 entry', () => {
+  const line = (): Pattern => ({
+    id: 'entry',
+    name: 'Entry',
+    length: 4,
+    tracks: {},
+    bass: {
+      '303.a': [
+        { note: 5, accent: false, slide: false },
+        { note: null, accent: false, slide: true },
+        { note: null, accent: false, slide: false },
+        { note: null, accent: false, slide: false },
+      ],
+    },
+  })
+
+  it('writes a clamped accented note, preserves its following slide, and advances', () => {
+    const entered = enterBassNote(line(), '303.a', 1, 29, true)
+    expect(entered.pattern.bass?.['303.a']?.[1]).toEqual({
+      note: 24,
+      accent: true,
+      slide: true,
+    })
+    expect(entered.nextStep).toBe(2)
+  })
+
+  it('writes a rest and wraps the cursor', () => {
+    const entered = enterBassRest(line(), '303.a', 4)
+    expect(entered.pattern.bass?.['303.a']?.[0]).toEqual({
+      note: null,
+      accent: false,
+      slide: false,
+    })
+    expect(entered.nextStep).toBe(1)
+  })
+
+  it('ties the preceding pitch through the cursor without losing a later slide', () => {
+    const entered = enterBassTie(line(), '303.a', 1)
+    expect(entered.pattern.bass?.['303.a']?.slice(0, 2)).toEqual([
+      { note: 5, accent: false, slide: true },
+      { note: 5, accent: false, slide: true },
+    ])
+    expect(entered.nextStep).toBe(2)
+  })
+
+  it('does not advance a tie after a rest', () => {
+    const pattern = line()
+    const entered = enterBassTie(pattern, '303.a', 3)
+    expect(entered.written).toBe(false)
+    expect(entered.nextStep).toBe(3)
+    expect(entered.pattern).toBe(pattern)
   })
 })
 

@@ -595,6 +595,75 @@ export function setBassStep(
   return { ...pattern, bass: { ...pattern.bass, [voiceId]: next } }
 }
 
+export interface BassEntryResult {
+  pattern: Pattern
+  nextStep: number
+  written: boolean
+}
+
+const bassEntryIndex = (pattern: Pattern, step: number): number =>
+  pattern.length <= 0
+    ? 0
+    : ((Math.floor(step) % pattern.length) + pattern.length) % pattern.length
+
+/** Write one keyboard note at a 303 step cursor and advance, preserving its slide flag. */
+export function enterBassNote(
+  pattern: Pattern,
+  voiceId: string,
+  step: number,
+  note: number,
+  accent = false,
+): BassEntryResult {
+  if (pattern.length <= 0) return { pattern, nextStep: 0, written: false }
+  const index = bassEntryIndex(pattern, step)
+  const current = bassStepAt(pattern, voiceId, index)
+  const next = setBassStep(pattern, voiceId, index, {
+    note: Math.max(0, Math.min(24, Math.round(note))),
+    accent,
+    slide: current.slide,
+  })
+  return { pattern: next, nextStep: (index + 1) % pattern.length, written: true }
+}
+
+/** Clear the cursor step and advance, for leaving deliberate space while entering notes. */
+export function enterBassRest(
+  pattern: Pattern,
+  voiceId: string,
+  step: number,
+): BassEntryResult {
+  if (pattern.length <= 0) return { pattern, nextStep: 0, written: false }
+  const index = bassEntryIndex(pattern, step)
+  return {
+    pattern: setBassStep(pattern, voiceId, index, { ...REST }),
+    nextStep: (index + 1) % pattern.length,
+    written: true,
+  }
+}
+
+/** Sustain the previous pitch through the cursor step and advance. */
+export function enterBassTie(
+  pattern: Pattern,
+  voiceId: string,
+  step: number,
+): BassEntryResult {
+  if (pattern.length <= 0) return { pattern, nextStep: 0, written: false }
+  const index = bassEntryIndex(pattern, step)
+  const previousIndex = (index - 1 + pattern.length) % pattern.length
+  const previous = bassStepAt(pattern, voiceId, previousIndex)
+  if (previous.note === null) return { pattern, nextStep: index, written: false }
+  const current = bassStepAt(pattern, voiceId, index)
+  const withHold = setBassStep(pattern, voiceId, previousIndex, { ...previous, slide: true })
+  return {
+    pattern: setBassStep(withHold, voiceId, index, {
+      note: previous.note,
+      accent: false,
+      slide: current.slide,
+    }),
+    nextStep: (index + 1) % pattern.length,
+    written: true,
+  }
+}
+
 export function clearBassLine(pattern: Pattern, voiceId: string): Pattern {
   const bass = { ...pattern.bass }
   delete bass[voiceId]
