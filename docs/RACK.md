@@ -1702,6 +1702,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    as long/short pairs, leaves eighth and triplet grids intact, and defaults to `Off`. Hosts that do not supply
    a global value remain straight, so neither older patches nor the original External-clock path moves.
 
+   **5w. Arp gate endpoints.** ✅ Gate Length now spans the full RPG range. Zero emits no Gate while leaving
+   the short Trig output usable; Tie is legato from the opening note rather than waiting for one interval to be
+   measured. Pattern rests, Reset, timing changes and released Played chords still close a tie. The default and
+   every previously valid saved value are unchanged.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

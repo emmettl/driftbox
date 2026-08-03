@@ -35,6 +35,7 @@ export class ArpProcessor implements Processor {
   private held = 0
   private heldVelocity = 1
   private gateLeft = 0
+  private tied = false
   private trigLeft = 0
   private since = 0
   private interval = 0
@@ -350,6 +351,7 @@ export class ArpProcessor implements Processor {
         if (!hold && active === 0) {
           this.started = false
           this.patternStarted = false
+          this.tied = false
           this.gateLeft = 0
           this.trigLeft = 0
         }
@@ -358,6 +360,7 @@ export class ArpProcessor implements Processor {
       const reset = resetIn[i] >= 0.5 ? 1 : 0
       if (reset === 1 && this.lastReset === 0) {
         this.started = false
+        this.tied = false
         this.patternStep = 0
         this.patternStarted = false
       }
@@ -365,6 +368,7 @@ export class ArpProcessor implements Processor {
 
       this.since++
       const clock = clockIn[i] >= 0.5 ? 1 : 0
+      if (this.tied && gateParam[i] < 1) this.tied = false
       const timing = Math.max(0, Math.min(2, Math.round(timingParam[i])))
       if (timing !== this.timingWas) {
         this.internalLeft = 0
@@ -372,6 +376,7 @@ export class ArpProcessor implements Processor {
         this.tempoDelay = 0
         this.started = false
         this.patternStarted = false
+        this.tied = false
         this.timingWas = timing
       }
       const insert = Math.max(0, Math.min(4, Math.round(insertParam[i])))
@@ -455,7 +460,8 @@ export class ArpProcessor implements Processor {
                 : this.figureVelocity[playStep]
               const fraction = gateParam[i]
               const span = opening ? this.trigSamples : this.interval
-              this.gateLeft = Math.max(1, Math.round(span * (fraction > 0 ? fraction : 0.01)))
+              this.tied = fraction >= 1
+              this.gateLeft = fraction > 0 && !this.tied ? Math.max(1, Math.round(span * fraction)) : 0
               this.trigLeft = this.trigSamples
               this.singlePitchWas = length === 1 ? this.figurePitch[0] : Number.NaN
             }
@@ -463,12 +469,14 @@ export class ArpProcessor implements Processor {
             // The rhythm advances; the note figure does not. RPG rests silence a position rather than skip
             // an arpeggio note, so the next enabled pulse plays the next note the unmuted figure would have.
             this.gateLeft = 0
+            this.tied = false
             this.trigLeft = 0
           }
         } else {
           this.started = false
           this.patternStarted = false
           this.singlePitchWas = Number.NaN
+          this.tied = false
           this.gateLeft = 0
           this.trigLeft = 0
         }
@@ -477,7 +485,8 @@ export class ArpProcessor implements Processor {
 
       pitchOut[i] = this.held
       velocityOut[i] = this.heldVelocity
-      if (this.gateLeft > 0) {
+      if (this.tied && this.started) gateOut[i] = 1
+      else if (this.gateLeft > 0) {
         this.gateLeft--
         gateOut[i] = 1
       } else gateOut[i] = 0
@@ -491,7 +500,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 8,
+  version: 9,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -521,6 +530,7 @@ export const ARP_MODULE: ModuleDef = {
     watchFor: [
       'External timing needs Clock edges; Tempo timing needs the rack transport running.',
       'Shuffle affects Tempo timing only and uses the host transport’s global amount.',
+      'Gate Length at zero closes Gate completely; at Tie it stays legato until a rest or reset condition.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -561,7 +571,7 @@ export const ARP_MODULE: ModuleDef = {
       stepped: true,
       labels: ['Up', 'Down', 'Up-Dn', 'Dn-Up', 'Rand', 'Manual'],
     },
-    { id: 'gate', name: 'Gate Length', min: 0.05, max: 1, default: 0.5 },
+    { id: 'gate', name: 'Gate Length', min: 0, max: 1, default: 0.5 },
     { id: 'hold', name: 'Hold', min: 0, max: 1, default: 0, stepped: true, labels: ['Off', 'On'] },
     { id: 'shift', name: 'Octave Shift', min: -3, max: 3, default: 0, stepped: true },
     {

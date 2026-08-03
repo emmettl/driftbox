@@ -455,6 +455,42 @@ describe('how it is clocked', () => {
     expect(held(0.9)).toBeGreaterThan(STEP / 2)
   })
 
+  it('closes Gate completely at zero while keeping Trig available', () => {
+    expect(ARP_MODULE.params[param('gate')].min).toBe(0)
+    const { out } = run(4, { chord: 2, octaves: 1, gate: 0 })
+    expect(out[1].every((value) => value === 0)).toBe(true)
+    expect(Array.from({ length: 4 }, (_, step) => out[3][step * STEP] >= 0.5)).toEqual([
+      true, true, true, true,
+    ])
+  })
+
+  it('keeps Tie open from the first note without gaps between steps', () => {
+    const { out } = run(4, { chord: 2, octaves: 1, gate: 1 })
+    expect(out[1].every((value) => value === 1)).toBe(true)
+  })
+
+  it('still closes a tied gate for a rhythm rest', () => {
+    const pattern = new Float32Array(ARP_PATTERN_STEPS).fill(1)
+    pattern[1] = 0
+    const arp = new ArpProcessor(SR, deps, 'arp-tied-rest', {
+      get: (slot) => slot === 'pattern' ? pattern : undefined,
+    })
+    const frames = STEP * 3
+    const clock = Float32Array.from({ length: frames }, (_, i) => (i % STEP < STEP / 2 ? 1 : 0))
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('gate')].fill(1)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames).fill(1), clock, new Float32Array(frames)],
+      out,
+      params,
+      frames,
+    )
+    expect(out[1].slice(0, STEP).every((value) => value === 1)).toBe(true)
+    expect(out[1].slice(STEP, STEP * 2).every((value) => value === 0)).toBe(true)
+    expect(out[1].slice(STEP * 2).every((value) => value === 1)).toBe(true)
+  })
+
   it('sounds its first note even though there is no previous step to measure', () => {
     // The gate falls back to the **trigger width**, not to the measured interval — which on the opening
     // edge is one sample, because the module has been running for one. A one-sample gate is not silence,
