@@ -188,7 +188,8 @@ Ordered by return, not by how big Reason's version was.
   Arpeggiator Off completes the MIDI-to-CV role: Root mirrors its monophonic Pitch/Gate/Velocity inputs, and
   Played follows the most recently pressed held voice without applying the figure or timing controls.
   Start now has the RPG rear-panel contract too: leaving it unplugged preserves immediate playback, while
-  patching it arms the Arp until a trigger restarts the figure; Start Out pulses at every figure restart.
+  patching it arms the Arp until a trigger restarts the figure; Start Out opens at every figure restart and
+  matches the first note's Gate Length, including the closed and Tie endpoints.
 
   **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
   one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern

@@ -1723,8 +1723,9 @@ both bundle cost on the editing-only path and visual competition with a readable
    **5z. Start of Arpeggio.** ✅ The appended `Start` inlet uses that presence bit for the RPG rear-panel
    contract: unplugged is the old immediate-start behavior, while a patched-low jack arms the device and emits
    no arpeggio until a rising trigger restarts the note walk, insert phase and rhythm pattern. The appended
-   `Start` outlet emits a short pulse on the opening note and every complete figure return. Both port ids are
-   additive, and Arpeggiator Off remains an ungated MIDI-to-CV converter.
+   `Start` outlet opens on the first note and every complete figure return. It copies that opening note's Gate
+   Length rather than emitting the ordinary 1 ms Trig, including closed and Tie. Both port ids are additive,
+   and Arpeggiator Off remains an ungated MIDI-to-CV converter.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
