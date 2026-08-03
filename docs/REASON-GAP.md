@@ -192,9 +192,12 @@ Ordered by return, not by how big Reason's version was.
   and each incoming chord voice is corrected independently. The Scale Map faceplate makes the selected notes
   visible in the current key; clicking any note copies a preset into Custom and edits it in place.
 
-  Still absent: the chord half — one input voice becoming one to five simultaneous, scale-built voices,
-  with inversion, open voicing and added colour/octaves. That needs the same honest voice-cardinality work
-  as zero-time Note Echo clusters; adding several pitch numbers together would only produce one wrong note.
+  The voice-cardinality foundation has now landed: buffers carry exact widths, expanders get bounded child
+  lanes for each source voice, and ordinary modules downstream inherit the wider stream. The eight-lane maximum
+  covers five tertian notes plus octave-up, octave-down and colour together. Mono collapse keeps
+  its old meaning, and old plans still run through the original mono/poly fallback. Still absent is the Chord
+  Player module that uses those lanes for one to five scale-built voices, inversion, open voicing and added
+  colour/octaves; adding several pitch numbers together would still only produce one wrong note.
 - **~~A multisample instrument.~~ Landed.** `Multisampler` sits beside the unchanged
   break-slicing `Sampler`: it maps session-loaded recordings by key and velocity, respects root key and
   source sample rate, sustains between per-zone loop points, and instantiates per MIDI voice. Zone maps

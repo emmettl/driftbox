@@ -150,6 +150,34 @@ export interface Processor {
   meters?(): readonly MeterReading[]
 }
 
+/**
+ * Where one processor instance sits in a variable-width polyphonic stream.
+ *
+ * Ordinary modules see `lane: 0` and one instance for every voice reaching them. A voice expander sees
+ * several lanes for the same `sourceVoice`; that is enough for a Chord Player to turn one incoming note
+ * into its tertian chord and optional octave/colour notes without teaching its processor about the graph.
+ */
+export interface ProcessorVoice {
+  /** This instance in the module's output stream. */
+  voice: number
+  /** The input voice this instance descends from. */
+  sourceVoice: number
+  /** This child within `sourceVoice`, from zero. */
+  lane: number
+  /** Number of child lanes actually allocated per source voice. */
+  lanes: number
+  /** Total voices this module writes. */
+  voices: number
+  /**
+   * Mutable state shared by every instance of this module node.
+   *
+   * Most processors ignore it. An expander can use fixed typed arrays here to coordinate its child voices —
+   * for example, suppressing a duplicate chord note produced by two simultaneously played roots — without
+   * putting module-specific logic in the Graph or allocating in the audio loop.
+   */
+  shared: Record<string, unknown>
+}
+
 /** One meter module's latest display state, sent from the audio thread at animation rate. */
 export interface MeterReading {
   id: string
@@ -188,6 +216,7 @@ export type ProcessorClass = new (
   deps: Record<string, unknown>,
   id: string,
   data: ModuleData,
+  voice?: ProcessorVoice,
 ) => Processor
 
 /** A shared DSP class a module can ask for by name. `never[]` rather than `unknown[]` so
@@ -280,6 +309,15 @@ export interface ModuleDef {
    * monophonic.
    */
   poly?: boolean
+  /**
+   * Maximum output voices produced for every input voice.
+   *
+   * Absent means one, preserving the fixed-width graph every existing module was written for. The compiler
+   * allocates the requested lanes when the whole stream fits the rack's bounded render capacity, records
+   * that exact count on the plan, and lets ordinary downstream polyphonic modules inherit the wider stream.
+   * `poly: false` modules cannot expand: their defining behaviour is to collapse to one shared instance.
+   */
+  voiceExpansion?: number
   /** Repair the params of an older saved version. Lives here rather than in a central
    *  table because at forty modules a central table is unmaintainable, and the person
    *  adding a param is the person who knows what the old value meant. */
@@ -497,6 +535,13 @@ export interface PlanNode {
   params: number[]
   /** False for a module that runs once however many voices there are. */
   poly: boolean
+  /**
+   * Processor instances to construct. Absent on an old plan means the patch-wide voice count for a
+   * polyphonic node and one for a mono node.
+   */
+  voices?: number
+  /** Number of adjacent instances that descend from the same input voice. Absent means one. */
+  voiceLanes?: number
   /** Bulk data carried in the patch, seeded into the Graph when the plan is applied. */
   data?: Record<string, number[]>
 }
@@ -545,6 +590,8 @@ export interface PlanNote {
     | 'replaced-cable'
     | 'duplicate-module'
     | 'migration-failed'
+    /** A voice expander could not allocate another whole lane without exceeding the render bound. */
+    | 'voice-cap'
     /** A stereo outlet reaching a mono inlet: the left channel is heard and the right is not. */
     | 'mono-fold'
   detail: string
@@ -565,6 +612,13 @@ export interface Plan {
    * design; every question it has to answer at run time is one it can get wrong.
    */
   poly: boolean[]
+  /**
+   * Exact voice width of every buffer. Absent on an old plan falls back to `poly` and `voices`.
+   *
+   * This is the structural difference between a chord and a summed pitch: five chord tones are five
+   * buffers at one port, and downstream processors are instantiated five times to consume them.
+   */
+  voiceWidths?: number[]
   /** In execution order. */
   nodes: PlanNode[]
   /** What reaches the speakers, and where in the stereo field. */

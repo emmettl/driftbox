@@ -345,6 +345,7 @@ interface ModuleDef {
   processor: new (sampleRate: number, deps: Record<string, unknown>) => Processor
   deps?: Record<string, Dep>   // shared DSP classes, BY STRING KEY — see below
   terminal?: boolean           // its first outlet sums into the audio output
+  voiceExpansion?: number      // child output voices per input voice; absent means one
   migrate?(params: Record<string, number>, from: number): Record<string, number>
 }
 
@@ -1612,6 +1613,23 @@ both bundle cost on the editing-only path and visual competition with a readable
    into Custom before toggling it, so exploring a variation takes one gesture and never destroys the factory
    shape. The last enabled note cannot be removed; missing or damaged custom data falls back to Major on both
    the processor and panel instead of turning the device silently unusable.
+
+   **5o. Variable-width voice streams.** ✅ The structural half of chord generation has landed without
+   changing an existing processor. `Plan.voiceWidths` replaces the old mono/poly bit as the Graph's exact
+   allocation instruction while retaining that bit as an old-plan fallback. A module can declare up to eight
+   child lanes per input voice; each processor instance receives its source voice, lane and a node-local shared
+   state object in the constructor, and ordinary polyphonic modules downstream inherit the wider stream
+   automatically. The shared state lets an expander suppress coincident generated notes without making the
+   Graph understand chords. A VCO after an expander
+   therefore becomes one VCO instance per generated note, not one VCO receiving several pitch values added
+   together.
+
+   Mono modules still collapse every arriving voice before they run. Fanout is bounded at sixty-four processors
+   per module — eight performed notes times five chord tones plus all three optional additions — and a second
+   expander that would exceed that bound is held at its input width with a visible plan note instead of dropping
+   the last players' notes. The compiler
+   decides all widths and mappings at rebuild time; the audio loop remains a branch-free walk over prepared
+   buffers. The next stack can now be the Chord Player itself rather than another graph redesign.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

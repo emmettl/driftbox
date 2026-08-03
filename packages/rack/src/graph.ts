@@ -27,7 +27,8 @@ import type {
  *
  *   consumer  source   the inlet gets
  *   --------  ------   ---------------------------------------------
- *   poly      poly     that voice's buffer
+ *   poly      same     that voice's buffer
+ *   poly      narrower the source voice shared by this child lane
  *   poly      mono     the one buffer, the same for every voice
  *   mono      poly     a scratch holding every voice summed
  *   mono      mono     the one buffer
@@ -69,8 +70,11 @@ export class Graph {
 
   private frames: number
   private plan: Plan | null = null
+  /** Performed voices. A widened stream can allocate more processor instances without changing this. */
   private voices = 1
-  /** `[bufferIndex][voice]`. A mono buffer has one entry; a polyphonic one has `voices`. */
+  /** Widest stream in the plan, bounded by the compiler to eight notes times eight chord lanes. */
+  private voiceCapacity = 1
+  /** `[bufferIndex][voice]`. A buffer can now be mono, patch-wide, or expanded. */
   private buffers: Float32Array[][] = []
   /** Where an outlet with no allocated buffer writes. Insurance: it means no module can
    *  write into buffer 0 and invent a signal for every unconnected inlet at once. */
@@ -541,6 +545,14 @@ export class Graph {
     this.missing.length = 0
     this.scratch = new Float32Array(this.frames)
     this.voices = Math.max(1, Math.min(8, Math.round(plan.voices || 1)))
+    this.voiceCapacity = this.voices
+    for (const width of plan.voiceWidths ?? []) {
+      if (Number.isFinite(width)) this.voiceCapacity = Math.max(this.voiceCapacity, Math.round(width))
+    }
+    for (const node of plan.nodes) {
+      if (Number.isFinite(node.voices)) this.voiceCapacity = Math.max(this.voiceCapacity, Math.round(node.voices!))
+    }
+    this.voiceCapacity = Math.max(1, Math.min(64, this.voiceCapacity))
 
     // Patch data is the document, so it is replaced wholesale each build. Pushed data is not, so it is left
     // alone — recompiling a patch must not throw away a sample somebody loaded into it.
@@ -554,11 +566,14 @@ export class Graph {
       if (forModule.size > 0) this.seeded.set(node.id, forModule)
     }
 
-    // A polyphonic buffer gets one array per voice; a mono one gets a single array that every voice reads.
-    // `plan.poly` says which is which, worked out by the compiler from who writes each buffer.
+    // New plans state the exact width. An old plan still has the mono/poly bit and means one or the patch
+    // voice count exactly as it did before expansion existed.
     this.buffers = []
     for (let i = 0; i < plan.buffers; i++) {
-      const wide = plan.poly?.[i] ? this.voices : 1
+      const described = plan.voiceWidths?.[i]
+      const wide = described === undefined
+        ? (plan.poly?.[i] ? this.voices : 1)
+        : Math.max(1, Math.min(this.voiceCapacity, Math.round(described)))
       this.buffers.push(Array.from({ length: wide }, () => new Float32Array(this.frames)))
     }
 
@@ -576,9 +591,9 @@ export class Graph {
     if (!keepParams) this.scheduled.length = 0
     for (let i = 0; i < count; i++) {
       const saved = plan.params[i].value
-      const values = new Float32Array(this.voices)
-      const targets = new Float32Array(this.voices)
-      for (let voice = 0; voice < this.voices; voice++) {
+      const values = new Float32Array(this.voiceCapacity)
+      const targets = new Float32Array(this.voiceCapacity)
+      for (let voice = 0; voice < this.voiceCapacity; voice++) {
         // A knob position survives a re-allocation; a voice added by a change of count starts where the
         // patch says. `previous[i]` may be narrower than the new voice count, hence the fallback.
         const value = previous?.[i]?.[voice] ?? saved
@@ -588,10 +603,10 @@ export class Graph {
       this.values.push(values)
       this.targets.push(targets)
       this.stepped[i] = plan.params[i].stepped ? 1 : 0
-      this.ramped.push(new Uint8Array(this.voices))
-      this.rampAt.push(new Int32Array(this.voices))
+      this.ramped.push(new Uint8Array(this.voiceCapacity))
+      this.rampAt.push(new Int32Array(this.voiceCapacity))
       this.paramBuffers.push(
-        Array.from({ length: this.voices }, () => new Float32Array(this.frames).fill(values[0])),
+        Array.from({ length: this.voiceCapacity }, (_, voice) => new Float32Array(this.frames).fill(values[voice])),
       )
     }
 
@@ -611,7 +626,11 @@ export class Graph {
         continue
       }
       const poly = node.poly !== false
-      const instances = poly ? this.voices : 1
+      const instances = poly
+        ? Math.max(1, Math.min(this.voiceCapacity, Math.round(node.voices ?? this.voices)))
+        : 1
+      const lanes = poly ? Math.max(1, Math.min(8, Math.round(node.voiceLanes ?? 1))) : 1
+      const shared: Record<string, unknown> = {}
 
       for (let voice = 0; voice < instances; voice++) {
         const collapse: Node['collapse'] = []
@@ -619,7 +638,11 @@ export class Graph {
         const inlets = node.inlets.map((index, inlet) => {
           let source: Float32Array
           if (poly) {
-            source = at(index, voice)
+            const width = this.buffers[index]?.length ?? 1
+            // Broadcast a narrower stream over adjacent child voices. Equal widths are the old direct
+            // mapping, and mono is still the same buffer for everybody.
+            const mapped = width <= 1 ? 0 : Math.min(width - 1, Math.floor((voice * width) / instances))
+            source = at(index, mapped)
           } else {
             const perVoice = this.buffers[index]
             // Mono module, polyphonic source: this is the collapse. A scratch buffer per inlet, summed before
@@ -655,6 +678,14 @@ export class Graph {
             // A live view rather than a snapshot, because data can arrive long after the graph was built —
             // somebody loads a break into a patch that is already playing. Every voice of a module shares it.
             this.dataFor(node.id),
+            {
+              voice,
+              sourceVoice: Math.floor(voice / lanes),
+              lane: voice % lanes,
+              lanes,
+              voices: instances,
+              shared,
+            },
           ),
           inlets,
           outlets: node.outlets.map((index) =>
