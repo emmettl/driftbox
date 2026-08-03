@@ -1677,7 +1677,7 @@ both bundle cost on the editing-only path and visual competition with a readable
    permutation rather than pretending a display-only RNG can predict the audio processor's seeded state.
 
    **5s. Arp rhythm engine.** ✅ External Clock remains the default, preserving the original Driftbox/Reason →
-   ReBirth one-finger patch exactly, while appended timing controls add rack-tempo divisions (including triplets)
+   ReBirth one-finger patch exactly, while appended timing controls add straight, dotted and triplet rack-tempo divisions
    and a 0.1–250 Hz free clock. A portable sixteen-value pattern mutes selected pulses without advancing the note
    cycle, so the next enabled pulse plays the next figure note; its all-enabled default is therefore silent in the compatibility sense as well as musically familiar.
    Pattern length is an ordinary routed parameter from one to sixteen steps.

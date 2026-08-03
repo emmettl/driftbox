@@ -86,7 +86,13 @@ export class ArpProcessor implements Processor {
     // Beat lengths for the labelled whole-note divisions below. Tempo sync deliberately follows the rack
     // tempo even while its transport is stopped: like the RPG-8, an Arp is playable without starting the
     // song. External remains the compatibility default for patches that want explicit Clock/Reset wiring.
-    const beats = [2, 1, 0.5, 1 / 3, 0.25, 1 / 6, 0.125, 1 / 12, 1 / 16, 1 / 32]
+    // New values are appended, never inserted: patches store the stepped value, so changing an existing
+    // index would turn a saved 1/16 into another rate. The tail completes RPG's dotted/triplet 1/2–1/16
+    // set while the first ten positions retain the rhythm shipped in Arp v4.
+    const beats = [
+      2, 1, 0.5, 1 / 3, 0.25, 1 / 6, 0.125, 1 / 12, 1 / 16, 1 / 32,
+      3, 4 / 3, 1.5, 2 / 3, 0.75, 0.375,
+    ]
     const at = Math.max(0, Math.min(beats.length - 1, Math.round(division)))
     const tempo = transport && transport.tempo > 0 ? transport.tempo : 120
     return Math.max(2, Math.round(beats[at] * this.sampleRate * 60 / tempo))
@@ -373,7 +379,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 4,
+  version: 5,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -468,10 +474,13 @@ export const ARP_MODULE: ModuleDef = {
       id: 'division',
       name: 'Division',
       min: 0,
-      max: 9,
+      max: 15,
       default: 4,
       stepped: true,
-      labels: ['1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128'],
+      labels: [
+        '1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128',
+        '1/2D', '1/2T', '1/4D', '1/4T', '1/8D', '1/16D',
+      ],
     },
     { id: 'rate', name: 'Free Rate', min: 0.1, max: 250, default: 8 },
     { id: 'patternLength', name: 'Pattern Steps', min: 1, max: ARP_PATTERN_STEPS, default: 16, stepped: true },

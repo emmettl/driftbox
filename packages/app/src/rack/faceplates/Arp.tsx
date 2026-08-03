@@ -19,7 +19,7 @@ export function Arp({ def, module, value, onChange, routed }: FaceplateProps) {
   const hold = value('hold') >= 0.5
   const fixedVelocity = value('velocityMode') >= 0.5
   const timing = Math.max(0, Math.min(2, Math.round(value('timing'))))
-  const division = Math.max(0, Math.min(9, Math.round(value('division'))))
+  const division = Math.max(0, Math.min(15, Math.round(value('division'))))
   const rate = Math.max(0.1, Math.min(250, value('rate')))
   const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(value('patternLength'))))
   const param = (id: string) => def.params.find((candidate) => candidate.id === id)!

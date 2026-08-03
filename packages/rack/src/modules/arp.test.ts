@@ -259,6 +259,39 @@ describe('how it is clocked', () => {
     expect(pitchesAt(180)).toBe(11)
   })
 
+  it('completes the dotted and triplet tempo values without moving shipped division indices', () => {
+    expect(ARP_MODULE.params[param('division')].labels?.slice(0, 10)).toEqual([
+      '1/2', '1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32', '1/32T', '1/64', '1/128',
+    ])
+    const additions = [
+      { division: 10, label: '1/2D', interval: 1800 },
+      { division: 11, label: '1/2T', interval: 800 },
+      { division: 12, label: '1/4D', interval: 900 },
+      { division: 13, label: '1/4T', interval: 400 },
+      { division: 14, label: '1/8D', interval: 450 },
+      { division: 15, label: '1/16D', interval: 225 },
+    ]
+    for (const addition of additions) {
+      expect(ARP_MODULE.params[param('division')].labels?.[addition.division]).toBe(addition.label)
+      const sampleRate = 1200
+      const frames = addition.interval + 2
+      const arp = new ArpProcessor(sampleRate, deps, `arp-${addition.label}`)
+      const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+      params[param('timing')].fill(1)
+      params[param('division')].fill(addition.division)
+      const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+      arp.process(
+        Array.from({ length: 5 }, (_, inlet) => new Float32Array(frames).fill(inlet === 2 ? 1 : 0)),
+        out,
+        params,
+        frames,
+        { tempo: 120, running: false, beat: 0, beatsPerBlock: 0 },
+      )
+      expect(out[3][0], `${addition.label} starts immediately`).toBe(1)
+      expect(out[3][addition.interval], `${addition.label} interval`).toBe(1)
+    }
+  })
+
   it('gates for a fraction of the step, so the feel survives a tempo change', () => {
     // A gate in seconds would turn legato into staccato as the tempo rose. Measured across one step, with
     // the first skipped because it has no previous interval to be a fraction of.

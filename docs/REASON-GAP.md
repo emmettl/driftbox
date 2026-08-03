@@ -176,7 +176,7 @@ Ordered by return, not by how big Reason's version was.
   preserves the original Driftbox behavior and every saved patch. Played mode adds ascending, descending,
   turning, random and note-on-order figures; Hold latches the last chord, the one-to-four-octave range and
   ±3-octave shift match the RPG-8 shape, and velocity can follow each source note or use a fixed value.
-  It can use the old Clock inlet, run at a rack-tempo division, or free-run from 0.1–250 Hz. Its independent
+  It can use the old Clock inlet, run at a straight, dotted or triplet rack-tempo division, or free-run from 0.1–250 Hz. Its independent
   sixteen-step rhythm pattern adds rests without skipping notes in the note cycle, and Arp Field makes both that pattern
   and the Root/Played walk editable while keeping every engine control on the ordinary routed parameter path.
 
