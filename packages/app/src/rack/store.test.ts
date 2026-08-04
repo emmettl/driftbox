@@ -1128,6 +1128,52 @@ describe('recording a knob move', () => {
     expect(useRack.getState().patch).toBe(before)
   })
 
+  it('draws a pencil gesture as one bounded, undoable edit', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    useRack.setState({ history: NO_HISTORY })
+
+    useRack.getState().drawAutomationPoint('ladder-1', 'cutoff', 8, 900, 7)
+    useRack.getState().drawAutomationPoint('ladder-1', 'cutoff', 9, 90_000, 7)
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 8, value: 900 },
+      { at: 9, value: 12_000 },
+    ])
+    expect(useRack.getState().history.past).toHaveLength(1)
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 0, value: 400 }])
+  })
+
+  it('rounds pencil values for stepped controls and replaces an occupied position', () => {
+    armAt(4)
+    useRack.getState().setParam('meter-1', 'mode', 1)
+    useRack.getState().drawAutomationPoint('meter-1', 'mode', 4, 1.6, 1)
+    useRack.getState().drawAutomationPoint('meter-1', 'mode', 8, -5, 1)
+    expect(useRack.getState().patch.automation?.[0]).toMatchObject({
+      curve: 'hold',
+      points: [{ at: 4, value: 2 }, { at: 8, value: 0 }],
+    })
+  })
+
+  it('keeps separate pencil strokes as separate undo steps', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    useRack.setState({ history: NO_HISTORY })
+
+    const first = useRack.getState().beginAutomationGesture()
+    useRack.getState().drawAutomationPoint('ladder-1', 'cutoff', 8, 900, first)
+    const second = useRack.getState().beginAutomationGesture()
+    useRack.getState().drawAutomationPoint('ladder-1', 'cutoff', 9, 1000, second)
+    expect(useRack.getState().history.past).toHaveLength(2)
+
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 8, value: 900 },
+    ])
+  })
+
   it('removes individual points and drops an empty lane', () => {
     armAt(0)
     useRack.getState().setParam('ladder-1', 'cutoff', 400)

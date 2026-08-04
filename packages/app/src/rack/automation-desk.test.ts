@@ -1,6 +1,7 @@
 import { MODULES, type Patch } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
 import {
+  automationDrawPoint,
   automationLaneViews,
   automationPosition,
   automationPositionLabel,
@@ -65,6 +66,20 @@ describe('automation desk lane summaries', () => {
     expect(lanes[1].path).toContain(' H ')
     expect(lanes[1].path).toContain(' V ')
     expect(lanes[1]).toMatchObject({ stepped: true, min: 0, max: 2 })
+  })
+
+  it('leaves a bar of drawable runway and maps the pencil through parameter bounds', () => {
+    const lanes = automationLaneViews(PATCH, MODULES)
+    expect(lanes[0].end).toBe(48)
+    expect(automationDrawPoint(lanes[0], 0.5, 0)).toEqual({ at: 24, value: 12000 })
+    expect(automationDrawPoint(lanes[0], 0.5, 1)).toEqual({ at: 24, value: 20 })
+    expect(automationDrawPoint(lanes[1], 0.5, 0.2)).toEqual({ at: 24, value: 2 })
+  })
+
+  it('clamps pencil coordinates to the drawable surface', () => {
+    const lane = automationLaneViews(PATCH, MODULES)[0]
+    expect(automationDrawPoint(lane, -1, 2)).toEqual({ at: 0, value: 20 })
+    expect(automationDrawPoint(lane, 2, -1)).toEqual({ at: 48, value: 12000 })
   })
 
   it('keeps unknown saved targets visible rather than silently dropping them', () => {
