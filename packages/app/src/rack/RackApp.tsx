@@ -535,6 +535,7 @@ export default function RackApp() {
       {
         onVoice: (state, channel) => playVoice(state, channel),
         onMod: (value, channel) => sendMidi(channel, { mod: value }),
+        onPerformance: (control, value, channel) => sendMidi(channel, { [control]: value }),
         onControl,
         onInputs: (inputs) => setMidi(null, inputs),
       },

@@ -236,6 +236,8 @@ export class KeyboardBank {
 export interface MidiEvents {
   onVoice(state: VoiceState, channel: number): void
   onMod(value: number, channel: number): void
+  /** Performance CV other than the long-standing Mod outlet. Optional for the original groovebox host. */
+  onPerformance?(control: Exclude<MidiPerformanceControl, 'mod'>, value: number, channel: number): void
   /**
    * Every control change, raw, including the two handled specially below.
    *
@@ -251,6 +253,43 @@ export interface MidiEvents {
   onControl(cc: number, value: number, channel: number): void
   /** The currently connected inputs, including hot-plug changes. */
   onInputs?(inputs: string[]): void
+}
+
+export type MidiPerformanceControl = 'mod' | 'bend' | 'aftertouch' | 'expression' | 'breath' | 'sustain'
+
+export interface MidiPerformance {
+  control: MidiPerformanceControl
+  value: number
+  channel: number
+}
+
+/** Decode the MIDI messages that have first-class CV outlets in Rack mode. Pure so every byte rule is tested. */
+export function midiPerformance(data: ArrayLike<number>): MidiPerformance | null {
+  if (data.length < 2) return null
+  const status = data[0] & 0xf0
+  const channel = (data[0] & 0x0f) + 1
+  const value = (data[1] & 0x7f) / 127
+
+  if (status === 0xb0) {
+    const cc = data[1] & 0x7f
+    const raw = data.length >= 3 ? data[2] & 0x7f : 0
+    const normalized = raw / 127
+    if (cc === 1) return { control: 'mod', value: normalized, channel }
+    if (cc === 2) return { control: 'breath', value: normalized, channel }
+    if (cc === 11) return { control: 'expression', value: normalized, channel }
+    if (cc === 64) return { control: 'sustain', value: raw >= 64 ? 1 : 0, channel }
+    return null
+  }
+  if (status === 0xd0) return { control: 'aftertouch', value, channel }
+  if (status === 0xa0 && data.length >= 3) {
+    return { control: 'aftertouch', value: (data[2] & 0x7f) / 127, channel }
+  }
+  if (status === 0xe0 && data.length >= 3) {
+    const raw = (data[1] & 0x7f) | ((data[2] & 0x7f) << 7)
+    const bend = raw >= 8192 ? (raw - 8192) / 8191 : (raw - 8192) / 8192
+    return { control: 'bend', value: bend, channel }
+  }
+  return null
 }
 
 export interface MidiHandle {
@@ -298,6 +337,14 @@ export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<
       for (const state of states) events.onVoice(state, channel)
     }
 
+    const performance = midiPerformance(data)
+    if (performance) {
+      if (performance.control === 'mod') events.onMod(performance.value, performance.channel)
+      else events.onPerformance?.(performance.control, performance.value, performance.channel)
+      // Control changes must still reach MIDI learn below. Bend and pressure have no second interpretation.
+      if (status !== 0xb0) return
+    }
+
     if (status === 0x90 && data[2] > 0) {
       emit(keyboard.down(data[1], data[2] / 127))
       return
@@ -310,7 +357,6 @@ export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<
     }
     if (status === 0xb0) {
       // CC 1 is the mod wheel; CC 123 is all-notes-off, which is what a panic button sends.
-      if (data[1] === 1) events.onMod(data[2] / 127, channel)
       if (data[1] === 123) emit(keyboard.allOff())
       // And every controller reaches the host, so any of them can be learned onto a parameter. Delivered
       // after the special cases rather than instead of them: the mod wheel keeps working *and* can be

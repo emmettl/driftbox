@@ -44,6 +44,11 @@ export class MidiProcessor implements Processor {
     const gateOut = outlets[1]
     const velOut = outlets[2]
     const modOut = outlets[3]
+    const bendOut = outlets[4]
+    const aftertouchOut = outlets[5]
+    const expressionOut = outlets[6]
+    const breathOut = outlets[7]
+    const sustainOut = outlets[8]
 
     const note = params[0]
     const gate = params[1]
@@ -51,6 +56,11 @@ export class MidiProcessor implements Processor {
     const mod = params[3]
     const transpose = params[4]
     const glide = params[5]
+    const bend = params[7]
+    const aftertouch = params[8]
+    const expression = params[9]
+    const breath = params[10]
+    const sustain = params[11]
 
     for (let i = 0; i < frames; i++) {
       if (glide[i] !== this.lastGlide) {
@@ -71,13 +81,18 @@ export class MidiProcessor implements Processor {
       gateOut[i] = gate[i] >= 0.5 ? 1 : 0
       velOut[i] = velocity[i]
       modOut[i] = mod[i]
+      bendOut[i] = bend[i]
+      aftertouchOut[i] = aftertouch[i]
+      expressionOut[i] = expression[i]
+      breathOut[i] = breath[i]
+      sustainOut[i] = sustain[i] >= 0.5 ? 1 : 0
     }
   }
 }
 
 export const MIDI_MODULE: ModuleDef = {
   type: 'midi',
-  version: 1,
+  version: 2,
   name: 'MIDI',
   group: 'Sequencing',
   blurb:
@@ -95,6 +110,11 @@ export const MIDI_MODULE: ModuleDef = {
     { id: 'gate', name: 'Gate' },
     { id: 'vel', name: 'Vel' },
     { id: 'mod', name: 'Mod' },
+    { id: 'bend', name: 'Pitch Bend' },
+    { id: 'aftertouch', name: 'Aftertouch' },
+    { id: 'expression', name: 'Expression' },
+    { id: 'breath', name: 'Breath' },
+    { id: 'sustain', name: 'Sustain' },
   ],
   params: [
     // Written by the host from Web MIDI, never by a knob. See the comment above for why these are hidden
@@ -109,10 +129,17 @@ export const MIDI_MODULE: ModuleDef = {
     // Omni is 0. Two MIDI modules on different channels split a keyboard, which is how this stops being
     // one voice the moment polyphony arrives.
     { id: 'channel', name: 'Ch', min: 0, max: 16, default: 0, stepped: true },
+    { id: 'bend', name: 'Pitch Bend', min: -1, max: 1, default: 0, hidden: true },
+    { id: 'aftertouch', name: 'Aftertouch', min: 0, max: 1, default: 0, hidden: true },
+    { id: 'expression', name: 'Expression', min: 0, max: 1, default: 0, hidden: true },
+    { id: 'breath', name: 'Breath', min: 0, max: 1, default: 0, hidden: true },
+    { id: 'sustain', name: 'Sustain', min: 0, max: 1, default: 0, stepped: true, hidden: true },
   ],
   processor: MidiProcessor,
 }
 
 /** Which param slots the host writes from incoming MIDI, by id. Exported so the host does not have to
  *  hardcode the names of things it is driving. */
-export const MIDI_INPUTS = ['note', 'gate', 'velocity', 'mod'] as const
+export const MIDI_INPUTS = [
+  'note', 'gate', 'velocity', 'mod', 'bend', 'aftertouch', 'expression', 'breath', 'sustain',
+] as const
