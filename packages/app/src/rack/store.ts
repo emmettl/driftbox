@@ -183,6 +183,8 @@ interface RackState {
   setAutomationPosition: (position: (() => number | null) | null) => void
   /** Forget one parameter's recording. */
   clearAutomation: (moduleId: string, paramId: string) => void
+  /** Forget every rack-native parameter lane as one undoable edit. */
+  clearAllAutomation: () => void
 
   /**
    * Write one lane of a pattern. **Not structural**, for the same reason a knob is not.
@@ -721,7 +723,20 @@ export const useRack = create<RackState>((set, get) => {
           ),
         }
         if (at === null || at === undefined) return moved
-        return { ...moved, automation: setPoint(moved.automation, [moduleId, paramId], at, value) }
+        const module = moved.modules.find((candidate) => candidate.id === moduleId)
+        const param = module
+          ? MODULES[module.type]?.params.find((candidate) => candidate.id === paramId)
+          : undefined
+        return {
+          ...moved,
+          automation: setPoint(
+            moved.automation,
+            [moduleId, paramId],
+            at,
+            value,
+            param?.stepped ? 'hold' : 'linear',
+          ),
+        }
       })
     },
 
@@ -779,6 +794,14 @@ export const useRack = create<RackState>((set, get) => {
         // before anything was recorded — and round-tripping it stays byte-identical.
         if (automation.length > 0) next.automation = automation
         else delete next.automation
+        return next
+      }),
+
+    clearAllAutomation: () =>
+      write(null, false, (patch) => {
+        if (!patch.automation || patch.automation.length === 0) return patch
+        const next = { ...patch }
+        delete next.automation
         return next
       }),
 

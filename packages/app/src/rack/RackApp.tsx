@@ -50,6 +50,7 @@ import { buildLabel, buildTitle } from '../version.js'
 import { routedGrooveboxSections } from './groovebox.js'
 import { StemReviewTray } from '../ui/StemTray.js'
 import { RackStemReviewTray } from './RackStemReviewTray.js'
+import { AutomationDesk } from './AutomationDesk.js'
 import {
   enumerateAudioInputs,
   openAudioInput,
@@ -238,6 +239,7 @@ export default function RackApp() {
   const [browsing, setBrowsing] = useState(false)
   const [reviewingPatchStems, setReviewingPatchStems] = useState(false)
   const [reviewingSongStems, setReviewingSongStems] = useState(false)
+  const [automationOpen, setAutomationOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
@@ -1440,6 +1442,15 @@ export default function RackApp() {
           </>
         )}
 
+        <button
+          type="button"
+          onClick={() => setAutomationOpen(true)}
+          aria-expanded={automationOpen}
+          title="Inspect and clear recorded rack parameter lanes"
+        >
+          Automation{patch.automation?.length ? ` (${patch.automation.length})` : ''}
+        </button>
+
         <label
           className="rk-voices"
           title={
@@ -1817,6 +1828,8 @@ export default function RackApp() {
           onExported={() => setReviewingSongStems(false)}
         />
       )}
+
+      {automationOpen && <AutomationDesk onClose={() => setAutomationOpen(false)} />}
 
       <footer className="rk-footer">
         <span>

@@ -1015,6 +1015,12 @@ describe('recording a knob move', () => {
     expect(lanes?.find((l) => l.target[1] === 'cutoff')?.points).toEqual([{ at: 8, value: 900 }])
   })
 
+  it('records stepped controls as holds rather than sweeping through intermediate choices', () => {
+    armAt(4)
+    useRack.getState().setParam('meter-1', 'mode', 1)
+    expect(useRack.getState().patch.automation?.[0].curve).toBe('hold')
+  })
+
   it('forgets one parameter without disturbing another', () => {
     armAt(0)
     useRack.getState().setParam('ladder-1', 'cutoff', 900)
@@ -1038,6 +1044,24 @@ describe('recording a knob move', () => {
     const before = useRack.getState().patch
     useRack.getState().clearAutomation('ladder-1', 'cutoff')
     expect(useRack.getState().patch).toBe(before)
+  })
+
+  it('clears every lane as one undoable edit', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().setParam('ladder-1', 'resonance', 0.4)
+    useRack.getState().clearAllAutomation()
+    expect(useRack.getState().patch.automation).toBeUndefined()
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation).toHaveLength(2)
+  })
+
+  it('does nothing when clearing an already empty desk', () => {
+    const before = useRack.getState().patch
+    const history = useRack.getState().history
+    useRack.getState().clearAllAutomation()
+    expect(useRack.getState().patch).toBe(before)
+    expect(useRack.getState().history).toBe(history)
   })
 })
 
