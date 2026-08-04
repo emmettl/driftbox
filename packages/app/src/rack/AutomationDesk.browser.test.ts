@@ -57,4 +57,41 @@ describe('rack automation desk', () => {
     flushSync(() => useRack.getState().undo())
     expect(useRack.getState().patch.automation).toHaveLength(1)
   })
+
+  it('edits point values, curves, and individual points', () => {
+    flushSync(() => root.render(createElement(AutomationDesk, { onClose: vi.fn() })))
+    const dialog = document.querySelector<HTMLElement>('.rk-auto-desk')!
+    flushSync(() => dialog.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit Cutoff automation on Ladder filter"]',
+    )!.click())
+
+    const value = dialog.querySelector<HTMLInputElement>('[aria-label="Value at 1.1 for Cutoff"]')!
+    value.value = '3000'
+    flushSync(() => value.dispatchEvent(new FocusEvent('focusout', { bubbles: true })))
+    expect(useRack.getState().patch.automation?.[0].points[0].value).toBe(3000)
+
+    flushSync(() => [...dialog.querySelectorAll<HTMLButtonElement>('.rk-auto-curve-choice button')]
+      .find((button) => button.textContent === 'Hold')!.click())
+    expect(useRack.getState().patch.automation?.[0].curve).toBe('hold')
+    expect(dialog.querySelector<HTMLButtonElement>('.rk-auto-curve-choice button[aria-pressed="true"]')
+      ?.textContent).toBe('Hold')
+
+    flushSync(() => dialog.querySelector<HTMLButtonElement>(
+      '[aria-label="Remove Cutoff point at 1.1"]',
+    )!.click())
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 16, value: 2000 }])
+    expect(dialog.querySelectorAll('.rk-auto-point')).toHaveLength(1)
+  })
+
+  it('locks stepped parameters to hold curves', () => {
+    flushSync(() => root.render(createElement(AutomationDesk, { onClose: vi.fn() })))
+    const dialog = document.querySelector<HTMLElement>('.rk-auto-desk')!
+    flushSync(() => dialog.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit Mute automation on Out output"]',
+    )!.click())
+    const choices = dialog.querySelectorAll<HTMLButtonElement>('.rk-auto-curve-choice button')
+    expect(choices[0].textContent).toBe('Linear')
+    expect(choices[0].disabled).toBe(true)
+    expect(choices[1].getAttribute('aria-pressed')).toBe('true')
+  })
 })

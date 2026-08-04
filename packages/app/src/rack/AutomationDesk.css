@@ -50,7 +50,9 @@
 }
 
 .rk-auto-close,
+.rk-auto-edit,
 .rk-auto-clear,
+.rk-auto-editor button,
 .rk-auto-desk > footer button {
   min-height: 30px;
   padding: 0 10px;
@@ -88,6 +90,17 @@
   min-height: 66px;
   padding: 10px 8px;
   border-top: 1px solid var(--edge);
+}
+
+.rk-auto-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.rk-auto-edit[aria-expanded='true'] {
+  color: #071712;
+  background: var(--nine);
+  border-color: #b9fff0;
 }
 
 .rk-auto-name,
@@ -129,6 +142,74 @@
   stroke-width: 1;
 }
 
+.rk-auto-editor {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 18px;
+  margin: -1px 8px 10px;
+  padding: 14px;
+  background: rgba(7, 4, 15, 0.72);
+  border: 1px solid rgba(95, 240, 208, 0.2);
+  border-radius: 8px;
+}
+
+.rk-auto-curve-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+  gap: 7px;
+}
+
+.rk-auto-curve-choice > span,
+.rk-auto-curve-choice > small {
+  grid-column: 1 / -1;
+  color: var(--dim);
+  font: 9px/1.4 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rk-auto-curve-choice button[aria-pressed='true'] {
+  color: #071712;
+  background: var(--nine);
+  border-color: #b9fff0;
+}
+
+.rk-auto-points {
+  display: grid;
+  gap: 7px;
+}
+
+.rk-auto-point {
+  display: grid;
+  grid-template-columns: 48px minmax(90px, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.rk-auto-point > span {
+  color: var(--dim);
+  font: 10px var(--mono);
+}
+
+.rk-auto-point input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  color: var(--ink);
+  background: #080511;
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  font: 11px var(--mono);
+}
+
+.rk-auto-point button {
+  width: 32px;
+  padding: 0;
+  color: var(--eight);
+  font-size: 17px;
+}
+
 .rk-auto-desk > footer {
   border-top: 1px solid var(--edge);
 }
@@ -155,5 +236,9 @@
 
   .rk-auto-meta {
     display: none;
+  }
+
+  .rk-auto-editor {
+    grid-template-columns: 1fr;
   }
 }

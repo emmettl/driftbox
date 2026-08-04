@@ -1446,7 +1446,7 @@ export default function RackApp() {
           type="button"
           onClick={() => setAutomationOpen(true)}
           aria-expanded={automationOpen}
-          title="Inspect and clear recorded rack parameter lanes"
+          title="Inspect and edit recorded rack parameter lanes"
         >
           Automation{patch.automation?.length ? ` (${patch.automation.length})` : ''}
         </button>

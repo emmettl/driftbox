@@ -32,7 +32,14 @@ describe('automation desk lane summaries', () => {
       from: '1.1',
       to: '3.1',
       curve: 'linear',
+      stepped: false,
+      min: 20,
+      max: 12000,
     })
+    expect(lanes[0].points).toEqual([
+      expect.objectContaining({ at: 0, value: 200, position: '1.1' }),
+      expect.objectContaining({ at: 32, value: 4000, position: '3.1' }),
+    ])
   })
 
   it('draws continuous and hold lanes with different path shapes', () => {
@@ -40,6 +47,7 @@ describe('automation desk lane summaries', () => {
     expect(lanes[0].path).toContain(' L ')
     expect(lanes[1].path).toContain(' H ')
     expect(lanes[1].path).toContain(' V ')
+    expect(lanes[1]).toMatchObject({ stepped: true, min: 0, max: 2 })
   })
 
   it('keeps unknown saved targets visible rather than silently dropping them', () => {

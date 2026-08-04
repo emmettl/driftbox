@@ -1,5 +1,5 @@
 import { MODULES } from '@driftbox/rack'
-import { useEffect, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRack } from './store.js'
 import { automationLaneViews } from './automation-desk.js'
@@ -9,11 +9,15 @@ interface Props {
   onClose: () => void
 }
 
-/** One place to see and remove every rack-native parameter lane. */
+/** One place to inspect and edit every rack-native parameter lane. */
 export function AutomationDesk({ onClose }: Props) {
   const patch = useRack((state) => state.patch)
   const clearLane = useRack((state) => state.clearAutomation)
   const clearAll = useRack((state) => state.clearAllAutomation)
+  const updatePoint = useRack((state) => state.updateAutomationPoint)
+  const removePoint = useRack((state) => state.removeAutomationPoint)
+  const setCurve = useRack((state) => state.setAutomationCurve)
+  const [editing, setEditing] = useState<string | null>(null)
   const lanes = useMemo(() => automationLaneViews(patch, MODULES), [patch])
   const points = lanes.reduce((total, lane) => total + lane.pointCount, 0)
 
@@ -41,44 +45,118 @@ export function AutomationDesk({ onClose }: Props) {
         </header>
 
         <p className="rk-auto-intro">
-          Recorded rack knobs live here. Clear one lane or the complete take; rack undo restores either.
+          Recorded rack knobs live here. Open a lane to shape its curve, edit points, or remove them.
+          Rack undo restores every change.
         </p>
 
         <div className="rk-auto-list">
           {lanes.length === 0 && (
             <p className="rk-auto-empty">No rack automation yet. Start audio, press ● Rec, play, and move a knob.</p>
           )}
-          {lanes.map((lane) => (
-            <div className="rk-auto-row" key={lane.key}>
-              <span className="rk-auto-name">
-                <strong>{lane.moduleName} · {lane.moduleId}</strong>
-                <small>{lane.paramName} · {lane.curve}</small>
-              </span>
-              <svg
-                className="rk-auto-curve"
-                viewBox="0 0 180 38"
-                role="img"
-                aria-label={`${lane.paramName} automation from ${lane.from} to ${lane.to}`}
-              >
-                <path d={lane.path} />
-                {lane.points.map((point, index) => (
-                  <circle key={index} cx={point.x} cy={point.y} r="2.5" />
-                ))}
-              </svg>
-              <span className="rk-auto-meta">
-                {lane.pointCount} {lane.pointCount === 1 ? 'point' : 'points'}
-                <small>{lane.from} → {lane.to}</small>
-              </span>
-              <button
-                type="button"
-                className="rk-auto-clear"
-                onClick={() => clearLane(lane.moduleId, lane.paramId)}
-                aria-label={`Clear ${lane.paramName} automation on ${lane.moduleName} ${lane.moduleId}`}
-              >
-                clear
-              </button>
-            </div>
-          ))}
+          {lanes.map((lane) => {
+            const open = editing === lane.key
+            return (
+              <Fragment key={lane.key}>
+                <div className="rk-auto-row">
+                  <span className="rk-auto-name">
+                    <strong>{lane.moduleName} · {lane.moduleId}</strong>
+                    <small>{lane.paramName} · {lane.curve}</small>
+                  </span>
+                  <svg
+                    className="rk-auto-curve"
+                    viewBox="0 0 180 38"
+                    role="img"
+                    aria-label={`${lane.paramName} automation from ${lane.from} to ${lane.to}`}
+                  >
+                    <path d={lane.path} />
+                    {lane.points.map((point) => (
+                      <circle key={point.at} cx={point.x} cy={point.y} r="2.5" />
+                    ))}
+                  </svg>
+                  <span className="rk-auto-meta">
+                    {lane.pointCount} {lane.pointCount === 1 ? 'point' : 'points'}
+                    <small>{lane.from} → {lane.to}</small>
+                  </span>
+                  <span className="rk-auto-actions">
+                    <button
+                      type="button"
+                      className="rk-auto-edit"
+                      onClick={() => setEditing(open ? null : lane.key)}
+                      aria-expanded={open}
+                      aria-controls={`rk-auto-editor-${lane.key}`}
+                      aria-label={`${open ? 'Close' : 'Edit'} ${lane.paramName} automation on ${lane.moduleName} ${lane.moduleId}`}
+                    >
+                      {open ? 'done' : 'edit'}
+                    </button>
+                    <button
+                      type="button"
+                      className="rk-auto-clear"
+                      onClick={() => clearLane(lane.moduleId, lane.paramId)}
+                      aria-label={`Clear ${lane.paramName} automation on ${lane.moduleName} ${lane.moduleId}`}
+                    >
+                      clear
+                    </button>
+                  </span>
+                </div>
+                {open && (
+                  <div className="rk-auto-editor" id={`rk-auto-editor-${lane.key}`}>
+                    <div className="rk-auto-curve-choice">
+                      <span>Curve</span>
+                      <button
+                        type="button"
+                        aria-pressed={lane.curve === 'linear'}
+                        disabled={lane.stepped}
+                        onClick={() => setCurve(lane.moduleId, lane.paramId, 'linear')}
+                      >
+                        Linear
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={lane.curve === 'hold'}
+                        onClick={() => setCurve(lane.moduleId, lane.paramId, 'hold')}
+                      >
+                        Hold
+                      </button>
+                      {lane.stepped && <small>Stepped controls stay on hold.</small>}
+                    </div>
+                    <div className="rk-auto-points" aria-label={`${lane.paramName} automation points`}>
+                      {lane.points.map((point) => (
+                        <label className="rk-auto-point" key={`${point.at}:${point.value}`}>
+                          <span>{point.position}</span>
+                          <input
+                            type="number"
+                            defaultValue={point.value}
+                            min={lane.min}
+                            max={lane.max}
+                            step={lane.stepped ? 1 : 'any'}
+                            aria-label={`Value at ${point.position} for ${lane.paramName}`}
+                            onBlur={(event) => {
+                              const value = event.currentTarget.valueAsNumber
+                              if (Number.isFinite(value)) {
+                                updatePoint(lane.moduleId, lane.paramId, point.at, value)
+                              } else {
+                                event.currentTarget.value = String(point.value)
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') event.currentTarget.blur()
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePoint(lane.moduleId, lane.paramId, point.at)}
+                            aria-label={`Remove ${lane.paramName} point at ${point.position}`}
+                          >
+                            ×
+                          </button>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Fragment>
+            )
+          })}
         </div>
 
         <footer>

@@ -339,9 +339,9 @@ function RackHelp({ topic }: { topic: string }) {
             <li><strong>Start audio</strong> so the rack transport has a live timeline.</li>
             <li><strong>Press ● Rec</strong> beside the rack transport.</li>
             <li><strong>Play and move knobs.</strong> Supported parameter moves are recorded at the current rack step.</li>
-            <li><strong>Open Automation</strong> to review every curve, clear one parameter lane, or clear the complete take.</li>
+            <li><strong>Open Automation</strong> to change point values, remove points, choose linear or hold curves, or clear a lane or the complete take.</li>
           </ol>
-          <p className="help-note">Rack undo can restore recorded or cleared automation. This is separate from automation retained inside an embedded Groovebox song.</p>
+          <p className="help-note">Stepped parameters stay on hold curves so they never pass through invalid choices. Rack undo restores every edit. This is separate from automation retained inside an embedded Groovebox song.</p>
         </HelpSection>
         <HelpSection title="Performance views">
           <dl className="help-definitions">
