@@ -7,6 +7,9 @@ import {
 } from '@driftbox/rack'
 
 export interface LanePointView {
+  at: number
+  value: number
+  position: string
   x: number
   y: number
 }
@@ -18,6 +21,9 @@ export interface AutomationLaneView {
   moduleName: string
   paramName: string
   curve: 'linear' | 'hold'
+  stepped: boolean
+  min?: number
+  max?: number
   points: readonly LanePointView[]
   pointCount: number
   from: string
@@ -25,7 +31,7 @@ export interface AutomationLaneView {
   path: string
 }
 
-const positionLabel = (at: number): string =>
+export const automationPositionLabel = (at: number): string =>
   `${Math.floor(at / 16) + 1}.${(at % 16) + 1}`
 
 function range(lane: AutoLane, param?: ParamDef): [number, number] {
@@ -53,6 +59,9 @@ export function automationLaneViews(
     const points = lane.points.map((point) => {
       const value = Math.max(0, Math.min(1, (point.value - low) / (high - low)))
       return {
+        at: point.at,
+        value: point.value,
+        position: automationPositionLabel(point.at),
         x: 4 + (Math.max(0, point.at) / end) * (width - 8),
         y: 4 + (1 - value) * (height - 8),
       }
@@ -71,10 +80,13 @@ export function automationLaneViews(
       moduleName: def?.name ?? module?.type ?? moduleId,
       paramName: param?.name ?? paramId,
       curve,
+      stepped: param?.stepped === true,
+      min: param?.min,
+      max: param?.max,
       points,
       pointCount: lane.points.length,
-      from: positionLabel(lane.points[0]?.at ?? 0),
-      to: positionLabel(lane.points[lane.points.length - 1]?.at ?? 0),
+      from: automationPositionLabel(lane.points[0]?.at ?? 0),
+      to: automationPositionLabel(lane.points[lane.points.length - 1]?.at ?? 0),
       path,
     }
   })

@@ -1063,6 +1063,57 @@ describe('recording a knob move', () => {
     expect(useRack.getState().patch).toBe(before)
     expect(useRack.getState().history).toBe(history)
   })
+
+  it('edits a recorded point within the parameter range and undoes the edit', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.setState({ history: NO_HISTORY })
+
+    useRack.getState().updateAutomationPoint('ladder-1', 'cutoff', 0, 90_000)
+    expect(useRack.getState().patch.automation?.[0].points[0].value).toBe(12_000)
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points[0].value).toBe(900)
+  })
+
+  it('rounds and clamps point edits for stepped controls', () => {
+    armAt(4)
+    useRack.getState().setParam('meter-1', 'mode', 1)
+    useRack.getState().updateAutomationPoint('meter-1', 'mode', 4, 1.6)
+    expect(useRack.getState().patch.automation?.[0].points[0].value).toBe(2)
+    useRack.getState().updateAutomationPoint('meter-1', 'mode', 4, -5)
+    expect(useRack.getState().patch.automation?.[0].points[0].value).toBe(0)
+  })
+
+  it('removes individual points and drops an empty lane', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    armAt(16)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.setState({ history: NO_HISTORY })
+
+    useRack.getState().removeAutomationPoint('ladder-1', 'cutoff', 0)
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 16, value: 900 }])
+    useRack.getState().removeAutomationPoint('ladder-1', 'cutoff', 16)
+    expect('automation' in useRack.getState().patch).toBe(false)
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 16, value: 900 }])
+  })
+
+  it('switches continuous curves and keeps stepped controls on hold', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.getState().setAutomationCurve('ladder-1', 'cutoff', 'hold')
+    expect(useRack.getState().patch.automation?.[0].curve).toBe('hold')
+    useRack.getState().setAutomationCurve('ladder-1', 'cutoff', 'linear')
+    expect(useRack.getState().patch.automation?.[0].curve).toBeUndefined()
+
+    armAt(4)
+    useRack.getState().setParam('meter-1', 'mode', 1)
+    useRack.getState().setAutomationCurve('meter-1', 'mode', 'linear')
+    expect(useRack.getState().patch.automation?.find(
+      (lane) => lane.target[0] === 'meter-1',
+    )?.curve).toBe('hold')
+  })
 })
 
 describe('writing a pattern', () => {

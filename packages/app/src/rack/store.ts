@@ -185,6 +185,12 @@ interface RackState {
   clearAutomation: (moduleId: string, paramId: string) => void
   /** Forget every rack-native parameter lane as one undoable edit. */
   clearAllAutomation: () => void
+  /** Correct one existing point; values obey the target parameter's range and stepping. */
+  updateAutomationPoint: (moduleId: string, paramId: string, at: number, value: number) => void
+  /** Remove one point, and its lane when that was the final point. */
+  removeAutomationPoint: (moduleId: string, paramId: string, at: number) => void
+  /** Choose interpolation for a continuous lane; stepped parameters always remain holds. */
+  setAutomationCurve: (moduleId: string, paramId: string, curve: 'linear' | 'hold') => void
 
   /**
    * Write one lane of a pattern. **Not structural**, for the same reason a knob is not.
@@ -803,6 +809,66 @@ export const useRack = create<RackState>((set, get) => {
         const next = { ...patch }
         delete next.automation
         return next
+      }),
+
+    updateAutomationPoint: (moduleId, paramId, at, value) =>
+      write(`automation:point:${moduleId}:${paramId}:${at}`, false, (patch) => {
+        if (!Number.isFinite(value)) return patch
+        const lane = patch.automation?.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        const point = lane?.points.find((candidate) => candidate.at === at)
+        if (!lane || !point) return patch
+        const module = patch.modules.find((candidate) => candidate.id === moduleId)
+        const param = module
+          ? MODULES[module.type]?.params.find((candidate) => candidate.id === paramId)
+          : undefined
+        let next = param ? Math.max(param.min, Math.min(param.max, value)) : value
+        if (param?.stepped) next = Math.round(next)
+        if (next === point.value) return patch
+        return { ...patch, automation: setPoint(patch.automation, lane.target, at, next, lane.curve) }
+      }),
+
+    removeAutomationPoint: (moduleId, paramId, at) =>
+      write(null, false, (patch) => {
+        const lanes = patch.automation ?? []
+        const lane = lanes.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        if (!lane || !lane.points.some((point) => point.at === at)) return patch
+        const points = lane.points.filter((point) => point.at !== at)
+        const automation = lanes.flatMap((candidate) =>
+          candidate === lane ? (points.length > 0 ? [{ ...lane, points }] : []) : [candidate],
+        )
+        const next = { ...patch }
+        if (automation.length > 0) next.automation = automation
+        else delete next.automation
+        return next
+      }),
+
+    setAutomationCurve: (moduleId, paramId, curve) =>
+      write(null, false, (patch) => {
+        const lane = patch.automation?.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        if (!lane) return patch
+        const module = patch.modules.find((candidate) => candidate.id === moduleId)
+        const param = module
+          ? MODULES[module.type]?.params.find((candidate) => candidate.id === paramId)
+          : undefined
+        const wanted = param?.stepped ? 'hold' : curve
+        const current = lane.curve === 'hold' ? 'hold' : 'linear'
+        if (wanted === current) return patch
+        return {
+          ...patch,
+          automation: patch.automation?.map((candidate) => {
+            if (candidate !== lane) return candidate
+            if (wanted === 'hold') return { ...candidate, curve: 'hold' }
+            const next = { ...candidate }
+            delete next.curve
+            return next
+          }),
+        }
       }),
 
     setLane: (moduleId, lane, values) => get().setData(moduleId, `lane${lane + 1}`, values),

@@ -339,10 +339,12 @@ into thirty lines of arithmetic.
 
 **The Automation Desk makes those lanes operable** ✅. The header count opens one timeline inventory for
 every rack-native parameter lane, including module/parameter identity, point range, curve type and a compact
-curve drawing. One lane or the complete take can be cleared without rebuilding the graph, and both actions
-are ordinary undoable document edits. Unknown preserved targets remain named by their ids instead of vanishing
-from the desk. Stepped controls now record `hold` curves as the format intended, so automating a waveform,
-mode or mute never sweeps through intermediate choices on its way to the recorded value.
+curve drawing. Opening a lane exposes its musical positions and values: a point can be corrected or removed,
+and a continuous lane can switch between linear interpolation and holds. One lane or the complete take can
+also be cleared without rebuilding the graph. Every action is an ordinary undoable document edit. Unknown
+preserved targets remain named by their ids instead of vanishing from the desk. Stepped controls record and
+remain locked to `hold` curves as the format intended, so automating a waveform, mode or mute never sweeps
+through intermediate choices on its way to the recorded value.
 
 The message set is the ABI: `plan`, `param`, `transport`, `monitor` and `data`. Resist growing it — the
 frame is a field on a message that already existed, not a sixth kind, and that is the shape any further

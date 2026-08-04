@@ -88,9 +88,11 @@ Two halves, and only one of them is in the parity ledger:
   a schedule made before `start()` travels in `processorOptions`, because no port message reaches an
   offline render. Playback and recording are both wired now: the host records a live knob move at its
   musical playhead, while lane playback travels directly to the audio thread so it cannot record itself.
-- **The lane desk — landed.** A header inventory now shows every rack parameter lane as a named curve with
-  its point and position range. Individual lanes or the complete take can be cleared and restored through
-  rack undo. Stepped controls record hold curves rather than interpolating through invalid intermediate modes.
+- **The lane editor — landed.** A header inventory shows every rack parameter lane as a named curve with
+  its point and position range. Opening one exposes editable point values, point deletion, and linear/hold
+  curve selection; individual lanes or the complete take can also be cleared. Every operation is restored
+  through rack undo. Stepped controls stay locked to hold curves rather than interpolating through invalid
+  intermediate modes.
 
 ### 3. ~~There is no undo~~ — landed
 
