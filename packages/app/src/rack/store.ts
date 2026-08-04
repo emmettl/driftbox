@@ -199,6 +199,8 @@ interface RackState {
     value: number,
     gesture: number,
   ) => void
+  /** Erase one snapped point; removals sharing a gesture id are one undo step. */
+  eraseAutomationPoint: (moduleId: string, paramId: string, at: number, gesture: number) => void
   /** Move one point on the musical timeline; landing on another point replaces it. */
   moveAutomationPoint: (moduleId: string, paramId: string, from: number, to: number) => void
   /** Remove one point, and its lane when that was the final point. */
@@ -886,6 +888,25 @@ export const useRack = create<RackState>((set, get) => {
           ...patch,
           automation: setPoint(patch.automation, lane.target, position, next, lane.curve),
         }
+      }),
+
+    eraseAutomationPoint: (moduleId, paramId, at, gesture) =>
+      write(`automation:erase:${moduleId}:${paramId}:${gesture}`, false, (patch) => {
+        if (!Number.isFinite(at) || !Number.isSafeInteger(gesture)) return patch
+        const lanes = patch.automation ?? []
+        const lane = lanes.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        const position = Math.max(0, Math.round(at))
+        if (!lane?.points.some((point) => point.at === position)) return patch
+        const points = lane.points.filter((point) => point.at !== position)
+        const automation = lanes.flatMap((candidate) =>
+          candidate === lane ? (points.length > 0 ? [{ ...lane, points }] : []) : [candidate],
+        )
+        const next = { ...patch }
+        if (automation.length > 0) next.automation = automation
+        else delete next.automation
+        return next
       }),
 
     moveAutomationPoint: (moduleId, paramId, from, to) =>

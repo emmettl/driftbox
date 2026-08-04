@@ -339,9 +339,10 @@ into thirty lines of arithmetic.
 
 **The Automation Desk makes those lanes operable** ✅. The header count opens one timeline inventory for
 every rack-native parameter lane, including module/parameter identity, point range, curve type and a compact
-curve drawing. Opening a lane exposes a parameter-aware Pencil: horizontal movement snaps to sixteenths,
-vertical movement spans the declared knob range, skipped steps are filled during a fast stroke, and the complete
-gesture is one undo step. The same lane exposes its musical positions and values: points can be added, moved in
+curve drawing. Opening a lane exposes parameter-aware Pencil and Eraser tools: horizontal movement snaps to
+sixteenths, Pencil height spans the declared knob range, skipped steps are filled during a fast stroke, and one
+undo restores the complete draw or erase gesture. Erasing the final point removes the empty lane by the same
+optional-field rule as Clear. The same lane exposes its musical positions and values: points can be added, moved in
 one-based `bar.step` notation, corrected or removed, and a continuous lane can switch between linear
 interpolation and holds. Moving onto an occupied position replaces it, because two values at one instant cannot be played. One
 lane or the complete take can also be cleared without rebuilding the graph. Every action is an ordinary

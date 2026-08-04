@@ -1174,6 +1174,43 @@ describe('recording a knob move', () => {
     ])
   })
 
+  it('erases a snapped stroke as one undo step, including the final lane point', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    armAt(8)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    armAt(16)
+    useRack.getState().setParam('ladder-1', 'cutoff', 1200)
+    useRack.setState({ history: NO_HISTORY })
+
+    const gesture = useRack.getState().beginAutomationGesture()
+    useRack.getState().eraseAutomationPoint('ladder-1', 'cutoff', 0, gesture)
+    useRack.getState().eraseAutomationPoint('ladder-1', 'cutoff', 8, gesture)
+    useRack.getState().eraseAutomationPoint('ladder-1', 'cutoff', 16, gesture)
+    expect(useRack.getState().patch.automation).toBeUndefined()
+    expect(useRack.getState().history.past).toHaveLength(1)
+
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 8, value: 900 },
+      { at: 16, value: 1200 },
+    ])
+  })
+
+  it('does nothing when the eraser crosses an empty position', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    const before = useRack.getState().patch
+    useRack.getState().eraseAutomationPoint(
+      'ladder-1',
+      'cutoff',
+      8,
+      useRack.getState().beginAutomationGesture(),
+    )
+    expect(useRack.getState().patch).toBe(before)
+  })
+
   it('removes individual points and drops an empty lane', () => {
     armAt(0)
     useRack.getState().setParam('ladder-1', 'cutoff', 400)

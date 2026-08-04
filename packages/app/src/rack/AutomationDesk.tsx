@@ -20,6 +20,7 @@ import './AutomationDesk.css'
 
 const PENCIL_WIDTH = 720
 const PENCIL_HEIGHT = 120
+type AutomationTool = 'pencil' | 'eraser'
 
 interface Props {
   onClose: () => void
@@ -33,13 +34,16 @@ export function AutomationDesk({ onClose }: Props) {
   const updatePoint = useRack((state) => state.updateAutomationPoint)
   const addPoint = useRack((state) => state.addAutomationPoint)
   const drawPoint = useRack((state) => state.drawAutomationPoint)
+  const erasePoint = useRack((state) => state.eraseAutomationPoint)
   const beginGesture = useRack((state) => state.beginAutomationGesture)
   const movePoint = useRack((state) => state.moveAutomationPoint)
   const removePoint = useRack((state) => state.removeAutomationPoint)
   const setCurve = useRack((state) => state.setAutomationCurve)
   const [editing, setEditing] = useState<string | null>(null)
+  const [tool, setTool] = useState<AutomationTool>('pencil')
   const pencilGesture = useRef(0)
   const pencilLast = useRef<{ lane: string; at: number; value: number } | null>(null)
+  const pencilLane = useRef<AutomationLaneView | null>(null)
   const lanes = useMemo(() => automationLaneViews(patch, MODULES), [patch])
   const points = lanes.reduce((total, lane) => total + lane.pointCount, 0)
 
@@ -55,6 +59,7 @@ export function AutomationDesk({ onClose }: Props) {
     lane: AutomationLaneView,
     event: ReactPointerEvent<SVGSVGElement>,
     gesture: number,
+    activeTool: AutomationTool,
   ) => {
     const bounds = event.currentTarget.getBoundingClientRect()
     if (bounds.width <= 0 || bounds.height <= 0) return
@@ -65,7 +70,16 @@ export function AutomationDesk({ onClose }: Props) {
     )
     const previous = pencilLast.current
     const distance = previous?.lane === lane.key ? Math.abs(point.at - previous.at) : 0
-    if (previous?.lane === lane.key && distance > 1) {
+    if (activeTool === 'eraser') {
+      if (previous?.lane === lane.key && distance > 0) {
+        const direction = Math.sign(point.at - previous.at)
+        for (let offset = 1; offset <= distance; offset++) {
+          erasePoint(lane.moduleId, lane.paramId, previous.at + direction * offset, gesture)
+        }
+      } else {
+        erasePoint(lane.moduleId, lane.paramId, point.at, gesture)
+      }
+    } else if (previous?.lane === lane.key && distance > 1) {
       const direction = Math.sign(point.at - previous.at)
       for (let offset = 1; offset <= distance; offset++) {
         const ratio = offset / distance
@@ -167,34 +181,56 @@ export function AutomationDesk({ onClose }: Props) {
                 {open && (
                   <div className="rk-auto-editor" id={`rk-auto-editor-${lane.key}`}>
                     <div className="rk-auto-pencil-wrap">
-                      <span>
-                        Pencil
-                        <small>Drag to draw · sixteenth-note snap</small>
-                      </span>
+                      <div className="rk-auto-tool-row">
+                        <span className="rk-auto-tools" role="group" aria-label="Automation drawing tool">
+                          <button
+                            type="button"
+                            aria-pressed={tool === 'pencil'}
+                            onClick={() => setTool('pencil')}
+                          >
+                            Pencil
+                          </button>
+                          <button
+                            type="button"
+                            aria-pressed={tool === 'eraser'}
+                            onClick={() => setTool('eraser')}
+                          >
+                            Eraser
+                          </button>
+                        </span>
+                        <small>
+                          {tool === 'pencil' ? 'Drag to draw' : 'Drag across points to remove'} · sixteenth-note snap
+                        </small>
+                      </div>
                       <svg
-                        className="rk-auto-pencil"
+                        className={`rk-auto-pencil${tool === 'eraser' ? ' erasing' : ''}`}
                         viewBox={`0 0 ${PENCIL_WIDTH} ${PENCIL_HEIGHT}`}
                         role="img"
-                        aria-label={`Draw ${lane.paramName} automation from ${lane.low} to ${lane.high}`}
+                        aria-label={`${tool === 'pencil' ? 'Draw' : 'Erase'} ${lane.paramName} automation`}
                         onPointerDown={(event) => {
                           if (event.button !== 0) return
                           event.preventDefault()
                           pencilGesture.current = beginGesture()
                           pencilLast.current = null
+                          pencilLane.current = lane
                           event.currentTarget.setPointerCapture(event.pointerId)
-                          drawFromPointer(lane, event, pencilGesture.current)
+                          drawFromPointer(lane, event, pencilGesture.current, tool)
                         }}
                         onPointerMove={(event) => {
                           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
-                          drawFromPointer(lane, event, pencilGesture.current)
+                          drawFromPointer(pencilLane.current ?? lane, event, pencilGesture.current, tool)
                         }}
                         onPointerUp={(event) => {
                           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
                             event.currentTarget.releasePointerCapture(event.pointerId)
                           }
                           pencilLast.current = null
+                          pencilLane.current = null
                         }}
-                        onPointerCancel={() => { pencilLast.current = null }}
+                        onPointerCancel={() => {
+                          pencilLast.current = null
+                          pencilLane.current = null
+                        }}
                       >
                         <defs>
                           <pattern

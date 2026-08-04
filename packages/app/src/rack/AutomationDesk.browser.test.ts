@@ -168,6 +168,56 @@ describe('rack automation desk', () => {
     ])
   })
 
+  it('erases a snapped point from the drawing surface and restores it through undo', () => {
+    flushSync(() => root.render(createElement(AutomationDesk, { onClose: vi.fn() })))
+    const dialog = document.querySelector<HTMLElement>('.rk-auto-desk')!
+    flushSync(() => dialog.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit Cutoff automation on Ladder filter"]',
+    )!.click())
+    flushSync(() => [...dialog.querySelectorAll<HTMLButtonElement>('.rk-auto-tools button')]
+      .find((button) => button.textContent === 'Eraser')!.click())
+
+    const surface = dialog.querySelector<SVGSVGElement>(
+      '[aria-label="Erase Cutoff automation"]',
+    )!
+    vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 320,
+      bottom: 100,
+      width: 320,
+      height: 100,
+      toJSON: () => ({}),
+    })
+    let captured = false
+    Object.defineProperties(surface, {
+      setPointerCapture: { value: () => { captured = true } },
+      hasPointerCapture: { value: () => captured },
+      releasePointerCapture: { value: () => { captured = false } },
+    })
+
+    flushSync(() => {
+      surface.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerId: 2,
+        button: 0,
+        clientX: 0,
+        clientY: 50,
+      }))
+      surface.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2 }))
+    })
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 16, value: 2000 }])
+    expect(useRack.getState().history.past).toHaveLength(1)
+
+    flushSync(() => useRack.getState().undo())
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 16, value: 2000 },
+    ])
+  })
+
   it('locks stepped parameters to hold curves', () => {
     flushSync(() => root.render(createElement(AutomationDesk, { onClose: vi.fn() })))
     const dialog = document.querySelector<HTMLElement>('.rk-auto-desk')!

@@ -160,15 +160,33 @@
   gap: 7px;
 }
 
-.rk-auto-pencil-wrap > span:first-child {
+.rk-auto-tool-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+}
+
+.rk-auto-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.rk-auto-tools button {
+  min-height: 24px;
+  padding: 0 8px;
   color: var(--dim);
-  font: 9px var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+}
+
+.rk-auto-tools button[aria-pressed='true'] {
+  color: #071712;
+  background: var(--nine);
+  border-color: #b9fff0;
+}
+
+.rk-auto-tool-row > small {
+  color: var(--dim);
+  font: 8px var(--mono);
 }
 
 .rk-auto-pencil-wrap > span small {
@@ -186,6 +204,16 @@
   border: 1px solid rgba(95, 240, 208, 0.2);
   border-radius: 6px;
   touch-action: none;
+}
+
+.rk-auto-pencil.erasing {
+  cursor: cell;
+}
+
+.rk-auto-pencil.erasing circle {
+  fill: transparent;
+  stroke: var(--eight);
+  stroke-width: 2.5;
 }
 
 .rk-auto-pencil-bg {
