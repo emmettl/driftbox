@@ -289,7 +289,10 @@ function InputTrim({ jack, value, onChange }: InputTrimProps) {
 
   return (
     <g
-      className="rk-input-trim"
+      // Marked when it is away from unity, which is the only state in which it is doing anything. A pot
+      // sits beside every inlet whether or not anybody has touched it, so without a mark the only way to
+      // find the one attenuating something is to read all of them.
+      className={value === 1 ? 'rk-input-trim' : 'rk-input-trim rk-input-trim-on'}
       transform={`translate(${jack.x + 84} ${jack.y})`}
       role="slider"
       tabIndex={0}
