@@ -1711,8 +1711,8 @@ both bundle cost on the editing-only path and visual competition with a readable
    and mirrors monophonic note control without waiting for a clock. Root passes its ordinary Pitch, Gate and
    Velocity inputs. Played uses last-note priority across collector voices and falls back to the previous held
    key when the newest is released. Trig marks each selected-note change, while Hold, pattern, direction,
-   insertion, shift and velocity replacement are bypassed. This matches RPG-8's monophonic MIDI-to-CV role
-   without changing OG Driftbox's enabled default.
+   insertion and shift are bypassed. Played/Fixed velocity policy remains in the MIDI-CV path, and its default
+   still mirrors performed velocity. This matches RPG-8's monophonic role without changing OG Driftbox's enabled default.
 
    **5y. Inlet presence contract.** ✅ A compiled node now carries one immutable cable-presence bit beside
    each flattened processor inlet. This is deliberately structural rather than a test for non-zero samples:
@@ -1726,6 +1726,12 @@ both bundle cost on the editing-only path and visual competition with a readable
    `Start` outlet opens on the first note and every complete figure return. It copies that opening note's Gate
    Length rather than emitting the ordinary 1 ms Trig, including closed and Tie. Both port ids are additive,
    and Arpeggiator Off remains an ungated MIDI-to-CV converter.
+
+   **5aa. Arp rear CV modulation.** ✅ Four appended inlets merge with the routed panel controls without
+   moving any old port id. Gate Length and Velocity add normalized bipolar offsets and clamp at their endpoints.
+   Octave Shift adds in octave units before quantization. Rate follows the same exponential convention as Clock
+   and LFO (`+1` doubles Free rate); it is inert in External and Tempo modes. Velocity modulation is sampled for
+   each generated note, while converter mode applies it continuously to Played or Fixed velocity policy.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

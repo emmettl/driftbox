@@ -303,6 +303,10 @@ export class ArpProcessor implements Processor {
     const clockIn = inlets[3]
     const resetIn = inlets[4]
     const startIn = inlets[5]
+    const gateCvIn = inlets[6]
+    const velocityCvIn = inlets[7]
+    const rateCvIn = inlets[8]
+    const shiftCvIn = inlets[9]
     const pitchOut = outlets[0]
     const gateOut = outlets[1]
     const velocityOut = outlets[2]
@@ -378,6 +382,8 @@ export class ArpProcessor implements Processor {
 
       const reset = resetIn[i] >= 0.5 ? 1 : 0
       const clock = clockIn[i] >= 0.5 ? 1 : 0
+      const gateFraction = Math.max(0, Math.min(1, gateParam[i] + (gateCvIn?.[i] ?? 0)))
+      const velocityCv = velocityCvIn?.[i] ?? 0
       const start = (startIn?.[i] ?? 0) >= 0.5 ? 1 : 0
       const startEdge = startPatched && start === 1 && this.lastStart === 0
       this.lastStart = start
@@ -423,12 +429,15 @@ export class ArpProcessor implements Processor {
           }
           if (selected >= 0) {
             this.bypassPitch = pitchVoices[selected]?.[i] ?? this.bypassPitch
-            this.bypassVelocity = Math.max(0, Math.min(1, velocityVoices[selected]?.[i] ?? 1))
+            const inputVelocity = velocityVoices[selected]?.[i] ?? 1
+            const baseVelocity = velocityModeParam[i] >= 0.5 ? velocityParam[i] : inputVelocity
+            this.bypassVelocity = Math.max(0, Math.min(1, baseVelocity + velocityCv))
           }
         } else {
           selected = gateIn[i] >= 0.5 ? 0 : -1
           this.bypassPitch = pitchIn[i]
-          this.bypassVelocity = Math.max(0, Math.min(1, velocityIn[i]))
+          const baseVelocity = velocityModeParam[i] >= 0.5 ? velocityParam[i] : velocityIn[i]
+          this.bypassVelocity = Math.max(0, Math.min(1, baseVelocity + velocityCv))
         }
 
         const bypassGate = selected >= 0 ? 1 : 0
@@ -485,7 +494,7 @@ export class ArpProcessor implements Processor {
       this.lastReset = reset
 
       this.since++
-      if (this.tied && gateParam[i] < 1) this.tied = false
+      if (this.tied && gateFraction < 1) this.tied = false
       const timing = Math.max(0, Math.min(2, Math.round(timingParam[i])))
       if (timing !== this.timingWas) {
         this.internalLeft = 0
@@ -506,10 +515,13 @@ export class ArpProcessor implements Processor {
       if (timing !== 0) {
         if (this.internalLeft <= 0) {
           clockEdge = true
+          let freeRate = rateParam[i]
+          const rateOctaves = rateCvIn?.[i] ?? 0
+          if (rateOctaves !== 0) freeRate *= Math.pow(2, rateOctaves)
           this.internalLeft = this.internalInterval(
             timing,
             divisionParam[i],
-            rateParam[i],
+            freeRate,
             shuffleParam[i] >= 0.5,
             transport,
           )
@@ -584,12 +596,13 @@ export class ArpProcessor implements Processor {
                   && this.rising === this.cycleRising
                   && this.insertPhase === this.cycleInsertPhase
               }
-              const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i])))
+              const shift = Math.max(-3, Math.min(3, Math.round(shiftParam[i] + (shiftCvIn?.[i] ?? 0))))
               this.held = this.figurePitch[playStep] + shift
-              this.heldVelocity = velocityModeParam[i] >= 0.5
-                ? Math.max(0.01, Math.min(1, velocityParam[i]))
+              const baseVelocity = velocityModeParam[i] >= 0.5
+                ? velocityParam[i]
                 : this.figureVelocity[playStep]
-              const fraction = gateParam[i]
+              this.heldVelocity = Math.max(0, Math.min(1, baseVelocity + velocityCv))
+              const fraction = gateFraction
               const span = opening ? this.trigSamples : this.interval
               this.tied = fraction >= 1
               this.gateLeft = fraction > 0 && !this.tied ? Math.max(1, Math.round(span * fraction)) : 0
@@ -645,7 +658,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 12,
+  version: 13,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -660,11 +673,15 @@ export const ARP_MODULE: ModuleDef = {
       },
       {
         title: 'Off is a monophonic converter',
-        body: 'Arpeggiator Off mirrors Root Pitch, Gate and Velocity directly. In Played mode it follows the most recently pressed held note, matching the device’s monophonic output rather than attempting to collapse a chord.',
+        body: 'Arpeggiator Off mirrors Root Pitch and Gate directly. Velocity follows the Played or Fixed policy and its rear CV. In Played source mode the converter follows the most recently pressed held note rather than attempting to collapse a chord.',
       },
       {
         title: 'Start can arm and restart the figure',
         body: 'With nothing patched to Start, Arp runs exactly as before. Patching Start holds the arpeggio silent until a rising trigger, which restarts the note figure, insertion and rhythm pattern from their first positions. Start Out marks every figure restart and stays high for the opening note’s Gate Length.',
+      },
+      {
+        title: 'Rear CV merges with the panel',
+        body: 'Gate Length and Velocity CV add to their panel values. Octave Shift CV adds in octave units and remains quantized to whole octaves. Rate CV moves Free timing exponentially: +1 doubles the rate, matching the rack’s other frequency inputs.',
       },
       {
         title: 'Choose one timing authority',
@@ -684,8 +701,9 @@ export const ARP_MODULE: ModuleDef = {
       'External timing needs Clock edges; Tempo timing needs the rack transport running.',
       'Shuffle affects Tempo timing only and uses the host transport’s global amount.',
       'Gate Length at zero closes Gate completely; at Tie it stays legato until a rest or reset condition.',
-      'Arpeggiator Off bypasses the figure controls and uses last-note priority in Played mode.',
+      'Arpeggiator Off bypasses the figure controls, retains velocity policy and uses last-note priority in Played mode.',
       'A patched Start inlet arms the figure; it stays silent until a rising trigger arrives.',
+      'Gate Length, Velocity, Free Rate and Octave Shift each have an additive rear CV input.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -699,6 +717,10 @@ export const ARP_MODULE: ModuleDef = {
     { id: 'clock', name: 'Clock' },
     { id: 'reset', name: 'Reset' },
     { id: 'start', name: 'Start' },
+    { id: 'gateCv', name: 'Gate Length CV' },
+    { id: 'velocityCv', name: 'Velocity CV' },
+    { id: 'rateCv', name: 'Rate CV' },
+    { id: 'shiftCv', name: 'Octave Shift CV' },
   ],
   outlets: [
     { id: 'pitch', name: 'V/Oct' },
