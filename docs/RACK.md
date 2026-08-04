@@ -1739,9 +1739,19 @@ both bundle cost on the editing-only path and visual competition with a readable
    Hidden host-written params keep performance out of the saved patch and append after every existing slot.
 
    **5ac. Arp performance passthrough.** ✅ Six appended input/output pairs carry Mod, Pitch Bend, Aftertouch,
-   Expression, Breath and Sustain continuously around the note engine. They remain live when the figure is
+   Expression, Breath and Sustain around the note engine. The first five remain transparent when the figure is
    armed and waiting or the Arpeggiator is Off. A polyphonic MIDI source repeats global controllers per voice;
    the mono collector deliberately takes lane one rather than summing those copies into an inflated CV.
+
+   **5ad. Outlet presence contract.** ✅ Compiled nodes now carry immutable cable-presence bits for outputs
+   as well as inputs. The compiler counts the winning cable into a live inlet and preserves a cable whose
+   destination is a placeholder, but ignores a superseded connection. Older plans default to unpatched because
+   outlet buffers were always allocated and cannot reveal fanout. The process loop only passes the prepared bits.
+
+   **5ae. Sustain normal.** ✅ An incoming Sustain pedal now drives Hold while Sustain Out is unpatched. Patching
+   that output breaks the internal link without disabling the explicit Hold button, and emits a gate whose level
+   follows Fixed Velocity plus CV; Played/Manual mode uses RPG's 100/127 pedal default. This is topology, not a
+   sample heuristic, so a patched-low or placeholder cable still selects the output behavior.
 
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and

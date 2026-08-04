@@ -256,13 +256,14 @@ describe('performance CV passthrough', () => {
     const arp = new ArpProcessor(SR, deps, 'arp-performance-wait')
     const frames = 32
     const zero = new Float32Array(frames)
-    const controls = [0.1, -0.75, 0.3, 0.4, 0.5, 1].map((value) =>
+    const controls = [0.1, -0.75, 0.3, 0.4, 0.5].map((value) =>
       Float32Array.from({ length: frames }, (_, i) => value + i / 1000),
     )
+    const sustain = new Float32Array(frames).fill(1)
     const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
     const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
     arp.process(
-      [zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, ...controls],
+      [zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, ...controls, sustain],
       out,
       params,
       frames,
@@ -275,6 +276,7 @@ describe('performance CV passthrough', () => {
     for (let control = 0; control < controls.length; control++) {
       expect(out[5 + control]).toEqual(controls[control])
     }
+    expect(out[10].every((value) => Math.abs(value - 100 / 127) < 1e-5)).toBe(true)
     expect(out[1].every((value) => value === 0)).toBe(true)
   })
 
@@ -297,6 +299,57 @@ describe('performance CV passthrough', () => {
     )
 
     expect(out[5].every((value) => value === 0.25)).toBe(true)
+  })
+
+  it('normals Sustain to Hold until the Sustain output is patched', () => {
+    const render = (sustainPatched: boolean) => {
+      const arp = new ArpProcessor(SR, deps, `arp-sustain-normal-${sustainPatched}`)
+      const frames = STEP * 3
+      const zero = new Float32Array(frames)
+      const clock = Float32Array.from({ length: frames }, (_, i) => i % STEP < STEP / 2 ? 1 : 0)
+      const pitch = [new Float32Array(frames), new Float32Array(frames).fill(7 / 12)]
+      const gate = pitch.map(() => Float32Array.from({ length: frames }, (_, i) => i < STEP ? 1 : 0))
+      const velocity = pitch.map(() => new Float32Array(frames).fill(0.8))
+      const sustain = new Float32Array(frames).fill(1)
+      const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+      params[param('source')].fill(1)
+      params[param('octaves')].fill(1)
+      const inlets = Array.from({ length: ARP_MODULE.inlets.length }, () => zero)
+      inlets[3] = clock
+      inlets[15] = sustain
+      const voiceInlets = Array.from({ length: ARP_MODULE.inlets.length }, () => [zero])
+      voiceInlets[0] = pitch
+      voiceInlets[1] = gate
+      voiceInlets[2] = velocity
+      voiceInlets[3] = [clock]
+      voiceInlets[15] = [sustain]
+      const outletConnected = Array.from({ length: ARP_MODULE.outlets.length }, (_, index) =>
+        sustainPatched && index === 10,
+      )
+      const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+      arp.process(inlets, out, params, frames, undefined, undefined, voiceInlets, undefined, outletConnected)
+      return out
+    }
+
+    expect(render(false)[1][STEP + 8]).toBe(1)
+    expect(render(true)[1][STEP + 8]).toBe(0)
+  })
+
+  it('scales the patched Sustain gate from Fixed velocity and Velocity CV', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-sustain-velocity')
+    const frames = 16
+    const zero = new Float32Array(frames)
+    const inlets = Array.from({ length: ARP_MODULE.inlets.length }, () => zero)
+    inlets[7] = new Float32Array(frames).fill(0.1)
+    inlets[15] = new Float32Array(frames).fill(1)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('velocityMode')].fill(1)
+    params[param('velocity')].fill(0.4)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    const outletConnected = Array.from({ length: ARP_MODULE.outlets.length }, (_, index) => index === 10)
+    arp.process(inlets, out, params, frames, undefined, undefined, undefined, undefined, outletConnected)
+
+    expect(out[10].every((value) => Math.abs(value - 0.5) < 1e-5)).toBe(true)
   })
 })
 

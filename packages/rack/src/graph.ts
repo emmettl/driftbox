@@ -55,6 +55,8 @@ interface Node {
   voiceTrims: { into: Float32Array; from: Float32Array; gain: Float32Array }[]
   /** Physical cable presence, distinct from whether the current sample happens to be zero. */
   inletConnected: boolean[]
+  /** Physical fanout presence for each outlet; decided once when the plan is compiled. */
+  outletConnected: boolean[]
 }
 
 /** A param change waiting for its frame. `voice` undefined means every voice, which is what a knob means. */
@@ -425,6 +427,7 @@ export class Graph {
         hostInputs,
         node.voiceInlets.length > 0 ? node.voiceInlets : undefined,
         node.inletConnected,
+        node.outletConnected,
       )
     }
 
@@ -739,6 +742,9 @@ export class Graph {
           // Plans written before jack-presence metadata can only answer from their buffer indices. New plans
           // carry the physical fact, so a patched placeholder or bypassed source remains connected at zero.
           inletConnected: node.inletConnected ?? node.inlets.map((index) => index > 0),
+          // Outlet buffers are allocated even when unused, so their indices cannot provide an old-plan
+          // fallback the way inlet indices can. Unknown therefore means unpatched, the historical behavior.
+          outletConnected: node.outletConnected ?? node.outlets.map(() => false),
         })
       }
     }

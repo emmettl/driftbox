@@ -232,6 +232,8 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
   }
   const inletSource = new Map<string, Source>()
   const replaced = new Map<string, PatchCable>()
+  /** Valid cables into placeholders have no inlet source entry but remain physically present in the patch. */
+  const placeholderOutletConnections = new Set<string>()
 
   for (const cable of cables) {
     if (!isCable(cable)) continue
@@ -262,7 +264,10 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     }
     // Into a placeholder. Kept in the patch, no effect on the plan; the placeholder note
     // already says why.
-    if (dest.index === null) continue
+    if (dest.index === null) {
+      placeholderOutletConnections.add(key(fromId, fromPort))
+      continue
+    }
 
     const k = key(toId, toPort)
     const previous = inletSource.get(k)
@@ -291,6 +296,11 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
       toPort,
     })
   }
+
+  // Only the winning cable into a live inlet counts. A cable to a placeholder also counts because the cable
+  // is deliberately preserved, even though this build cannot construct its destination.
+  const connectedOutlets = new Set(placeholderOutletConnections)
+  for (const source of inletSource.values()) connectedOutlets.add(key(source.fromId, source.fromPort))
 
   // ---- Bypass --------------------------------------------------------------------------
   //
@@ -545,6 +555,9 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
         Array.from({ length: channelCount(port) }, () => inputTrims[module.id][port.id]),
       ),
       outlets: def.outlets.flatMap((port) => outletBuffer.get(key(module.id, port.id)) ?? [ZERO]),
+      outletConnected: def.outlets.flatMap((port) =>
+        Array.from({ length: channelCount(port) }, () => connectedOutlets.has(key(module.id, port.id))),
+      ),
       params: def.params.map((param) => slots[module.id][param.id]),
       poly: def.poly !== false,
       voices: moduleVoices[index],

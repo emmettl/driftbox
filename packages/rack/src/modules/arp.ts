@@ -296,6 +296,7 @@ export class ArpProcessor implements Processor {
     _hostInputs?: Float32Array[][],
     voiceInlets?: Float32Array[][],
     inletConnected?: boolean[],
+    outletConnected?: boolean[],
   ): void {
     const pitchIn = inlets[0]
     const gateIn = inlets[1]
@@ -329,6 +330,7 @@ export class ArpProcessor implements Processor {
     const breathOut = outlets[9]
     const sustainOut = outlets[10]
     const startPatched = inletConnected?.[5] ?? false
+    const sustainPatched = outletConnected?.[10] ?? false
     if (!startPatched) this.startAllowed = true
 
     const sourceParam = params[0]
@@ -362,9 +364,16 @@ export class ArpProcessor implements Processor {
       aftertouchOut[i] = aftertouchIn?.[i] ?? 0
       expressionOut[i] = expressionIn?.[i] ?? 0
       breathOut[i] = breathIn?.[i] ?? 0
-      sustainOut[i] = sustainIn?.[i] ?? 0
+      const velocityCv = velocityCvIn?.[i] ?? 0
+      const sustainGate = (sustainIn?.[i] ?? 0) >= 0.5
+      // RPG's Gate CV carries velocity in its level. Manual velocity has no played note to borrow for the
+      // pedal, so the hardware uses 100/127; Fixed uses the panel value. The same Velocity CV merges here.
+      const sustainVelocity = (velocityModeParam[i] >= 0.5 ? velocityParam[i] : 100 / 127) + velocityCv
+      sustainOut[i] = sustainGate ? Math.max(0, Math.min(1, sustainVelocity)) : 0
       const played = sourceParam[i] >= 0.5
-      const hold = holdParam[i] >= 0.5
+      // Sustain is normalled to Hold until its output jack is patched. Patching it breaks only that internal
+      // link; the explicit Hold button remains authoritative and the velocity-scaled pedal gate leaves the jack.
+      const hold = holdParam[i] >= 0.5 || (!sustainPatched && sustainGate)
       if (!played && this.playedWas) {
         this.activeCount = 0
         this.gateWas.fill(0)
@@ -407,7 +416,6 @@ export class ArpProcessor implements Processor {
       const reset = resetIn[i] >= 0.5 ? 1 : 0
       const clock = clockIn[i] >= 0.5 ? 1 : 0
       const gateFraction = Math.max(0, Math.min(1, gateParam[i] + (gateCvIn?.[i] ?? 0)))
-      const velocityCv = velocityCvIn?.[i] ?? 0
       const start = (startIn?.[i] ?? 0) >= 0.5 ? 1 : 0
       const startEdge = startPatched && start === 1 && this.lastStart === 0
       this.lastStart = start
@@ -682,7 +690,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 14,
+  version: 15,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -709,7 +717,7 @@ export const ARP_MODULE: ModuleDef = {
       },
       {
         title: 'Performance CV passes through',
-        body: 'Mod, Pitch Bend, Aftertouch, Expression, Breath and Sustain travel through matching rear inputs and outputs without changing the note figure. They remain live while the arpeggiator waits for Start or acts as a converter.',
+        body: 'Mod, Pitch Bend, Aftertouch, Expression and Breath pass through continuously. Sustain is normalled to Hold until Sustain Out is patched; then the link breaks and the pedal leaves as a velocity-scaled gate. All remain live while Arp waits for Start or acts as a converter.',
       },
       {
         title: 'Choose one timing authority',
@@ -732,7 +740,7 @@ export const ARP_MODULE: ModuleDef = {
       'Arpeggiator Off bypasses the figure controls, retains velocity policy and uses last-note priority in Played mode.',
       'A patched Start inlet arms the figure; it stays silent until a rising trigger arrives.',
       'Gate Length, Velocity, Free Rate and Octave Shift each have an additive rear CV input.',
-      'Performance CV passes through continuously; patch the matching MIDI outlets when you need it.',
+      'Patching Sustain Out breaks the pedal’s normalled Hold link and sends a velocity-scaled gate instead.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
