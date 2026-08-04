@@ -219,6 +219,31 @@ describe('start of arpeggio', () => {
     )).toEqual([0, STEP * 3])
   })
 
+  it('holds Start Out for the opening note instead of emitting a fixed trigger', () => {
+    const { out } = run(4, { chord: 2, octaves: 1, gate: 0.5 })
+    const runs = (data: Float32Array) => {
+      const found: [number, number][] = []
+      let start = -1
+      for (let i = 0; i <= data.length; i++) {
+        const high = i < data.length && data[i] >= 0.5
+        if (high && start < 0) start = i
+        else if (!high && start >= 0) {
+          found.push([start, i - start])
+          start = -1
+        }
+      }
+      return found
+    }
+
+    expect(runs(out[4])).toEqual([[0, 22], [STEP * 3, STEP / 2]])
+    expect(runs(out[1]).filter(([start]) => start === 0 || start === STEP * 3)).toEqual(runs(out[4]))
+  })
+
+  it('carries the Gate Length endpoints to Start Out', () => {
+    expect(run(3, { chord: 2, octaves: 1, gate: 0 }).out[4].every((value) => value === 0)).toBe(true)
+    expect(run(3, { chord: 2, octaves: 1, gate: 1 }).out[4].every((value) => value === 1)).toBe(true)
+  })
+
   it('appends stable Start ports without moving the existing cable ids', () => {
     expect(ARP_MODULE.inlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'clock', 'reset', 'start'])
     expect(ARP_MODULE.outlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'trig', 'start'])

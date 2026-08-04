@@ -55,7 +55,8 @@ export class ArpProcessor implements Processor {
   private bypassVelocity = 0
   private lastStart = 0
   private startAllowed = false
-  private startTrigLeft = 0
+  private startGateLeft = 0
+  private startGateTied = false
   private cycleStep = 0
   private cycleRising = true
   private cycleInsertPhase = 1
@@ -393,7 +394,8 @@ export class ArpProcessor implements Processor {
         this.tied = false
         this.gateLeft = 0
         this.trigLeft = 0
-        this.startTrigLeft = 0
+        this.startGateLeft = 0
+        this.startGateTied = false
       }
       const enabled = enableParam[i] >= 0.5
       if (!enabled) {
@@ -403,7 +405,8 @@ export class ArpProcessor implements Processor {
           this.tied = false
           this.gateLeft = 0
           this.trigLeft = 0
-          this.startTrigLeft = 0
+          this.startGateLeft = 0
+          this.startGateTied = false
           this.bypassGateWas = 0
           this.bypassVoice = -1
         }
@@ -462,7 +465,8 @@ export class ArpProcessor implements Processor {
         this.tied = false
         this.gateLeft = 0
         this.trigLeft = 0
-        this.startTrigLeft = 0
+        this.startGateLeft = 0
+        this.startGateTied = false
         this.lastClock = clock
         this.lastReset = reset
         pitchOut[i] = this.held
@@ -590,7 +594,12 @@ export class ArpProcessor implements Processor {
               this.tied = fraction >= 1
               this.gateLeft = fraction > 0 && !this.tied ? Math.max(1, Math.round(span * fraction)) : 0
               this.trigLeft = this.trigSamples
-              if (figureStart) this.startTrigLeft = this.trigSamples
+              if (figureStart) {
+                // RPG's Start Out is a gate, not the short per-note trigger: it has exactly the opening
+                // note's length. Keep an independent counter because later notes must not extend it.
+                this.startGateLeft = this.gateLeft
+                this.startGateTied = this.tied
+              }
               this.singlePitchWas = length === 1 ? this.figurePitch[0] : Number.NaN
             }
           } else {
@@ -623,8 +632,10 @@ export class ArpProcessor implements Processor {
         trigOut[i] = 1
       } else trigOut[i] = 0
       if (startOut) {
-        if (this.startTrigLeft > 0) {
-          this.startTrigLeft--
+        if (this.startGateTied && (!this.tied || !this.started)) this.startGateTied = false
+        if (this.startGateTied) startOut[i] = 1
+        else if (this.startGateLeft > 0) {
+          this.startGateLeft--
           startOut[i] = 1
         } else startOut[i] = 0
       }
@@ -634,7 +645,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 11,
+  version: 12,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -653,7 +664,7 @@ export const ARP_MODULE: ModuleDef = {
       },
       {
         title: 'Start can arm and restart the figure',
-        body: 'With nothing patched to Start, Arp runs exactly as before. Patching Start holds the arpeggio silent until a rising trigger, which restarts the note figure, insertion and rhythm pattern from their first positions. Start Out marks every figure restart.',
+        body: 'With nothing patched to Start, Arp runs exactly as before. Patching Start holds the arpeggio silent until a rising trigger, which restarts the note figure, insertion and rhythm pattern from their first positions. Start Out marks every figure restart and stays high for the opening note’s Gate Length.',
       },
       {
         title: 'Choose one timing authority',
