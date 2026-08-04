@@ -89,8 +89,9 @@ Two halves, and only one of them is in the parity ledger:
   offline render. Playback and recording are both wired now: the host records a live knob move at its
   musical playhead, while lane playback travels directly to the audio thread so it cannot record itself.
 - **The lane editor — landed.** A header inventory shows every rack parameter lane as a named curve with
-  its point and position range. Opening one exposes point insertion, one-based `bar.step` placement, editable
-  values, point deletion, and linear/hold curve selection; moving a point onto another replaces the collision.
+  its point and position range. Opening one exposes a range-aware, sixteenth-snapped Pencil whose complete
+  stroke is one undo step, plus point insertion, one-based `bar.step` placement, editable values, point
+  deletion, and linear/hold curve selection; moving a point onto another replaces the collision.
   Individual lanes or the complete take can also be cleared. Every operation is restored through rack undo.
   Stepped controls stay locked to hold curves rather than interpolating through invalid intermediate modes.
 

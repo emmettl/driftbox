@@ -181,6 +181,8 @@ interface RackState {
    */
   automationPosition: (() => number | null) | null
   setAutomationPosition: (position: (() => number | null) | null) => void
+  /** A session-unique id keeps separate pencil strokes as separate undo steps, even after reopening the desk. */
+  beginAutomationGesture: () => number
   /** Forget one parameter's recording. */
   clearAutomation: (moduleId: string, paramId: string) => void
   /** Forget every rack-native parameter lane as one undoable edit. */
@@ -189,6 +191,14 @@ interface RackState {
   updateAutomationPoint: (moduleId: string, paramId: string, at: number, value: number) => void
   /** Add a point to an existing lane; values obey the target parameter's range and stepping. */
   addAutomationPoint: (moduleId: string, paramId: string, at: number, value: number) => void
+  /** Pencil one snapped point; writes sharing a gesture id are one undo step. */
+  drawAutomationPoint: (
+    moduleId: string,
+    paramId: string,
+    at: number,
+    value: number,
+    gesture: number,
+  ) => void
   /** Move one point on the musical timeline; landing on another point replaces it. */
   moveAutomationPoint: (moduleId: string, paramId: string, from: number, to: number) => void
   /** Remove one point, and its lane when that was the final point. */
@@ -611,6 +621,7 @@ export interface MultisampleInfo {
 }
 
 export const useRack = create<RackState>((set, get) => {
+  let automationGesture = 0
   /**
    * Run every Combinator routing over a patch before it is stored.
    *
@@ -789,6 +800,7 @@ export const useRack = create<RackState>((set, get) => {
     automationPosition: null,
     setAutomating: (automating) => set({ automating }),
     setAutomationPosition: (automationPosition) => set({ automationPosition }),
+    beginAutomationGesture: () => ++automationGesture,
 
     clearAutomation: (moduleId, paramId) =>
       // Structural is wrong — a lane changes no module and no cable, so nothing needs recompiling and
@@ -848,6 +860,28 @@ export const useRack = create<RackState>((set, get) => {
           : undefined
         let next = param ? Math.max(param.min, Math.min(param.max, value)) : value
         if (param?.stepped) next = Math.round(next)
+        return {
+          ...patch,
+          automation: setPoint(patch.automation, lane.target, position, next, lane.curve),
+        }
+      }),
+
+    drawAutomationPoint: (moduleId, paramId, at, value, gesture) =>
+      write(`automation:draw:${moduleId}:${paramId}:${gesture}`, false, (patch) => {
+        if (!Number.isFinite(at) || !Number.isFinite(value) || !Number.isSafeInteger(gesture)) return patch
+        const lane = patch.automation?.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        if (!lane) return patch
+        const module = patch.modules.find((candidate) => candidate.id === moduleId)
+        const param = module
+          ? MODULES[module.type]?.params.find((candidate) => candidate.id === paramId)
+          : undefined
+        let next = param ? Math.max(param.min, Math.min(param.max, value)) : value
+        if (param?.stepped) next = Math.round(next)
+        const position = Math.max(0, Math.round(at))
+        const existing = lane.points.find((point) => point.at === position)
+        if (existing?.value === next) return patch
         return {
           ...patch,
           automation: setPoint(patch.automation, lane.target, position, next, lane.curve),

@@ -153,6 +153,78 @@
   border-radius: 8px;
 }
 
+.rk-auto-pencil-wrap {
+  position: relative;
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+}
+
+.rk-auto-pencil-wrap > span:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dim);
+  font: 9px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rk-auto-pencil-wrap > span small {
+  color: var(--dim);
+  font: 8px var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.rk-auto-pencil {
+  width: 100%;
+  min-height: 104px;
+  overflow: visible;
+  cursor: crosshair;
+  border: 1px solid rgba(95, 240, 208, 0.2);
+  border-radius: 6px;
+  touch-action: none;
+}
+
+.rk-auto-pencil-bg {
+  fill: #080511;
+}
+
+.rk-auto-pencil-steps path {
+  stroke: rgba(255, 255, 255, 0.045);
+  stroke-width: 1;
+}
+
+.rk-auto-pencil-bars path {
+  stroke: rgba(95, 240, 208, 0.18);
+  stroke-width: 1.5;
+}
+
+.rk-auto-pencil-path {
+  fill: none;
+  stroke: var(--nine);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.rk-auto-pencil circle {
+  fill: var(--eight);
+  stroke: #0e0a1e;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.rk-auto-pencil-range {
+  position: absolute;
+  inset: 28px 7px 5px auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
 .rk-auto-curve-choice {
   display: grid;
   grid-template-columns: 1fr 1fr;

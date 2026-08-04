@@ -1,9 +1,25 @@
 import { MODULES } from '@driftbox/rack'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useRack } from './store.js'
-import { automationLaneViews, automationPosition } from './automation-desk.js'
+import {
+  automationDrawPoint,
+  automationLaneGeometry,
+  automationLaneViews,
+  automationPosition,
+  type AutomationLaneView,
+} from './automation-desk.js'
 import './AutomationDesk.css'
+
+const PENCIL_WIDTH = 720
+const PENCIL_HEIGHT = 120
 
 interface Props {
   onClose: () => void
@@ -16,10 +32,14 @@ export function AutomationDesk({ onClose }: Props) {
   const clearAll = useRack((state) => state.clearAllAutomation)
   const updatePoint = useRack((state) => state.updateAutomationPoint)
   const addPoint = useRack((state) => state.addAutomationPoint)
+  const drawPoint = useRack((state) => state.drawAutomationPoint)
+  const beginGesture = useRack((state) => state.beginAutomationGesture)
   const movePoint = useRack((state) => state.moveAutomationPoint)
   const removePoint = useRack((state) => state.removeAutomationPoint)
   const setCurve = useRack((state) => state.setAutomationCurve)
   const [editing, setEditing] = useState<string | null>(null)
+  const pencilGesture = useRef(0)
+  const pencilLast = useRef<{ lane: string; at: number; value: number } | null>(null)
   const lanes = useMemo(() => automationLaneViews(patch, MODULES), [patch])
   const points = lanes.reduce((total, lane) => total + lane.pointCount, 0)
 
@@ -30,6 +50,38 @@ export function AutomationDesk({ onClose }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  const drawFromPointer = (
+    lane: AutomationLaneView,
+    event: ReactPointerEvent<SVGSVGElement>,
+    gesture: number,
+  ) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    if (bounds.width <= 0 || bounds.height <= 0) return
+    const point = automationDrawPoint(
+      lane,
+      (event.clientX - bounds.left) / bounds.width,
+      (event.clientY - bounds.top) / bounds.height,
+    )
+    const previous = pencilLast.current
+    const distance = previous?.lane === lane.key ? Math.abs(point.at - previous.at) : 0
+    if (previous?.lane === lane.key && distance > 1) {
+      const direction = Math.sign(point.at - previous.at)
+      for (let offset = 1; offset <= distance; offset++) {
+        const ratio = offset / distance
+        drawPoint(
+          lane.moduleId,
+          lane.paramId,
+          previous.at + direction * offset,
+          previous.value + (point.value - previous.value) * ratio,
+          gesture,
+        )
+      }
+    } else {
+      drawPoint(lane.moduleId, lane.paramId, point.at, point.value, gesture)
+    }
+    pencilLast.current = { lane: lane.key, ...point }
+  }
 
   return createPortal(
     <div className="rk-auto-layer" role="presentation" onPointerDown={(event) => {
@@ -57,6 +109,18 @@ export function AutomationDesk({ onClose }: Props) {
           )}
           {lanes.map((lane) => {
             const open = editing === lane.key
+            const pencil = open
+              ? automationLaneGeometry(
+                  lane.points,
+                  lane.curve,
+                  lane.end,
+                  lane.low,
+                  lane.high,
+                  PENCIL_WIDTH,
+                  PENCIL_HEIGHT,
+                )
+              : null
+            const gridId = `rk-auto-grid-${lane.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`
             return (
               <Fragment key={lane.key}>
                 <div className="rk-auto-row">
@@ -102,6 +166,67 @@ export function AutomationDesk({ onClose }: Props) {
                 </div>
                 {open && (
                   <div className="rk-auto-editor" id={`rk-auto-editor-${lane.key}`}>
+                    <div className="rk-auto-pencil-wrap">
+                      <span>
+                        Pencil
+                        <small>Drag to draw · sixteenth-note snap</small>
+                      </span>
+                      <svg
+                        className="rk-auto-pencil"
+                        viewBox={`0 0 ${PENCIL_WIDTH} ${PENCIL_HEIGHT}`}
+                        role="img"
+                        aria-label={`Draw ${lane.paramName} automation from ${lane.low} to ${lane.high}`}
+                        onPointerDown={(event) => {
+                          if (event.button !== 0) return
+                          event.preventDefault()
+                          pencilGesture.current = beginGesture()
+                          pencilLast.current = null
+                          event.currentTarget.setPointerCapture(event.pointerId)
+                          drawFromPointer(lane, event, pencilGesture.current)
+                        }}
+                        onPointerMove={(event) => {
+                          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+                          drawFromPointer(lane, event, pencilGesture.current)
+                        }}
+                        onPointerUp={(event) => {
+                          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                            event.currentTarget.releasePointerCapture(event.pointerId)
+                          }
+                          pencilLast.current = null
+                        }}
+                        onPointerCancel={() => { pencilLast.current = null }}
+                      >
+                        <defs>
+                          <pattern
+                            id={gridId}
+                            width={(PENCIL_WIDTH - 8) / lane.end}
+                            height={PENCIL_HEIGHT}
+                            patternUnits="userSpaceOnUse"
+                          >
+                            <path d={`M 0 0 V ${PENCIL_HEIGHT}`} />
+                          </pattern>
+                          <pattern
+                            id={`${gridId}-bars`}
+                            width={((PENCIL_WIDTH - 8) / lane.end) * 16}
+                            height={PENCIL_HEIGHT}
+                            patternUnits="userSpaceOnUse"
+                          >
+                            <path d={`M 0 0 V ${PENCIL_HEIGHT}`} />
+                          </pattern>
+                        </defs>
+                        <rect className="rk-auto-pencil-bg" width={PENCIL_WIDTH} height={PENCIL_HEIGHT} />
+                        <rect className="rk-auto-pencil-steps" x="4" width={PENCIL_WIDTH - 8} height={PENCIL_HEIGHT} fill={`url(#${gridId})`} />
+                        <rect className="rk-auto-pencil-bars" x="4" width={PENCIL_WIDTH - 8} height={PENCIL_HEIGHT} fill={`url(#${gridId}-bars)`} />
+                        <path className="rk-auto-pencil-path" d={pencil?.path} />
+                        {pencil?.points.map((point) => (
+                          <circle key={point.at} cx={point.x} cy={point.y} r="4" />
+                        ))}
+                      </svg>
+                      <span className="rk-auto-pencil-range">
+                        <small>{lane.high}</small>
+                        <small>{lane.low}</small>
+                      </span>
+                    </div>
                     <div className="rk-auto-curve-choice">
                       <span>Curve</span>
                       <button
