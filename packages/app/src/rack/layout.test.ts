@@ -203,6 +203,19 @@ describe('jacks', () => {
     }
   })
 
+  it('resolves a historical port id to its canonical physical jack', () => {
+    const { placements } = layout([module('song', 'groovebox')], sizes())
+    const all = jacks(placements, MODULES)
+    const current = jackAt(all, 'song', 'tr808-out', 'out')
+    const oldLeft = jackAt(all, 'song', 'tr808-l', 'out')
+    const oldRight = jackAt(all, 'song', 'tr808-r', 'out')
+
+    expect(current).toBeDefined()
+    expect(oldLeft).toBe(current)
+    expect(oldRight).toBe(current)
+    expect(current?.aliases).toEqual(['tr808-l', 'tr808-r'])
+  })
+
   it('gives a module with the same port id on both sides two distinct jacks', () => {
     // `Arp` takes a V/Oct in and gives a V/Oct out, so `pitch` names a jack in each column. The patch
     // format has always allowed that — a cable's ends are an outlet and an inlet *by position*, so

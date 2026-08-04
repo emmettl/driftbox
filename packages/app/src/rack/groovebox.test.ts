@@ -5,16 +5,17 @@ const source = { id: 'song', type: 'groovebox' }
 const out = { id: 'out', type: 'out' }
 
 describe('routing retained groovebox machines', () => {
-  it('diverts a section when either stereo outlet has a cable', () => {
+  it('diverts a section for the current stereo outlet or either historical mono alias', () => {
     expect(
       routedGrooveboxSections({
         modules: [source, out],
         cables: [
           { from: ['song', 'tr808-l'], to: ['out', 'in'] },
+          { from: ['song', 'tr909-out'], to: ['out', 'in'] },
           { from: ['song', '303.b-r'], to: ['out', 'in'] },
         ],
       }),
-    ).toEqual(['tr808', '303.b'])
+    ).toEqual(['tr808', 'tr909', '303.b'])
   })
 
   it('ignores matching outlet names on an unrelated module', () => {

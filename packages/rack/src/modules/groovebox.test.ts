@@ -5,10 +5,16 @@ import {
   GROOVEBOX_PORTS,
   GrooveboxProcessor,
 } from './groovebox.js'
+import { compile } from '../compile.js'
+import { MODULES } from './index.js'
+import { slotCount } from '../stereo.js'
+import type { Patch } from '../types.js'
 
 const frames = 4
 const outputs = () =>
-  GROOVEBOX_MODULE.outlets.map(() => new Float32Array(frames).fill(-999))
+  Array.from({ length: slotCount(GROOVEBOX_MODULE.outlets) }, () =>
+    new Float32Array(frames).fill(-999),
+  )
 const params = (values: Record<string, number | number[]> = {}) =>
   GROOVEBOX_MODULE.params.map((def) => {
     const value = values[def.id] ?? def.default
@@ -29,6 +35,54 @@ describe('the hosted groovebox source', () => {
       expect([...out[section * 2]]).toEqual(new Array(frames).fill(section * 10 + 1))
       expect([...out[section * 2 + 1]]).toEqual(new Array(frames).fill(section * 10 + 2))
     }
+  })
+
+  it('publishes four canonical stereo jacks without moving the processor channel slots', () => {
+    expect(GROOVEBOX_MODULE.outlets).toEqual(
+      GROOVEBOX_SECTIONS.map((section) => ({
+        id: GROOVEBOX_PORTS[section].output,
+        name: section === 'tr808' ? '808' : section === 'tr909' ? '909' : section === '303.a' ? '303 A' : '303 B',
+        stereo: true,
+        aliases: [
+          { id: GROOVEBOX_PORTS[section].left, channel: 0 },
+          { id: GROOVEBOX_PORTS[section].right, channel: 1 },
+        ],
+      })),
+    )
+    expect(outputs()).toHaveLength(8)
+  })
+
+  it('keeps historical left and right cables on their original mono channels', () => {
+    const patch: Patch = {
+      modules: [
+        { id: 'song', type: 'groovebox', version: 1 },
+        { id: 'left', type: 'meter' },
+        { id: 'right', type: 'meter' },
+        { id: 'right-stereo', type: 'out' },
+        { id: 'stereo', type: 'out' },
+      ],
+      cables: [
+        { from: ['song', GROOVEBOX_PORTS.tr808.left], to: ['left', 'in'] },
+        { from: ['song', GROOVEBOX_PORTS.tr808.right], to: ['right', 'in'] },
+        { from: ['song', GROOVEBOX_PORTS.tr808.right], to: ['right-stereo', 'in'] },
+        { from: ['song', GROOVEBOX_PORTS.tr909.output], to: ['stereo', 'in'] },
+      ],
+    }
+
+    const plan = compile(patch, MODULES)
+    const song = plan.nodes.find((node) => node.id === 'song')!
+    expect(plan.nodes.find((node) => node.id === 'left')?.inlets).toEqual([song.outlets[0]])
+    expect(plan.nodes.find((node) => node.id === 'right')?.inlets).toEqual([song.outlets[1]])
+    expect(plan.nodes.find((node) => node.id === 'right-stereo')?.inlets).toEqual([
+      song.outlets[1],
+      song.outlets[1],
+    ])
+    expect(plan.nodes.find((node) => node.id === 'stereo')?.inlets).toEqual([
+      song.outlets[2],
+      song.outlets[3],
+    ])
+    expect(song.outletConnected!.slice(0, 4)).toEqual([true, true, true, true])
+    expect(plan.notes.filter((note) => note.kind === 'dropped-cable')).toEqual([])
   })
 
   it('duplicates a mono host input and writes silence for an absent one', () => {

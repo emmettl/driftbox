@@ -46,9 +46,10 @@ arithmetically what it was — one FDN, two output mixing vectors, the second be
 under an alternating sign — so folding it back to mono is unchanged sample for sample.
 
 The two stereo devices have landed: a **Ping-Pong Delay** whose wet repeats alternate across a stereo
-outlet, and a **Stereo Imager** with two-band mid/side width. What remains is the Groovebox source's
-four pairs becoming four stereo jacks rather than eight mono ones. That change waits on a port
-rename, which would move existing cables — adding a channel to a port is safe, renaming one is not.
+outlet, and a **Stereo Imager** with two-band mid/side width. The Groovebox source now exposes its four
+authored machines as four stereo jacks too. Port aliases make that consolidation safe: old `*-l` and
+`*-r` cable ids still resolve to their original single channel, while a newly drawn cable carries the
+pair from one canonical jack.
 
 ### 2. ~~Nothing records a parameter move~~ — landed
 
@@ -85,8 +86,8 @@ Two halves, and only one of them is in the parity ledger:
   growth `RACK.md` said to resist and the one that earned it, and it is a field on a message that
   already existed rather than a sixth kind. `Rack.scheduleParam` and `Rack.frameFor` are the host half;
   a schedule made before `start()` travels in `processorOptions`, because no port message reaches an
-  offline render. **Playback is therefore unblocked and recording is not yet wired** — what is left is
-  the interchange work above, not anything architectural.
+  offline render. Playback and recording are both wired now: the host records a live knob move at its
+  musical playhead, while lane playback travels directly to the audio thread so it cannot record itself.
 
 ### 3. ~~There is no undo~~ — landed
 

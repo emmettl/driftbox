@@ -21,6 +21,23 @@ export interface Port {
    * nothing else, and adding it to a port does NOT rename that port, so no existing cable moves.
    */
   stereo?: boolean
+  /**
+   * Older ids that still resolve to this port.
+   *
+   * A port id is patch data, so replacing one normally disconnects every saved cable that names it. Aliases
+   * let a module consolidate or rename jacks without doing that. Hosts draw only the canonical port and may
+   * resolve an old endpoint to the same physical jack.
+   *
+   * `channel` is meaningful for an outlet alias on a stereo port: it preserves a historical mono jack by
+   * exposing only that channel to the old cable. Without it, an old left-only cable would silently become a
+   * stereo cable after two mono outputs were consolidated. Inlet aliases always address the whole port.
+   */
+  aliases?: readonly PortAlias[]
+}
+
+export interface PortAlias {
+  id: string
+  channel?: 0 | 1
 }
 
 export interface ParamDef {

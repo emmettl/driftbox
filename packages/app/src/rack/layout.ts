@@ -228,6 +228,8 @@ export interface Jack {
   port: string
   name: string
   kind: 'in' | 'out'
+  /** Historical endpoint ids that share this physical jack. */
+  aliases: readonly string[]
   /** Two channels on one jack. Drawn differently, because a cable out of one carries a pair. */
   stereo: boolean
   x: number
@@ -263,6 +265,7 @@ export function jacks(placements: readonly Placement[], defs: Record<string, Mod
           module: placement.id,
           port: port.id,
           name: port.name,
+          aliases: port.aliases?.map((alias) => alias.id) ?? [],
           stereo: port.stereo === true,
           kind,
           x:
@@ -455,5 +458,7 @@ export function jackAt(
 ): Jack | undefined {
   return list.find(
     (jack) => jack.module === module && jack.port === port && jack.kind === kind,
+  ) ?? list.find(
+    (jack) => jack.module === module && jack.aliases.includes(port) && jack.kind === kind,
   )
 }

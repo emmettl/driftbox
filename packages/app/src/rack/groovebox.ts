@@ -10,9 +10,9 @@ import {
 /**
  * Authored machines whose dry signal has at least one rack cable.
  *
- * Both stereo outlets select the same section: routing only the left jack still has to
- * remove the complete machine from the original master or its right side would bypass
- * the rack and the left would be heard twice.
+ * The current stereo outlet and both historical mono aliases select the same section. Routing one old
+ * channel still has to remove the complete machine from the original master or the other side would bypass
+ * the rack and the patched side would be heard twice.
  */
 export function routedGrooveboxSections(patch: Patch): GrooveboxSection[] {
   const sourceIds = new Set(
@@ -20,10 +20,11 @@ export function routedGrooveboxSections(patch: Patch): GrooveboxSection[] {
   )
   return GROOVEBOX_SECTIONS.filter((section) => {
     const ports = GROOVEBOX_PORTS[section]
+    const ids = new Set([ports.output, ports.left, ports.right])
     return patch.cables.some(
       (cable) =>
         sourceIds.has(cable.from[0]) &&
-        (cable.from[1] === ports.left || cable.from[1] === ports.right),
+        ids.has(cable.from[1]),
     )
   })
 }

@@ -466,8 +466,12 @@ export function BackPanel({ layout }: Props) {
         // cable leaving its pitch *outlet*, because both ends read as the same port id.
         const attached = patch.cables.find(
           (cable) =>
-            (jack.kind === 'in' && cable.to[0] === jack.module && cable.to[1] === jack.port) ||
-            (jack.kind === 'out' && cable.from[0] === jack.module && cable.from[1] === jack.port),
+            (jack.kind === 'in' &&
+              cable.to[0] === jack.module &&
+              (cable.to[1] === jack.port || jack.aliases.includes(cable.to[1]))) ||
+            (jack.kind === 'out' &&
+              cable.from[0] === jack.module &&
+              (cable.from[1] === jack.port || jack.aliases.includes(cable.from[1]))),
         )
         if (attached) {
           event.preventDefault()
