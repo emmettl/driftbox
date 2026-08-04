@@ -106,9 +106,11 @@ section's fallback removes the redundant override, preserving the old whole-patt
 shape where possible. Each machine can also launch the selected retained pattern on the
 next step, beat or bar—or return to following the authored arrangement at that boundary.
 Bar remains the default for old hosts. Queued and active launch state, including the pending
-quantization, is
-explicit on the faceplate but remains session-only: it never rewrites the retained envelope,
-enters undo history or changes a groovebox-compatible document into a rack extension.
+quantization, is explicit on the faceplate and remains session-only by default. **Write** is the
+deliberate exception: it locks launches to bar boundaries and promotes each active choice into the
+retained arrangement. A launch partway through a repeated section splits that section at the boundary,
+so bars already heard are not rewritten; Follow removes the machine override from the new boundary
+onward. Each write is one undoable compatible-song edit and never creates a rack-only representation.
 The same contextual editor exposes all six authored controls for the selected 808/909
 voice and all eight controls for either 303. These update the retained kit in place, so
 the shared engine applies them to following hits without rebuilding the rack or replacing

@@ -178,6 +178,8 @@ export function GrooveboxPatternEditor({
   launches,
   launchQuantization = 'bar',
   setLaunchQuantization,
+  launchRecording = false,
+  toggleLaunchRecording,
   transport,
   loop,
   initialSection = 'tr808',
@@ -221,11 +223,14 @@ export function GrooveboxPatternEditor({
         patternId: string | null
         phase: 'queued' | 'active'
         quantization: ClipLaunchQuantization
+        bar?: number
       }
     >
   >
   launchQuantization?: ClipLaunchQuantization
   setLaunchQuantization?: (quantization: ClipLaunchQuantization) => void
+  launchRecording?: boolean
+  toggleLaunchRecording?: () => void
   transport?: {
     startAt: (bar: number) => boolean
     setLoop: (start: number, bars: number) => boolean
@@ -802,6 +807,7 @@ export function GrooveboxPatternEditor({
           <select
             aria-label="Clip launch quantization"
             value={launchQuantization}
+            disabled={launchRecording}
             onChange={(event) =>
               setLaunchQuantization?.(event.target.value as ClipLaunchQuantization)
             }
@@ -813,6 +819,21 @@ export function GrooveboxPatternEditor({
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="rk-groovebox-live-record"
+          disabled={!toggleLaunchRecording}
+          aria-pressed={launchRecording}
+          aria-label={launchRecording ? 'Disarm clip launch recording' : 'Arm clip launch recording'}
+          title={
+            launchRecording
+              ? 'Writing active launches into the retained arrangement at bar boundaries'
+              : 'Record live clip choices into the retained arrangement at bar boundaries'
+          }
+          onClick={toggleLaunchRecording}
+        >
+          <span aria-hidden="true">●</span> write
+        </button>
         <button
           type="button"
           disabled={!launch}
@@ -831,7 +852,13 @@ export function GrooveboxPatternEditor({
         </button>
         <span aria-live="polite">
           {live
-            ? `${live.phase} ${livePattern}${live.phase === 'queued' ? ` · next ${live.quantization}` : ''}`
+            ? `${live.phase} ${livePattern}${
+              live.phase === 'queued'
+                ? ` · next ${live.quantization}`
+                : launchRecording && live.bar !== undefined
+                  ? ` · written bar ${live.bar + 1}`
+                  : ''
+            }`
             : 'follows song'}
         </span>
       </div>
@@ -1076,6 +1103,8 @@ function PatternEditor() {
   const launches = useRack((state) => state.grooveboxLaunches)
   const launchQuantization = useRack((state) => state.grooveboxLaunchQuantization)
   const setLaunchQuantization = useRack((state) => state.setGrooveboxLaunchQuantization)
+  const launchRecording = useRack((state) => state.grooveboxLaunchRecording)
+  const toggleLaunchRecording = useRack((state) => state.toggleGrooveboxLaunchRecording)
   const transport = useRack((state) => state.grooveboxTransport)
   const loop = useRack((state) => state.grooveboxLoop)
   return (
@@ -1103,6 +1132,8 @@ function PatternEditor() {
       launches={launches}
       launchQuantization={launchQuantization}
       setLaunchQuantization={setLaunchQuantization}
+      launchRecording={launchRecording}
+      toggleLaunchRecording={toggleLaunchRecording}
       transport={transport ?? undefined}
       loop={loop}
     />

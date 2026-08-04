@@ -918,6 +918,59 @@ export function chainSetClip(
   })
 }
 
+/**
+ * Write a live machine launch at an exact bar boundary.
+ *
+ * A chain entry may repeat for many bars, so changing it in place would rewrite bars that already played.
+ * Split at the boundary and edit only the remaining half. `null` means “follow this section's fallback”,
+ * matching the live launcher's Follow action. Returning the original array for a redundant choice keeps
+ * an uneventful performance out of undo history.
+ */
+export function chainRecordClip(
+  song: Song,
+  bar: number,
+  slot: ClipSlot,
+  patternId: string | null,
+): ChainStep[] {
+  const chain = song.chain.length > 0
+    ? song.chain
+    : song.patterns[0]
+      ? [{ pattern: song.patterns[0].id, repeat: 1 }]
+      : []
+  if (chain.length === 0) return song.chain
+
+  const source = song.chain.length > 0 ? song : { ...song, chain }
+  const position = chainPositionAt(source, Math.floor(bar))
+  if (!position) return song.chain
+
+  const current = position.step.clips?.[slot]
+  const wanted = patternId && patternId !== position.step.pattern ? patternId : undefined
+  if (current === wanted) return song.chain.length > 0 ? song.chain : chain
+
+  const update = (step: ChainStep): ChainStep => {
+    const clips = { ...step.clips }
+    if (wanted) clips[slot] = wanted
+    else delete clips[slot]
+    if (Object.keys(clips).length > 0) return { ...step, clips }
+    const next = { ...step }
+    delete next.clips
+    return next
+  }
+
+  const before = position.barWithin
+  if (before === 0) {
+    return chain.map((step, index) => index === position.index ? update(step) : step)
+  }
+
+  const repeat = Math.max(1, Math.floor(position.step.repeat))
+  return [
+    ...chain.slice(0, position.index),
+    { ...position.step, repeat: before },
+    update({ ...position.step, repeat: repeat - before }),
+    ...chain.slice(position.index + 1),
+  ]
+}
+
 /** Move an entry by `delta` places, clamped. Reordering a song is mostly nudging one
  *  section earlier or later, which is one gesture rather than a drag-and-drop library. */
 export function chainMove(song: Song, index: number, delta: number): ChainStep[] {

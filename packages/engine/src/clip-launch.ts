@@ -10,6 +10,8 @@ export interface ClipLaunchEvent {
   patternId: string | null
   phase: ClipLaunchPhase
   quantization: ClipLaunchQuantization
+  /** Exact transport bar for an active launch. Queued events have not reached one yet. */
+  bar?: number
 }
 
 interface PendingLaunch {
@@ -42,7 +44,7 @@ export class ClipLauncher {
     this.emit({ section, patternId, phase: 'queued', quantization })
   }
 
-  activate(boundary: ClipLaunchQuantization = 'bar'): void {
+  activate(boundary: ClipLaunchQuantization = 'bar', bar?: number): void {
     const boundaryRank = CLIP_LAUNCH_QUANTIZATIONS.indexOf(boundary)
     for (const section of Object.keys(this.pending) as ClipSlot[]) {
       const pending = this.pending[section]
@@ -53,7 +55,13 @@ export class ClipLauncher {
       if (patternId === null) delete this.active[section]
       else this.active[section] = patternId
       delete this.pending[section]
-      this.emit({ section, patternId, phase: 'active', quantization })
+      this.emit({
+        section,
+        patternId,
+        phase: 'active',
+        quantization,
+        ...(bar === undefined ? {} : { bar }),
+      })
     }
   }
 

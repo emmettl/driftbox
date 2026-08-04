@@ -220,7 +220,7 @@ export class DriftboxEngine {
     this.analyser.connect(destination)
 
     this.transport = new Transport(this.ctx, {
-      onBar: () => this.clipLauncher.activate('bar'),
+      onBar: (bar) => this.clipLauncher.activate('bar', bar),
       barLength: (bar) =>
         barLengthForSelection(this.song, bar, this.clipLauncher.selection),
       onStep: (event) => this.playStep(event),
@@ -562,7 +562,7 @@ export class DriftboxEngine {
   }
 
   private playStep(event: StepEvent): void {
-    this.clipLauncher.activate(event.index % STEPS_PER_BEAT === 0 ? 'beat' : 'step')
+    this.clipLauncher.activate(event.index % STEPS_PER_BEAT === 0 ? 'beat' : 'step', event.bar)
     // The click lands on the beat, straight, whatever the song is swinging. Swing is a
     // property of the music; a metronome that shuffled with it would be measuring
     // against itself and useless for playing along to.

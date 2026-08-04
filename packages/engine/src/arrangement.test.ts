@@ -6,6 +6,7 @@ import {
   chainMove,
   chainPositionAt,
   chainRemove,
+  chainRecordClip,
   chainSetClip,
   chainSetPattern,
   chainSetRepeat,
@@ -196,6 +197,43 @@ describe('editing the arrangement', () => {
     ).toEqual({ pattern: 'a', repeat: 2 })
   })
 
+  it('records a clip launch from its bar boundary without rewriting earlier repeats', () => {
+    const next = chainRecordClip(
+      song({ chain: [{ pattern: 'a', repeat: 4 }] }),
+      2,
+      'tr808',
+      'b',
+    )
+    expect(next).toEqual([
+      { pattern: 'a', repeat: 2 },
+      { pattern: 'a', clips: { tr808: 'b' }, repeat: 2 },
+    ])
+  })
+
+  it('records Follow by removing the machine override from the boundary onward', () => {
+    const next = chainRecordClip(
+      song({ chain: [{ pattern: 'a', clips: { tr808: 'b', tr909: 'b' }, repeat: 4 }] }),
+      1,
+      'tr808',
+      null,
+    )
+    expect(next).toEqual([
+      { pattern: 'a', clips: { tr808: 'b', tr909: 'b' }, repeat: 1 },
+      { pattern: 'a', clips: { tr909: 'b' }, repeat: 3 },
+    ])
+  })
+
+  it('does not split the arrangement for a launch it already contains', () => {
+    const s = song({ chain: [{ pattern: 'a', clips: { tr808: 'b' }, repeat: 4 }] })
+    expect(chainRecordClip(s, 2, 'tr808', 'b')).toBe(s.chain)
+  })
+
+  it('gives an empty arrangement one recordable fallback bar', () => {
+    expect(chainRecordClip(song({ chain: [] }), 0, 'tr808', 'b')).toEqual([
+      { pattern: 'a', clips: { tr808: 'b' }, repeat: 1 },
+    ])
+  })
+
   it('moves an entry up and down', () => {
     expect(chainMove(song(), 0, 1).map((c) => c.pattern)).toEqual(['b', 'a'])
     expect(chainMove(song(), 1, -1).map((c) => c.pattern)).toEqual(['b', 'a'])
@@ -212,6 +250,7 @@ describe('editing the arrangement', () => {
     const before = JSON.stringify(s.chain)
     chainAppend(s, 'b')
     chainRemove(s, 0)
+    chainRecordClip(s, 1, 'tr808', 'b')
     chainMove(s, 0, 1)
     chainSetRepeat(s, 0, 8)
     expect(JSON.stringify(s.chain)).toBe(before)

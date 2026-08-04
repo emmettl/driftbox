@@ -2218,6 +2218,12 @@ kbd {
   border-color: #cffff2;
 }
 
+.rk-groovebox-live-record[aria-pressed='true']:not(:disabled) {
+  color: #19040a;
+  background: var(--eight);
+  border-color: #ffc5d3;
+}
+
 .rk-groovebox-transport {
   display: flex;
   align-items: end;

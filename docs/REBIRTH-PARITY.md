@@ -49,8 +49,8 @@ user could approximate it from oscillators.
 |---|---:|---:|---|
 | Two authored 303 voices | Yes | Patchable stereo outputs, retained pattern editor and all eight authored controls per 303 | Landed |
 | Authored 808 and 909 kits | Yes | Patchable stereo outputs, retained pattern editor and all six authored controls per voice | Landed; generated PCM character remains deliberate |
-| Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment and live machine launch plus Tracker/Seq primitives | Landed |
-| Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus step-, beat- or bar-quantised session launch | Landed; bar remains the compatible default |
+| Independent machine pattern banks | Yes | Retained pattern/machine editor, per-section clip assignment, live machine launch and bar-boundary launch writing plus Tracker/Seq primitives | Landed |
+| Per-machine pattern length and launch | Arrangement selection | Per-section retained clip assignment plus step-, beat- or bar-quantised session launch; Write records bar launches into the compatible arrangement | Landed; bar remains the compatible default |
 | Independent drum-voice loop lengths | Selected lane loops inside its 808/909 parent clip | Same retained lane-length control and inactive-tail feedback | Landed; additive beyond ReBirth |
 | 303 pitch/note-pause/accent/slide editing | Direct grid plus stopped keyboard/MIDI entry; paused steps retain pitch for silent slides and same-pitch Slide writes ties | Same retained editor and advancing cursor plus Tracker primitives | Landed |
 | 909 flam | Step plus width control | Retained step articulation and shared width control | Landed |
@@ -78,12 +78,13 @@ work is ordered by dependency:
    303 B, 808 and 909. Each section selects the four sources independently and shorter
    clips wrap under the longest one. Existing composite sections remain the fallback, so
    old songs migrate without changing playback.
-2. **Song transport and automation.** Section seek, whole-section looping and the shared
+2. **Song transport and automation — landed.** Section seek, whole-section looping and the shared
    versioned automation timeline are present. The editor records tempo, swing, drum knobs,
    303 knobs, per-voice swing, sends and effects at the playhead. The shared scheduler
    resolves those targets for live playback and offline planning, including per-hit stem
-   sends. Arbitrary whole-bar loop ranges may cross section boundaries. Reuse the thin
-   recorder and transport primitives in rack mode, then add bar-quantised clip recording.
+   sends. Arbitrary whole-bar loop ranges may cross section boundaries. Rack mode can also arm
+   **Write** and record active bar-quantised machine launches into the compatible arrangement;
+   repeated sections split at the boundary so the earlier performance is left intact.
 3. **Section buses and effects — landed.** The four authored machines arrive on metered
    rack source strips with level, pan and mute before their patchable stereo outputs. The
    retained song owns drive, pattern-controlled filter and compressor master
@@ -114,9 +115,9 @@ work is ordered by dependency:
    songs; the groovebox refuses rack-extended/native entries rather than flattening them,
    and the rack migrates the former patch-only shelf on first write.
 
-The schema foundation is now present. Automation events still need stable section and
-parameter identities, but can record independent clip changes without splitting or
-flattening the original whole-groove pattern pool.
+The schema foundation and recording workflow are now present. Machine launches stay session-only
+until explicitly armed, then become ordinary compatible section clip choices rather than a second
+automation format or a flattened copy of the original pattern pool.
 
 ## Document boundary
 

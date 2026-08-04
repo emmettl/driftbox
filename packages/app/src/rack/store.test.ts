@@ -34,6 +34,7 @@ beforeEach(() => {
     grooveboxLauncher: null,
     grooveboxLaunches: {},
     grooveboxLaunchQuantization: 'bar',
+    grooveboxLaunchRecording: false,
     grooveboxTransport: null,
     grooveboxLoop: null,
     grooveboxAutomationRecording: false,
@@ -1472,6 +1473,61 @@ describe('editing a retained Groovebox pattern', () => {
     expect(useRack.getState().grooveboxLaunchQuantization).toBe('step')
     expect(useRack.getState().patch).toBe(patch)
     expect(useRack.getState().history).toBe(history)
+  })
+
+  it('records an active bar launch into the arrangement from that boundary onward', () => {
+    const song = grooveboxSong(useRack.getState().patch)!
+    const fallback = song.patterns[0].id
+    const wanted = song.patterns.find((pattern) => pattern.id !== fallback)!.id
+    useRack.setState({
+      patch: embedGrooveboxSong({
+        ...song,
+        chain: [{ pattern: fallback, repeat: 4 }],
+      }),
+    })
+
+    useRack.getState().setGrooveboxLaunchQuantization('step')
+    useRack.getState().toggleGrooveboxLaunchRecording()
+    expect(useRack.getState().grooveboxLaunchQuantization).toBe('bar')
+    useRack.getState().setGrooveboxLaunchQuantization('beat')
+    expect(useRack.getState().grooveboxLaunchQuantization).toBe('bar')
+
+    const before = useRack.getState().patch
+    useRack.getState().setGrooveboxLaunch({
+      section: 'tr808',
+      patternId: wanted,
+      phase: 'queued',
+      quantization: 'bar',
+    })
+    expect(useRack.getState().patch).toBe(before)
+
+    useRack.getState().setGrooveboxLaunch({
+      section: 'tr808',
+      patternId: wanted,
+      phase: 'active',
+      quantization: 'bar',
+      bar: 2,
+    })
+    expect(useRack.getState().grooveboxLaunches.tr808?.bar).toBe(2)
+    expect(grooveboxSong(useRack.getState().patch)?.chain).toEqual([
+      { pattern: fallback, repeat: 2 },
+      { pattern: fallback, clips: { tr808: wanted }, repeat: 2 },
+    ])
+    expect(useRack.getState().history.past).toHaveLength(1)
+    expect(patchCompatibility(useRack.getState().patch)).toBe('groovebox-compatible')
+  })
+
+  it('does not record finer launches queued before write was armed', () => {
+    const before = useRack.getState().patch
+    useRack.getState().toggleGrooveboxLaunchRecording()
+    useRack.getState().setGrooveboxLaunch({
+      section: 'tr909',
+      patternId: grooveboxSong(before)!.patterns[1].id,
+      phase: 'active',
+      quantization: 'beat',
+      bar: 1,
+    })
+    expect(useRack.getState().patch).toBe(before)
   })
 
   it('keeps hosted transport controls and loop state out of the document', () => {
