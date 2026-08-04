@@ -49,6 +49,84 @@ export interface RenderOptions {
   offline?: (channels: number, length: number, rate: number) => OfflineAudioContext
 }
 
+export interface PatchStemTarget {
+  /** Stable module id, also used by `only`. */
+  id: string
+  /** Human-readable device and module identity. */
+  name: string
+}
+
+export interface PatchStem extends PatchStemTarget {
+  buffer: AudioBuffer
+}
+
+export interface PatchStemOptions extends RenderOptions {
+  /** Render only these Out module ids. Absent means every eligible Out strip. */
+  only?: readonly string[]
+}
+
+/**
+ * The explicit rack-native stem boundary.
+ *
+ * A modular graph does not have an honest answer to “which source owns this shared reverb?”. Out strips do:
+ * they are already the named terminal buses the compiler sums into the master. A terminal without a solo
+ * control cannot be isolated without changing its graph, so it is deliberately not advertised as a stem.
+ */
+export function patchStemTargets(patch: Patch, registry: Registry): PatchStemTarget[] {
+  return patch.modules.flatMap((module) => {
+    const def = registry[module.type]
+    if (!def?.terminal || !def.terminalSolo || module.bypassed === true) return []
+    return [{ id: module.id, name: `${def.name} · ${module.id}` }]
+  })
+}
+
+/** A copy whose terminal solo state selects exactly one Out for the complete offline render. */
+function isolatedStemPatch(patch: Patch, selected: string, registry: Registry): Patch {
+  const solos = new Map<string, string>()
+  const modules = patch.modules.map((module) => {
+    const solo = registry[module.type]?.terminalSolo
+    if (!solo) return module
+    solos.set(module.id, solo)
+    return {
+      ...module,
+      params: { ...module.params, [solo]: module.id === selected ? 1 : 0 },
+    }
+  })
+  // A recorded Solo move must not take the selected stem away halfway through its render. Level, pan and
+  // mute automation remain part of that strip and are intentionally preserved.
+  const automation = patch.automation?.filter(
+    (lane) => solos.get(lane.target[0]) !== lane.target[1],
+  )
+  const modulation = patch.modulation?.filter(
+    (route) => solos.get(route.to[0]) !== route.to[1],
+  )
+  const isolated: Patch = { ...patch, modules }
+  if (automation && automation.length > 0) isolated.automation = automation
+  else delete isolated.automation
+  if (modulation && modulation.length > 0) isolated.modulation = modulation
+  else delete isolated.modulation
+  return isolated
+}
+
+/** Render one complete stereo file per eligible terminal Out strip. */
+export async function renderPatchStems(
+  patch: Patch,
+  options: PatchStemOptions,
+): Promise<PatchStem[]> {
+  const wanted = options.only ? new Set(options.only) : null
+  const targets = patchStemTargets(patch, options.registry).filter(
+    (target) => !wanted || wanted.has(target.id),
+  )
+  const stems: PatchStem[] = []
+  for (const target of targets) {
+    stems.push({
+      ...target,
+      buffer: await renderPatch(isolatedStemPatch(patch, target.id, options.registry), options),
+    })
+  }
+  return stems
+}
+
 /**
  * How long a render is, in samples.
  *

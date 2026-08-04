@@ -196,7 +196,16 @@ export {
   VocoderProcessor,
 } from './modules/vocoder.js'
 export { RACK_PROCESSOR, loadRack, rackSource, type RackMessage } from './worklet.js'
-export { renderLength, renderPatch, type RenderOptions } from './render.js'
+export {
+  patchStemTargets,
+  renderLength,
+  renderPatch,
+  renderPatchStems,
+  type PatchStem,
+  type PatchStemOptions,
+  type PatchStemTarget,
+  type RenderOptions,
+} from './render.js'
 export { RackRenderer } from './headless.js'
 export { Adaptive, adaptiveValue, adaptiveValues } from './adaptive.js'
 export { LanePlayer } from './lanes.js'
