@@ -58,6 +58,36 @@ describe('the shared cable renderer', () => {
     expect(drawn).toContain('aria-label="Unplug osc Out from speaker In"')
   })
 
+  it('draws a historical Groovebox channel cable from the new stereo jack', () => {
+    const old = {
+      modules: [
+        { id: 'song', type: 'groovebox' },
+        { id: 'speaker', type: 'out' },
+      ],
+      cables: [
+        { from: ['song', 'tr808-r'] as [string, string], to: ['speaker', 'in'] as [string, string] },
+      ],
+    }
+    const oldGeometry = layout(old.modules, () => ({ span: 2, rows: 2 }))
+    const all = jacks(oldGeometry.placements, MODULES)
+    const drawn = renderToStaticMarkup(
+      createElement(CablePaths, {
+        all,
+        cables: old.cables,
+        delayed: new Set<string>(),
+        folded: new Set<string>(),
+        swing: { elapsed: null, direction: 1 },
+      }),
+    )
+    const unplug = renderToStaticMarkup(
+      createElement(CableUnplugs, { all, cables: old.cables, disconnect: () => {} }),
+    )
+
+    expect(jackAt(all, 'song', 'tr808-r', 'out')).toBe(jackAt(all, 'song', 'tr808-out', 'out'))
+    expect(drawn).toContain('rk-cable-line')
+    expect(unplug).toContain('aria-label="Unplug song 808 from speaker In"')
+  })
+
   it('marks a cable that loses its right channel', () => {
     // The compiler decides the fold and reports it; drawing it is the other half of that bargain. A patch
     // that behaves unlike its picture is worse than one that admits it.

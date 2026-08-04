@@ -12,6 +12,7 @@ export const GROOVEBOX_PORTS: Readonly<
     GrooveboxSection,
     {
       input: number
+      output: string
       left: string
       right: string
       level: string
@@ -24,6 +25,7 @@ export const GROOVEBOX_PORTS: Readonly<
     section,
     {
       input,
+      output: `${section.replace('.', '-')}-out`,
       left: `${section}-l`,
       right: `${section}-r`,
       level: `${section.replace('.', '-')}-level`,
@@ -35,6 +37,7 @@ export const GROOVEBOX_PORTS: Readonly<
   GrooveboxSection,
   {
     input: number
+    output: string
     left: string
     right: string
     level: string
@@ -150,7 +153,7 @@ export class GrooveboxProcessor implements Processor {
 
 export const GROOVEBOX_MODULE: ModuleDef = {
   type: 'groovebox',
-  version: 1,
+  version: 2,
   name: 'Groovebox',
   blurb:
     'The retained song’s authored 808, 909 and two 303s as stereo rack sources. Silent when the patch has no retained song.',
@@ -168,7 +171,7 @@ export const GROOVEBOX_MODULE: ModuleDef = {
     concepts: [
       {
         title: 'Four stems, one song',
-        body: '808, 909, 303 A and 303 B each have left and right outputs. Their patterns and synthesis still come from the retained Groovebox song; the controls here only set each stem’s level, pan and mute.',
+        body: '808, 909, 303 A and 303 B each have one stereo output. Their patterns and synthesis still come from the retained Groovebox song; the controls here only set each stem’s level, pan and mute.',
       },
       {
         title: 'Retained means embedded',
@@ -177,19 +180,25 @@ export const GROOVEBOX_MODULE: ModuleDef = {
     ],
     firstPatch: [
       'Open a Groovebox song in the rack so this source has authored material.',
-      'Patch the 808 L/R pair to one stereo effect or mixer path and the 303 A L/R pair to another.',
+      'Patch the 808 stereo output to one effect or mixer path and the 303 A output to another.',
       'Use the strip mutes to confirm which machine each cable is carrying, then balance the four levels.',
     ],
     watchFor: [
-      'Left and right are separate mono jacks here. Patch both when you want to preserve the authored stereo image.',
+      'A stereo output folded into a mono input follows the rack convention: its left channel is heard.',
+      'Older patches with separate left and right Groovebox cables retain the channel each cable originally carried.',
       'Editing the embedded song changes what these outlets play; it is not a sample frozen at import time.',
     ],
   },
   inlets: [],
-  outlets: GROOVEBOX_SECTIONS.flatMap((section) => [
-    { id: GROOVEBOX_PORTS[section].left, name: `${sectionName(section)} L` },
-    { id: GROOVEBOX_PORTS[section].right, name: `${sectionName(section)} R` },
-  ]),
+  outlets: GROOVEBOX_SECTIONS.map((section) => ({
+    id: GROOVEBOX_PORTS[section].output,
+    name: sectionName(section),
+    stereo: true,
+    aliases: [
+      { id: GROOVEBOX_PORTS[section].left, channel: 0 },
+      { id: GROOVEBOX_PORTS[section].right, channel: 1 },
+    ],
+  })),
   params: GROOVEBOX_SECTIONS.flatMap((section) => {
     const ports = GROOVEBOX_PORTS[section]
     const name = sectionName(section)

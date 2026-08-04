@@ -59,8 +59,15 @@ describe.each(MODULE_LIST.map((def) => [def.type, def] as const))('%s', (_type, 
     expect(def.outlets.length).toBeGreaterThan(0)
 
     for (const ports of [def.inlets, def.outlets]) {
-      expect(new Set(ports.map((p) => p.id)).size).toBe(ports.length)
-      for (const port of ports) expect(port.id).not.toBe('')
+      const ids = ports.flatMap((port) => [port.id, ...(port.aliases?.map((alias) => alias.id) ?? [])])
+      expect(new Set(ids).size).toBe(ids.length)
+      for (const port of ports) {
+        expect(port.id).not.toBe('')
+        for (const alias of port.aliases ?? []) {
+          expect(alias.id).not.toBe('')
+          if (alias.channel !== undefined) expect(port.stereo).toBe(true)
+        }
+      }
     }
     expect(new Set(def.params.map((p) => p.id)).size).toBe(def.params.length)
   })

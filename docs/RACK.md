@@ -64,8 +64,8 @@ An understood retained song is now audible in rack mode through the existing
 `DriftboxEngine`, not a second rendering implementation. `EngineOptions.destination`
 puts that complete mix on the rack's final Kaoss/analyser bus beside the worklet graph,
 and the rack transport starts and stops both. Four stereo host inputs feed the
-Groovebox source module. Its 808, 909, 303 A and 303 B outlets are ordinary rack signals;
-patching either side of a section diverts it from the original master without rebuilding
+Groovebox source module. Its 808, 909, 303 A and 303 B stereo outlets are ordinary rack signals;
+patching a section diverts it from the original master without rebuilding
 or restarting the hosted engine. Four source strips apply level, balance pan and mute to
 those stereo signals before their outlets. Each strip reports its post-control level
 through the same opt-in telemetry path as the patchable VU Meter, without adding hidden
@@ -1060,10 +1060,12 @@ The risk is all in the first item. Do it first and alone.
      A sum would need a scratch buffer and a copy per folded inlet every block, which is the machinery
      the polyphonic collapse already pays for, and it would add 6dB to any centred signal. The Mixer is
      one module away for anybody who wants the sum, and it is then visible in the patch.
-   - **Adding a channel to a port is safe; renaming one is not.** Cables name ports, so widening `out`
-     moves no cable and every patch written before this is byte-identical and — where it fed something
-     mono — sample-identical. It is also why the Groovebox's four stereo pairs are still eight mono
-     jacks: collapsing them into four stereo ones is a rename, and a rename drops cables.
+   - **Adding a channel is safe, and port aliases make a deliberate rename safe too.** Cables name ports,
+     so widening `out` moves no cable. A canonical port may also own historical ids; the compiler accepts
+     them and the rear panel resolves them onto the current physical jack. An outlet alias can select one
+     channel of a stereo port, which is what lets Groovebox collapse eight mono jacks into four stereo ones
+     without turning an old left-only or right-only cable into a different signal. New cables use only the
+     canonical id; saved aliases remain intact and removable.
    - **Out went first because nothing else could be heard without it.** Everything upstream can be as
      stereo as it likes while the end of the rack takes one channel. Its pan param is unchanged and now
      means balance on a pair, which is what a pan control on a stereo channel means on any mixer — one

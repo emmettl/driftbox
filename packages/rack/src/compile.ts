@@ -10,6 +10,8 @@ import type {
   PlanNode,
   PlanNote,
   PlanParam,
+  Port,
+  PortAlias,
   Registry,
 } from './types.js'
 
@@ -48,6 +50,20 @@ const MAX_RENDER_VOICES = 64
  * unambiguous for every input and costs nothing: it runs when a patch changes, never per block.
  */
 const key = (moduleId: string, portId: string) => JSON.stringify([moduleId, portId])
+
+/** A cable may name either the current port id or one of the historical ids the port owns. */
+const portMatch = (
+  ports: readonly Port[],
+  id: string,
+): { port: Port; alias?: PortAlias } | undefined => {
+  const current = ports.find((port) => port.id === id)
+  if (current) return { port: current }
+  for (const port of ports) {
+    const alias = port.aliases?.find((candidate) => candidate.id === id)
+    if (alias) return { port, alias }
+  }
+  return undefined
+}
 
 interface Entry {
   module: PatchModule
@@ -209,6 +225,16 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     }
   }
 
+  /** Resolve one saved outlet id, retaining a historical mono channel when its alias asks for one. */
+  const outputChannels = (entry: Entry, portId: string): number[] => {
+    if (entry.index === null) return [ZERO]
+    const match = portMatch(registry[entry.module.type].outlets, portId)
+    if (!match) return [ZERO]
+    const channels = outletBuffer.get(key(entry.module.id, match.port.id)) ?? [ZERO]
+    const channel = match.alias?.channel
+    return channel === undefined ? channels : [channels[channel] ?? ZERO]
+  }
+
   // ---- Cables --------------------------------------------------------------------------
   //
   // One cable per inlet, and the last one wins — which is what happens when you drag a
@@ -223,6 +249,8 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     /** The cable's own endpoints, kept so bypass can be walked back through them. */
     fromId: string
     fromPort: string
+    /** Canonical outlet id, so presence belongs to the one visible jack rather than its saved alias. */
+    fromCanonicalPort: string
     /** The destination, carried rather than parsed back out of the map key. Deriving it from
      *  the key means the key format is load-bearing in two places, and it is exactly the kind
      *  of coupling that made a NUL separator look load-bearing when it was an accident. */
@@ -254,22 +282,30 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     }
     // A port name is only checkable on a module whose def we have. On a placeholder it is
     // taken on trust, which is the whole point of a placeholder.
-    if (source.index !== null && !registry[source.module.type].outlets.some((p) => p.id === fromPort)) {
+    const sourceMatch = source.index === null
+      ? undefined
+      : portMatch(registry[source.module.type].outlets, fromPort)
+    const destMatch = dest.index === null
+      ? undefined
+      : portMatch(registry[dest.module.type].inlets, toPort)
+    if (source.index !== null && !sourceMatch) {
       drop(`${source.module.type} has no outlet "${fromPort}"`)
       continue
     }
-    if (dest.index !== null && !registry[dest.module.type].inlets.some((p) => p.id === toPort)) {
+    if (dest.index !== null && !destMatch) {
       drop(`${dest.module.type} has no inlet "${toPort}"`)
       continue
     }
+    const canonicalFromPort = sourceMatch?.port.id ?? fromPort
+    const canonicalToPort = destMatch?.port.id ?? toPort
     // Into a placeholder. Kept in the patch, no effect on the plan; the placeholder note
     // already says why.
     if (dest.index === null) {
-      placeholderOutletConnections.add(key(fromId, fromPort))
+      placeholderOutletConnections.add(key(fromId, canonicalFromPort))
       continue
     }
 
-    const k = key(toId, toPort)
+    const k = key(toId, canonicalToPort)
     const previous = inletSource.get(k)
     if (previous) {
       const old = replaced.get(k)
@@ -287,20 +323,23 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     inletSource.set(k, {
       // From a placeholder is silence rather than a dropped cable, so the patch keeps its
       // shape and only loses its sound.
-      channels: source.index === null ? [ZERO] : (outletBuffer.get(key(fromId, fromPort)) ?? [ZERO]),
+      channels: source.index === null ? [ZERO] : outputChannels(source, fromPort),
       from: source.index,
       fromId,
       fromPort,
+      fromCanonicalPort: canonicalFromPort,
       to: dest.index,
       toId,
-      toPort,
+      toPort: canonicalToPort,
     })
   }
 
   // Only the winning cable into a live inlet counts. A cable to a placeholder also counts because the cable
   // is deliberately preserved, even though this build cannot construct its destination.
   const connectedOutlets = new Set(placeholderOutletConnections)
-  for (const source of inletSource.values()) connectedOutlets.add(key(source.fromId, source.fromPort))
+  for (const source of inletSource.values()) {
+    connectedOutlets.add(key(source.fromId, source.fromCanonicalPort))
+  }
 
   // ---- Bypass --------------------------------------------------------------------------
   //
@@ -329,7 +368,7 @@ export function compile(rawPatch: Patch, registry: Registry): Plan {
     const entry = entries.get(fromId)
     if (!entry || entry.index === null) return { channels: [ZERO], from: null }
     if (!bypassed(entry.index)) {
-      return { channels: outletBuffer.get(key(fromId, fromPort)) ?? [ZERO], from: entry.index }
+      return { channels: outputChannels(entry, fromPort), from: entry.index }
     }
     // A ring of bypassed modules has nothing at the end of it to read. Silence rather than a throw or a
     // stack overflow: this is a patch from outside the program, and the placeholder rule's standard —
