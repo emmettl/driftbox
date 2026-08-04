@@ -2665,6 +2665,18 @@ kbd {
   stroke-linecap: round;
   pointer-events: none;
 }
+/* Turned away from unity, and so actually doing something — which is also exactly when it starts costing
+ * the graph a buffer of its own and a multiply per sample. Teal, the same on-state the header buttons use.
+ *
+ * Before the hover and focus rules deliberately: those say where the pointer is now, which should still
+ * win over what the pot happens to be set to. */
+.rk-input-trim-on .rk-input-trim-track {
+  stroke: var(--nine);
+  stroke-width: 1.8;
+}
+.rk-input-trim-on .rk-input-trim-pointer {
+  stroke: var(--nine);
+}
 .rk-input-trim:hover .rk-input-trim-track,
 .rk-input-trim:focus-visible .rk-input-trim-track {
   fill: #2a1f4a;

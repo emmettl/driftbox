@@ -97,4 +97,38 @@ describe('rear-panel input trims', () => {
       host.remove()
     }
   })
+
+  it('marks a pot that is away from unity, and only then', () => {
+    // Every inlet carries one of these, so "which of these is doing something" is not a question the panel
+    // can answer by drawing them all the same. Engaged is also precisely when the inlet costs the graph a
+    // slot, so the mark and the cost turn on together.
+    useRack.getState().load(structuredClone(patch))
+    const geometry = layout(patch.modules, sizeFor(MODULES))
+    const host = document.createElement('div')
+    document.body.append(host)
+    const root = createRoot(host)
+
+    try {
+      flushSync(() => root.render(createElement(BackPanel, { layout: geometry })))
+      const trim = host.querySelector<SVGGElement>(
+        '[role="slider"][aria-label="speaker In input trim"]',
+      )!
+      expect(trim.classList.contains('rk-input-trim-on')).toBe(false)
+
+      flushSync(() =>
+        trim.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })),
+      )
+      expect(trim.classList.contains('rk-input-trim-on')).toBe(true)
+
+      // Back to exactly unity is back to unmarked — the same edge the store uses to drop the slot.
+      flushSync(() =>
+        trim.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true })),
+      )
+      expect(useRack.getState().inputTrimValue('speaker', 'in')).toBe(1)
+      expect(trim.classList.contains('rk-input-trim-on')).toBe(false)
+    } finally {
+      flushSync(() => root.unmount())
+      host.remove()
+    }
+  })
 })
