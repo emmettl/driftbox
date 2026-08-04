@@ -198,6 +198,8 @@ Ordered by return, not by how big Reason's version was.
   Arp has matching input/output pairs for all six in figure, armed-waiting and converter states; its collector
   takes one shared MIDI lane rather than summing a controller once per played voice. Sustain is normalled to
   Hold until its output is patched, which breaks the link and emits the RPG velocity-scaled pedal gate instead.
+  The main RPG Gate CV format is available too: `Gate / Velocity` carries velocity in every high gate sample,
+  alongside Driftbox's retained binary Gate and independent Velocity outputs.
 
   **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
   one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern
