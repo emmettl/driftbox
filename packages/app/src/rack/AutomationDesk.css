@@ -182,14 +182,23 @@
 
 .rk-auto-point {
   display: grid;
-  grid-template-columns: 48px minmax(90px, 1fr) 32px;
+  grid-template-columns: 78px minmax(90px, 1fr) 32px;
   align-items: center;
   gap: 8px;
 }
 
-.rk-auto-point > span {
+.rk-auto-point-head {
+  display: grid;
+  grid-template-columns: 78px minmax(90px, 1fr);
+  gap: 8px;
+  padding-right: 40px;
+}
+
+.rk-auto-point-head span {
   color: var(--dim);
-  font: 10px var(--mono);
+  font: 8px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .rk-auto-point input {
@@ -208,6 +217,12 @@
   padding: 0;
   color: var(--eight);
   font-size: 17px;
+}
+
+.rk-auto-add-point {
+  justify-self: start;
+  color: var(--nine);
+  border-style: dashed;
 }
 
 .rk-auto-desk > footer {

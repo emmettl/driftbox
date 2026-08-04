@@ -83,6 +83,36 @@ describe('rack automation desk', () => {
     expect(dialog.querySelectorAll('.rk-auto-point')).toHaveLength(1)
   })
 
+  it('adds a point and moves it by musical position', () => {
+    flushSync(() => root.render(createElement(AutomationDesk, { onClose: vi.fn() })))
+    const dialog = document.querySelector<HTMLElement>('.rk-auto-desk')!
+    flushSync(() => dialog.querySelector<HTMLButtonElement>(
+      '[aria-label="Edit Cutoff automation on Ladder filter"]',
+    )!.click())
+
+    flushSync(() => [...dialog.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.includes('Add point after 2.1'))!.click())
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 16, value: 2000 },
+      { at: 17, value: 2000 },
+    ])
+
+    const position = dialog.querySelector<HTMLInputElement>(
+      '[aria-label="Position for Cutoff point at 2.2"]',
+    )!
+    position.value = '1.9'
+    flushSync(() => position.dispatchEvent(new FocusEvent('focusout', { bubbles: true })))
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 8, value: 2000 },
+      { at: 16, value: 2000 },
+    ])
+    expect(dialog.querySelector<HTMLInputElement>(
+      '[aria-label="Position for Cutoff point at 1.9"]',
+    )).toBeTruthy()
+  })
+
   it('locks stepped parameters to hold curves', () => {
     flushSync(() => root.render(createElement(AutomationDesk, { onClose: vi.fn() })))
     const dialog = document.querySelector<HTMLElement>('.rk-auto-desk')!

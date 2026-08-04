@@ -2,7 +2,7 @@ import { MODULES } from '@driftbox/rack'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRack } from './store.js'
-import { automationLaneViews } from './automation-desk.js'
+import { automationLaneViews, automationPosition } from './automation-desk.js'
 import './AutomationDesk.css'
 
 interface Props {
@@ -15,6 +15,8 @@ export function AutomationDesk({ onClose }: Props) {
   const clearLane = useRack((state) => state.clearAutomation)
   const clearAll = useRack((state) => state.clearAllAutomation)
   const updatePoint = useRack((state) => state.updateAutomationPoint)
+  const addPoint = useRack((state) => state.addAutomationPoint)
+  const movePoint = useRack((state) => state.moveAutomationPoint)
   const removePoint = useRack((state) => state.removeAutomationPoint)
   const setCurve = useRack((state) => state.setAutomationCurve)
   const [editing, setEditing] = useState<string | null>(null)
@@ -45,7 +47,7 @@ export function AutomationDesk({ onClose }: Props) {
         </header>
 
         <p className="rk-auto-intro">
-          Recorded rack knobs live here. Open a lane to shape its curve, edit points, or remove them.
+          Recorded rack knobs live here. Open a lane to place points, shape its curve, or remove them.
           Rack undo restores every change.
         </p>
 
@@ -120,9 +122,29 @@ export function AutomationDesk({ onClose }: Props) {
                       {lane.stepped && <small>Stepped controls stay on hold.</small>}
                     </div>
                     <div className="rk-auto-points" aria-label={`${lane.paramName} automation points`}>
+                      <div className="rk-auto-point-head" aria-hidden="true">
+                        <span>Position</span>
+                        <span>Value</span>
+                      </div>
                       {lane.points.map((point) => (
-                        <label className="rk-auto-point" key={`${point.at}:${point.value}`}>
-                          <span>{point.position}</span>
+                        <div className="rk-auto-point" key={`${point.at}:${point.value}`}>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            defaultValue={point.position}
+                            aria-label={`Position for ${lane.paramName} point at ${point.position}`}
+                            onBlur={(event) => {
+                              const position = automationPosition(event.currentTarget.value)
+                              if (position === null) {
+                                event.currentTarget.value = point.position
+                              } else {
+                                movePoint(lane.moduleId, lane.paramId, point.at, position)
+                              }
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') event.currentTarget.blur()
+                            }}
+                          />
                           <input
                             type="number"
                             defaultValue={point.value}
@@ -149,8 +171,18 @@ export function AutomationDesk({ onClose }: Props) {
                           >
                             ×
                           </button>
-                        </label>
+                        </div>
                       ))}
+                      <button
+                        type="button"
+                        className="rk-auto-add-point"
+                        onClick={() => {
+                          const last = lane.points[lane.points.length - 1]
+                          if (last) addPoint(lane.moduleId, lane.paramId, last.at + 1, last.value)
+                        }}
+                      >
+                        + Add point after {lane.to}
+                      </button>
                     </div>
                   </div>
                 )}

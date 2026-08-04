@@ -187,6 +187,10 @@ interface RackState {
   clearAllAutomation: () => void
   /** Correct one existing point; values obey the target parameter's range and stepping. */
   updateAutomationPoint: (moduleId: string, paramId: string, at: number, value: number) => void
+  /** Add a point to an existing lane; values obey the target parameter's range and stepping. */
+  addAutomationPoint: (moduleId: string, paramId: string, at: number, value: number) => void
+  /** Move one point on the musical timeline; landing on another point replaces it. */
+  moveAutomationPoint: (moduleId: string, paramId: string, from: number, to: number) => void
   /** Remove one point, and its lane when that was the final point. */
   removeAutomationPoint: (moduleId: string, paramId: string, at: number) => void
   /** Choose interpolation for a continuous lane; stepped parameters always remain holds. */
@@ -827,6 +831,48 @@ export const useRack = create<RackState>((set, get) => {
         if (param?.stepped) next = Math.round(next)
         if (next === point.value) return patch
         return { ...patch, automation: setPoint(patch.automation, lane.target, at, next, lane.curve) }
+      }),
+
+    addAutomationPoint: (moduleId, paramId, at, value) =>
+      write(null, false, (patch) => {
+        if (!Number.isFinite(at) || !Number.isFinite(value)) return patch
+        const lane = patch.automation?.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        if (!lane) return patch
+        const position = Math.max(0, Math.round(at))
+        if (lane.points.some((point) => point.at === position)) return patch
+        const module = patch.modules.find((candidate) => candidate.id === moduleId)
+        const param = module
+          ? MODULES[module.type]?.params.find((candidate) => candidate.id === paramId)
+          : undefined
+        let next = param ? Math.max(param.min, Math.min(param.max, value)) : value
+        if (param?.stepped) next = Math.round(next)
+        return {
+          ...patch,
+          automation: setPoint(patch.automation, lane.target, position, next, lane.curve),
+        }
+      }),
+
+    moveAutomationPoint: (moduleId, paramId, from, to) =>
+      write(null, false, (patch) => {
+        if (!Number.isFinite(from) || !Number.isFinite(to)) return patch
+        const lane = patch.automation?.find(
+          (candidate) => candidate.target[0] === moduleId && candidate.target[1] === paramId,
+        )
+        const point = lane?.points.find((candidate) => candidate.at === from)
+        if (!lane || !point) return patch
+        const position = Math.max(0, Math.round(to))
+        if (position === point.at) return patch
+        const withoutSource = patch.automation?.map((candidate) =>
+          candidate === lane
+            ? { ...candidate, points: candidate.points.filter((candidate) => candidate !== point) }
+            : candidate,
+        )
+        return {
+          ...patch,
+          automation: setPoint(withoutSource, lane.target, position, point.value, lane.curve),
+        }
       }),
 
     removeAutomationPoint: (moduleId, paramId, at) =>

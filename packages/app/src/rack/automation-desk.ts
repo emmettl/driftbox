@@ -34,6 +34,19 @@ export interface AutomationLaneView {
 export const automationPositionLabel = (at: number): string =>
   `${Math.floor(at / 16) + 1}.${(at % 16) + 1}`
 
+/** Parse the desk's one-based `bar.step` notation into the rack's zero-based sixteenth timeline. */
+export function automationPosition(value: string): number | null {
+  const match = /^\s*(\d+)\.(\d+)\s*$/.exec(value)
+  if (!match) return null
+  const bar = Number(match[1])
+  const step = Number(match[2])
+  if (!Number.isSafeInteger(bar) || bar < 1 || !Number.isSafeInteger(step) || step < 1 || step > 16) {
+    return null
+  }
+  const position = (bar - 1) * 16 + step - 1
+  return Number.isSafeInteger(position) ? position : null
+}
+
 function range(lane: AutoLane, param?: ParamDef): [number, number] {
   if (param && param.max > param.min) return [param.min, param.max]
   const values = lane.points.map((point) => point.value)
