@@ -1743,6 +1743,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    armed and waiting or the Arpeggiator is Off. A polyphonic MIDI source repeats global controllers per voice;
    the mono collector deliberately takes lane one rather than summing those copies into an inflated CV.
 
+   **5ad. Outlet presence contract.** ✅ Compiled nodes now carry immutable cable-presence bits for outputs
+   as well as inputs. The compiler counts the winning cable into a live inlet and preserves a cable whose
+   destination is a placeholder, but ignores a superseded connection. Older plans default to unpatched because
+   outlet buffers were always allocated and cannot reveal fanout. The process loop only passes the prepared bits.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

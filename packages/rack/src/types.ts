@@ -149,6 +149,14 @@ export interface Processor {
      * when a trigger jack is patched therefore do not have to confuse "unplugged" with "currently low".
      */
     inletConnected?: boolean[],
+    /**
+     * Whether each processor outlet slot has at least one physical cable, in flattened outlet order.
+     *
+     * Like `inletConnected`, this describes topology rather than signal content. A cable to a placeholder
+     * still counts, while a superseded cable into an already occupied inlet does not. Devices with normalled
+     * output behavior can therefore react without inspecting or mutating the patch on the audio thread.
+     */
+    outletConnected?: boolean[],
   ): void
   /**
    * A low-rate visual reading for a host faceplate.
@@ -584,6 +592,8 @@ export interface PlanNode {
    * that inlet names a non-zero signal buffer, which preserves their previous best available meaning.
    */
   inletConnected?: boolean[]
+  /** Physical cable presence per flattened outlet buffer. Absent on older plans means no known connection. */
+  outletConnected?: boolean[]
   outlets: number[]
   /** Slot index per param, in def order. */
   params: number[]

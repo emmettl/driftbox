@@ -131,6 +131,25 @@ class InletPresenceProcessor implements Processor {
   }
 }
 
+class OutletPresenceProcessor implements Processor {
+  static seen: boolean[] = []
+
+  process(
+    _inlets: Float32Array[],
+    outlets: Float32Array[],
+    _params: Float32Array[],
+    frames: number,
+    _transport?: Parameters<Processor['process']>[4],
+    _hostInputs?: Float32Array[][],
+    _voiceInlets?: Float32Array[][],
+    _inletConnected?: boolean[],
+    outletConnected?: boolean[],
+  ): void {
+    OutletPresenceProcessor.seen.push(outletConnected?.[0] ?? false)
+    outlets[0].fill(0, 0, frames)
+  }
+}
+
 const PRESENCE_REGISTRY: Registry = {
   presence: {
     type: 'presence',
@@ -143,6 +162,20 @@ const PRESENCE_REGISTRY: Registry = {
     params: [],
     processor: InletPresenceProcessor,
     terminal: true,
+  },
+}
+
+const OUTLET_PRESENCE_REGISTRY: Registry = {
+  source: {
+    type: 'source',
+    version: 1,
+    name: 'Source',
+    group: 'Utility',
+    blurb: 'test',
+    inlets: [],
+    outlets: [{ id: 'out', name: 'Out' }],
+    params: [],
+    processor: OutletPresenceProcessor,
   },
 }
 
@@ -161,6 +194,22 @@ it('tells a processor that a silent placeholder cable is physically connected', 
 
   expect(run(patched, 1, PRESENCE_REGISTRY)[0]).toBeGreaterThan(0.9)
   expect(run(unplugged, 1, PRESENCE_REGISTRY)[0]).toBe(0)
+})
+
+it('tells a processor that its outlet is cabled even when the destination is a placeholder', () => {
+  OutletPresenceProcessor.seen = []
+  run({
+    modules: [
+      { id: 'source', type: 'source' },
+      { id: 'future', type: 'future-sink' },
+    ],
+    cables: [{ from: ['source', 'out'], to: ['future', 'silent'] }],
+  }, 1, OUTLET_PRESENCE_REGISTRY)
+  expect(OutletPresenceProcessor.seen).toEqual([true])
+
+  OutletPresenceProcessor.seen = []
+  run({ modules: [{ id: 'source', type: 'source' }], cables: [] }, 1, OUTLET_PRESENCE_REGISTRY)
+  expect(OutletPresenceProcessor.seen).toEqual([false])
 })
 
 const probe = (stepped: boolean): ModuleDef => ({
