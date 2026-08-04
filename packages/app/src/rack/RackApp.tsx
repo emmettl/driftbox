@@ -10,7 +10,6 @@ import {
   grooveboxSong,
   patchStemTargets,
   renderRetainedSongMix,
-  renderPatchStems,
   patchCompatibility,
   packMultisampleZones,
   valueAt,
@@ -50,6 +49,7 @@ import { openingPatch, useRack, type GrooveboxTapHit, type Opening } from './sto
 import { buildLabel, buildTitle } from '../version.js'
 import { routedGrooveboxSections } from './groovebox.js'
 import { StemReviewTray } from '../ui/StemTray.js'
+import { RackStemReviewTray } from './RackStemReviewTray.js'
 import {
   enumerateAudioInputs,
   openAudioInput,
@@ -57,7 +57,6 @@ import {
   type AudioInputHandle,
 } from './audio-input.js'
 import { HelpDialog } from '../ui/HelpDialog.js'
-import { downloadBlob } from '../persistence.js'
 
 type RackView = 'rack' | 'split' | 'pad'
 
@@ -237,7 +236,8 @@ export default function RackApp() {
   const [shared, setShared] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [browsing, setBrowsing] = useState(false)
-  const [reviewingStems, setReviewingStems] = useState(false)
+  const [reviewingPatchStems, setReviewingPatchStems] = useState(false)
+  const [reviewingSongStems, setReviewingSongStems] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
@@ -306,7 +306,7 @@ export default function RackApp() {
    * exporting the wrong file silently is worse. So there are two facts and they are both recorded.
    */
   const [intendedBreak, setIntendedBreak] = useState<string | null>(null)
-  const [exporting, setExporting] = useState<'patch' | 'stems' | 'song' | null>(null)
+  const [exporting, setExporting] = useState<'patch' | 'song' | null>(null)
   /** Selected as the object, filtered outside. A selector that builds a new array returns a different
    *  reference every call and re-renders for ever — this app has had that bug once already. */
   const samples = useRack((s) => s.samples)
@@ -831,28 +831,6 @@ export default function RackApp() {
     // Revoked on the next turn of the event loop rather than immediately: revoking before the click has
     // been handled cancels the download in some browsers.
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
-  }, [patchRenderData])
-
-  /** One complete stereo file per terminal Out strip, in rack order. */
-  const exportPatchStems = useCallback(async () => {
-    const patch = useRack.getState().patch
-    const data = await patchRenderData(patch)
-    const stems = await renderPatchStems(patch, {
-      registry: MODULES,
-      bars: 8,
-      sampleRate: 44100,
-      data,
-    })
-    const documentName = (useRack.getState().name ?? 'driftbox-rack')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'driftbox-rack'
-    for (const [index, stem] of stems.entries()) {
-      const safe = stem.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      downloadBlob(toWav(stem.buffer), `${documentName}-${index + 1}-${safe}.wav`)
-      // Browsers commonly collapse several downloads dispatched in one event turn.
-      await new Promise((done) => setTimeout(done, 120))
-    }
   }, [patchRenderData])
 
   /**
@@ -1572,19 +1550,12 @@ export default function RackApp() {
           disabled={exporting !== null || patchStemCount === 0}
           title={
             patchStemCount > 0
-              ? 'Render one stereo WAV per terminal Out strip'
+              ? 'Preview or export one stereo WAV per terminal Out strip'
               : 'Add an Out module to define a rack stem'
           }
-          onClick={async () => {
-            setExporting('stems')
-            try {
-              await exportPatchStems()
-            } finally {
-              setExporting(null)
-            }
-          }}
+          onClick={() => setReviewingPatchStems(true)}
         >
-          {exporting === 'stems' ? 'Rendering stems…' : `Patch stems${patchStemCount > 0 ? ` (${patchStemCount})` : ''}`}
+          {`Patch stems${patchStemCount > 0 ? ` (${patchStemCount})` : ''}`}
         </button>
 
         {retainedSong && (
@@ -1608,7 +1579,7 @@ export default function RackApp() {
               type="button"
               disabled={exporting !== null}
               title="Preview or export the retained song as one pre-master WAV per voice"
-              onClick={() => setReviewingStems(true)}
+              onClick={() => setReviewingSongStems(true)}
             >
               Song stems
             </button>
@@ -1824,14 +1795,26 @@ export default function RackApp() {
         />
       )}
 
-      {reviewingStems && retainedSong && (
+      {reviewingPatchStems && (
+        <RackStemReviewTray
+          patch={patch}
+          running={playing}
+          stopTransport={() => setRunning(false)}
+          filePrefix={name ?? 'driftbox-rack'}
+          prepareData={patchRenderData}
+          onClose={() => setReviewingPatchStems(false)}
+          onExported={() => setReviewingPatchStems(false)}
+        />
+      )}
+
+      {reviewingSongStems && retainedSong && (
         <StemReviewTray
           song={retainedSong}
           running={playing}
           stopTransport={() => setRunning(false)}
           filePrefix={name ?? 'driftbox-song'}
-          onClose={() => setReviewingStems(false)}
-          onExported={() => setReviewingStems(false)}
+          onClose={() => setReviewingSongStems(false)}
+          onExported={() => setReviewingSongStems(false)}
         />
       )}
 

@@ -147,9 +147,10 @@ Export observes that same boundary. A retained Groovebox song gets the sequencer
 stem review desk in rack mode: each authored voice can be auditioned around its first entrance,
 saved alone or exported as the full set of pre-master float WAVs. Those files deliberately
 describe the compatible song envelope, not later rack cables or modules. **Song WAV** renders
-the retained mastered mix, while **Patch WAV** renders the summed modular graph. **Patch stems**
-use each active terminal Out strip as an explicit rack-native bus and render one numbered stereo
-WAV per strip, in rack order. That is the stable ownership rule an arbitrary graph needs: a source
+the retained mastered mix, while **Patch WAV** renders the summed modular graph. **Patch stems** use
+the same review-before-download desk for rack-native work. Each active terminal Out strip is an
+explicit bus that can be previewed in isolation, saved alone or exported as one numbered stereo WAV
+per strip, in rack order. That is the stable ownership rule an arbitrary graph needs: a source
 does not “own” a shared reverb, but everything deliberately routed into one Out belongs to that bus.
 Solo isolation is render-only, so it never edits the patch; the strip's level, pan, mute and automation
 remain audible. Keeping all four labels separate prevents a compatible export from silently flattening
