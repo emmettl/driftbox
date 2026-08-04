@@ -29,6 +29,8 @@ interface Options {
   singleRepeat?: number
   shuffle?: number
   enable?: number
+  velocityMode?: number
+  velocity?: number
 }
 
 /** Clock the arp for `steps` steps and report the pitch it held during each one, in semitones. */
@@ -247,7 +249,38 @@ describe('start of arpeggio', () => {
     ])
     expect(ARP_MODULE.outlets.map((port) => port.id)).toEqual([
       'pitch', 'gate', 'velocity', 'trig', 'start', 'mod', 'bend', 'aftertouch', 'expression', 'breath', 'sustain',
+      'gateVelocity',
     ])
+  })
+})
+
+describe('combined Gate and Velocity output', () => {
+  it('matches binary Gate multiplied by Velocity across ordinary gate lengths', () => {
+    const { out } = run(3, { chord: 2, octaves: 1, gate: 0.5, velocityMode: 1, velocity: 0.6 })
+    for (let i = 0; i < out[11].length; i++) {
+      expect(out[11][i]).toBeCloseTo(out[1][i] * out[2][i])
+    }
+    expect(out[11].some((value) => Math.abs(value - 0.6) < 1e-5)).toBe(true)
+    expect(out[11].some((value) => value === 0)).toBe(true)
+  })
+
+  it('follows the converter velocity policy while Arpeggiator is Off', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-gate-velocity-converter')
+    const frames = 32
+    const zero = new Float32Array(frames)
+    const gate = new Float32Array(frames).fill(1)
+    const velocity = new Float32Array(frames).fill(0.4)
+    const velocityCv = new Float32Array(frames).fill(0.2)
+    const inlets = Array.from({ length: ARP_MODULE.inlets.length }, () => zero)
+    inlets[1] = gate
+    inlets[2] = velocity
+    inlets[7] = velocityCv
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    params[param('enable')].fill(0)
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(inlets, out, params, frames)
+
+    expect(out[11].every((value) => Math.abs(value - 0.6) < 1e-5)).toBe(true)
   })
 })
 

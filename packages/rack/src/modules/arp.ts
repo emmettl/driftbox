@@ -329,6 +329,7 @@ export class ArpProcessor implements Processor {
     const expressionOut = outlets[8]
     const breathOut = outlets[9]
     const sustainOut = outlets[10]
+    const gateVelocityOut = outlets[11]
     const startPatched = inletConnected?.[5] ?? false
     const sustainPatched = outletConnected?.[10] ?? false
     if (!startPatched) this.startAllowed = true
@@ -481,6 +482,7 @@ export class ArpProcessor implements Processor {
         pitchOut[i] = this.bypassPitch
         gateOut[i] = bypassGate
         velocityOut[i] = this.bypassVelocity
+        gateVelocityOut[i] = bypassGate * this.bypassVelocity
         if (this.trigLeft > 0) {
           this.trigLeft--
           trigOut[i] = 1
@@ -513,6 +515,7 @@ export class ArpProcessor implements Processor {
         pitchOut[i] = this.held
         gateOut[i] = 0
         velocityOut[i] = this.heldVelocity
+        gateVelocityOut[i] = 0
         trigOut[i] = 0
         if (startOut) startOut[i] = 0
         continue
@@ -672,6 +675,9 @@ export class ArpProcessor implements Processor {
         this.gateLeft--
         gateOut[i] = 1
       } else gateOut[i] = 0
+      // Reason combines these on one Gate CV jack, encoding velocity in the high level. Keep Driftbox's
+      // separate binary Gate and Velocity outputs too: the appended product is parity, the pair is the superset.
+      gateVelocityOut[i] = gateOut[i] * velocityOut[i]
       if (this.trigLeft > 0) {
         this.trigLeft--
         trigOut[i] = 1
@@ -690,7 +696,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 15,
+  version: 16,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -720,6 +726,10 @@ export const ARP_MODULE: ModuleDef = {
         body: 'Mod, Pitch Bend, Aftertouch, Expression and Breath pass through continuously. Sustain is normalled to Hold until Sustain Out is patched; then the link breaks and the pedal leaves as a velocity-scaled gate. All remain live while Arp waits for Start or acts as a converter.',
       },
       {
+        title: 'Choose split or combined note control',
+        body: 'Gate is a binary timing signal and Velocity is its independent level. Gate / Velocity multiplies them into the amplitude-encoded Gate CV used by RPG-8. The combined jack is additive; existing patches keep the more flexible split pair.',
+      },
+      {
         title: 'Choose one timing authority',
         body: 'External advances from Clock cable edges. Tempo uses the rack transport, Division and optional shared Shuffle. Free runs at Free Rate. The inactive timing controls keep their values but do not affect playback.',
       },
@@ -741,6 +751,7 @@ export const ARP_MODULE: ModuleDef = {
       'A patched Start inlet arms the figure; it stays silent until a rising trigger arrives.',
       'Gate Length, Velocity, Free Rate and Octave Shift each have an additive rear CV input.',
       'Patching Sustain Out breaks the pedal’s normalled Hold link and sends a velocity-scaled gate instead.',
+      'Gate / Velocity is the RPG-compatible combined signal; separate Gate and Velocity remain available.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -777,6 +788,7 @@ export const ARP_MODULE: ModuleDef = {
     { id: 'expression', name: 'Expression' },
     { id: 'breath', name: 'Breath' },
     { id: 'sustain', name: 'Sustain' },
+    { id: 'gateVelocity', name: 'Gate / Velocity' },
   ],
   params: [
     { id: 'source', name: 'Source', min: 0, max: 1, default: 0, stepped: true, labels: ['Root', 'Played'] },

@@ -1753,6 +1753,11 @@ both bundle cost on the editing-only path and visual competition with a readable
    follows Fixed Velocity plus CV; Played/Manual mode uses RPG's 100/127 pedal default. This is topology, not a
    sample heuristic, so a patched-low or placeholder cable still selects the output behavior.
 
+   **5af. Combined Gate / Velocity.** ✅ RPG's main Gate CV encodes velocity in the gate amplitude. Arp now
+   appends that exact product as `Gate / Velocity`: rests and Gate Length close it, while every high sample has
+   the current note velocity in figure and converter modes. Binary `Gate` and independent `Velocity` stay in
+   place, so Reason-compatible cabling is available without giving up Driftbox's more composable split signals.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.
