@@ -134,6 +134,8 @@ const PROMISED = [
   'automationLength',
   // Rendering a patch offline, in a browser.
   'renderPatch',
+  'renderPatchStems',
+  'patchStemTargets',
   'renderLength',
   // Rendering with no browser at all, and following a game while it does.
   'RackRenderer',

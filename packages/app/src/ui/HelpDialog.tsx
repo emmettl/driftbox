@@ -377,6 +377,7 @@ function RackHelp({ topic }: { topic: string }) {
           <dl className="help-definitions">
             <div><dt>Copy link</dt><dd>Embeds the patch in a URL. User-loaded audio files are not carried, so linked samplers arrive empty.</dd></div>
             <div><dt>Patch WAV</dt><dd>Renders the rack graph. It does not require real-time playback.</dd></div>
+            <div><dt>Patch stems</dt><dd>Exports one stereo WAV per active Out strip, preserving each strip’s complete routed chain, level, pan, mute and automation.</dd></div>
             <div><dt>Song WAV</dt><dd>Renders an embedded Groovebox song through its mastered stereo bus.</dd></div>
             <div><dt>Song stems</dt><dd>Previews or exports the embedded song as one pre-master WAV per voice.</dd></div>
           </dl>

@@ -8,7 +8,9 @@ import {
   Rack,
   compile,
   grooveboxSong,
+  patchStemTargets,
   renderRetainedSongMix,
+  renderPatchStems,
   patchCompatibility,
   packMultisampleZones,
   valueAt,
@@ -55,6 +57,7 @@ import {
   type AudioInputHandle,
 } from './audio-input.js'
 import { HelpDialog } from '../ui/HelpDialog.js'
+import { downloadBlob } from '../persistence.js'
 
 type RackView = 'rack' | 'split' | 'pad'
 
@@ -128,6 +131,7 @@ export default function RackApp() {
   const setAutomating = useRack((s) => s.setAutomating)
   const ensureSampler = useRack((s) => s.ensureSampler)
   const compatibility = useMemo(() => patchCompatibility(patch), [patch])
+  const patchStemCount = useMemo(() => patchStemTargets(patch, MODULES).length, [patch])
   const retainedSong = useMemo(() => grooveboxSong(patch), [patch])
   const performanceScene = retainedSong?.visual ?? patch.visual ?? SCENES[0].id
   // Until hosted song playback lands, a compatible rack still follows the retained
@@ -302,7 +306,7 @@ export default function RackApp() {
    * exporting the wrong file silently is worse. So there are two facts and they are both recorded.
    */
   const [intendedBreak, setIntendedBreak] = useState<string | null>(null)
-  const [exporting, setExporting] = useState<'patch' | 'song' | null>(null)
+  const [exporting, setExporting] = useState<'patch' | 'stems' | 'song' | null>(null)
   /** Selected as the object, filtered outside. A selector that builds a new array returns a different
    *  reference every call and re-renders for ever — this app has had that bug once already. */
   const samples = useRack((s) => s.samples)
@@ -778,21 +782,10 @@ export default function RackApp() {
     if (playing) void hosted.start()
   }, [bindGrooveboxPerformance, patch.groovebox, patch.tempo, playing, retainedSong])
 
-  /**
-   * Render the patch to a WAV and hand it over.
-   *
-   * Offline rather than a recording of what is playing — see the note at the top of `render.ts`. The break
-   * is rendered again rather than kept: `setData` transfers the array to the audio thread, so there is
-   * nothing on this side to reuse, and holding a copy would be 700kB for the life of the page.
-   *
-   * It does not need the live rack at all, which is the useful part: exporting works before audio has ever
-   * been started, and a patch shared as a link can be turned into a file without pressing play.
-   */
-  const exportPatch = useCallback(async () => {
-    const patch = useRack.getState().patch
+  /** Rebuild the session-only audio that an offline patch or stem render needs. */
+  const patchRenderData = useCallback(async (patch: Patch) => {
     const breakId = patch.break ?? intendedBreak
     const entry = breakId ? BREAKS.find((b) => b.id === breakId) : undefined
-
     const data: Record<string, Record<string, Float32Array>> = {}
     // A loaded file wins over a shipped break, per sampler. Rendering the break over the top would silently
     // export something other than what is playing.
@@ -812,6 +805,22 @@ export default function RackApp() {
         data[module.id] = { sample: rendered.slice() }
       }
     }
+    return data
+  }, [intendedBreak])
+
+  /**
+   * Render the patch to a WAV and hand it over.
+   *
+   * Offline rather than a recording of what is playing — see the note at the top of `render.ts`. The break
+   * is rendered again rather than kept: `setData` transfers the array to the audio thread, so there is
+   * nothing on this side to reuse, and holding a copy would be 700kB for the life of the page.
+   *
+   * It does not need the live rack at all, which is the useful part: exporting works before audio has ever
+   * been started, and a patch shared as a link can be turned into a file without pressing play.
+   */
+  const exportPatch = useCallback(async () => {
+    const patch = useRack.getState().patch
+    const data = await patchRenderData(patch)
 
     const buffer = await renderPatch(patch, { registry: MODULES, bars: 8, sampleRate: 44100, data })
     const url = URL.createObjectURL(toWav(buffer))
@@ -822,7 +831,29 @@ export default function RackApp() {
     // Revoked on the next turn of the event loop rather than immediately: revoking before the click has
     // been handled cancels the download in some browsers.
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
-  }, [intendedBreak])
+  }, [patchRenderData])
+
+  /** One complete stereo file per terminal Out strip, in rack order. */
+  const exportPatchStems = useCallback(async () => {
+    const patch = useRack.getState().patch
+    const data = await patchRenderData(patch)
+    const stems = await renderPatchStems(patch, {
+      registry: MODULES,
+      bars: 8,
+      sampleRate: 44100,
+      data,
+    })
+    const documentName = (useRack.getState().name ?? 'driftbox-rack')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'driftbox-rack'
+    for (const [index, stem] of stems.entries()) {
+      const safe = stem.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      downloadBlob(toWav(stem.buffer), `${documentName}-${index + 1}-${safe}.wav`)
+      // Browsers commonly collapse several downloads dispatched in one event turn.
+      await new Promise((done) => setTimeout(done, 120))
+    }
+  }, [patchRenderData])
 
   /**
    * Export the retained authored document without flattening rack-only changes into it.
@@ -1534,6 +1565,26 @@ export default function RackApp() {
           }}
         >
           {exporting === 'patch' ? 'Rendering patch…' : 'Patch WAV'}
+        </button>
+
+        <button
+          type="button"
+          disabled={exporting !== null || patchStemCount === 0}
+          title={
+            patchStemCount > 0
+              ? 'Render one stereo WAV per terminal Out strip'
+              : 'Add an Out module to define a rack stem'
+          }
+          onClick={async () => {
+            setExporting('stems')
+            try {
+              await exportPatchStems()
+            } finally {
+              setExporting(null)
+            }
+          }}
+        >
+          {exporting === 'stems' ? 'Rendering stems…' : `Patch stems${patchStemCount > 0 ? ` (${patchStemCount})` : ''}`}
         </button>
 
         {retainedSong && (

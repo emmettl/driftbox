@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PATCHES } from './patches/index.js'
-import { renderLength } from './render.js'
+import { patchStemTargets, renderLength } from './render.js'
+import { MODULES } from './modules/index.js'
 
 // The arithmetic, which is the only part of rendering worth testing in Node — there is no
 // `OfflineAudioContext` here, and `breaks.ts` already records why stubbing one is the wrong shape: the stub
@@ -56,5 +57,23 @@ describe('how long an export is', () => {
       ),
     )
     expect(longest).toBeLessThan(2)
+  })
+})
+
+describe('rack-native stem boundaries', () => {
+  it('uses active terminal Out strips rather than guessing which source owns a chain', () => {
+    expect(patchStemTargets({
+      modules: [
+        { id: 'osc', type: 'vco' },
+        { id: 'music', type: 'out' },
+        { id: 'muted', type: 'out', params: { mute: 1 } },
+        { id: 'through', type: 'out', bypassed: true },
+        { id: 'future', type: 'unknown' },
+      ],
+      cables: [],
+    }, MODULES)).toEqual([
+      { id: 'music', name: 'Out · music' },
+      { id: 'muted', name: 'Out · muted' },
+    ])
   })
 })

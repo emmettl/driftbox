@@ -147,12 +147,17 @@ Export observes that same boundary. A retained Groovebox song gets the sequencer
 stem review desk in rack mode: each authored voice can be auditioned around its first entrance,
 saved alone or exported as the full set of pre-master float WAVs. Those files deliberately
 describe the compatible song envelope, not later rack cables or modules. **Song WAV** renders
-the retained mastered mix, while **Patch WAV** renders the modular graph; keeping all three
-labels separate prevents a compatible export from silently flattening rack-only work or a
-rack render from masquerading as editable song stems. A future rack-native stem workflow must
-first define stable source ownership for arbitrary modules rather than borrowing Groovebox
-voice names. `renderRetainedSongMix` is the public boundary used by Song WAV: it decodes the
-Song from the Patch and calls the engine-owned mastered renderer. A Chromium acceptance matrix
+the retained mastered mix, while **Patch WAV** renders the summed modular graph. **Patch stems**
+use each active terminal Out strip as an explicit rack-native bus and render one numbered stereo
+WAV per strip, in rack order. That is the stable ownership rule an arbitrary graph needs: a source
+does not “own” a shared reverb, but everything deliberately routed into one Out belongs to that bus.
+Solo isolation is render-only, so it never edits the patch; the strip's level, pan, mute and automation
+remain audible. Keeping all four labels separate prevents a compatible export from silently flattening
+rack-only work or a rack render from masquerading as editable Groovebox voice stems.
+
+`renderPatchStems` is the public rack-native boundary and `renderRetainedSongMix` is the public boundary
+used by Song WAV: the latter decodes the Song from the Patch and calls the engine-owned mastered renderer.
+A Chromium acceptance matrix
 round-trips a purpose-built all-machine song and every shipped song through both codecs, then
 compares sequencer and rack samples under a 2e-5 maximum-sample tolerance (below -93 dBFS).
 
