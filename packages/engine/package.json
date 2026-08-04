@@ -1,6 +1,6 @@
 {
   "name": "@driftbox/engine",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A TR-808, a TR-909 and two TB-303s, synthesised from scratch with Web Audio. No recorded samples.",
   "keywords": [
     "web-audio",
