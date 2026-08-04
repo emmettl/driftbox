@@ -307,11 +307,27 @@ export class ArpProcessor implements Processor {
     const velocityCvIn = inlets[7]
     const rateCvIn = inlets[8]
     const shiftCvIn = inlets[9]
+    // Performance controls are global even when their MIDI source has one identical outlet per note voice.
+    // A collector's ordinary inlet is the sum, which would turn four voices of Mod 0.25 into 1.0; take the
+    // first independent lane instead. Mono sources still arrive as the one lane and direct callers use `inlets`.
+    const performanceIn = (index: number) => voiceInlets?.[index]?.[0] ?? inlets[index]
+    const modIn = performanceIn(10)
+    const bendIn = performanceIn(11)
+    const aftertouchIn = performanceIn(12)
+    const expressionIn = performanceIn(13)
+    const breathIn = performanceIn(14)
+    const sustainIn = performanceIn(15)
     const pitchOut = outlets[0]
     const gateOut = outlets[1]
     const velocityOut = outlets[2]
     const trigOut = outlets[3]
     const startOut = outlets[4]
+    const modOut = outlets[5]
+    const bendOut = outlets[6]
+    const aftertouchOut = outlets[7]
+    const expressionOut = outlets[8]
+    const breathOut = outlets[9]
+    const sustainOut = outlets[10]
     const startPatched = inletConnected?.[5] ?? false
     if (!startPatched) this.startAllowed = true
 
@@ -339,6 +355,14 @@ export class ArpProcessor implements Processor {
     const inputVoices = Math.min(64, Math.max(pitchVoices.length, gateVoices.length))
 
     for (let i = 0; i < frames; i++) {
+      // RPG performance CV is a transparent side path, independent of whether the note figure is enabled,
+      // waiting for Start, or acting as a MIDI-to-CV converter.
+      modOut[i] = modIn?.[i] ?? 0
+      bendOut[i] = bendIn?.[i] ?? 0
+      aftertouchOut[i] = aftertouchIn?.[i] ?? 0
+      expressionOut[i] = expressionIn?.[i] ?? 0
+      breathOut[i] = breathIn?.[i] ?? 0
+      sustainOut[i] = sustainIn?.[i] ?? 0
       const played = sourceParam[i] >= 0.5
       const hold = holdParam[i] >= 0.5
       if (!played && this.playedWas) {
@@ -658,7 +682,7 @@ export class ArpProcessor implements Processor {
 
 export const ARP_MODULE: ModuleDef = {
   type: 'arp',
-  version: 13,
+  version: 14,
   name: 'Arp',
   group: 'Sequencing',
   blurb:
@@ -684,6 +708,10 @@ export const ARP_MODULE: ModuleDef = {
         body: 'Gate Length and Velocity CV add to their panel values. Octave Shift CV adds in octave units and remains quantized to whole octaves. Rate CV moves Free timing exponentially: +1 doubles the rate, matching the rack’s other frequency inputs.',
       },
       {
+        title: 'Performance CV passes through',
+        body: 'Mod, Pitch Bend, Aftertouch, Expression, Breath and Sustain travel through matching rear inputs and outputs without changing the note figure. They remain live while the arpeggiator waits for Start or acts as a converter.',
+      },
+      {
         title: 'Choose one timing authority',
         body: 'External advances from Clock cable edges. Tempo uses the rack transport, Division and optional shared Shuffle. Free runs at Free Rate. The inactive timing controls keep their values but do not affect playback.',
       },
@@ -704,6 +732,7 @@ export const ARP_MODULE: ModuleDef = {
       'Arpeggiator Off bypasses the figure controls, retains velocity policy and uses last-note priority in Played mode.',
       'A patched Start inlet arms the figure; it stays silent until a rising trigger arrives.',
       'Gate Length, Velocity, Free Rate and Octave Shift each have an additive rear CV input.',
+      'Performance CV passes through continuously; patch the matching MIDI outlets when you need it.',
       'Trig is a short strike at every sounding step, while Gate lasts for the Gate Length fraction.',
     ],
   },
@@ -721,6 +750,12 @@ export const ARP_MODULE: ModuleDef = {
     { id: 'velocityCv', name: 'Velocity CV' },
     { id: 'rateCv', name: 'Rate CV' },
     { id: 'shiftCv', name: 'Octave Shift CV' },
+    { id: 'mod', name: 'Mod' },
+    { id: 'bend', name: 'Pitch Bend' },
+    { id: 'aftertouch', name: 'Aftertouch' },
+    { id: 'expression', name: 'Expression' },
+    { id: 'breath', name: 'Breath' },
+    { id: 'sustain', name: 'Sustain' },
   ],
   outlets: [
     { id: 'pitch', name: 'V/Oct' },
@@ -728,6 +763,12 @@ export const ARP_MODULE: ModuleDef = {
     { id: 'velocity', name: 'Velocity' },
     { id: 'trig', name: 'Trig' },
     { id: 'start', name: 'Start' },
+    { id: 'mod', name: 'Mod' },
+    { id: 'bend', name: 'Pitch Bend' },
+    { id: 'aftertouch', name: 'Aftertouch' },
+    { id: 'expression', name: 'Expression' },
+    { id: 'breath', name: 'Breath' },
+    { id: 'sustain', name: 'Sustain' },
   ],
   params: [
     { id: 'source', name: 'Source', min: 0, max: 1, default: 0, stepped: true, labels: ['Root', 'Played'] },

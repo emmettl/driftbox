@@ -1733,6 +1733,16 @@ both bundle cost on the editing-only path and visual competition with a readable
    and LFO (`+1` doubles Free rate); it is inert in External and Tempo modes. Velocity modulation is sampled for
    each generated note, while converter mode applies it continuously to Played or Fixed velocity policy.
 
+   **5ab. MIDI performance CV.** ✅ MIDI now publishes Pitch Bend, Aftertouch, Expression, Breath and Sustain
+   beside its existing Mod outlet. The host decodes 14-bit bend to an exact bipolar −1…+1 signal, channel or
+   poly pressure to shared Aftertouch, CC 2/11 to normalized continuous CV and CC 64 to a thresholded gate.
+   Hidden host-written params keep performance out of the saved patch and append after every existing slot.
+
+   **5ac. Arp performance passthrough.** ✅ Six appended input/output pairs carry Mod, Pitch Bend, Aftertouch,
+   Expression, Breath and Sustain continuously around the note engine. They remain live when the figure is
+   armed and waiting or the Arpeggiator is Off. A polyphonic MIDI source repeats global controllers per voice;
+   the mono collector deliberately takes lane one rather than summing those copies into an inflated CV.
+
 Steps 1 to 3 are small — that is the part that was already feasible on 1999 hardware and is
 close to free now. Step 4 is where the months are. Reason's budget went into faceplates and
 cables, not filters, and ours will too.

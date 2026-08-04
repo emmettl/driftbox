@@ -193,6 +193,10 @@ Ordered by return, not by how big Reason's version was.
   The four RPG modulation inputs are additive rear jacks now too: Gate Length and Velocity use normalized
   offsets, Octave Shift adds quantized octaves, and Rate uses the rack's usual exponential frequency CV.
   Fixed/Played velocity policy also remains active in converter mode, as it does in RPG's MIDI-CV section.
+  MIDI now exposes the performance sources RPG carries through too: Mod, bipolar Pitch Bend, Aftertouch,
+  Expression, Breath and Sustain are live CV rather than values trapped in the browser's MIDI callback.
+  Arp has matching input/output pairs for all six, passed transparently in figure, armed-waiting and converter
+  states; its collector takes one shared MIDI lane rather than summing a controller once per played voice.
 
   **Compatibility promise:** Rack mode is a strict superset of the original Driftbox behavior (the same
   one-finger workflow as Reason → ReBirth). `Root`, `External` timing and an all-enabled sixteen-step pattern

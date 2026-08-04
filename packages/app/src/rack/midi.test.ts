@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Keyboard, midiTargets, type VoiceState, KeyboardBank } from './midi.js'
+import { Keyboard, midiPerformance, midiTargets, type VoiceState, KeyboardBank } from './midi.js'
 
 // The allocation rule, tested as arithmetic on note numbers. It is split away from the Web MIDI plumbing for
 // exactly this reason — the rule is where the behaviour anybody would notice lives, and the plumbing is three
@@ -14,6 +14,32 @@ const one = (states: VoiceState[]) => {
   expect(states.length).toBeLessThanOrEqual(1)
   return states[0] ?? null
 }
+
+describe('performance MIDI decoding', () => {
+  it('decodes the four named continuous controllers and sustain gate', () => {
+    expect(midiPerformance(Uint8Array.of(0xb2, 1, 127))).toEqual({ control: 'mod', value: 1, channel: 3 })
+    expect(midiPerformance(Uint8Array.of(0xb0, 2, 64))).toEqual({ control: 'breath', value: 64 / 127, channel: 1 })
+    expect(midiPerformance(Uint8Array.of(0xbf, 11, 32))).toEqual({ control: 'expression', value: 32 / 127, channel: 16 })
+    expect(midiPerformance(Uint8Array.of(0xb0, 64, 63))).toEqual({ control: 'sustain', value: 0, channel: 1 })
+    expect(midiPerformance(Uint8Array.of(0xb0, 64, 64))).toEqual({ control: 'sustain', value: 1, channel: 1 })
+  })
+
+  it('decodes channel and polyphonic pressure to the shared Aftertouch CV', () => {
+    expect(midiPerformance(Uint8Array.of(0xd4, 96))).toEqual({ control: 'aftertouch', value: 96 / 127, channel: 5 })
+    expect(midiPerformance(Uint8Array.of(0xa0, 60, 48))).toEqual({ control: 'aftertouch', value: 48 / 127, channel: 1 })
+  })
+
+  it('maps the full 14-bit pitch-bend range exactly around zero', () => {
+    expect(midiPerformance(Uint8Array.of(0xe0, 0, 0))).toEqual({ control: 'bend', value: -1, channel: 1 })
+    expect(midiPerformance(Uint8Array.of(0xe0, 0, 64))).toEqual({ control: 'bend', value: 0, channel: 1 })
+    expect(midiPerformance(Uint8Array.of(0xe0, 127, 127))).toEqual({ control: 'bend', value: 1, channel: 1 })
+  })
+
+  it('ignores messages without a dedicated performance outlet', () => {
+    expect(midiPerformance(Uint8Array.of(0x90, 60, 100))).toBeNull()
+    expect(midiPerformance(Uint8Array.of(0xb0, 74, 100))).toBeNull()
+  })
+})
 
 describe('one voice: last-note priority with legato', () => {
   it('opens the gate on a note and closes it on the release', () => {

@@ -3,7 +3,10 @@ import { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
 
 const SR = 44100
 
-const ORDER = ['note', 'gate', 'velocity', 'mod', 'transpose', 'glide', 'channel'] as const
+const ORDER = [
+  'note', 'gate', 'velocity', 'mod', 'transpose', 'glide', 'channel',
+  'bend', 'aftertouch', 'expression', 'breath', 'sustain',
+] as const
 
 function run(
   values: Partial<Record<(typeof ORDER)[number], number>>,
@@ -14,9 +17,12 @@ function run(
     const def = MIDI_MODULE.params.find((p) => p.id === id)!
     return new Float32Array(frames).fill(values[id] ?? def.default)
   })
-  const outs = [0, 1, 2, 3].map(() => new Float32Array(frames))
+  const outs = Array.from({ length: MIDI_MODULE.outlets.length }, () => new Float32Array(frames))
   processor.process([], outs, params, frames)
-  return { pitch: outs[0], gate: outs[1], vel: outs[2], mod: outs[3], processor }
+  return {
+    pitch: outs[0], gate: outs[1], vel: outs[2], mod: outs[3], bend: outs[4],
+    aftertouch: outs[5], expression: outs[6], breath: outs[7], sustain: outs[8], processor,
+  }
 }
 
 describe('the MIDI module', () => {
@@ -48,6 +54,15 @@ describe('the MIDI module', () => {
     const { vel, mod } = run({ velocity: 0.42, mod: 0.7 })
     expect(vel[0]).toBeCloseTo(0.42, 6)
     expect(mod[0]).toBeCloseTo(0.7, 6)
+  })
+
+  it('publishes the remaining performance controllers as CV', () => {
+    const out = run({ bend: -0.75, aftertouch: 0.2, expression: 0.3, breath: 0.4, sustain: 1 })
+    expect(out.bend[0]).toBeCloseTo(-0.75)
+    expect(out.aftertouch[0]).toBeCloseTo(0.2)
+    expect(out.expression[0]).toBeCloseTo(0.3)
+    expect(out.breath[0]).toBeCloseTo(0.4)
+    expect(out.sustain[0]).toBe(1)
   })
 
   it('arrives at a new note immediately with no glide', () => {
@@ -85,7 +100,9 @@ describe('the MIDI module’s def', () => {
     const hidden = MIDI_MODULE.params.filter((p) => p.hidden).map((p) => p.id)
     const shown = MIDI_MODULE.params.filter((p) => !p.hidden).map((p) => p.id)
 
-    expect(hidden).toEqual(['note', 'gate', 'velocity', 'mod'])
+    expect(hidden).toEqual([
+      'note', 'gate', 'velocity', 'mod', 'bend', 'aftertouch', 'expression', 'breath', 'sustain',
+    ])
     expect(shown).toEqual(['transpose', 'glide', 'channel'])
   })
 
@@ -107,5 +124,11 @@ describe('the MIDI module’s def', () => {
 
   it('has no inlets, because a keyboard is not something you patch into it', () => {
     expect(MIDI_MODULE.inlets).toEqual([])
+  })
+
+  it('appends performance outlets without moving the original note and mod ids', () => {
+    expect(MIDI_MODULE.outlets.map((port) => port.id)).toEqual([
+      'pitch', 'gate', 'vel', 'mod', 'bend', 'aftertouch', 'expression', 'breath', 'sustain',
+    ])
   })
 })
