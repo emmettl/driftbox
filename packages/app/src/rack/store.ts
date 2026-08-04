@@ -5,6 +5,7 @@ import {
   DEFAULT_PARAMS,
   DEFAULT_SENDS,
   ALL_VOICES,
+  chainRecordClip,
   chainSetClip,
   type BassParams,
   type ClipLaunchEvent,
@@ -399,6 +400,7 @@ interface RackState {
         patternId: string | null
         phase: ClipLaunchPhase
         quantization: ClipLaunchQuantization
+        bar?: number
       }
     >
   >
@@ -406,6 +408,9 @@ interface RackState {
   clearGrooveboxLaunches: () => void
   grooveboxLaunchQuantization: ClipLaunchQuantization
   setGrooveboxLaunchQuantization: (quantization: ClipLaunchQuantization) => void
+  /** Arm bar-boundary live launches to become compatible Song arrangement edits. */
+  grooveboxLaunchRecording: boolean
+  toggleGrooveboxLaunchRecording: () => void
   /**
    * Hosted song navigation is session state. The engine owns the clock; the store only
    * gives the faceplate a host callback and the loop range it needs to draw.
@@ -676,6 +681,7 @@ export const useRack = create<RackState>((set, get) => {
     grooveboxLauncher: null,
     grooveboxLaunches: {},
     grooveboxLaunchQuantization: 'bar',
+    grooveboxLaunchRecording: false,
     grooveboxTransport: null,
     grooveboxLoop: null,
     grooveboxAutomationRecording: false,
@@ -1301,7 +1307,7 @@ export const useRack = create<RackState>((set, get) => {
       }),
 
     setGrooveboxLauncher: (grooveboxLauncher) => set({ grooveboxLauncher }),
-    setGrooveboxLaunch: (event) =>
+    setGrooveboxLaunch: (event) => {
       set((state) => {
         const grooveboxLaunches = { ...state.grooveboxLaunches }
         if (event.phase === 'active' && event.patternId === null) {
@@ -1311,13 +1317,45 @@ export const useRack = create<RackState>((set, get) => {
             patternId: event.patternId,
             phase: event.phase,
             quantization: event.quantization,
+            ...(event.bar === undefined ? {} : { bar: event.bar }),
           }
         }
         return { grooveboxLaunches }
-      }),
+      })
+      // Queued/active state remains performance-only. The explicit recording arm is the one path that
+      // promotes an active bar launch into authored Song data, at the engine-owned clock boundary.
+      const state = get()
+      if (
+        event.phase !== 'active' ||
+        event.quantization !== 'bar' ||
+        !state.grooveboxLaunchRecording
+      ) return
+      const bar = event.bar ?? state.grooveboxAutomationPosition?.()?.bar
+      if (bar === undefined) return
+      write(null, false, (patch) => {
+        const song = grooveboxSong(patch)
+        if (!song) return patch
+        if (event.patternId && !song.patterns.some((pattern) => pattern.id === event.patternId)) {
+          return patch
+        }
+        const chain = chainRecordClip(song, bar, event.section, event.patternId)
+        return chain === song.chain
+          ? patch
+          : { ...patch, groovebox: encodeSong({ ...song, chain }) }
+      })
+    },
     clearGrooveboxLaunches: () => set({ grooveboxLaunches: {} }),
     setGrooveboxLaunchQuantization: (grooveboxLaunchQuantization) =>
-      set({ grooveboxLaunchQuantization }),
+      set((state) => state.grooveboxLaunchRecording
+        ? { grooveboxLaunchQuantization: 'bar' }
+        : { grooveboxLaunchQuantization }),
+    toggleGrooveboxLaunchRecording: () =>
+      set((state) => ({
+        grooveboxLaunchRecording: !state.grooveboxLaunchRecording,
+        // Song sections change only on bar boundaries. Arming write makes that representable boundary
+        // explicit instead of pretending a beat/step performance can fit the section schema.
+        grooveboxLaunchQuantization: 'bar',
+      })),
     setGrooveboxTransport: (grooveboxTransport) => set({ grooveboxTransport }),
     setGrooveboxLoop: (grooveboxLoop) => set({ grooveboxLoop }),
     toggleGrooveboxAutomationRecording: () =>
@@ -1486,6 +1524,7 @@ export const useRack = create<RackState>((set, get) => {
         grooveboxTapRecording: false,
         grooveboxTapTarget: null,
         grooveboxTapStep: 0,
+        grooveboxLaunchRecording: false,
       })
     },
 

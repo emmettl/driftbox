@@ -354,7 +354,7 @@ function RackHelp({ topic }: { topic: string }) {
           <dl className="help-definitions">
             <div><dt>Unpatched source</dt><dd>The retained machine continues through its original mastered song mix.</dd></div>
             <div><dt>Patched source</dt><dd>Connecting a Groovebox output diverts that complete machine through the rack instead.</dd></div>
-            <div><dt>Clip controls</dt><dd>The Groovebox faceplate can edit patterns, choose section clips, launch clips quantized to musical boundaries, and set song loops.</dd></div>
+            <div><dt>Clip controls</dt><dd>The Groovebox faceplate can edit patterns, choose section clips, launch clips quantized to musical boundaries, write bar-quantized launches into the arrangement, and set song loops.</dd></div>
             <div><dt>Sequencer →</dt><dd>Returns to the retained song. Rack modules and cables remain saved here when the rack has been extended.</dd></div>
           </dl>
         </HelpSection>

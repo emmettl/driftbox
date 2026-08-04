@@ -75,10 +75,11 @@ Groovebox device also authors the same drive, PCF, compressor, delay and reverb 
 the original editor, including the PCF's off/on/accent pattern lane; rack mode still adds
 patchable Drive, SVF, Compressor and Delay modules around that compatible song. The
 retained-song render boundary is now acceptance-tested across an all-machine fixture and every
-shipped song after both document codecs. The rack also shares the retained song's per-voice
-stem review/export desk while keeping its rack-graph WAV explicit and separate. The remaining
-export question is rack-native source ownership, not Groovebox compatibility. Do not duplicate
-authored patterns into anonymous rack primitives.
+shipped song after both document codecs. The rack shares the retained song's per-voice stem review
+desk and gives rack-native Out buses the same preview/save/export workflow while keeping both renders
+explicitly separate. Live retained-machine launches can now be written at bar boundaries into the
+compatible arrangement, splitting repeated sections rather than rewriting bars already performed.
+Do not duplicate authored patterns into anonymous rack primitives.
 
 ## What is deliberate
 

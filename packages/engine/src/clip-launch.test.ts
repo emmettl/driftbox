@@ -77,4 +77,16 @@ describe('quantized clip launches', () => {
     selection.tr808 = 'mutated'
     expect(launcher.selection).toEqual({ tr808: 'break' })
   })
+
+  it('reports the exact activation bar without assigning one to a queued launch', () => {
+    const listener = vi.fn()
+    const launcher = new ClipLauncher()
+    launcher.onChange(listener)
+    launcher.queue('303.b', 'line', 'bar')
+    launcher.activate('bar', 7)
+    expect(listener.mock.calls.map(([event]) => event)).toEqual([
+      { section: '303.b', patternId: 'line', phase: 'queued', quantization: 'bar' },
+      { section: '303.b', patternId: 'line', phase: 'active', quantization: 'bar', bar: 7 },
+    ])
+  })
 })
