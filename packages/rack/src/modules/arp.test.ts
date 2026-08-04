@@ -243,8 +243,60 @@ describe('start of arpeggio', () => {
   it('appends stable Start ports without moving the existing cable ids', () => {
     expect(ARP_MODULE.inlets.map((port) => port.id)).toEqual([
       'pitch', 'gate', 'velocity', 'clock', 'reset', 'start', 'gateCv', 'velocityCv', 'rateCv', 'shiftCv',
+      'mod', 'bend', 'aftertouch', 'expression', 'breath', 'sustain',
     ])
-    expect(ARP_MODULE.outlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity', 'trig', 'start'])
+    expect(ARP_MODULE.outlets.map((port) => port.id)).toEqual([
+      'pitch', 'gate', 'velocity', 'trig', 'start', 'mod', 'bend', 'aftertouch', 'expression', 'breath', 'sustain',
+    ])
+  })
+})
+
+describe('performance CV passthrough', () => {
+  it('remains transparent while the arpeggio is armed and waiting for Start', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-performance-wait')
+    const frames = 32
+    const zero = new Float32Array(frames)
+    const controls = [0.1, -0.75, 0.3, 0.4, 0.5, 1].map((value) =>
+      Float32Array.from({ length: frames }, (_, i) => value + i / 1000),
+    )
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    arp.process(
+      [zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, ...controls],
+      out,
+      params,
+      frames,
+      undefined,
+      undefined,
+      undefined,
+      Array.from({ length: ARP_MODULE.inlets.length }, (_, index) => index === 5),
+    )
+
+    for (let control = 0; control < controls.length; control++) {
+      expect(out[5 + control]).toEqual(controls[control])
+    }
+    expect(out[1].every((value) => value === 0)).toBe(true)
+  })
+
+  it('reads one shared controller lane instead of summing identical MIDI voices', () => {
+    const arp = new ArpProcessor(SR, deps, 'arp-performance-voices')
+    const frames = 16
+    const zero = new Float32Array(frames)
+    const params = ARP_MODULE.params.map((p) => new Float32Array(frames).fill(p.default))
+    const out = ARP_MODULE.outlets.map(() => new Float32Array(frames))
+    const voiceInlets = Array.from({ length: ARP_MODULE.inlets.length }, () => [zero])
+    voiceInlets[10] = [new Float32Array(frames).fill(0.25), new Float32Array(frames).fill(0.25)]
+    arp.process(
+      Array.from({ length: ARP_MODULE.inlets.length }, () => zero),
+      out,
+      params,
+      frames,
+      undefined,
+      undefined,
+      voiceInlets,
+    )
+
+    expect(out[5].every((value) => value === 0.25)).toBe(true)
   })
 })
 
