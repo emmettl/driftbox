@@ -1,6 +1,10 @@
 import { MODULES, type Patch } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
-import { automationLaneViews } from './automation-desk.js'
+import {
+  automationLaneViews,
+  automationPosition,
+  automationPositionLabel,
+} from './automation-desk.js'
 
 const PATCH: Patch = {
   modules: [
@@ -22,6 +26,19 @@ const PATCH: Patch = {
 }
 
 describe('automation desk lane summaries', () => {
+  it('round-trips one-based bar and sixteenth labels', () => {
+    expect(automationPosition('1.1')).toBe(0)
+    expect(automationPosition(' 2.16 ')).toBe(31)
+    expect(automationPositionLabel(31)).toBe('2.16')
+  })
+
+  it('rejects incomplete and out-of-range musical positions', () => {
+    expect(automationPosition('2')).toBeNull()
+    expect(automationPosition('0.1')).toBeNull()
+    expect(automationPosition('1.17')).toBeNull()
+    expect(automationPosition('one.two')).toBeNull()
+  })
+
   it('resolves module and parameter ids into readable names', () => {
     const lanes = automationLaneViews(PATCH, MODULES)
     expect(lanes[0]).toMatchObject({

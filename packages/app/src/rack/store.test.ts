@@ -1084,6 +1084,50 @@ describe('recording a knob move', () => {
     expect(useRack.getState().patch.automation?.[0].points[0].value).toBe(0)
   })
 
+  it('adds a bounded point after recording without changing the lane curve', () => {
+    armAt(4)
+    useRack.getState().setParam('meter-1', 'mode', 1)
+    useRack.setState({ history: NO_HISTORY })
+
+    useRack.getState().addAutomationPoint('meter-1', 'mode', 20, 1.6)
+    expect(useRack.getState().patch.automation?.[0]).toMatchObject({
+      curve: 'hold',
+      points: [{ at: 4, value: 1 }, { at: 20, value: 2 }],
+    })
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 4, value: 1 }])
+  })
+
+  it('moves a point in timeline order and replaces a collision as one undoable edit', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    armAt(16)
+    useRack.getState().setParam('ladder-1', 'cutoff', 900)
+    useRack.setState({ history: NO_HISTORY })
+
+    useRack.getState().moveAutomationPoint('ladder-1', 'cutoff', 16, 8)
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 8, value: 900 },
+    ])
+    useRack.getState().moveAutomationPoint('ladder-1', 'cutoff', 8, 0)
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([{ at: 0, value: 900 }])
+    useRack.getState().undo()
+    expect(useRack.getState().patch.automation?.[0].points).toEqual([
+      { at: 0, value: 400 },
+      { at: 8, value: 900 },
+    ])
+  })
+
+  it('does not add a duplicate point or move an absent point', () => {
+    armAt(0)
+    useRack.getState().setParam('ladder-1', 'cutoff', 400)
+    const before = useRack.getState().patch
+    useRack.getState().addAutomationPoint('ladder-1', 'cutoff', 0, 900)
+    useRack.getState().moveAutomationPoint('ladder-1', 'cutoff', 16, 20)
+    expect(useRack.getState().patch).toBe(before)
+  })
+
   it('removes individual points and drops an empty lane', () => {
     armAt(0)
     useRack.getState().setParam('ladder-1', 'cutoff', 400)
