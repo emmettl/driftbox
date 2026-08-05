@@ -90,6 +90,7 @@ const PROMISED = [
   'VCO_MODULE',
   'VOCODER_MODULE',
   'VOICE_MODULE',
+  'WAVETABLE_MODULE',
   // Portable multisample zone metadata. Hosts use these to embed maps in the patch while keeping PCM in
   // session-only data slots.
   'MULTISAMPLE_ZONE_FIELDS',
@@ -187,6 +188,7 @@ const UNSTABLE = [
   'TrackerProcessor',
   'VcoProcessor',
   'VoiceProcessor',
+  'WavetableProcessor',
   'VOCODER_BAND_COUNTS',
   'VOCODER_MAX_BANDS',
   'VOCODER_RANGE_HZ',

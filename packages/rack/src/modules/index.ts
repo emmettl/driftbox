@@ -44,8 +44,9 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
+import { WAVETABLE_MODULE } from './wavetable.js'
 
-// Forty-four modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty-six modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -88,6 +89,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   GROOVEBOX_MODULE,
   AUDIO_INPUT_MODULE,
   VCO_MODULE,
+  WAVETABLE_MODULE,
   VOICE_MODULE,
   NOISE_MODULE,
   SAMPLER_MODULE,
@@ -201,6 +203,7 @@ export { TUNER_MODULE, TunerProcessor } from './tuner.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
 export { VOICE_MODULE, VoiceProcessor } from './voice.js'
+export { WAVETABLE_MODULE, WavetableProcessor } from './wavetable.js'
 export {
   VOCODER_BAND_COUNTS,
   VOCODER_MAX_BANDS,

@@ -37,7 +37,11 @@ than an analogy.
 
 [docs/REASON-GAP.md](docs/REASON-GAP.md) is the other half of the comparison — what the rack
 still lacks measured against *Reason* rather than against the groovebox, which is a different
-list with a different order. Undo and stereo cables have landed; recorded automation now leads it.
+list with a different order. Everything it originally ordered has landed — undo, stereo cables,
+recorded automation, the rack-wide table and every missing device — as has the second oscillator
+family that came out of measuring the tree again afterwards. What that second pass turned up in
+its place leads the file now: the Mixer is a four-in mono adder with no sends, and nothing records
+audio against the timeline.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. Its dependency order—independent machine clips,

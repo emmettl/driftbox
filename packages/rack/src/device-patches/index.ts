@@ -215,6 +215,24 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   { id: 'reed', type: 'vco', name: 'Narrow Pulse', params: { shape: 1, width: 0.12 } },
   { id: 'sub', type: 'vco', name: 'Sub Triangle', params: { shape: 2, tune: -12 } },
 
+  // ---- Wavetable --------------------------------------------------------------------------------
+  //
+  // Longer than the VCO's bank despite having the same number of knobs, because here the knob positions
+  // are not obvious: Position is continuous across eight waveforms, so "the square one" is 3/7 rather
+  // than a step somebody can find by turning. These are the eight landmarks, minus the ones Init and the
+  // neighbouring entries already cover.
+  { id: 'sine', type: 'wavetable', name: 'Sine', params: { position: 0 } },
+  { id: 'sub', type: 'wavetable', name: 'Sub Triangle', params: { position: 1 / 7, tune: -12 } },
+  { id: 'drawbar', type: 'wavetable', name: 'Drawbar', params: { position: 2 / 7 } },
+  { id: 'saw', type: 'wavetable', name: 'Saw', params: { position: 4 / 7 } },
+  { id: 'vowel', type: 'wavetable', name: 'Vowel', params: { position: 5 / 7 } },
+  { id: 'thin', type: 'wavetable', name: 'Thin Pulse', params: { position: 1 } },
+  // The two that are about Index rather than Position, and both want a cable at PM to do anything — a
+  // device patch is knobs, so it can set up an FM voice but cannot patch one. Sine carrier, because that
+  // is what every FM operator has been since the DX7 and what the sidebands are predictable from.
+  { id: 'fm-bell', type: 'wavetable', name: 'FM Bell', params: { position: 0, index: 2.2 } },
+  { id: 'fm-growl', type: 'wavetable', name: 'FM Growl', params: { position: 0, index: 4 } },
+
   // ---- Drive ------------------------------------------------------------------------------------
   { id: 'edge', type: 'drive', name: 'Edge', params: { drive: 1.4 } },
   { id: 'warm', type: 'drive', name: 'Warm', params: { drive: 3 } },
