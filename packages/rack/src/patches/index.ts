@@ -623,6 +623,143 @@ const guitarPedalboard = (): Patch => ({
 })
 
 /**
+ * The one you can play before you understand any of it.
+ *
+ * **Every other patch in this bank plays itself.** That is not an accident of taste — a sequenced patch
+ * demonstrates the rack without asking anything of the listener, which is exactly what a showcase should
+ * do. But it left a hole large enough to walk through: until this one, not a single shipped patch
+ * contained a MIDI module or a Voice, so somebody who opened the rack, pressed a key on the on-screen
+ * keyboard and heard nothing had done everything right and been told nothing. The keys were live; there
+ * was simply never anything at the other end of them.
+ *
+ * So the smallest complete instrument, and deliberately nothing else: notes in, one voice, an echo, a
+ * room, a meter that moves when you play. Five modules and six cables is few enough to read the back
+ * panel in one go and see the whole idea, which is the other half of what this preset is for — it is the
+ * diagram the guided tour walks you through building by hand.
+ *
+ * No sequencer, no clock and no transport, so it makes no sound at all until somebody plays it. That is
+ * the point: the rack answers you rather than performing at you.
+ */
+const firstLight = (): Patch => ({
+  tempo: 100,
+  modules: [
+    { id: 'midi-1', type: 'midi' },
+    {
+      id: 'voice-1',
+      type: 'voice',
+      // Slow enough to hold a chord and bright enough to hear the filter close behind it. A pluck would
+      // have been the safer demo and a worse one — a note that decays before you have finished pressing
+      // the key teaches nothing about the envelope that shortened it.
+      params: {
+        shapeA: 0,
+        shapeB: 2,
+        detune: 11,
+        mix: 0.45,
+        cutoff: 1600,
+        resonance: 0.24,
+        envAmount: 2.2,
+        attack: 0.012,
+        decay: 1.1,
+        sustain: 0.5,
+        release: 0.7,
+        fDecay: 1,
+        level: 0.6,
+      },
+    },
+    { id: 'delay-1', type: 'delay', params: { time: 0.3, feedback: 0.26 } },
+    { id: 'meter-1', type: 'meter', params: { mode: 0, gain: 1.3, release: 0.3 } },
+    // Last, and after the meter, so the room's stereo reaches the Out instead of being folded to the
+    // meter's mono inlet on the way past.
+    { id: 'reverb-1', type: 'reverb', params: { size: 0.74, decay: 0.8, damp: 0.44, mix: 0.3 } },
+    { id: 'out-1', type: 'out', params: { level: 0.72 } },
+  ],
+  cables: [
+    { from: ['midi-1', 'pitch'], to: ['voice-1', 'pitch'] },
+    { from: ['midi-1', 'gate'], to: ['voice-1', 'gate'] },
+    { from: ['voice-1', 'out'], to: ['delay-1', 'in'] },
+    { from: ['delay-1', 'out'], to: ['meter-1', 'in'] },
+    { from: ['meter-1', 'thru'], to: ['reverb-1', 'in'] },
+    { from: ['reverb-1', 'out'], to: ['out-1', 'in'] },
+  ],
+})
+
+/**
+ * One key, a chord, and a line running out of it.
+ *
+ * The Sequencing shelf has three devices that change **notes rather than audio** — Chord Player, Arp and
+ * Scale Player — and nothing in the bank used any of them, which made them the hardest part of the rack
+ * to discover. They are also the part that is hardest to explain in a sentence, because the thing they
+ * change is invisible: there is no knob whose sound you can point at. A patch you play is the explanation.
+ *
+ * The chain is the argument, read left to right on the back panel: the keyboard sends **one** note, the
+ * Chord Player makes it a chord in key, the Arp turns the chord into a line, and only then does anything
+ * become audible. Pull the Chord Player's cables and the same keyboard drives the same arp with single
+ * notes; that comparison is the lesson, and it is two cables away.
+ *
+ * Arp runs on Tempo timing, which — like the RPG-8 it is modelled on — follows the transport's tempo
+ * without needing it started. So this plays the moment a key goes down, with no Play press and no clock
+ * module, and Hold latches the figure once you let go.
+ */
+const oneFinger = (): Patch => ({
+  tempo: 112,
+  modules: [
+    { id: 'midi-1', type: 'midi' },
+    {
+      id: 'chord-1',
+      type: 'chord-player',
+      // A minor, four notes, open voicing. Close triads at the bottom of a keyboard are mud, and the
+      // seventh is what stops an arpeggio of a plain triad sounding like a scale exercise.
+      params: { key: 9, scale: 1, notes: 4, open: 1 },
+    },
+    {
+      id: 'arp-1',
+      type: 'arp',
+      // Played, not Root: the Chord Player has already built the chord, and Root would throw those notes
+      // away and construct its own from the bass note. Hold keeps the figure running after your finger
+      // leaves, which is what makes this playable with one hand and a mouse.
+      params: { source: 1, hold: 1, timing: 1, division: 4, mode: 2, octaves: 2, gate: 0.45 },
+    },
+    {
+      id: 'voice-1',
+      type: 'voice',
+      // Short and bright. An arpeggio is a rhythm before it is a harmony, so the envelope has to let go
+      // before the next step arrives or the line smears into a chord again.
+      params: {
+        shapeA: 1,
+        shapeB: 0,
+        width: 0.4,
+        detune: 6,
+        mix: 0.4,
+        cutoff: 2600,
+        resonance: 0.42,
+        envAmount: 3,
+        attack: 0.002,
+        decay: 0.22,
+        sustain: 0.05,
+        release: 0.18,
+        fDecay: 0.2,
+        level: 0.62,
+      },
+    },
+    { id: 'meter-1', type: 'meter', params: { mode: 2, gain: 1.4, release: 0.18 } },
+    { id: 'pingpong-1', type: 'ping-pong', params: { time: 0.24, feedback: 0.42 } },
+    { id: 'out-1', type: 'out', params: { level: 0.68 } },
+  ],
+  cables: [
+    { from: ['midi-1', 'pitch'], to: ['chord-1', 'pitch'] },
+    { from: ['midi-1', 'gate'], to: ['chord-1', 'gate'] },
+    { from: ['chord-1', 'pitch'], to: ['arp-1', 'pitch'] },
+    { from: ['chord-1', 'gate'], to: ['arp-1', 'gate'] },
+    { from: ['chord-1', 'velocity'], to: ['arp-1', 'velocity'] },
+    { from: ['arp-1', 'pitch'], to: ['voice-1', 'pitch'] },
+    { from: ['arp-1', 'gate'], to: ['voice-1', 'gate'] },
+    { from: ['voice-1', 'out'], to: ['meter-1', 'in'] },
+    { from: ['meter-1', 'thru'], to: ['pingpong-1', 'in'] },
+    { from: ['pingpong-1', 'out'], to: ['out-1', 'in'] },
+  ],
+})
+
+/**
  * Stable type ids for devices the guitar factory must adopt when they land.
  *
  * `patches.test.ts` turns this note into an obligation: once one of these module types is
@@ -636,6 +773,19 @@ export const GUITAR_PEDALBOARD_GAPS = [
 ] as const
 
 export const PATCHES: readonly PatchPreset[] = [
+  // First, and first deliberately. The rest of this bank plays itself the moment it loads, which is a fine
+  // thing for a showcase to do and a poor thing for all of it to do — somebody whose first question is
+  // "what do *I* do" was previously answered by eight patches getting on with it without them.
+  {
+    id: 'first-light',
+    name: 'First Light',
+    blurb: 'Press a key and the rack answers',
+    kicker: 'Start here',
+    features: ['playable now', 'five modules', 'no sequencer'],
+    accent: 'violet',
+    featured: true,
+    build: firstLight,
+  },
   {
     id: 'pressure-system',
     name: 'Pressure System',
@@ -656,6 +806,15 @@ export const PATCHES: readonly PatchPreset[] = [
     accent: 'amber',
     featured: true,
     build: signalRelay,
+  },
+  {
+    id: 'one-finger',
+    name: 'One Finger',
+    blurb: 'One key becomes a chord, then a running line',
+    kicker: 'Notes before sound',
+    features: ['chord player', 'arpeggiator', 'playable now'],
+    accent: 'amber',
+    build: oneFinger,
   },
   {
     id: 'acid',

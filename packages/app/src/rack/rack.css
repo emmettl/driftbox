@@ -1073,6 +1073,46 @@ kbd {
   text-transform: uppercase;
 }
 
+/* The first-visit tour offer. Same band as the document notice below the header, so it reads as the page
+   telling you something rather than as an advert dropped on top of it — and it wraps to two lines on a
+   phone instead of pushing the buttons off the edge. */
+.rk-tour-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 9px 16px;
+  border-block: 1px solid rgba(95, 240, 208, 0.2);
+  background: rgba(95, 240, 208, 0.05);
+  color: var(--dim);
+  font: 11px var(--mono);
+}
+.rk-tour-offer strong {
+  color: var(--nine);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.rk-tour-offer span {
+  flex: 1 1 240px;
+}
+.rk-tour-offer button {
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: 10px var(--mono);
+  cursor: pointer;
+}
+.rk-tour-offer button:hover,
+.rk-tour-offer button:focus-visible {
+  outline: none;
+  border-color: var(--nine);
+  color: var(--nine);
+}
+
 .rk-scope {
   border-top: 1px solid var(--edge);
   background: rgba(7, 4, 15, 0.6);

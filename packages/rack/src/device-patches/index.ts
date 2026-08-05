@@ -396,4 +396,68 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   // ---- Follower ---------------------------------------------------------------------------------
   { id: 'fast', type: 'follower', name: 'Fast', params: { attack: 0.001, release: 0.04, gain: 2 } },
   { id: 'smooth', type: 'follower', name: 'Smooth', params: { attack: 0.05, release: 0.6, gain: 1.5 } },
+
+  // ---- Seq --------------------------------------------------------------------------------------
+  //
+  // The odd one in the bank, and the most useful. Everywhere else a device patch is a *sound*; here the
+  // knobs are the notes, so a patch is a line — the Seq's whole design is that its sequence lives in
+  // eighteen ordinary params rather than in `data`, and the rule against putting composition in a device
+  // patch does not reach it. Four lines you can step through while a clock runs is the shortest route
+  // this rack has to somebody hearing a change they did not have to author.
+  //
+  // Semitones from whatever the oscillator is tuned to, so every one of these works at any pitch.
+  {
+    id: 'fifths',
+    type: 'seq',
+    name: 'Rising Fifths',
+    params: { length: 8, pitch1: 0, pitch2: 7, pitch3: 12, pitch4: 19, pitch5: 24, pitch6: 19, pitch7: 12, pitch8: 7 },
+  },
+  {
+    id: 'acid',
+    type: 'seq',
+    name: 'Acid Line',
+    // The rests are the line. Every step on is a scale; a third of them off is a riff.
+    params: {
+      length: 8,
+      pitch1: 0, pitch2: 0, pitch3: 12, pitch4: 0, pitch5: 3, pitch6: 0, pitch7: 10, pitch8: 12,
+      gate2: 0, gate4: 0, gate6: 0,
+    },
+  },
+  {
+    id: 'pulse',
+    type: 'seq',
+    name: 'Bass Pulse',
+    // Four steps, all root, one octave jump: the pattern that sits under everything and asks for nothing.
+    params: { length: 4, pitch1: -12, pitch2: -12, pitch3: -12, pitch4: 0, glide: 0.12 },
+  },
+  {
+    id: 'drift',
+    type: 'seq',
+    name: 'Slow Drift',
+    // Long glide and wide intervals — the same eight knobs used as a modulation source rather than a
+    // melody, which is what a Seq patched into a filter cutoff instead of a pitch inlet becomes.
+    params: {
+      length: 6,
+      pitch1: 0, pitch2: 5, pitch3: -7, pitch4: 12, pitch5: -3, pitch6: 7,
+      glide: 0.62,
+    },
+  },
+
+  // ---- Note Echo --------------------------------------------------------------------------------
+  { id: 'fade', type: 'note-echo', name: 'Fading Sixteenths', params: { repeats: 5, division: 3, velocity: 0.7, gate: 0.35 } },
+  // Repeats that climb. Pitch accumulates, so five repeats at +7 is two and a half octaves of stack.
+  { id: 'rising', type: 'note-echo', name: 'Rising Fifths', params: { repeats: 4, division: 4, pitch: 7, velocity: 0.8, gate: 0.4 } },
+  { id: 'octave-drop', type: 'note-echo', name: 'Octave Drop', params: { repeats: 2, division: 5, pitch: -12, velocity: 0.9, gate: 0.7 } },
+  // Only the echoes. A second instrument answering the one you are playing, rather than thickening it.
+  { id: 'answer', type: 'note-echo', name: 'Answer Only', params: { repeats: 3, division: 4, pitch: 5, dry: 0, gate: 0.45 } },
+
+  // ---- Sampler ----------------------------------------------------------------------------------
+  //
+  // Slice counts rather than sounds, because that is the setting a loaded break is wrong at: a bar cut
+  // into sixteen and a bar cut into eight are different instruments made of the same audio.
+  { id: 'thirty-two', type: 'sampler', name: '32 Slices', params: { slices: 32 } },
+  { id: 'eighths', type: 'sampler', name: '8 Slices', params: { slices: 8 } },
+  { id: 'reverse', type: 'sampler', name: 'Reverse Slices', params: { slices: 16, reverse: 1 } },
+  // No slicing at all: one looping sample, which is how a sampler becomes a drone or a bed.
+  { id: 'whole-loop', type: 'sampler', name: 'Whole Loop', params: { slices: 1, loop: 1 } },
 ]

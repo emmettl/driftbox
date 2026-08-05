@@ -58,6 +58,16 @@ import {
   type AudioInputHandle,
 } from './audio-input.js'
 import { HelpDialog } from '../ui/HelpDialog.js'
+import { useFirstRun } from '../ui/useFirstRun.js'
+import { TutorialCoach } from './TutorialCoach.js'
+import {
+  TUTORIALS,
+  finishTour,
+  finishedTours,
+  tutorialById,
+  type Tutorial,
+  type TutorialState,
+} from './tutorials.js'
 
 type RackView = 'rack' | 'split' | 'pad'
 
@@ -241,6 +251,23 @@ export default function RackApp() {
   const [reviewingSongStems, setReviewingSongStems] = useState(false)
   const [automationOpen, setAutomationOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+
+  /**
+   * The guided tour running beside the rack, and which ones this browser has been through.
+   *
+   * `finishedTours` is read once. It is only ever written by finishing one, so re-reading storage on every
+   * render would be a synchronous `localStorage` hit per frame for an answer that cannot have changed.
+   */
+  const [tour, setTour] = useState<Tutorial | null>(null)
+  const [toursDone, setToursDone] = useState<Set<string>>(() => finishedTours())
+  const [learnt, learn] = useFirstRun()
+  const startTour = useCallback(
+    (id: string) => {
+      learn('toured')
+      setTour(tutorialById(id) ?? null)
+    },
+    [learn],
+  )
 
   useEffect(() => {
     const openHelp = (event: KeyboardEvent) => {
@@ -1333,6 +1360,26 @@ export default function RackApp() {
     [notes],
   )
 
+  /**
+   * Everything a guided tour is allowed to know, gathered in one place.
+   *
+   * A snapshot rather than the store, and this is the boundary that keeps `tutorials.ts` testable in Node:
+   * a step is a function of these seven fields and of nothing else — no hooks, no zustand, no DOM. The
+   * count rather than the note numbers, because no lesson cares which key is down.
+   */
+  const tourState = useMemo<TutorialState>(
+    () => ({
+      patch,
+      started,
+      playing,
+      flipped,
+      automating,
+      sounding: sounding.length,
+      automationOpen,
+    }),
+    [patch, started, playing, flipped, automating, sounding, automationOpen],
+  )
+
   return (
     <div
       className="rk"
@@ -1666,6 +1713,24 @@ export default function RackApp() {
         </p>
       )}
 
+      {/* Offered once, on the first visit this browser has ever made, and never again whichever button
+          answers it. The rack opens on a finished arrangement playing itself, which is the right first
+          impression and a poor first instruction — it shows what the instrument can do and nothing about
+          what your hands are for. Two buttons rather than a dismissible hint, because "not now" is a real
+          answer and a hint you have to find the × on is not a question. */}
+      {!learnt.has('toured') && !tour && (
+        <p className="rk-tour-offer">
+          <strong>First time in the rack?</strong>
+          <span>A three-minute guided tour ends with a sound you made. It never touches the rack itself.</span>
+          <button type="button" className="rk-primary" onClick={() => startTour(TUTORIALS[0].id)}>
+            Start the tour
+          </button>
+          <button type="button" onClick={() => learn('toured')}>
+            Not now
+          </button>
+        </p>
+      )}
+
       {adding && (
         <div className="rk-palette-layer">
           <Palette
@@ -1854,7 +1919,32 @@ export default function RackApp() {
           {buildLabel()}
         </span>
       </footer>
-      {helpOpen && <HelpDialog surface="rack" onClose={() => setHelpOpen(false)} />}
+      {tour && (
+        <TutorialCoach
+          tutorial={tour}
+          state={tourState}
+          onClose={() => setTour(null)}
+          onFinished={(id) => setToursDone(finishTour(id))}
+        />
+      )}
+
+      {helpOpen && (
+        <HelpDialog
+          surface="rack"
+          onClose={() => setHelpOpen(false)}
+          // Mapped down to plain fields on the way in: the guide is shared with the sequencer and must not
+          // learn what a rack patch is. See `HelpTutorial`.
+          tutorials={TUTORIALS.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            blurb: entry.blurb,
+            minutes: entry.minutes,
+            steps: entry.steps.length,
+            done: toursDone.has(entry.id),
+          }))}
+          onStartTutorial={startTour}
+        />
+      )}
     </div>
   )
 }
