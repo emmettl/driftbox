@@ -1,4 +1,11 @@
-import { DriftboxEngine, Kaoss, songBars, type Song } from '@driftbox/engine'
+import {
+  DriftboxEngine,
+  Kaoss,
+  MONITOR_MAX_DELAY,
+  outputLatencyOf,
+  songBars,
+  type Song,
+} from '@driftbox/engine'
 import {
   compile,
   grooveboxSong,
@@ -241,9 +248,25 @@ export function useRackEngine(nodes: RackNodes, options: RackEngineOptions): Rac
     scope.smoothingTimeConstant = 0.75
     // The scope watches the filtered signal, so sweeping the pad shows on it. Watching the pre-filter
     // output would have drawn a waveform nobody could hear.
-    pad.output.connect(scope)
+    //
+    // Through a delay, for the reason `monitor.ts` in the engine gives: what an analyser reports has
+    // not been heard yet, and on Bluetooth output that gap is most of a beat. Same arithmetic as the
+    // engine's tap, from the same function, because the two pages share their scenes and compensating
+    // them by different amounts would be worse than compensating neither.
+    const monitor = ctx.createDelay(MONITOR_MAX_DELAY)
+    monitor.delayTime.value = outputLatencyOf(ctx)
+    pad.output.connect(monitor)
+    monitor.connect(scope)
     pad.output.connect(ctx.destination)
     setAnalyser(scope)
+
+    // The number is 0 until a device is actually attached, which is after the context is running.
+    // `onstatechange` above is already the rack's hook for that, so this rides on it.
+    const publishState = ctx.onstatechange
+    ctx.onstatechange = (event) => {
+      monitor.delayTime.setTargetAtTime(outputLatencyOf(ctx), ctx.currentTime, 0.05)
+      publishState?.call(ctx, event)
+    }
 
     live.patch = useRack.getState().patch
     nodes.rack.current = live

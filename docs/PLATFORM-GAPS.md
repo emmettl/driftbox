@@ -118,7 +118,40 @@ the Node project next to `timing.ts`, and it is testable by feeding it synthetic
 with deliberate jitter and dropouts. Which is to say the risky part of this feature is the part
 this repo is already best at testing.
 
-### 3. Nothing compensates for output latency
+### 3. ~~Nothing compensates for output latency~~ — landed
+
+**The fix was not to move the picture, it was to move the reading.** The analyser now sits on a
+branch fed through a `DelayNode` holding `outputLatency`, so what it reports and what the ear
+receives are the same moment. Nothing about the signal path changed — and the reason it could not
+simply be delayed in place is that the analyser *was* the signal path: `master → analyser →
+destination`. Delaying it there would have delayed the music along with the picture.
+
+`monitor.ts` holds the arithmetic and `DriftboxEngine.syncOutputLatency()` re-reads it on every
+resume, because a context built suspended reports 0 until there is a device attached to be late.
+The rack builds its own tap around its own graph from the same exported function, since the two
+pages share their scenes and compensating them differently would be worse than compensating
+neither.
+
+Two things are worth keeping:
+
+- **The tap ends in a gain of zero that reaches the output.** Web Audio only guarantees that nodes
+  on a path to the destination are processed, and a leaf analyser is pulled anyway in everything
+  measurable — checked in Chromium, where a leaf reads a full-scale 255 on a tone, identical to one
+  in the signal path, and the rack has shipped a leaf analyser for as long as it has had visuals.
+  But the engine is a published package embedded in browsers nobody here can test, and the failure
+  if one disagrees is not a slightly wrong picture, it is a dead visualiser. One gain node against
+  that is cheap, and `render.browser.test.ts` would catch it immediately if the zero were ever not
+  exactly zero.
+- **`monitor.browser.test.ts` measures the property that matters** — the first non-zero sample
+  arrives at the same index whether the context claims no latency or 300ms of it. "The kick still
+  sounds like it did" is an opinion; a sample index is a measurement.
+
+`latencyHint: 'interactive'` was already set on the rack's context. `setSinkId` is untouched and
+still worth having.
+
+The original entry follows.
+
+---
 
 A grep for `outputLatency` and `baseLatency` across the tree returns nothing, and the
 `AudioContext` is constructed without a `latencyHint`.
@@ -162,6 +195,14 @@ mono. So a fingerprint over any pattern with a hat or a reverb send compares two
 renders. Either those two sites take a seed the way `pattern.ts:458` already takes an injected
 `RandomSource`, or the band reduction is made coarse enough and long enough to average the
 difference away. The first is more honest and follows a pattern the repo already uses.
+
+**This stopped being theoretical while the monitor tap was being tested.** A test comparing the
+peak of two renders of `808.bd` — which should be identical to six decimal places, since it is the
+same voice triggered the same way — failed, because `bassDrum` has a noise layer and the two
+renders got different noise. The test was rewritten around `808.cb`, two square oscillators with
+nothing random in them, and passes exactly. So the cost of the unseeded buffer is already being
+paid: it is not only fingerprinting that it blocks, it is *any* test that compares one render to
+another, which is most of the useful ones.
 
 **Property-based testing.** No `fast-check` in the tree, against an unusually good surface for it.
 Three targets, in the order I would expect them to find something. `hash.ts` round-trips —
