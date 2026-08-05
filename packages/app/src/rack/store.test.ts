@@ -9,6 +9,7 @@ import {
   grooveboxSong,
   patchCompatibility,
   patchPresetById,
+  songPatchPresetById,
   type Patch,
 } from '@driftbox/rack'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -514,6 +515,14 @@ describe('the starter patch', () => {
       ),
     }
     expect(matchingPreset(edited)).toBeUndefined()
+  })
+
+  it('recovers a rack++ song by name too, retained song and all', () => {
+    // A song patch carries a whole encoded Song in one field, so its round trip is the longest one the
+    // matcher has to survive. Without this it would come back from a shared link as "Untitled patch".
+    const song = songPatchPresetById('acieed-plus')!
+    const reopened = decodePatch(encodePatch(song.build()))!
+    expect(matchingPreset(reopened)?.name).toBe('Acieed ++')
   })
 
   it('only uses modules and ports this build actually has', () => {

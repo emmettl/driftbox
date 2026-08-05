@@ -36,6 +36,7 @@ import {
   type ModRoute,
   MODULES,
   PATCHES,
+  SONG_PATCHES,
   decodePatch,
   encodePatch,
   patchPresetById,
@@ -1835,7 +1836,9 @@ export function matchingPreset(patch: Patch): PatchPreset | undefined {
   // patch decodes as `{ modules, cables, break, ... }`, and JSON object order made identical patches differ.
   const canonical = (candidate: Patch) => encodePatch(decodePatch(encodePatch(candidate))!)
   const encoded = canonical(patch)
-  return PATCHES.find((preset) => canonical(preset.build()) === encoded)
+  // Both banks, because a rack++ song shared as a link is a shipped patch in exactly the way a system patch
+  // is, and leaving it out would have it come back from storage as "Untitled patch".
+  return [...PATCHES, ...SONG_PATCHES].find((preset) => canonical(preset.build()) === encoded)
 }
 
 /**

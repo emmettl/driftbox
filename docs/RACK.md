@@ -75,6 +75,26 @@ and uses the existing exclusive diversion. The controls default to unity and are
 written into imported songs; saving the first adjustment is rack-authored intent and makes
 the document `rack-extended`.
 
+`SONG_PATCHES` is what that seam is for, shipped as content rather than described. Six of the
+groovebox songs are also rack documents: the Song retained whole, the four machines cabled out of
+the Groovebox source onto a Line Mixer, a Reverb and a Ping Pong on the two aux sends, and at least
+one rack-native instrument the groovebox does not have. They are `rack-extended` by construction and
+deliberately never write `Patch.tempo` — the host already reads `patch.tempo ?? song.bpm`, so leaving
+it out is what keeps the rack transport following the song when somebody changes its tempo in the
+sequencer.
+
+They share one console function, which is the opposite of the rule `PATCHES` follows. That bank
+deliberately shares almost nothing, because a library of variations on one signal path would
+misrepresent what a modular is; these are records rather than demonstrations, and a record wants a
+desk that behaves the same way every time. One Combinator layout across all six is the point, not a
+shortcut.
+
+The rack layers stay in tune with the songs without a key being written down anywhere. `rootOf` reads
+the song's own 303 Tune knob, converts its ratio range to semitones against the oscillator's C2, and
+the result is that a Tracker lane value **is** a 303 note number — because both sides compute
+`root · 2^(n/12)` from the same root. Retuning a 303 in the groovebox moves the rack part with it,
+which a written-down tune value would not.
+
 A fifth host input carries a permission-gated browser `MediaStream` into the **Audio
 Input** source module. The app requests raw capture with speech processing disabled,
 offers every `audioinput` returned by `enumerateDevices()`, and reconnects a selected

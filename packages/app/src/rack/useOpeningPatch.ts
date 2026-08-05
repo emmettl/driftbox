@@ -1,22 +1,21 @@
-import { useEffect, useRef, type RefObject } from 'react'
-import { openingPatch, useRack, type Opening } from './store.js'
+import { useEffect, useRef } from 'react'
+import { openingPatch, useRack } from './store.js'
 
 /**
- * Whatever we were opened with: a shared link, the last session, or the starter patch.
+ * Adopt whatever we were opened with: a shared link, the last session, or the starter patch.
  *
- * The preset is kept so that pressing play can render the break it was written around. Only a *fresh*
- * arrival has one — a shared link or a saved session is somebody's work, and swapping it for a demo
- * because that makes a better first impression would be the worst thing this page could do.
+ * Only a *fresh* arrival carries a preset identity — a shared link or a saved session is somebody's work,
+ * and swapping it for a demo because that makes a better first impression would be the worst thing this
+ * page could do.
  *
- * Returned as the ref rather than as state: the only later reader is the Start gesture, asking which break
- * this page arrived wanting, and nothing on screen changes when the answer arrives.
+ * It returns nothing, and that is the point. It used to hand back a ref so the Start gesture could ask
+ * which break the page *arrived* wanting; Start now renders the break the current document names, because
+ * the two are the same value for the patch that opened and the opening one belongs to somebody else's
+ * document the instant a different one is loaded.
  */
-export function useOpeningPatch(
-  onIntendedBreak: (id: string) => void,
-): RefObject<Opening | null> {
+export function useOpeningPatch(onIntendedBreak: (id: string) => void): void {
   const load = useRack((s) => s.load)
   const setName = useRack((s) => s.setName)
-  const opening = useRef<Opening | null>(null)
   // Held in a ref rather than listed as a dependency. This effect must run exactly once — re-running it
   // would re-open the page over whatever somebody had since edited — and a caller passing an inline
   // callback should not be able to cause that.
@@ -25,7 +24,6 @@ export function useOpeningPatch(
 
   useEffect(() => {
     void openingPatch().then((result) => {
-      opening.current = result
       load(result.patch)
       // A shipped patch is a named piece of work, not an anonymous graph. This matters most in Perform
       // mode, where the rack is hidden: before this, the hero demo's only visible identity became the
@@ -36,6 +34,4 @@ export function useOpeningPatch(
       if (wanted) intendedBreak.current(wanted)
     })
   }, [load, setName])
-
-  return opening
 }

@@ -1,4 +1,13 @@
-import { PATCHES, embedGrooveboxSong, importVcv, type ImportNote } from '@driftbox/rack'
+import {
+  PATCHES,
+  SONG_PATCHES,
+  embedGrooveboxSong,
+  grooveboxSong,
+  importVcv,
+  type ImportNote,
+  type Patch,
+  type PatchPreset,
+} from '@driftbox/rack'
 import { useState } from 'react'
 import { BREAKS } from './breaks.js'
 import {
@@ -26,6 +35,63 @@ const TABS: readonly { id: BrowserTab; label: string }[] = [
   { id: 'breaks', label: 'Breaks' },
   { id: 'files', label: 'Import / export' },
 ]
+
+/**
+ * One card in the showcase, for a system patch or for a rack++ song.
+ *
+ * The two banks are the same card on purpose. A rack++ song is a patch — it opens into the same rack, it
+ * saves the same way, and every module in it can be unplugged — so presenting it as a different kind of
+ * object would be lying about what it is. What differs is the heading above the grid and the tempo, which
+ * a song patch leaves to its retained song rather than overriding.
+ */
+function PresetCard({
+  preset,
+  current,
+  onPick,
+}: {
+  preset: PatchPreset
+  current: string | null
+  onPick: (built: Patch) => void
+}) {
+  const built = preset.build()
+  const meters = built.modules.filter((module) => module.type === 'meter').length
+  const tempo = built.tempo ?? grooveboxSong(built)?.bpm
+
+  return (
+    <button
+      type="button"
+      className={`rk-preset-card rk-preset-${preset.accent}${preset.featured ? ' rk-preset-featured' : ''}`}
+      onClick={() => onPick(built)}
+    >
+      <span className="rk-preset-topline">
+        <span>{preset.kicker}</span>
+        {preset.featured && <em>editor’s pick</em>}
+      </span>
+      <span className="rk-preset-visual" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <b>VU—{meters}</b>
+      </span>
+      <strong>{preset.name}</strong>
+      <span className="rk-preset-blurb">{preset.blurb}</span>
+      <span className="rk-preset-tags">
+        {preset.features.map((feature) => (
+          <i key={feature}>{feature}</i>
+        ))}
+      </span>
+      <span className="rk-preset-meta">
+        <span>
+          {built.modules.length} modules · {built.cables.length} cables
+          {tempo ? ` · ${tempo} bpm` : ''}
+        </span>
+        <b>{current === preset.name ? 'open' : 'load →'}</b>
+      </span>
+    </button>
+  )
+}
 
 /** A deliberate preset browser, not a settings dump: every factory patch says what it proves before it
  * replaces the rack, while personal storage and file plumbing stay one tab away instead of competing
@@ -115,48 +181,37 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
         {tab === 'showcase' && (
           <section className="rk-showcase">
             <div className="rk-preset-grid">
-              {PATCHES.map((preset) => {
-                const built = preset.build()
-                const meters = built.modules.filter((module) => module.type === 'meter').length
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className={`rk-preset-card rk-preset-${preset.accent}${preset.featured ? ' rk-preset-featured' : ''}`}
-                    onClick={() => {
-                      adopt(built, preset.name)
-                      if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
-                    }}
-                  >
-                    <span className="rk-preset-topline">
-                      <span>{preset.kicker}</span>
-                      {preset.featured && <em>editor’s pick</em>}
-                    </span>
-                    <span className="rk-preset-visual" aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <b>VU—{meters}</b>
-                    </span>
-                    <strong>{preset.name}</strong>
-                    <span className="rk-preset-blurb">{preset.blurb}</span>
-                    <span className="rk-preset-tags">
-                      {preset.features.map((feature) => (
-                        <i key={feature}>{feature}</i>
-                      ))}
-                    </span>
-                    <span className="rk-preset-meta">
-                      <span>
-                        {built.modules.length} modules · {built.cables.length} cables
-                        {built.tempo ? ` · ${built.tempo} bpm` : ''}
-                      </span>
-                      <b>{name === preset.name ? 'open' : 'load →'}</b>
-                    </span>
-                  </button>
-                )
-              })}
+              {PATCHES.map((preset) => (
+                <PresetCard
+                  key={preset.id}
+                  preset={preset}
+                  current={name}
+                  onPick={(built) => {
+                    adopt(built, preset.name)
+                    if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* The other half of the shelf, and it needs its own heading rather than eight more cards in
+                the same grid: everything above is a system somebody has to play, and everything below is
+                a finished record that starts the moment it loads. Mixing the two made the whole tab read
+                as "here are sixteen things, good luck". */}
+            <div className="rk-showcase-break">
+              <h3>Rack++ songs</h3>
+              <p>
+                The groovebox songs, opened as rack documents. Each one keeps its arrangement and brings the
+                four machines in as separate stems — mixed on a desk, with a room and an echo on real sends,
+                and at least one instrument the groovebox does not have. Four macro knobs mean the same thing
+                in all of them.
+              </p>
+            </div>
+
+            <div className="rk-preset-grid">
+              {SONG_PATCHES.map((preset) => (
+                <PresetCard key={preset.id} preset={preset} current={name} onPick={(built) => adopt(built, preset.name)} />
+              ))}
             </div>
           </section>
         )}

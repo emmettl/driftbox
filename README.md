@@ -264,6 +264,34 @@ Saturn gets them by ghosting on a different, quieter **voice** rather than at a 
 velocity: an 808 rimshot doing all the in-between work a long way under a 909 snare. Which
 is also how it would have been programmed on the hardware.
 
+## Six of them again, in the rack
+
+The showcase in [`rack.html`](packages/app/rack.html) has a second shelf under the system
+patches: **rack++ songs**. Each one is a rack document that retains one of the songs above
+exactly — same patterns, same arrangement, same kit — and brings its four machines in as
+separate stereo stems instead of one finished mix.
+
+| | |
+|---|---|
+| **Sundown ++** | A hall long enough to still be ringing at the next kick, and a wavetable pad an LFO walks across the table. |
+| **Acieed ++** | The 303 sent back out of the groovebox and through the rack's own Drive and Ladder, so one macro opens a second resonant sweep on top of the one the song is playing. |
+| **Undertow ++** | A plate at nearly full size with the gate on a button, and a two-oscillator drone with no sequencer anywhere near it. |
+| **Last Bus ++** | A triangle sub in the two-step gaps, keyed from the 909 stem so every kick shoves it down and it climbs back in the gap. |
+| **Rings of Saturn ++** | The 909 through a tape stage before it reaches the desk, and four wavetable stabs a bar over the top. |
+| **Time Vortex ++** | A spring tank, a dotted-quarter tape echo, and a drone whose timbre is *drawn* — a Tracker lane in Curve mode wired to the Wavetable's Position. |
+
+They share a console on purpose, which is the opposite of the rule the system patches
+follow. Six stereo channels with their own balance, two aux sends — a room and an echo, the
+echo always at a musical fraction of the song's own tempo — and one Combinator whose four
+rotaries and four buttons mean the same thing in all six, so learning one is learning the
+set. What varies is the mix, the room, and the instrument the rack brings.
+
+The rack layers are in tune without anybody writing a key down. A VCO reads 0V as C2 and one
+CV unit as an octave, so tuning it to `12·log2(root/C2)` — read off the song's own 303 —
+makes its frequency `root · 2^(cv)`, which is exactly the formula the 303 uses. A Tracker
+lane in semitone mode divides by twelve, so **a lane value is a 303 note number**: retune a
+303 in the groovebox and the rack part moves with it.
+
 ## A song is a value
 
 A `Song` is plain JSON — patterns, a chain, kit settings, effect sends and optional
