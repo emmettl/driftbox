@@ -1,3 +1,5 @@
+import { isFormControl, isTextEntry } from '../text-entry.js'
+
 // The rack's keyboard, as predicates.
 //
 // Every one of these was an `if` at the top of a `keydown` listener inside `RackApp`, which made the most
@@ -6,25 +8,12 @@
 // about a different thing, with a patch-level one; that is the sort of bug people describe as "it deleted
 // my typing" and nobody can reproduce on demand.
 //
+// That rule now lives in `text-entry.ts`, because the sequencer's `Keys` needs the same one. It is
+// re-exported here so the rack's keyboard still reads as one set.
+//
 // Pure, so `shortcuts.test.ts` can hold each rule against the events a browser really sends.
 
-/** Anything a keystroke belongs to rather than to the page. */
-export function isTextEntry(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null
-  return element?.tagName === 'INPUT' || element?.tagName === 'TEXTAREA'
-}
-
-/**
- * The same question for `?`, which a `<select>` also wants.
- *
- * A select responds to typed characters by jumping to a matching option, so opening the help dialog over
- * somebody's half-finished choice is the same theft as the text case. The undo and flip keys leave selects
- * alone because neither `Tab` nor Cmd+Z types anything into one.
- */
-export function isFormControl(target: EventTarget | null): boolean {
-  const element = target as HTMLElement | null
-  return isTextEntry(target) || element?.tagName === 'SELECT'
-}
+export { isFormControl, isTextEntry }
 
 /** `?` opens the guide, unless it is being typed into something. */
 export function isHelpKey(event: Pick<KeyboardEvent, 'key' | 'target'>): boolean {

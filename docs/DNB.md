@@ -232,8 +232,8 @@ Two banks would each have believed they owned all the voices: an on-screen note 
 from hardware, and a release would hand back a voice the other still held. Sharing also means the on-screen keys
 light up for notes played on a controller.
 
-The layout is a C-rooted piano, and that is the *opposite* of the conclusion `ui/Keys.tsx` reaches, for the same
-reason. Colours follow pitch: the 303's note 0 is an A, so a C-shaped layout there put C, F and G on black keys.
+The layout is a C-rooted piano, and that is the *opposite* of the conclusion `ui/keys-layout.ts` reaches, for the
+same reason. Colours follow pitch: the 303's note 0 is an A, so a C-shaped layout there put C, F and G on black keys.
 The rack's 0 V is MIDI 36, a **C2**, so here a piano starting at C is exactly right.
 
 Three things were wrong and driving the page found all three, none of which any test would have:
