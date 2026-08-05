@@ -85,7 +85,10 @@ body {
 .rk-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  /* No column gap: the groups own their own spacing, so that the distance between two buttons doing
+     related jobs is visibly smaller than the distance between two that do not. That difference is the
+     whole mechanism — a row of evenly spaced pills has no structure to read however it is ordered. */
+  gap: 8px 0;
   flex-wrap: wrap;
   padding: 12px max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--edge);
@@ -94,6 +97,63 @@ body {
   z-index: 3;
   background: rgba(7, 4, 15, 0.86);
   backdrop-filter: blur(12px);
+}
+
+.rk-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 14px;
+}
+
+/* One flex item per cluster, which is what makes a narrow window wrap *between* related controls instead
+   of through them. The old row broke at whatever character count the viewport happened to be.
+ *
+ * A faint tray behind each rather than a rule between them. A rule is cheaper and was the first attempt,
+ * but the header wraps — and a wrapped group carries its leading rule to the start of the next line,
+ * where it separates nothing and reads as a stray mark. A tray is the same information and has no edge
+ * case: wherever the group lands, it lands whole and visibly one thing. */
+.rk-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+.rk-group + .rk-group {
+  margin-left: 8px;
+}
+/* Compound, so it beats the adjacent-sibling rule above rather than losing to it on specificity and
+   quietly leaving the way out stranded mid-row. */
+.rk-group.rk-group-end {
+  margin-left: auto;
+  background: transparent;
+}
+
+/* A fact about this browser rather than a problem with this rack — no Web MIDI, no getUserMedia. The
+   header used its warning colour for both, which spends an alarm on something nobody can act on. */
+.rk-quiet {
+  font: 11px var(--mono);
+  color: var(--dim);
+}
+
+/* Narrow: the separators stop earning their keep once most groups are on their own line, and the group
+   padding becomes a left margin on nothing. The clusters still hold together, which is the part that
+   mattered — they simply stack instead of sitting side by side. */
+@media (max-width: 700px) {
+  .rk-header {
+    gap: 8px;
+  }
+  .rk-mark {
+    padding-right: 0;
+  }
+  .rk-group + .rk-group {
+    margin-left: 0;
+  }
+  .rk-group-end {
+    margin-left: 0;
+  }
 }
 
 .rk-header h1 {
@@ -140,10 +200,29 @@ body {
   color: var(--nine);
 }
 
-/* One pair, so the two read as one control rather than as two more buttons in a row of them. */
-.rk-undo {
-  display: flex;
-  gap: 6px;
+/* The Export disclosure. Anchored to its trigger and right-aligned, because it sits near the end of the
+   row and a left-aligned panel would hang off the edge of a narrow window. */
+.rk-menu {
+  position: relative;
+  display: inline-flex;
+}
+.rk-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 6;
+  display: grid;
+  gap: 4px;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--edge);
+  border-radius: 11px;
+  background: rgba(10, 7, 22, 0.98);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+}
+.rk-menu-panel button {
+  width: 100%;
+  text-align: left;
 }
 /* Dimmed rather than hidden. A button that disappears when there is nothing to undo moves everything
    after it, and the header's wrap means that can reflow the whole row. */
@@ -164,7 +243,6 @@ kbd {
 }
 
 .rk-away {
-  margin-left: auto;
   color: var(--dim);
   text-decoration: none;
 }

@@ -16,7 +16,15 @@ import {
   renderPatch,
   type Patch,
 } from '@driftbox/rack'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react'
 import { flushSync } from 'react-dom'
 import { BackPanel } from './BackPanel.js'
 import { Chassis } from './Chassis.js'
@@ -25,6 +33,7 @@ import { layout } from './layout.js'
 import { clearLive, publishLive } from './live.js'
 import { moveTo, stepAt, STOPPED, type Playhead } from './playhead.js'
 import { Palette } from './Palette.js'
+import { RackHeader } from './RackHeader.js'
 import { Oscilloscope } from '../visual/Oscilloscope.js'
 import { SCENES } from '../visual/scenes/index.js'
 import { BREAKS, renderBreak } from './breaks.js'
@@ -116,11 +125,6 @@ export default function RackApp() {
   const flip = useRack((s) => s.flip)
   const undo = useRack((s) => s.undo)
   const redo = useRack((s) => s.redo)
-  // The depth rather than the history, so this re-renders when undo becomes available and not on every
-  // step taken while it already was. A selector returning an object would hand zustand a new snapshot
-  // every call, which is the infinite-render trap the note further down this file records.
-  const canUndo = useRack((s) => s.history.past.length > 0)
-  const canRedo = useRack((s) => s.history.future.length > 0)
   const load = useRack((s) => s.load)
   const addModule = useRack((s) => s.addModule)
   const addChunk = useRack((s) => s.addChunk)
@@ -128,8 +132,6 @@ export default function RackApp() {
   const name = useRack((s) => s.name)
   const setName = useRack((s) => s.setName)
   const setMidi = useRack((s) => s.setMidi)
-  const midiInputs = useRack((s) => s.midiInputs)
-  const setVoices = useRack((s) => s.setVoices)
   const voices = useRack((s) => s.patch.voices ?? 1)
   const hasMidi = useRack((s) => s.patch.modules.some((m) => m.type === 'midi'))
   const setTempo = useRack((s) => s.setTempo)
@@ -138,7 +140,6 @@ export default function RackApp() {
   const playing = useRack((s) => s.running)
   const setRunning = useRack((s) => s.setRunning)
   const automating = useRack((s) => s.automating)
-  const setAutomating = useRack((s) => s.setAutomating)
   const ensureSampler = useRack((s) => s.ensureSampler)
   const compatibility = useMemo(() => patchCompatibility(patch), [patch])
   const patchStemCount = useMemo(() => patchStemTargets(patch, MODULES).length, [patch])
@@ -1361,6 +1362,59 @@ export default function RackApp() {
   )
 
   /**
+   * Copy a link to this patch, and put the link that was just made on the clipboard.
+   *
+   * The local rather than `shared`: that is state this closure captured before the link existed, so
+   * writing it copied whatever the *previous* press had left there — and on the first press of a session,
+   * nothing at all. Silent, and indistinguishable from a browser refusing clipboard access.
+   */
+  const copyLink = useCallback(async () => {
+    const link = await patchShareLink(useRack.getState().patch)
+    setShared(link)
+    await navigator.clipboard?.writeText(link).catch(() => {})
+  }, [])
+
+  const exportPatchWav = useCallback(async () => {
+    setExporting('patch')
+    try {
+      await exportPatch()
+    } finally {
+      setExporting(null)
+    }
+  }, [exportPatch])
+
+  const exportSongWav = useCallback(async () => {
+    setExporting('song')
+    try {
+      await exportGrooveboxMix()
+    } finally {
+      setExporting(null)
+    }
+  }, [exportGrooveboxMix])
+
+  const leaveForSequencer = useCallback(
+    (event: ReactMouseEvent<HTMLAnchorElement>) => {
+      if (!patch.groovebox) return
+      event.preventDefault()
+      if (
+        compatibility === 'rack-extended' &&
+        !confirm(
+          'This opens only the retained groovebox song. Your rack modules, cables and other rack-only changes stay saved in rack mode. Continue?',
+        )
+      ) {
+        return
+      }
+      // Do not leave the newest rack edit waiting in the trailing autosave timer while navigation
+      // unloads the page.
+      storePatch(patch)
+      void sequencerLink(patch).then((url) => {
+        if (url) window.location.assign(url)
+      })
+    },
+    [compatibility, patch],
+  )
+
+  /**
    * Everything a guided tour is allowed to know, gathered in one place.
    *
    * A snapshot rather than the store, and this is the boundary that keeps `tutorials.ts` testable in Node:
@@ -1387,315 +1441,54 @@ export default function RackApp() {
       data-audio={audioState}
       data-keyboard={keyboardOpen ? 'open' : 'closed'}
     >
-      <header className="rk-header">
-        <h1>
-          Driftbox <span>Rack</span>
-        </h1>
-        {name && <span className="rk-open">{name}</span>}
-        {loadedBreak && <span className="rk-open">Break · {loadedBreak.name}</span>}
-
-        {!started && !failed && (
-          <button type="button" className="rk-primary" onClick={start}>
-            Start audio
-          </button>
-        )}
-        {failed && <span className="rk-warn">No AudioWorklet — this browser cannot run a rack.</span>}
-
-        <button type="button" onClick={() => flip()} aria-pressed={flipped}>
-          {flipped ? 'Front' : 'Back'} <kbd>Tab</kbd>
-        </button>
-
-        {/* Buttons as well as the shortcut, the same standard the back panel holds itself to — where
-            Enter arms a jack because a rack whose whole point is the cables is a poor thing to make
-            mouse-only. This is the other direction: a keyboard-only undo is invisible, and undo is the
-            one feature nobody looks for until they need it in a hurry. */}
-        <span className="rk-undo">
-          <button type="button" onClick={() => undo()} disabled={!canUndo} title="Undo — Ctrl/Cmd+Z">
-            ↶ Undo
-          </button>
-          <button
-            type="button"
-            onClick={() => redo()}
-            disabled={!canRedo}
-            title="Redo — Ctrl/Cmd+Shift+Z"
-          >
-            ↷ Redo
-          </button>
-        </span>
-
-        <button
-          type="button"
-          onClick={() => {
-            setAdding((open) => !open)
-            setBrowsing(false)
-          }}
-          aria-expanded={adding}
-        >
-          Add module
-        </button>
-
-        {/* No extra class: the header already styles `aria-pressed` buttons, the way the flip button does.
-            A custom filled style put teal text on a teal background and the label vanished. */}
-        <button
-          type="button"
-          onClick={cycleRackView}
-          aria-pressed={performing}
-          aria-label={`View: ${rackView}. Cycle through rack, split performance, and full pad.`}
-          title="Cycle view: Rack → Split → Pad"
-        >
-          View · {rackView[0].toUpperCase() + rackView.slice(1)}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setBrowsing((open) => !open)
-            setAdding(false)
-          }}
-          aria-expanded={browsing}
-        >
-          Patches
-        </button>
-
-        {started && (
-          <>
-            <button type="button" onClick={() => setRunning(!playing)} aria-pressed={playing}>
-              {playing ? '■ Stop' : '▶ Play'}
-            </button>
-            {/* Arm. Beside the transport rather than on a faceplate, because it arms every knob in the
-                rack at once — a per-module control would imply you had to arm the one you were about to
-                touch, which is the opposite of how recording a performance works. `aria-pressed` gets the
-                header's own on-state styling, the same as the flip and perform buttons. */}
-            <button
-              type="button"
-              className={automating ? 'rk-arm rk-arm-on' : 'rk-arm'}
-              onClick={() => setAutomating(!automating)}
-              aria-pressed={automating}
-              title="Record knob moves onto the arrangement"
-            >
-              ● Rec
-            </button>
-            <label className="rk-voices">
-              BPM
-              <input
-                type="number"
-                min={20}
-                max={400}
-                value={Math.round(tempo)}
-                aria-label="Tempo"
-                onChange={(event) => setTempo(Number(event.target.value))}
-              />
-            </label>
-          </>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setAutomationOpen(true)}
-          aria-expanded={automationOpen}
-          title="Inspect and edit recorded rack parameter lanes"
-        >
-          Automation{patch.automation?.length ? ` (${patch.automation.length})` : ''}
-        </button>
-
-        <label
-          className="rk-voices"
-          title={
-            voices > 1 && !hasMidi
-              ? 'Nothing here plays different notes on different voices, so every voice plays the same one — and the output is that many times louder. Add a MIDI module.'
-              : undefined
-          }
-        >
-          Voices
-          <select
-            value={voices}
-            onChange={(event) => setVoices(Number(event.target.value))}
-            aria-label="Voices"
-          >
-            {[1, 2, 3, 4, 5, 6, 8].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {midiState !== 'unavailable' ? (
-          <button
-            type="button"
-            onClick={toggleMidi}
-            aria-pressed={midiState === 'on'}
-            disabled={!started}
-            title={started ? undefined : 'Start audio first'}
-          >
-            {/* "MIDI in" rather than "MIDI": the palette has a button for the module itself, and two
-                controls sharing an accessible name is ambiguous to a screen reader and to a test. */}
-            MIDI in{midiState === 'on' && midiInputs.length > 0 ? ` · ${midiInputs.length}` : ''}
-          </button>
-        ) : (
-          <span className="rk-warn">No Web MIDI in this browser.</span>
-        )}
-
-        {hasAudioInput && audioInputState === 'on' && (
-          <>
-            <label className="rk-voices rk-input-device">
-              Input
-              <select
-                value={selectedAudioInput}
-                aria-label="Audio input device"
-                onChange={(event) => void connectAudioInput(event.target.value)}
-              >
-                {selectedAudioInput &&
-                  !audioInputs.some((device) => device.id === selectedAudioInput) && (
-                    <option value={selectedAudioInput}>Current audio input</option>
-                  )}
-                {audioInputs.map((device) => (
-                  <option key={device.id} value={device.id}>
-                    {device.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="button" onClick={closeAudioInput} aria-pressed="true">
-              Input on
-            </button>
-          </>
-        )}
-        {hasAudioInput && audioInputState !== 'on' && audioInputState !== 'unavailable' && (
-          <button
-            type="button"
-            className="rk-primary"
-            disabled={!started || audioInputState === 'opening'}
-            title={started ? 'Allow and monitor a microphone or audio interface' : 'Start audio first'}
-            onClick={() => void connectAudioInput()}
-          >
-            {audioInputState === 'opening' ? 'Opening input…' : 'Enable input'}
-          </button>
-        )}
-        {hasAudioInput && audioInputState === 'unavailable' && (
-          <span className="rk-warn">No browser audio input here.</span>
-        )}
-        {hasAudioInput && audioInputError && <span className="rk-warn">{audioInputError}</span>}
-
-        <button
-          type="button"
-          onClick={async () => {
-            setShared(await patchShareLink(useRack.getState().patch))
-            await navigator.clipboard?.writeText(shared ?? '').catch(() => {})
-          }}
-        >
-          Copy link
-        </button>
-
-        <button
-          type="button"
-          disabled={exporting !== null}
-          title="Render this patch to a WAV file"
-          onClick={async () => {
-            setExporting('patch')
-            try {
-              await exportPatch()
-            } finally {
-              setExporting(null)
-            }
-          }}
-        >
-          {exporting === 'patch' ? 'Rendering patch…' : 'Patch WAV'}
-        </button>
-
-        <button
-          type="button"
-          disabled={exporting !== null || patchStemCount === 0}
-          title={
-            patchStemCount > 0
-              ? 'Preview or export one stereo WAV per terminal Out strip'
-              : 'Add an Out module to define a rack stem'
-          }
-          onClick={() => setReviewingPatchStems(true)}
-        >
-          {`Patch stems${patchStemCount > 0 ? ` (${patchStemCount})` : ''}`}
-        </button>
-
-        {retainedSong && (
-          <>
-            <button
-              type="button"
-              disabled={exporting !== null}
-              title="Render the retained Groovebox song through its mastered stereo bus"
-              onClick={async () => {
-                setExporting('song')
-                try {
-                  await exportGrooveboxMix()
-                } finally {
-                  setExporting(null)
-                }
-              }}
-            >
-              {exporting === 'song' ? 'Rendering song…' : 'Song WAV'}
-            </button>
-            <button
-              type="button"
-              disabled={exporting !== null}
-              title="Preview or export the retained song as one pre-master WAV per voice"
-              onClick={() => setReviewingSongStems(true)}
-            >
-              Song stems
-            </button>
-          </>
-        )}
-
-        <button
-          type="button"
-          className="rk-help-trigger"
-          onClick={() => setHelpOpen(true)}
-          aria-label="Open help"
-          aria-keyshortcuts="?"
-          title="Help (?)"
-        >
-          ? Help
-        </button>
-
-        {patch.groovebox && !retainedSong ? (
-          <span
-            className="rk-away rk-away-disabled"
-            title="This sequencer build cannot safely open the retained future song"
-          >
-            Sequencer unavailable
-          </span>
-        ) : (
-          <a
-            className="rk-away"
-            href="./index.html"
-            onClick={(event) => {
-              if (!patch.groovebox) return
-              event.preventDefault()
-              if (
-                compatibility === 'rack-extended' &&
-                !confirm(
-                  'This opens only the retained groovebox song. Your rack modules, cables and other rack-only changes stay saved in rack mode. Continue?',
-                )
-              ) {
-                return
-              }
-              // Do not leave the newest rack edit waiting in the trailing autosave timer while
-              // navigation unloads the page.
-              storePatch(patch)
-              void sequencerLink(patch).then((url) => {
-                if (url) window.location.assign(url)
-              })
-            }}
-            title={
-              patch.groovebox
-                ? compatibility === 'rack-extended'
-                  ? 'Open the retained song; rack-only additions stay saved in rack mode'
-                  : 'Return to the sequencer with the retained song'
-                : undefined
-            }
-          >
-            Sequencer →
-          </a>
-        )}
-      </header>
+      <RackHeader
+        loadedBreakName={loadedBreak?.name ?? null}
+        started={started}
+        failed={failed}
+        onStart={() => void start()}
+        automationOpen={automationOpen}
+        onOpenAutomation={() => setAutomationOpen(true)}
+        adding={adding}
+        onToggleAdd={() => {
+          setAdding((open) => !open)
+          setBrowsing(false)
+        }}
+        browsing={browsing}
+        onToggleBrowse={() => {
+          setBrowsing((open) => !open)
+          setAdding(false)
+        }}
+        rackView={rackView}
+        performing={performing}
+        onCycleView={cycleRackView}
+        midiState={midiState}
+        onToggleMidi={() => void toggleMidi()}
+        hasAudioInput={hasAudioInput}
+        audioInputState={audioInputState}
+        audioInputs={audioInputs}
+        selectedAudioInput={selectedAudioInput}
+        onSelectAudioInput={(id) => void connectAudioInput(id)}
+        onCloseAudioInput={closeAudioInput}
+        exporting={exporting}
+        patchStemCount={patchStemCount}
+        hasRetainedSong={retainedSong !== null && retainedSong !== undefined}
+        onCopyLink={copyLink}
+        onExportPatch={() => void exportPatchWav()}
+        onReviewPatchStems={() => setReviewingPatchStems(true)}
+        onExportSong={() => void exportSongWav()}
+        onReviewSongStems={() => setReviewingSongStems(true)}
+        tempo={tempo}
+        onHelp={() => setHelpOpen(true)}
+        sequencerBlocked={Boolean(patch.groovebox) && !retainedSong}
+        sequencerTitle={
+          patch.groovebox
+            ? compatibility === 'rack-extended'
+              ? 'Open the retained song; rack-only additions stay saved in rack mode'
+              : 'Return to the sequencer with the retained song'
+            : undefined
+        }
+        onSequencer={leaveForSequencer}
+      />
 
       {compatibility !== 'rack-native' && (
         <p className="rk-document">
@@ -1784,6 +1577,11 @@ export default function RackApp() {
           The browser has suspended audio — press Play again, or click anywhere on the page.
         </p>
       )}
+
+      {/* Out of the header and into the warning stack. An error is a sentence of arbitrary length, and a
+          sentence in a toolbar pushes every control after it onto another line — which is how somebody
+          finds out their microphone was refused: the buttons move. */}
+      {hasAudioInput && audioInputError && <p className="rk-warn">{audioInputError}</p>}
 
       {audioInputState === 'on' && (
         <p className="rk-warn">

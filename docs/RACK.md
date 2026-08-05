@@ -1226,6 +1226,50 @@ the **Keys** and **Arp** chunks are the first two that wait for a key — declar
 same reason `needsSample` is declared, so the test that every chunk makes a sound on arrival can hold them to
 the right standard instead of skipping them.
 
+## The header, and the twenty-one-button problem
+
+Nobody adds eleven buttons. They add one, eleven times, each of them justified, and the row that results
+is unreadable in a way no individual commit caused. The rack's toolbar reached twenty-one controls, all
+the same shape, in an order that was chronological rather than anything else — Play between Patches and
+Automation, Patch stems looking exactly like Back.
+
+Three fixes, in order of how much they helped.
+
+**Grouping, not shortening.** Six clusters — transport, build, view, setup, output, the way out — ordered
+by how often a hand goes to them, each a real `role="group"` with a label and a faint tray behind it. The
+tray earns its place over a separator rule for one reason: the header wraps, and a wrapped group carries
+its leading rule to the start of the next line where it separates nothing. A group is also one flex item,
+so a narrow window now breaks *between* related controls instead of through them at whatever character
+count the viewport happened to be.
+
+**Nothing moves.** `rack.css` already knew this mattered and said so about undo — "a button that
+disappears when there is nothing to undo moves everything after it" — while five other controls did
+exactly that. Start audio was a button in one place that became Play in another; Rec, BPM and the two song
+renders appeared out of nowhere and shoved the row along. Now: one transport slot holding Start before
+audio and Play after, Rec present and disabled until there is a timeline to record against, and the song
+renders inside a menu whose trigger never changes width. `RackHeader.browser.test.ts` asserts the
+positions rather than trusting them, because this is the sort of thing that is obvious on the day and
+silently undone by the next conditional button.
+
+**One menu, for the five ways out.** Copy link, Patch WAV, Patch stems, Song WAV and Song stems are the
+rarest quarter of the work and were a quarter of the toolbar. Behind one named button they are easier to
+find rather than harder — "Export" says what they are for, which five separate labels never did. Nothing
+else goes in a menu: a disclosure costs a press and a state, and a View menu holding one button would be
+ceremony.
+
+It is a component now rather than three hundred lines inside `RackApp`, which is what made any of it
+testable — and the extraction turned up a real bug on the way past. Copy link wrote `shared` to the
+clipboard, the state variable its own closure had captured *before* the new link existed, so it copied the
+previous press's link and, on the first press of a session, nothing at all.
+
+One more thing worth writing down, because it cost an hour and every wrong explanation fitted. The
+keyboard dock carries a `view-transition-name`, and in Chromium that promotes it: it paints above ordinary
+z-index layers, exactly as the comment on it says. So the Hide keyboard tab drew straight through the
+guided-tour panel — opaque, `z-index: 20`, and `elementFromPoint` correctly reporting the panel on top.
+The pointer and the pixels disagreed, which rules out every explanation involving z-index. The actual
+mistake was arithmetic: the panel cleared `--keys-height` when the dock is `--keys-height` *plus*
+`--keys-toggle-height`. Clear both and there is nothing to paint over.
+
 ## The visualiser, and why it lives on the performance pad
 
 The sequencer has eighteen 3D scenes and the obvious first move was to put one behind the rack. Measured
