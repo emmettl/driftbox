@@ -43,6 +43,27 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify('testsha'),
   },
   test: {
+    // Thirty seconds rather than the default five, for both projects.
+    //
+    // A DSP test renders audio, and a second of audio is a second of arithmetic whatever the machine
+    // is having to do at the time. The slowest one here — the reverb asserting that all four algorithms
+    // die away — renders twenty-four seconds of tail through an eight-line FDN, and it timed out at 5s
+    // during `npm run coverage` on CI (run 31050855030), then passed on a re-run of the same commit.
+    // On a quiet laptop that test takes 0.66s under V8 coverage instrumentation, so that runner was
+    // more than seven times slower than this one, and it is not alone near the wall: `survives being
+    // swept`, the engine's ladder-stability test, `always dies away`, pink noise's spectrum and the
+    // vocoder's band sweep all sit between 0.15s and 0.45s instrumented, which is 1–3.5s at that same
+    // multiplier. Fixing only the one that happened to fail would leave five more of them a bad
+    // afternoon away from doing the same.
+    //
+    // Nothing is given up by moving the wall. This suite is synchronous arithmetic with no I/O and no
+    // timers, so the only thing a timeout can catch is a loop that does not terminate, and thirty
+    // seconds catches that as surely as five — it just takes longer to say so. Set here rather than
+    // per test so that the next multi-second render inherits it instead of rediscovering this.
+    //
+    // It matters because of where it fails: `publish.yml` runs `npm test` before it publishes, so a
+    // flaky timeout is a release that aborts halfway through a set of packages that go up in order.
+    testTimeout: 30_000,
     // Keep coverage useful as a map of the gaps, not a number to game. Vitest 4 only reports
     // files loaded by a test unless `include` is explicit; that default would make untouched
     // app and UI files invisible and the total look healthier than the codebase really is.
