@@ -1284,14 +1284,7 @@ aside {
 
 /* The particles streaming into the play button. Above the scene, below the buttons, and
    pointer-transparent — it is a signpost, not a control. */
-.play-beacon {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-}
+/* `.play-beacon` itself now lives beside the component, in `ui/PlayBeacon.css`. */
 
 /* The console pair sits ABOVE the console, not behind it. The transport bar and every
    panel carry their own background and a backdrop blur, so a stream drawn underneath

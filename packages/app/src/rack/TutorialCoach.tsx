@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { PlayBeacon } from '../ui/PlayBeacon.js'
+import { useMedia } from '../ui/useFirstRun.js'
+import { spotlightRef } from './spotlight.js'
 import type { Tutorial, TutorialState } from './tutorials.js'
 import './TutorialCoach.css'
 
@@ -18,10 +21,23 @@ import './TutorialCoach.css'
 // pretends you did it.
 //
 // It is an aside rather than a modal, and that is the whole design. A modal would cover the rack the tour
-// is asking you to touch, and the alternative — a spotlight cut-out over the real control — needs the
-// panel to know where every control in the rack is, which is a second layout system that goes wrong
-// silently every time a faceplate moves. A named place to look ("Back panel", "Add module") costs nothing
-// and survives the rack being rearranged.
+// is asking you to touch. A named place to look ("Back panel", "Add module") costs nothing and survives
+// the rack being rearranged.
+//
+// **And then the particles.** The app already had an answer to "which button" and it was written for this
+// exact problem one screen over: `PlayBeacon` streams particles into a control that wants pressing, and
+// its own note says why it stops — "a permanent effect is decoration; one that stops when you have learnt
+// the thing is an instruction". A tour step is that sentence with a smaller scope. So the current step
+// gets a stream, the ones before and after do not, and it goes out when the tour does.
+//
+// **One at a time, and not on every step.** Two streams would be two destinations, which is what the
+// groovebox uses them for and is the opposite of an instruction. Steps whose target is the keyboard across
+// the whole bottom of the screen, or "any knob", have no `spotlight` at all — an arrow drawn to something
+// unmissable is the decoration this is trying not to be. And it is off entirely under
+// `prefers-reduced-motion`, where the words have to carry it alone.
+
+/** The rack's own teal, so the stream reads as part of the panel that sent it. */
+const TEAL = '95, 240, 208'
 
 interface Props {
   tutorial: Tutorial
@@ -100,87 +116,115 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
     setAt(next >= 0 ? next : tutorial.steps.length)
   }
 
+  const stillness = useMedia('(prefers-reduced-motion: reduce)')
+
   const done = marks.filter((mark) => mark === 'done').length
   const skipped = marks.filter((mark) => mark === 'skipped').length
   const over = at >= tutorial.steps.length
   const step = over ? null : tutorial.steps[at]
 
+  // Rebuilt only when the step's aim changes, so the beacon's particle field survives a re-render — it is
+  // keyed on the target list, and a new key restarts every particle from the outside.
+  const aim = step?.spotlight?.join('|') ?? ''
+  const beacons = useMemo(
+    () =>
+      aim === '' || stillness
+        ? []
+        : [
+            {
+              key: aim,
+              target: spotlightRef(aim.split('|')),
+              tint: TEAL,
+              count: 44,
+              spawn: 5,
+              // Capped in pixels, because these targets are not all one size: a step points at a 100px
+              // header button and, one step later, at a 300px card in the picker. Five radii is a halo
+              // round the first and half a window round the second.
+              reach: 260,
+            },
+          ],
+    [aim, stillness],
+  )
+
   return (
-    <aside
-      className="rk-coach"
-      data-collapsed={collapsed ? 'yes' : 'no'}
-      aria-label={`Guided tour: ${tutorial.name}`}
-    >
-      <header className="rk-coach-head">
-        <div>
-          <span>Guided tour</span>
-          <strong>{tutorial.name}</strong>
-        </div>
-        <button
-          type="button"
-          className="rk-coach-fold"
-          onClick={() => setCollapsed((shut) => !shut)}
-          aria-expanded={!collapsed}
-        >
-          {collapsed ? '▴' : '▾'}
-        </button>
-        <button type="button" className="rk-coach-close" onClick={onClose} aria-label="End the tour">
-          ×
-        </button>
-      </header>
+    <>
+      <PlayBeacon className="rk-coach-beacon" targets={beacons} />
+      <aside
+        className="rk-coach"
+        data-collapsed={collapsed ? 'yes' : 'no'}
+        aria-label={`Guided tour: ${tutorial.name}`}
+      >
+        <header className="rk-coach-head">
+          <div>
+            <span>Guided tour</span>
+            <strong>{tutorial.name}</strong>
+          </div>
+          <button
+            type="button"
+            className="rk-coach-fold"
+            onClick={() => setCollapsed((shut) => !shut)}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? '▴' : '▾'}
+          </button>
+          <button type="button" className="rk-coach-close" onClick={onClose} aria-label="End the tour">
+            ×
+          </button>
+        </header>
 
-      {/* The count stays visible when the body is folded away, because the reason to fold it is that the
-          rack is in the way — not that you have stopped caring how far along you are. */}
-      <ol className="rk-coach-track" aria-label={`${done} of ${tutorial.steps.length} steps done`}>
-        {tutorial.steps.map((entry, index) => (
-          <li
-            key={entry.id}
-            data-mark={marks[index]}
-            data-current={index === at ? 'yes' : 'no'}
-            title={entry.title}
-          />
-        ))}
-      </ol>
+        {/* The count stays visible when the body is folded away, because the reason to fold it is that the
+            rack is in the way — not that you have stopped caring how far along you are. */}
+        <ol className="rk-coach-track" aria-label={`${done} of ${tutorial.steps.length} steps done`}>
+          {tutorial.steps.map((entry, index) => (
+            <li
+              key={entry.id}
+              data-mark={marks[index]}
+              data-current={index === at ? 'yes' : 'no'}
+              title={entry.title}
+            />
+          ))}
+        </ol>
 
-      {!collapsed && (
-        // Polite rather than assertive: a step ticking is worth hearing about, and worth hearing about
-        // after whatever the rack itself just said.
-        <div className="rk-coach-body" aria-live="polite">
-          {step ? (
-            <>
-              <span className="rk-coach-where">{step.where}</span>
-              <h2>{step.title}</h2>
-              <p>{step.body}</p>
-              <div className="rk-coach-actions">
-                <button type="button" onClick={() => advance('skipped')}>
-                  Skip this step
-                </button>
-                <span className="rk-coach-count">
-                  {done + skipped + 1} / {tutorial.steps.length}
-                </span>
-              </div>
-              <p className="rk-coach-note">
-                This ticks itself when you have done it. Nothing here presses anything for you.
-              </p>
-            </>
-          ) : (
-            <>
-              <span className="rk-coach-where">Finished</span>
-              <h2>{skipped === 0 ? 'All done.' : `Done, with ${skipped} skipped.`}</h2>
-              <p>
-                {skipped === 0
-                  ? 'Every step of this one happened in your rack rather than in a video. Take another from ? Help, or carry on from here.'
-                  : 'The skipped steps are still worth coming back for — a tour can be restarted from ? Help at any point.'}
-              </p>
-              <div className="rk-coach-actions">
-                <button type="button" className="rk-primary" onClick={onClose}>
-                  Close
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </aside>
+        {!collapsed && (
+          // Polite rather than assertive: a step ticking is worth hearing about, and worth hearing about
+          // after whatever the rack itself just said.
+          <div className="rk-coach-body" aria-live="polite">
+            {step ? (
+              <>
+                <span className="rk-coach-where">{step.where}</span>
+                <h2>{step.title}</h2>
+                <p>{step.body}</p>
+                <div className="rk-coach-actions">
+                  <button type="button" onClick={() => advance('skipped')}>
+                    Skip this step
+                  </button>
+                  <span className="rk-coach-count">
+                    {done + skipped + 1} / {tutorial.steps.length}
+                  </span>
+                </div>
+                <p className="rk-coach-note">
+                  This ticks itself when you have done it. Nothing here presses anything for you.
+                </p>
+              </>
+            ) : (
+              <>
+                <span className="rk-coach-where">Finished</span>
+                <h2>{skipped === 0 ? 'All done.' : `Done, with ${skipped} skipped.`}</h2>
+                <p>
+                  {skipped === 0
+                    ? 'Every step of this one happened in your rack rather than in a video. Take another from ? Help, or carry on from here.'
+                    : 'The skipped steps are still worth coming back for — a tour can be restarted from ? Help at any point.'}
+                </p>
+                <div className="rk-coach-actions">
+                  <button type="button" className="rk-primary" onClick={onClose}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </aside>
+    </>
   )
 }

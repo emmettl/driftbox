@@ -1258,6 +1258,45 @@ find rather than harder — "Export" says what they are for, which five separate
 else goes in a menu: a disclosure costs a press and a state, and a View menu holding one button would be
 ceremony.
 
+### Pointing at the control
+
+A step says "Add module → Sources → Voice", and the reader has to find Add module. The app already had the
+answer to that and it was written for the same problem one screen over: `PlayBeacon` streams particles into
+a button that wants pressing, and its own note says why it stops — *"a permanent effect is decoration; one
+that stops when you have learnt the thing is an instruction"*. A tour step is that sentence with a smaller
+scope, so the current step gets a stream and the tour takes it away when it ends.
+
+**A step names its target with a CSS selector, not a ref.** `tutorials.ts` is data, written long before
+anything renders, and half of what it points at does not exist yet — the Voice card is inside a picker that
+is shut, the Ladder's panel is a module nobody has added. `spotlight.ts` turns a list of selectors into
+something ref-shaped with a **getter**: the beacon already re-reads its target's box every frame, so
+resolving the selector inside that same read makes the target live for free. No observer, no polling, no
+cache to go stale. It also makes the commonest instruction one target instead of two —
+`['.rk-card[data-module="voice"]', '[data-beacon="add"]']` sits on Add module until the picker opens and
+then moves to the card, because the card is now the first thing that matches.
+
+The four attributes it may name — `data-beacon`, `data-module-type`, `data-module`, `data-chunk` — exist
+for this and nothing else, and `isAimable` holds the tours to them. A selector written against a class or
+a label would rot the first time a component was restyled, and a rotted spotlight fails *silently*: the
+step simply has no arrow on it. So a Node test checks the shape and a browser test renders the header and
+the picker and checks the attributes are really there.
+
+Not every step gets one. An arrow drawn to the keyboard across the whole bottom of the screen, or to "any
+knob", is the decoration this is trying not to be — and the test asserts that some steps have none, so
+nobody comes along and helpfully finishes the set.
+
+Two things fell out of being the component's second consumer, both real:
+
+- **`PlayBeacon` had no styles of its own.** They lived in the groovebox's stylesheet, which the rack page
+  does not load, so it rendered as a canvas's intrinsic 300×150 box in the top-left corner — drawing into
+  the wrong place and, with nothing setting `pointer-events`, swallowing clicks on whatever was under it. A
+  component that only works when its caller has imported the right stylesheet is not a component.
+- **The particle brightness was unclamped.** Spawn distance is a multiple of the target's own radius, which
+  is right when every target is a button and wrong when one is a 40px button and the next a 300px card, so
+  the tour caps it in pixels. That cap can shrink the reach under a particle already in flight, which makes
+  its `near` term negative — and `near` was squared for alpha, so the *most distant* particles came out the
+  brightest, while the radius they were drawn at went negative and threw out of the animation frame.
+
 It is a component now rather than three hundred lines inside `RackApp`, which is what made any of it
 testable — and the extraction turned up a real bug on the way past. Copy link wrote `shared` to the
 clipboard, the state variable its own closure had captured *before* the new link existed, so it copied the

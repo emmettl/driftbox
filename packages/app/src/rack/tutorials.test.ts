@@ -1,5 +1,6 @@
 import type { Patch } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
+import { isAimable } from './spotlight.js'
 import {
   TUTORIALS,
   audible,
@@ -177,6 +178,31 @@ describe('the lessons as a set', () => {
         expect(step.done(BLANK), `${tour.id}/${step.id}`).toBe(false)
       }
     }
+  })
+
+  it('only aims at attributes that exist to be aimed at', () => {
+    // A spotlight that has rotted points at nothing and says nothing — the tour simply runs without its
+    // arrow, which is the quietest possible failure. So the tours may only name the four attributes put
+    // there for this, and never a class or a label: those are things the components are free to change.
+    for (const tour of TUTORIALS) {
+      for (const step of tour.steps) {
+        if (!step.spotlight) continue
+        expect(step.spotlight.length, `${tour.id}/${step.id}`).toBeGreaterThan(0)
+        for (const selector of step.spotlight) {
+          expect(isAimable(selector), `${tour.id}/${step.id}: ${selector}`).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('leaves the unmissable steps unaimed', () => {
+    // Not a coverage target — the opposite. An arrow drawn to the keyboard across the whole bottom of the
+    // screen, or to "any knob", is the decoration `PlayBeacon` was written not to be, so some steps having
+    // no spotlight is the design rather than an omission somebody should come along and finish.
+    const steps = TUTORIALS.flatMap((tour) => tour.steps)
+    const aimed = steps.filter((step) => step.spotlight)
+    expect(aimed.length).toBeGreaterThan(steps.length / 2)
+    expect(aimed.length).toBeLessThan(steps.length)
   })
 
   it('finds one by id, and nothing by a wrong one', () => {

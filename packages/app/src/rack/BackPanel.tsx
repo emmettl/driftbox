@@ -621,7 +621,10 @@ export function BackPanel({ layout }: Props) {
             and it is obvious which jacks belong to which module. The bay background is its drag handle;
             jacks and cable grabs sit above it and stop propagation for their own gestures. */}
         {renderedPlacements.map((placement) => (
-          <g key={placement.id}>
+          // The type as well as the key, so a guided tour can aim at "the Ladder" without knowing that
+          // this particular one is `ladder-3`. The ids belong to whoever built the patch; the type is the
+          // only half of a module's identity anything written in advance can name.
+          <g key={placement.id} data-module-type={placement.type}>
             <rect
               className={moduleDrag?.id === placement.id ? 'rk-bay rk-bay-ghost' : 'rk-bay'}
               x={placement.x + 4}
