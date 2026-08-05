@@ -575,6 +575,36 @@ only once something is playing" became assertions rather than things somebody no
 transport clamps, the routing rule, and the six footer hints — a hint telling you to drag a knob while
 you are looking at the back of the rack is not a crash and not a glitch, and nothing but a test finds it.
 
+### The Groovebox faceplate, in pieces
+
+The same treatment, for the same reason. `Groovebox.tsx` was twelve hundred lines and the editor inside
+it was a sequencer: four machines, a pattern list, an arrangement, live clips, a hosted transport, an
+automation recorder and two clipboards. Its only coverage was one server-rendered smoke test asserting
+that twenty-seven labels exist, which proves it draws and nothing about what it decides.
+
+```
+groovebox-format.ts   every string it puts on screen, including the ones only a reader hears
+groovebox-editor.ts   which sixteen steps, which section, which row of the kit the knobs write to
+groovebox-focus.ts    what "the focus" is, and every edit that rewrites it at once
+GrooveboxSteps.tsx    the step grid and the pattern-controlled filter row
+GrooveboxTools.tsx    the transforms and the clipboard
+GrooveboxArrangement.tsx  automation, the chain, the live clip and the hosted transport
+GrooveboxInstrument.tsx   the knobs, the sends, and the note under the 303 cursor
+```
+
+The crux is `groovebox-focus.ts`. One toggle in the tool row decides whether a button means one drum
+lane or all eleven of a machine's, and six controls read it — rotate, cut, copy, paste, and the two
+labels that promise which of those two things is about to happen. A button that says "lane" and clears
+eleven of them is the worst bug this editor can have, because there is nothing on screen to suggest it
+happened. Putting the promise and the edit in the same module lets a test hold them against each other,
+and doing that found one: with the toggle on, a one-lane paste landed on the machine's *first* lane
+while the button read "Paste Snare into whole 808". It now lands on the selected lane, like randomise
+and alter, and the tooltip names the lane it will actually use.
+
+Randomise and alter deliberately do not follow the toggle. They replace or rearrange material, and
+doing that to a whole machine behind a toggle somebody set for a rotation is not something a
+confirmation dialog makes safe.
+
 ## A separate entry point, not a tab
 
 **The rack is its own page.** `index.html` opens the sequencer and nothing about it changes;
