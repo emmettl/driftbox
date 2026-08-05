@@ -1268,6 +1268,41 @@ kbd {
   flex-direction: column;
   gap: 6px;
   overflow: hidden;
+
+  /* How much of the title strip the patch browser is entitled to, declared here rather than measured.
+   *
+   * The browser floats over the title strip — it has to, because the Chassis draws it and the faceplate
+   * draws the title — so nothing in normal flow knew it was there. Without a number to work from, the
+   * right-hand end of every title ran straight underneath it, and a generic faceplate's "2 in · 1 out"
+   * came out as "Custom 2 in · 1 out" overlapping character for character. This is that number, and it
+   * is the only one: the browser is sized from it, the title reserves it, and the hand-built faceplates
+   * that put a readout up there anchor to it, so the three cannot drift apart.
+   *
+   * It is the reservation rather than the browser's own width — the browser is 8px narrower, which is
+   * the clearance between the readout and the help button's ring.
+   *
+   * Fixed rather than fitted to the patch name, which also stops the arrows and the save button moving
+   * every time you step to a patch whose name is a different length. */
+  --rk-browser: 176px;
+}
+
+/* Half the width, and there is not room in it for all three of a name, a readout and a full browser: a
+   Delay title holds "DELAY", "3 in · 1 out" and 92px, and that is the whole strip. The step arrows are
+   what gives way — the select they flank lists the same bank, one press away — because the readout is
+   the only place a generic faceplate says what the module's jacks are, and a truncated count is worse
+   than no arrows. */
+.rk-module[data-span='1'] {
+  --rk-browser: 92px;
+}
+
+/* Noise and S&H have nothing to turn, so they get help and no bank. A module type this build does not
+   have gets no strip at all. Neither should hold a browser's worth of title strip empty. */
+.rk-module[data-span]:has(.rk-device-patches[data-browser='none']) {
+  --rk-browser: 42px;
+}
+
+.rk-module[data-span]:not(:has(.rk-device-patches)) {
+  --rk-browser: 0px;
 }
 
 .rk-module-on {
@@ -1281,6 +1316,9 @@ kbd {
   gap: 8px;
   border-bottom: 1px solid var(--edge);
   padding-bottom: 6px;
+  /* The browser's room. The rule below it stays full width — a title strip that stopped short of the
+     patch browser would look like a mistake rather than like a reservation. */
+  padding-right: var(--rk-browser);
 }
 
 .rk-name {
@@ -1288,12 +1326,28 @@ kbd {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-size: 11px;
+  /* The name is the tenant that gives way, on the six half-width modules where the strip is genuinely
+     over-full — "PING-PONG DELAY" and "3 in · 1 out" and a browser do not fit in 240px and no reserve
+     makes them. It gives way because it is the one that survives it: "PING-PONG D…" is still that
+     module, sitting above its own knobs and its own jacks, whereas "3 in · 1 o…" is not a count of
+     anything. Everywhere else in the rack there is room for both and nothing is cut. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rk-ports {
-  font: 10px var(--mono);
+  /* A step down from the 10px this was, which is what buys "3 in · 1 out" its place on a half-width
+     module beside a browser. It sits next to a 9px patch name and reads as its equal now. */
+  font: 9px var(--mono);
   color: var(--dim);
   margin-left: auto;
+  /* Whole or not at all: half of "2 in · 1 out" is not a smaller truth, it is a wrong one. The name
+     beside it absorbs the shortfall instead. */
+  flex: none;
+  white-space: nowrap;
 }
 
 /* ---- Signal Bureau meter -----------------------------------------------------
@@ -3524,12 +3578,15 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 .rk-sampler-state {
   position: absolute;
   top: 2px;
-  right: 64px;
+  right: var(--rk-browser);
   display: flex;
   align-items: center;
   gap: 5px;
-  /* Module reorder/remove tools occupy the top-right corner of every device. Leave the status LED beside
-   * them instead of underneath them, where the working ready state would be invisible. */
+  /* The patch browser occupies the top-right corner of every device. Leave the status LED beside it
+   * instead of underneath it, where the working ready state would be invisible — and take the offset
+   * from the browser's own width, because a hand-picked one goes stale the moment the browser changes
+   * size. Slice Lab's bank has the longest patch names in the rack, which is exactly where the old
+   * 64px stopped being enough. */
   color: rgba(232, 228, 255, 0.48);
   font: 8px var(--mono);
   letter-spacing: 0.08em;
@@ -4145,7 +4202,8 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 
 .rk-echo-readout {
   position: absolute;
-  right: 126px;
+  /* Clear of the patch browser, from the browser's own width rather than a number that goes stale. */
+  right: var(--rk-browser);
   color: rgba(255, 224, 153, 0.74);
   font: 8px var(--mono);
   letter-spacing: 0.05em;
@@ -4280,7 +4338,8 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 
 .rk-scale-readout {
   position: absolute;
-  right: 126px;
+  /* Clear of the patch browser, from the browser's own width rather than a number that goes stale. */
+  right: var(--rk-browser);
   color: rgba(174, 156, 255, 0.78);
   font: 8px var(--mono);
   letter-spacing: 0.05em;
@@ -4410,7 +4469,8 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 
 .rk-chord-readout {
   position: absolute;
-  right: 126px;
+  /* Clear of the patch browser, from the browser's own width rather than a number that goes stale. */
+  right: var(--rk-browser);
   color: rgba(255, 196, 92, 0.8);
   font: 8px var(--mono);
   letter-spacing: 0.05em;
@@ -4558,7 +4618,8 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 
 .rk-arp-readout {
   position: absolute;
-  right: 126px;
+  /* Clear of the patch browser, from the browser's own width rather than a number that goes stale. */
+  right: var(--rk-browser);
   color: rgba(174, 156, 255, 0.82);
   font: 8px var(--mono);
   letter-spacing: 0.05em;
@@ -5268,7 +5329,35 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   z-index: 3;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 2px;
+  /* The room the title strip reserves, less the clearance, so the reservation is right by construction
+     rather than by a number somebody remembered to update. The name inside takes what the buttons leave. */
+  width: calc(var(--rk-browser) - 8px);
+}
+
+/* Naming a patch is the one moment the strip is worth more than the readout beside it: you are typing
+   into it, and an 18px field is not a field. It takes the width it needs and gives it back on Enter. */
+.rk-device-patches:has(.rk-device-naming) {
+  width: auto;
+}
+
+/* A half-width module cannot have all of this and a readable readout, so two things give way here.
+ *
+ * The step arrows go first: the select they flank lists the same bank and is one press away, whereas
+ * the readout is the only place a generic faceplate says what the module's jacks are.
+ *
+ * Then the menu's own chevron, which costs about as much as the name it sits beside — "Custom" reads as
+ * "Cus" with it and as "Custom" without. What is left still says it is a control: the pointer changes,
+ * it draws its border on hover exactly as the full-width one does, and the save button beside it says
+ * what kind of control it is. */
+.rk-module[data-span='1'] .rk-device-step {
+  display: none;
+}
+
+.rk-module[data-span='1'] .rk-device-name {
+  appearance: none;
+  text-align: right;
 }
 
 .rk-device-patches button {
@@ -5281,6 +5370,8 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   border-radius: 5px;
   padding: 1px 4px;
   cursor: pointer;
+  /* Fixed points in the strip. Everything that varies — the patch name — varies in one place. */
+  flex: none;
 }
 
 .rk-device-patches button:hover {
@@ -5288,6 +5379,16 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   border-color: var(--edge);
 }
 
+/* Every pixel the buttons give back on a half-width module is a pixel of patch name, and "Custom" is six
+   characters that have to fit or the strip reads as broken rather than as abbreviated. */
+.rk-module[data-span='1'] .rk-device-patches button {
+  padding-inline: 2px;
+}
+
+/* The one elastic thing in the strip: it takes the width the buttons leave, which is what makes the
+   strip a fixed box. Losing the tail of "Percussive" still leaves a browser you can step through, and
+   the delete button that appears over a patch you saved now squeezes the name rather than growing the
+   strip out over the readout beside it. */
 .rk-device-name,
 .rk-device-naming {
   font: 9px var(--mono);
@@ -5297,7 +5398,8 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   border: 1px solid transparent;
   border-radius: 5px;
   padding: 1px 2px;
-  max-width: 92px;
+  flex: 1 1 auto;
+  min-width: 0;
   cursor: pointer;
 }
 
@@ -5309,11 +5411,6 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
 
 .rk-device-naming {
   cursor: text;
+  flex: none;
   width: 92px;
-}
-
-/* A one-span module has about half the width to spare, so the name gives way before the arrows do —
-   losing the tail of "Percussive" still leaves a browser you can step through. */
-.rk-module[data-span='1'] .rk-device-name {
-  max-width: 54px;
 }
