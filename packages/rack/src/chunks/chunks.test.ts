@@ -183,6 +183,16 @@ describe('the chunks as a set', () => {
     }
   })
 
+  it('marks the playable ones, and only those', () => {
+    // The other reason a chunk can be silent on arrival, and the one that is correct. A chunk carrying its
+    // own MIDI module is an instrument waiting for a key, which the measurement below tests by pressing
+    // one — so the flag has to mean exactly that and not become a way to opt out of being audible.
+    for (const chunk of CHUNKS) {
+      const hasMidi = chunk.modules.some((m) => m.type === 'midi')
+      expect(chunk.playable ?? false, chunk.id).toBe(hasMidi)
+    }
+  })
+
   it('build a whole track when stacked, which is the point', () => {
     // Four chunks into an empty rack: four channels, one transport, and it compiles.
     let patch: Patch = EMPTY_PATCH
@@ -322,10 +332,25 @@ describe('a chunk actually makes a sound', () => {
     return loudest
   }
 
+  /** The same patch with one key held down on its MIDI module, which is what a playable chunk waits for. */
+  function pressAKey(patch: Patch): Patch {
+    return {
+      ...patch,
+      modules: patch.modules.map((module) =>
+        module.type === 'midi'
+          ? { ...module, params: { ...module.params, note: 57, gate: 1, velocity: 0.9 } }
+          : module,
+      ),
+    }
+  }
+
   it.each(
     // Only the chunks that can make a sound unaided. The Break chunk is a Sampler with nothing loaded,
-    // which is silent by construction — `needsSample` is exactly that fact, declared.
-    CHUNKS.filter((chunk) => !chunk.needsSample).map((chunk) => [chunk.id] as const),
+    // which is silent by construction — `needsSample` is exactly that fact, declared. The playable ones
+    // are the other declared exemption and are measured below instead, with a finger on the keyboard.
+    CHUNKS.filter((chunk) => !chunk.needsSample && !chunk.playable).map(
+      (chunk) => [chunk.id] as const,
+    ),
   )('%s', (id) => {
     // A second and a bit, so a 16-step pattern at 174bpm has been all the way round.
     //
@@ -335,4 +360,16 @@ describe('a chunk actually makes a sound', () => {
     // filter above a real distinction rather than a precaution.
     expect(peak(insert(EMPTY_PATCH, id).patch, 400)).toBeGreaterThan(0.01)
   })
+
+  it.each(CHUNKS.filter((chunk) => chunk.playable).map((chunk) => [chunk.id] as const))(
+    '%s, once a key is held',
+    (id) => {
+      const inserted = insert(EMPTY_PATCH, id).patch
+
+      // Silent until played is the promise `playable` makes, and it is worth holding them to: a drone on
+      // insert would be the same "I added it and nothing happened" bug wearing the opposite face.
+      expect(peak(inserted, 60)).toBeLessThan(0.001)
+      expect(peak(pressAKey(inserted), 400)).toBeGreaterThan(0.01)
+    },
+  )
 })

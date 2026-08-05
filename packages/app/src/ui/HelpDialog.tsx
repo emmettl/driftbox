@@ -3,10 +3,29 @@ import './HelpDialog.css'
 
 type HelpSurface = 'groovebox' | 'rack'
 
+/**
+ * One guided tour, as much of it as the guide needs to draw a card.
+ *
+ * Declared here rather than imported, and the shape is the point: `ui/` is shared by both entry points and
+ * knows nothing about the rack. A `Tutorial` carries predicates over a rack patch, which is exactly the
+ * dependency this file must not grow — so the host maps its tours down to five plain fields on the way in.
+ */
+export interface HelpTutorial {
+  id: string
+  name: string
+  blurb: string
+  minutes: number
+  steps: number
+  done: boolean
+}
+
 interface HelpDialogProps {
   surface: HelpSurface
   onClose: () => void
   initialTopic?: string
+  /** Offered as a topic of their own when the host has any. Absent means no tours tab at all. */
+  tutorials?: readonly HelpTutorial[]
+  onStartTutorial?: (id: string) => void
 }
 
 interface HelpTopic {
@@ -27,8 +46,21 @@ const TOPICS: Record<HelpSurface, readonly HelpTopic[]> = {
     { id: 'patching', label: 'Patching & devices' },
     { id: 'modules', label: 'Module map' },
     { id: 'performance', label: 'Play & automate' },
+    // Second from last rather than buried at the bottom: "why can I not hear anything" is the most common
+    // question a modular produces and the one a reference-shaped guide answers worst, because the reader
+    // does not know which of the five chapters their problem is in.
+    { id: 'silence', label: 'Nothing playing?' },
     { id: 'files', label: 'Files & shortcuts' },
   ],
+}
+
+/** The topic list actually shown, with the tours tab folded in when the host offers any. */
+function topicsFor(surface: HelpSurface, tutorials?: readonly HelpTutorial[]): readonly HelpTopic[] {
+  const base = TOPICS[surface]
+  if (!tutorials?.length) return base
+  // Straight after "Start here", because a tour is what somebody who read that page wants next and a tab
+  // at the far end of a scrolling strip is a tab nobody finds.
+  return [base[0], { id: 'tours', label: 'Guided tours' }, ...base.slice(1)]
 }
 
 function HelpSection({ title, children }: { title: string; children: ReactNode }) {
@@ -46,6 +78,59 @@ function Shortcut({ keys, children }: { keys: string; children: ReactNode }) {
       <kbd>{keys}</kbd>
       <span>{children}</span>
     </li>
+  )
+}
+
+/**
+ * The tours, as a shelf of cards.
+ *
+ * Every card starts something that happens in the reader's own rack rather than in a video, so the copy
+ * says so once here and the cards themselves stay short. Finished tours stay on the shelf and say they are
+ * finished: a lesson is worth doing twice, and hiding it would make the shelf shrink as you learn, which
+ * reads as things going missing.
+ */
+function Tours({
+  tutorials,
+  onStart,
+}: {
+  tutorials: readonly HelpTutorial[]
+  onStart: (id: string) => void
+}) {
+  const left = tutorials.filter((tour) => !tour.done).length
+  return (
+    <>
+      <HelpSection title="How these work">
+        <p className="help-copy">
+          A tour puts a small panel beside the rack with one instruction in it. Each step ticks itself when
+          you have actually done it — nothing is pressed, patched or turned on your behalf, and no step has
+          to be done in the order it is offered.
+        </p>
+        <p className="help-note">
+          {left === 0
+            ? 'You have finished all of them. Any can be started again from here.'
+            : `${left} of ${tutorials.length} not done yet. Closing a tour loses nothing; the rack keeps whatever you built in it.`}
+        </p>
+      </HelpSection>
+      <HelpSection title="Pick one">
+        <ul className="help-tours">
+          {tutorials.map((tour) => (
+            <li key={tour.id}>
+              <button type="button" onClick={() => onStart(tour.id)}>
+                <span className="help-tour-top">
+                  <strong>{tour.name}</strong>
+                  {tour.done && <em>done</em>}
+                </span>
+                <span className="help-tour-blurb">{tour.blurb}</span>
+                <span className="help-tour-meta">
+                  {tour.steps} steps · about {tour.minutes} min
+                  <b>{tour.done ? 'again →' : 'start →'}</b>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </HelpSection>
+    </>
   )
 }
 
@@ -363,6 +448,102 @@ function RackHelp({ topic }: { topic: string }) {
     )
   }
 
+  if (topic === 'silence') {
+    return (
+      <>
+        <HelpSection title="Check these four, in this order">
+          <ol className="help-steps">
+            <li>
+              <strong>Audio is started.</strong> The header says Start audio until it has been; a browser
+              makes no sound at all before that gesture.
+            </li>
+            <li>
+              <strong>There is an Out, and your chain reaches it.</strong> Out is the only way audio leaves
+              the rack. Trace one path from the source, on the back panel, all the way to an Out.
+            </li>
+            <li>
+              <strong>Something is opening the gate.</strong> A sequencer with no clock, an envelope with no
+              gate, or a VCA whose CV never arrives are all silent while looking perfectly patched.
+            </li>
+            <li>
+              <strong>The level is not zero.</strong> Out level, a VCA gain, a mute, another channel’s solo,
+              or a filter closed to 20 Hz.
+            </li>
+          </ol>
+          <p className="help-note">
+            Patch a Meter in at the point you are unsure about and move it along the chain. Where the lights
+            stop is where the signal stops, and that is faster than reasoning about it.
+          </p>
+        </HelpSection>
+
+        <HelpSection title="Silent for a reason">
+          <dl className="help-definitions">
+            <div>
+              <dt>Empty sampler</dt>
+              <dd>
+                A Sampler with nothing loaded is silent by construction. Load a break from Patches → Breaks,
+                or your own file from its faceplate.
+              </dd>
+            </div>
+            <div>
+              <dt>Playable chunks</dt>
+              <dd>
+                Keys and Arp wait for a key press rather than running on their own. The picker marks them
+                “play it”.
+              </dd>
+            </div>
+            <div>
+              <dt>Seq with no clock</dt>
+              <dd>
+                There is no clock inside a Seq. Patch a Transport division or a Clock into its Clock inlet.
+              </dd>
+            </div>
+            <div>
+              <dt>Bypassed or muted</dt>
+              <dd>
+                A bypassed processor passes its input through untouched; a muted or un-soloed Out passes
+                nothing. Both are marked on the faceplate.
+              </dd>
+            </div>
+          </dl>
+        </HelpSection>
+
+        <HelpSection title="Loud, wrong, or distorted instead">
+          <dl className="help-definitions">
+            <div>
+              <dt>Everything at once</dt>
+              <dd>
+                More voices than the patch can play differently. Without a MIDI module every voice plays the
+                same note and the output is that many times louder.
+              </dd>
+            </div>
+            <div>
+              <dt>Clipping</dt>
+              <dd>
+                Several chains summing into one Out. Pull the Out level down, or put a Mixer or Limiter
+                before it rather than trimming each source by ear.
+              </dd>
+            </div>
+            <div>
+              <dt>Modulation too deep</dt>
+              <dd>
+                A raw LFO or envelope into a control inlet is full depth. Use the rear input trim beside that
+                inlet, or a VCA, to send a fraction of it.
+              </dd>
+            </div>
+            <div>
+              <dt>A knob that moves itself</dt>
+              <dd>
+                It is under a Combinator routing or an automation lane. Both are marked on the panel; the
+                Automation desk clears a lane.
+              </dd>
+            </div>
+          </dl>
+        </HelpSection>
+      </>
+    )
+  }
+
   if (topic === 'files') {
     return (
       <>
@@ -441,18 +622,28 @@ function RackHelp({ topic }: { topic: string }) {
 }
 
 /** A shared, focus-safe guide for both app entry points. */
-export function HelpDialog({ surface, onClose, initialTopic = 'start' }: HelpDialogProps) {
+export function HelpDialog({
+  surface,
+  onClose,
+  initialTopic = 'start',
+  tutorials,
+  onStartTutorial,
+}: HelpDialogProps) {
   const titleId = useId()
   const panelId = useId()
   const close = useRef<HTMLButtonElement>(null)
   const dialog = useRef<HTMLElement>(null)
   const closeDialog = useRef(onClose)
   closeDialog.current = onClose
+  const topics = topicsFor(surface, tutorials)
   const [topic, setTopic] = useState(initialTopic)
-  const currentSurface = useRef(surface)
   const currentTopic = useRef(topic)
-  currentSurface.current = surface
   currentTopic.current = topic
+  // The arrow-key handler is installed once and must not close over a stale topic list — the tours tab
+  // appears or disappears with the host's props, and a strip that renders six tabs while the keyboard
+  // cycles five is the kind of wrong nobody reports because it only bites keyboard users.
+  const currentTopics = useRef(topics)
+  currentTopics.current = topics
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -482,7 +673,7 @@ export function HelpDialog({ surface, onClose, initialTopic = 'start' }: HelpDia
         (event.target as HTMLElement | null)?.getAttribute('role') === 'tab'
       ) {
         event.preventDefault()
-        const tabs = TOPICS[currentSurface.current]
+        const tabs = currentTopics.current
         const current = tabs.findIndex((entry) => entry.id === currentTopic.current)
         const next = (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length
         setTopic(tabs[next].id)
@@ -518,7 +709,7 @@ export function HelpDialog({ surface, onClose, initialTopic = 'start' }: HelpDia
           </button>
         </header>
         <nav className="help-topics" role="tablist" aria-label={`${name} topics`}>
-          {TOPICS[surface].map((entry) => (
+          {topics.map((entry) => (
             <button
               key={entry.id}
               type="button"
@@ -534,7 +725,21 @@ export function HelpDialog({ surface, onClose, initialTopic = 'start' }: HelpDia
           ))}
         </nav>
         <div className="help-body" id={panelId} role="tabpanel">
-          {surface === 'rack' ? <RackHelp topic={topic} /> : <GrooveboxHelp topic={topic} />}
+          {topic === 'tours' && tutorials?.length ? (
+            <Tours
+              tutorials={tutorials}
+              onStart={(id) => {
+                onStartTutorial?.(id)
+                // The tour happens in the rack, and the rack is behind this dialog. Starting one and
+                // leaving the guide open would put the panel on top of everything it is about to ask for.
+                onClose()
+              }}
+            />
+          ) : surface === 'rack' ? (
+            <RackHelp topic={topic} />
+          ) : (
+            <GrooveboxHelp topic={topic} />
+          )}
         </div>
         <footer className="help-foot">
           <span>Press <kbd>Esc</kbd> to close</span>
