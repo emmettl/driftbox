@@ -122,11 +122,12 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
 
         {Array.from({ length: TRACKER_LANES }, (_, index) => {
           const values = lane(index)
-          const unit = Math.round(value(`unit${index + 1}`)) === 1
+          const mode = Math.round(value(`unit${index + 1}`))
+          const curve = mode === 2
           const muted = Math.round(value(`mute${index + 1}`)) === 1
           return (
             <div key={index} className={muted ? 'rk-lane rk-lane-muted' : 'rk-lane'}>
-              <span className="rk-lane-tag">{unit ? 'U' : 'S'}{index + 1}</span>
+              <span className="rk-lane-tag">{['S', 'U', 'C'][mode] ?? 'S'}{index + 1}</span>
               {steps.map((step) => {
                 const held = values[base + step] ?? 0
                 return (
@@ -136,7 +137,9 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
                     className={held ? 'rk-step rk-step-on' : 'rk-step'}
                     // Every fourth cell marked, because a bar you cannot count is a bar you cannot edit.
                     data-beat={step % 4 === 0 ? 'yes' : 'no'}
-                    aria-label={`Lane ${index + 1} step ${step + 1}${held ? `, ${held}` : ', rest'}`}
+                    // On a Curve lane zero is a value, so calling it a rest would be a lie to exactly the
+                    // people who cannot see the grid.
+                    aria-label={`Lane ${index + 1} step ${step + 1}${held || curve ? `, ${held}` : ', rest'}`}
                     onPointerDown={(event) => {
                       event.currentTarget.setPointerCapture(event.pointerId)
                       drag.current = { lane: index, step, from: held, y: event.clientY }
@@ -148,7 +151,11 @@ export function Tracker({ def, module, value, onChange, routed }: FaceplateProps
                       // click does not become a drag by accident.
                       const moved = Math.round((d.y - event.clientY) / 4)
                       if (moved === 0) return
-                      const next = Math.max(0, Math.min(48, d.from + moved))
+                      // A Curve lane goes below zero and the others do not. Nothing in the engine ever
+                      // stopped a negative step — a lane holds numbers — but the editor clamped at zero,
+                      // which quietly made bipolar curves undrawable rather than unsupported.
+                      const floor = curve ? -48 : 0
+                      const next = Math.max(floor, Math.min(48, d.from + moved))
                       if (next !== (values[base + step] ?? 0)) write(index, step, next)
                     }}
                     onPointerUp={(event) => {

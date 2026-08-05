@@ -15,6 +15,13 @@ import type { ModuleData, ModuleDef, Processor } from '../types.js'
 // comes out as a CV. That one decision is what lets the same module drive drums (any non-zero), a bassline
 // (semitones), and a chopped break (slice indices) — which is three modules in most racks.
 //
+// **A fourth interpretation, Curve, is the Matrix's third lane.** Reason's Matrix had a Note CV, a Gate CV and
+// a freely drawn Curve against the same clock, and that last one was the sequencer gap `docs/REASON-GAP.md`
+// still listed after this module landed: sixty-four steps and eight banks answered the length half, and
+// nothing here could draw a modulation shape. A Curve lane inverts the rule above — **zero is a value there,
+// not a rest** — and emits no gate and no trigger, because a curve is not a note. Everything else it needs,
+// this module already had, which is why it is a mode on a lane rather than a third sequencer.
+//
 // The CV holds its last non-zero value across rests, so a rest is a gap in the rhythm rather than a lurch down to
 // zero in the pitch. A sequencer that dropped to zero on every rest would make every bassline end each phrase on
 // the same wrong note.
@@ -43,6 +50,15 @@ export class TrackerProcessor implements Processor {
   private step = -1
   private lastClock = 0
   private lastReset = 0
+  /**
+   * Per lane: the step's value exactly as written, zero included.
+   *
+   * Separate from `held` because the two answer opposite questions. `held` is "what note is sounding", so it
+   * survives a rest — which is what stops a bassline ending every phrase on the wrong note. A curve lane
+   * needs the other thing: zero is a value there, and a curve that could not reach it would be a curve with
+   * a floor nobody asked for.
+   */
+  private raw = [0, 0, 0, 0]
   /** Per lane: the CV being held, and how many samples of trigger are left. */
   private held = [0, 0, 0, 0]
   private trigLeft = [0, 0, 0, 0]
@@ -112,6 +128,10 @@ export class TrackerProcessor implements Processor {
           const offset = pattern * length + this.step
           const value = values && offset < values.length ? values[offset] : 0
           const muted = Math.round(params[1 + lane][i]) === 1
+          // Kept whatever the value is, so a Curve lane can be written down to zero. Still gated on mute,
+          // because a muted lane freezing its output is the behaviour the other two modes already have and
+          // one lane behaving differently would be the surprise.
+          if (!muted) this.raw[lane] = value
           this.open[lane] = value !== 0 && !muted
           if (this.open[lane]) {
             this.trigLeft[lane] = this.trigSamples
@@ -123,7 +143,33 @@ export class TrackerProcessor implements Processor {
       this.lastClock = clock
 
       for (let lane = 0; lane < lanes; lane++) {
-        const unit = Math.round(params[1 + lanes + lane][i]) === 1
+        const mode = Math.round(params[1 + lanes + lane][i])
+
+        // **Curve: the Matrix's third lane.** Reason's Matrix had a Note CV, a Gate CV and a freely drawn
+        // Curve, and the third one is the whole reason `docs/REASON-GAP.md` still listed a sequencer gap
+        // after the Tracker landed — the length half was answered by sixty-four steps and eight banks, but
+        // nothing here could draw a modulation shape against the same clock.
+        //
+        // It is a lane MODE rather than a fifth lane or a third sequencer, because the one thing a curve
+        // needs that the other interpretations refuse is that **zero is a value**. Everything else it wants
+        // — a step per clock, a bank of eight, a length, an editor — the Tracker already had. A device
+        // whose only new idea is one lane behaving differently would have been the mistake the reverb's
+        // rejected algorithms and the Line Mixer's channel EQ were both refused for.
+        //
+        // Divided by sixteen like a Unit lane, so a lane drawn 0 to 16 is 0 to 1. Negative values are
+        // simply negative — a bipolar curve costs nothing here because a lane holds numbers rather than
+        // switches, and Reason needed a mode switch for it.
+        if (mode === 2) {
+          outlets[lane * 3][i] = this.raw[lane] / 16
+          // No gate and no trigger: a curve is not a note. The trigger is still counted down rather than
+          // abandoned, so a lane switched to Curve and back mid-pattern does not fire a stale pulse.
+          outlets[lane * 3 + 1][i] = 0
+          if (this.trigLeft[lane] > 0) this.trigLeft[lane]--
+          outlets[lane * 3 + 2][i] = 0
+          continue
+        }
+
+        const unit = mode === 1
         // Semitones by default, because that is what every other pitch-shaped signal in the rack is. `Unit`
         // divides by sixteen instead — a bar of sixteenths and the Sampler's default slice count — which is what
         // makes a lane of slice indices drive a chopped break directly. Sixteen is inlined because a constant at
@@ -177,6 +223,10 @@ export const TRACKER_MODULE: ModuleDef = {
         body: 'CV carries the row’s value continuously. Gate stays high for the step when it is active. Trig is a brief pulse at the step edge—use it to strike envelopes and samplers.',
       },
       {
+        title: 'A Curve lane draws modulation, not notes',
+        body: 'Set a lane’s Mode to Curve and its numbers stop meaning pitch and start meaning a shape: zero is a value rather than a rest, so the lane can be drawn down to nothing and back. It emits CV only — no gate, no trigger — and negative steps simply go below centre, so a bipolar sweep needs no second control.',
+      },
+      {
         title: 'Pattern is a bank address',
         body: 'The Pattern control and inlet choose one of eight stored grids; they do not transpose the notes. The Arranger automates that choice to build sections into a song.',
       },
@@ -187,7 +237,8 @@ export const TRACKER_MODULE: ModuleDef = {
       'Enter a few rows, keep Steps at 16 for one bar, then duplicate the idea into Pattern 2 and vary it.',
     ],
     watchFor: [
-      'Unit changes how a lane’s stored numbers are interpreted; choose the unit before fine-tuning values.',
+      'Mode changes how a lane’s stored numbers are interpreted; choose it before fine-tuning values.',
+      'A Curve lane treats zero as a value rather than a rest, so it emits no gate and no trigger. Patch its CV at a cutoff or a level, not at an envelope.',
       'Mute stops a lane’s outputs but keeps its pattern data intact.',
     ],
   },
@@ -222,13 +273,17 @@ export const TRACKER_MODULE: ModuleDef = {
       labels: ['On', 'Off'] as const,
     })),
     ...Array.from({ length: LANES }, (_, lane) => ({
+      // The **id stays `unit`** though the control now has three positions and "unit" names only one of
+      // them. A param id is patch data — every saved Tracker, every device patch and every Combinator
+      // routing names it — so renaming it to `mode` would cost far more than the tidier word is worth. The
+      // display name is free to change and has.
       id: `unit${lane + 1}`,
-      name: `Unit ${lane + 1}`,
+      name: `Mode ${lane + 1}`,
       min: 0,
-      max: 1,
+      max: 2,
       default: 0,
       stepped: true,
-      labels: ['Semi', 'Unit'] as const,
+      labels: ['Semi', 'Unit', 'Curve'] as const,
     })),
     // Last, so adding it moved no existing param index. Eight is a bank: enough to build a track out of an
     // intro, a main, a break and a drop with room to spare, and few enough that eight times sixty-four

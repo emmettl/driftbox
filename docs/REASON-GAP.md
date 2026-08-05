@@ -418,5 +418,25 @@ be patchable is recorded as patchable.
    algorithm that chain was reaching for from the day it got an amp and a cabinet and went on ending in a
    small room.
 
-4. Still open, and genuinely small: `Seq` is eight steps with no curve lane where the Matrix was
-   thirty-two with one.
+4. **~~`Seq` is eight steps with no curve lane where the Matrix was thirty-two with one.~~ Landed**, and
+   the row was half wrong when it was written. Measured against the tree rather than against the memory of
+   the Matrix, **the length half had already been answered** — `Tracker` is four lanes of up to sixty-four
+   steps across eight banks, which is twice the Matrix and was built for exactly this reason. `Seq` staying
+   at eight knobs is a decision `tracker.ts` argues at length: "a short one with knobs" and "a long one with
+   a pattern" are different instruments to reach for, and thirty-two steps of knobs is neither.
+
+   What was genuinely missing was the Matrix's **third lane**: a freely drawn Curve against the same clock,
+   independent of note and gate. It is now a lane **mode** on the Tracker rather than a third sequencer,
+   because the one thing a curve needs that the other interpretations refuse is that **zero is a value**.
+   Everything else — a step per clock, a length, eight banks, an editor — the Tracker already had, so a
+   device whose only new idea was one lane behaving differently would have been the mistake the reverb's
+   rejected algorithms and the Line Mixer's channel EQ were both refused for.
+
+   A Curve lane emits CV only, no gate and no trigger, and **negative steps simply go below centre** — a
+   bipolar sweep costs nothing here because a lane holds numbers rather than switches, where Reason needed a
+   mode switch for it. The engine never stopped a negative step; the *editor* clamped at zero, which had
+   quietly made bipolar curves undrawable rather than unsupported, and that clamp is now per mode.
+
+   The param keeps its `unit` id though it now has three positions and "unit" names only one of them: an id
+   is patch data that every saved Tracker, device patch and Combinator routing names, and the tidier word is
+   not worth that. The display name is free and changed to Mode.
