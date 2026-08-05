@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { SPLIT_MIN_WIDTH } from './src/rack/view.js'
 
 const styles = readFileSync(new URL('./src/rack/rack.css', import.meta.url), 'utf8')
 const rackApp = readFileSync(new URL('./src/rack/RackApp.tsx', import.meta.url), 'utf8')
@@ -51,7 +52,8 @@ describe('the performance view hand-off', () => {
     expect(rackApp).toContain(
       "if (rackView === 'split' && performanceSpace.current) performanceSpace.current.scrollLeft = 0",
     )
-    expect(rackApp).toContain('<div ref={performanceSpace} className={`rk-performance-space')
+    expect(rackApp).toContain('ref={performanceSpace}')
+    expect(rackApp).toContain('className={`rk-performance-space rk-performance-space-${rackView}')
     expect(styles).toContain('view-transition-name: rk-performance-keyboard;')
     expect(styles).toContain('::view-transition-group(rk-performance-keyboard) {\n  z-index: 2;')
   })
@@ -72,5 +74,33 @@ describe('the performance view hand-off', () => {
       "html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-rack)",
     )
     expect(rackApp).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)').matches")
+  })
+
+  it('opens on split where there is room, without animating an arrival nothing moved into', () => {
+    expect(rackApp).toContain(
+      "initialRackView(typeof window === 'undefined' ? 0 : window.innerWidth)",
+    )
+    // The entrance keyframes are cancelled until the View button has actually moved something, and
+    // restored from then on — so cycling back into split still slides the rack aside.
+    expect(rackApp).toContain("viewCycled ? '' : ' rk-performance-space-seated'")
+    expect(rackApp).toContain('setViewCycled(true)')
+    expect(styles).toContain(
+      '.rk-performance-space-seated .rk-stage,\n.rk-performance-space-seated .rk-perform {\n  animation: none;\n}',
+    )
+    // Order is the whole mechanism: these selectors weigh the same as the ones setting the entrance, so
+    // the rule cancelling it has to come after them.
+    expect(styles.indexOf('.rk-performance-space-seated .rk-stage')).toBeGreaterThan(
+      styles.indexOf('animation: rk-pad-arrive'),
+    )
+  })
+
+  it('decides the opening width from the layout the stylesheet actually draws', () => {
+    // Two 480px bays, the 24px gutter and 16px of padding either side: `SPLIT_MIN_WIDTH` is arithmetic on
+    // these four numbers, and the media query below is the same threshold from the other end. If a bay or
+    // the gutter changes, this catches whichever half of the pair got left behind.
+    expect(styles).toContain('grid-template-columns: 480px 480px;')
+    expect(styles).toContain('gap: 24px;\n  padding: 32px 16px calc(48px + var(--keys-offset));')
+    expect(480 * 2 + 24 + 16 * 2).toBe(SPLIT_MIN_WIDTH)
+    expect(styles).toContain(`@media (max-width: ${SPLIT_MIN_WIDTH - 1}px)`)
   })
 })

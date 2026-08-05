@@ -3153,8 +3153,18 @@ kbd {
   aspect-ratio: 1;
 }
 
+/* Split is where a wide window opens, so the arrangement has to be able to be a position as well as a move.
+ * Both entrance keyframes describe the change from rack view; on the first paint nothing changed, and
+ * playing them would animate an event that never happened. Kept next to the rules they cancel, and after
+ * them, because the two selectors weigh the same and order is what decides. */
+.rk-performance-space-seated .rk-stage,
+.rk-performance-space-seated .rk-perform {
+  animation: none;
+}
+
 /* Once the two bays no longer fit, start at the rack's left edge. A centred oversized grid puts that edge
- * at a negative X coordinate, which horizontal scrolling can never reach; the pad remains one swipe right. */
+ * at a negative X coordinate, which horizontal scrolling can never reach; the pad remains one swipe right.
+ * `SPLIT_MIN_WIDTH` in `view.ts` is this number from the other side: below it the rack opens on its own. */
 @media (max-width: 1015px) {
   .rk-performance-space-split {
     justify-content: start;

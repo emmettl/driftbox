@@ -60,6 +60,7 @@ import {
 import { HelpDialog } from '../ui/HelpDialog.js'
 import { useFirstRun } from '../ui/useFirstRun.js'
 import { TutorialCoach } from './TutorialCoach.js'
+import { initialRackView, type RackView } from './view.js'
 import {
   TUTORIALS,
   finishTour,
@@ -68,8 +69,6 @@ import {
   type Tutorial,
   type TutorialState,
 } from './tutorials.js'
-
-type RackView = 'rack' | 'split' | 'pad'
 
 // The rack, as a page.
 //
@@ -237,8 +236,21 @@ export default function RackApp() {
    * `split` is the useful middle ground: the rack moves aside but stays live while the performance pad
    * occupies the neighbouring bay. One state machine also makes the header button's Rack → Split → Pad
    * cycle explicit instead of coordinating two booleans that could describe an impossible view.
+   *
+   * It is also where a wide window starts, so that the pad is something you arrive at rather than something
+   * you have to go looking for — `view.ts` holds that decision and the width it needs.
    */
-  const [rackView, setRackView] = useState<RackView>('rack')
+  const [rackView, setRackView] = useState<RackView>(() =>
+    initialRackView(typeof window === 'undefined' ? 0 : window.innerWidth),
+  )
+  /**
+   * Whether this view was arrived at or merely opened on.
+   *
+   * The split entrance keyframes describe a movement — the rack sliding left to make room, the pad arriving
+   * beside it — and there is no such movement when split is where the page came up. Playing them anyway
+   * would make the first paint look like something had just happened when nothing had.
+   */
+  const [viewCycled, setViewCycled] = useState(false)
   const performing = rackView !== 'rack'
   const performanceSpace = useRef<HTMLDivElement>(null)
   const [keyboardOpen, setKeyboardOpen] = useState(true)
@@ -292,6 +304,7 @@ export default function RackApp() {
     const next: RackView = rackView === 'rack' ? 'split' : rackView === 'split' ? 'pad' : 'rack'
     const update = () => {
       setRackView(next)
+      setViewCycled(true)
       setAdding(false)
       setBrowsing(false)
     }
@@ -1811,7 +1824,10 @@ export default function RackApp() {
       {/* Three views of the same live instrument. In split view the stage and pad share one grid, which moves
           the rack left into its own bay instead of shrinking it — its design coordinates, knobs and cable
           hit targets therefore stay exact. On a narrow screen the pair remains horizontally scrollable. */}
-      <div ref={performanceSpace} className={`rk-performance-space rk-performance-space-${rackView}`}>
+      <div
+        ref={performanceSpace}
+        className={`rk-performance-space rk-performance-space-${rackView}${viewCycled ? '' : ' rk-performance-space-seated'}`}
+      >
         {rackView !== 'rack' && (
           <div className="rk-perform">
             <PerformPad

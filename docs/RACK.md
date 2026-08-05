@@ -1245,8 +1245,30 @@ The oscilloscope was worth it and cost nothing extra, because it is diagnostic: 
 flat line and a patch clipping into the Out reads as a flattened top, and neither is visible any other way.
 
 The shipped shape therefore keeps that original constraint: the scene code is a **dynamic import** mounted
-only when the user chooses split or full-pad view. The 600 kB is paid by whoever asks for the performance
-surface, and the rack and back panel remain visually quiet.
+only in split or full-pad view. It is never behind the patching surface, and it never blocks the page: the
+rack paints from its own 40 kB and the scene arrives afterwards, behind a `Suspense` fallback the size of
+the pad.
+
+### Which view opens
+
+Split, whenever the window is at least **1016px** wide — two 480px bays, the gutter, and the padding either
+side. The rack alone is a complete instrument and says nothing about the surface beside it, so opening on it
+made the pad, the filter and the scenes reachable only by somebody who thought to press a button labelled
+View. A thing that must be discovered before it can be used is, for most people, not there at all.
+
+Narrower than that, the rack opens on its own. Split's first impression on a small window is a rack cut off
+at the right-hand edge and a pad you have to swipe sideways to find, which introduces both worse than the
+rack does by itself; the View button still reaches them. `view.ts` owns the decision and `rack.css` carries
+the same width from the other end, as the `max-width: 1015px` where the pair stops being centred.
+
+The choice is read once, at mount. After the first frame the view is whatever the person chose, and resizing
+a window is not a request to be moved out of it.
+
+This does move the 600 kB from "paid by whoever asks for the performance surface" to "paid by whoever opens
+the rack on a laptop", which was the earlier bargain and is worth stating plainly. It is a deliberate trade:
+the download is deferred, cached and invisible against a page that has already painted, while a feature
+nobody finds costs everything it weighs. The two entrance keyframes are suppressed on that first paint —
+`rk-performance-space-seated` — because they describe the rack *moving aside*, and on arrival nothing moved.
 
 **The third obstacle is now gone** ✅, and it was the only one that was an accident rather than a decision.
 Every scene did `useBox((s) => s.engine)` and handed it to `readLevels`, which only ever wanted
