@@ -86,7 +86,13 @@ export function DevicePatches({ moduleId, def, onHelp }: Props) {
   return (
     // The Chassis selects a module on pointerdown anywhere in it, and the grip above starts a drag.
     // Neither is what pressing a button in here means.
-    <div className="rk-device-patches" onPointerDown={(event) => event.stopPropagation()}>
+    // `data-browser` is how the title strip knows how much room to keep clear: a device with nothing to
+    // turn needs the width of a help button and not the width of a bank browser. See `--rk-browser`.
+    <div
+      className="rk-device-patches"
+      data-browser={hasPatchBrowser ? 'bank' : 'none'}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
         className="rk-module-help-trigger"
