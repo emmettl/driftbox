@@ -287,10 +287,61 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   { id: 'narrow', type: 'imager', name: 'Narrow', params: { lowWidth: 0.65, highWidth: 0.75 } },
 
   // ---- Reverb -----------------------------------------------------------------------------------
+  // **Plate and Hall used to be approximations of themselves**, built out of Size, Decay and Damp because
+  // there was one network and those were the only knobs that could suggest a different room. There are now
+  // algorithms with those names, so these say so. This is the same staleness the gap ledger is kept against:
+  // a preset called Plate that is not the plate algorithm is a worse answer than no preset at all.
   { id: 'room', type: 'reverb', name: 'Room', params: { size: 0.35, decay: 0.5, damp: 0.55, mix: 0.18 } },
-  { id: 'plate', type: 'reverb', name: 'Plate', params: { size: 0.55, decay: 0.78, damp: 0.15, mix: 0.35 } },
-  { id: 'hall', type: 'reverb', name: 'Hall', params: { size: 0.85, decay: 0.9, damp: 0.35, mix: 0.3 } },
-  { id: 'cavern', type: 'reverb', name: 'Cavern', params: { size: 1, decay: 0.96, damp: 0.6, mix: 0.45 } },
+  {
+    id: 'plate',
+    type: 'reverb',
+    name: 'Plate',
+    params: { algorithm: 2, size: 0.7, decay: 0.8, damp: 0.12, mix: 0.35 },
+  },
+  {
+    id: 'hall',
+    type: 'reverb',
+    name: 'Hall',
+    params: { algorithm: 1, size: 0.85, decay: 0.9, damp: 0.35, mix: 0.3 },
+  },
+  {
+    id: 'cavern',
+    type: 'reverb',
+    name: 'Cavern',
+    params: { algorithm: 1, size: 1, decay: 0.96, damp: 0.6, mix: 0.45 },
+  },
+  // The one the Guitar Pedalboard was always reaching for. Bright, because a spring tank has no absorption
+  // in it worth speaking of, and the chirp is in the top end.
+  {
+    id: 'spring',
+    type: 'reverb',
+    name: 'Spring',
+    params: { algorithm: 3, size: 0.8, decay: 0.85, damp: 0.1, mix: 0.3 },
+  },
+  // The eighties snare, which is a plate and a gate and nothing else.
+  {
+    id: 'gated',
+    type: 'reverb',
+    name: 'Gated',
+    params: {
+      algorithm: 2,
+      size: 0.8,
+      decay: 0.92,
+      damp: 0.2,
+      mix: 0.6,
+      gate: 1,
+      gateThresh: 0.05,
+      gateHold: 0.12,
+      gateRelease: 0.012,
+    },
+  },
+  // What the EQ section is for: a long tail that stays out of the way of everything else in the mix.
+  {
+    id: 'tucked',
+    type: 'reverb',
+    name: 'Tucked Away',
+    params: { algorithm: 1, size: 0.9, decay: 0.93, damp: 0.45, mix: 0.4, lowCut: 420, highCut: 5200 },
+  },
 
   // ---- Compressor -------------------------------------------------------------------------------
   {

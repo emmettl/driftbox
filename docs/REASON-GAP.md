@@ -388,6 +388,35 @@ be patchable is recorded as patchable.
    **The only architectural one left**, and the one that gets more expensive later: it forces the "does PCM
    enter the document" decision that two devices have now each deferred in their own direction.
 
-3. Smaller, and both genuinely small: `Seq` is eight steps with no curve lane where the Matrix was
-   thirty-two with one, and `Reverb` is a single FDN algorithm with no RV7000-style algorithm select,
-   EQ or gate.
+3. **~~`Reverb` is a single FDN algorithm with no RV7000-style algorithm select, EQ or gate.~~ Landed.**
+   All three, and the part worth recording is **which algorithms did not land**, because Reason ships nine
+   and most of them are not algorithms. Small Space and Arena are this network with the Size knob at one end
+   or the other; shipping them as entries would have been a preset bank wearing a selector, which is what
+   the Line Mixer's channel EQ was refused for. Echo and Multi Tap are the `Delay` module. Reverse needs its
+   tail assembled backwards against an envelope, which is a different structure and so a different device.
+
+   So four, and each runs DSP the others do not: **Room** is the original network untouched, **Hall** and
+   **Plate** put four Schroeder allpasses in front of it over long and short line sets respectively, and
+   **Spring** puts four one-pole allpasses per line *inside* the feedback path. Spring is the one that could
+   not have been had any other way — a spring tank chirps because the steel disperses, so highs travel
+   faster than lows, and measured through the finished module a 200Hz burst now arrives 22ms behind a 4kHz
+   one where Room has them within 1.5ms of each other.
+
+   **Room is bit-identical to the reverb that existed before this**, which is why the selector is appended
+   rather than put first: the four knobs people know stay where they were. `reverb.test.ts` holds that
+   sample-for-sample against a transcription of the old arithmetic, because "sounds about the same" is not a
+   promise — and the EQ and the gate are branched past rather than run flat, since a one-pole at 20Hz is not
+   a wire.
+
+   The EQ and the gate are **wet-path only**: a low cut that also thinned the dry signal would be a filter
+   you could already patch, and the gate is **keyed from the input** rather than the tail, because the
+   eighties snare follows the drum and a gate keyed from its own output is a feedback loop with an opinion.
+
+   Two things followed rather than being left as notes. The factory bank's **Plate and Hall were
+   approximations of themselves** — built from Size and Damp because there was one network — and now name
+   the algorithms they were imitating. And the **Guitar Pedalboard has adopted Spring**, which is the
+   algorithm that chain was reaching for from the day it got an amp and a cabinet and went on ending in a
+   small room.
+
+4. Still open, and genuinely small: `Seq` is eight steps with no curve lane where the Matrix was
+   thirty-two with one.

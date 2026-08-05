@@ -252,6 +252,9 @@ describe('the registry', () => {
       // Thirty-nine knobs, and the three that matter are not knobs at all: where a send sits in the
       // channel strip, what solo means on a module that is not the mix, and why a return goes one way.
       'line-mixer',
+      // Four algorithms that are structurally different rather than four sizes, an EQ that is on the wet
+      // path only, and a gate keyed from the input. None of those three is visible in a list of controls.
+      'reverb',
     ]
 
     for (const type of guided) {

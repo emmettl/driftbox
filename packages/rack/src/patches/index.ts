@@ -565,7 +565,8 @@ const wobbler = (): Patch => ({
  * The SVF removes subsonic handling noise before the Drive; Amp / Cab supplies the
  * driven preamp and speaker rolloff the direct interface cannot, then EQ shapes the
  * recorded tone. Delay is wet-only by design, so the Mixer makes its dry/wet path
- * visible before the small room.
+ * visible before the spring tank at the end — which is a real spring now rather than a
+ * small room standing in for one.
  */
 const guitarPedalboard = (): Patch => ({
   modules: [
@@ -599,7 +600,14 @@ const guitarPedalboard = (): Patch => ({
     },
     { id: 'delay-1', type: 'delay', params: { time: 0.32, feedback: 0.24 } },
     { id: 'wet-dry-1', type: 'mixer', params: { level1: 1, level2: 0.2 } },
-    { id: 'reverb-1', type: 'reverb', params: { size: 0.5, decay: 0.62, damp: 0.66, mix: 0.14 } },
+    // Spring, because that is what is bolted into the bottom of an amplifier. Bright — a tank has no
+    // absorption worth speaking of, so Damp sits far lower than the small room this used to be — and cut
+    // below 300Hz, which a real tank does by being a piece of wire rather than a space.
+    {
+      id: 'reverb-1',
+      type: 'reverb',
+      params: { algorithm: 3, size: 0.75, decay: 0.7, damp: 0.22, mix: 0.16, lowCut: 300 },
+    },
     { id: 'looper-1', type: 'looper', params: { mode: 0, feedback: 0.85, dry: 1, loop: 1 } },
     { id: 'meter-output', type: 'meter', params: { mode: 1, gain: 1.2, release: 0.24 } },
     { id: 'out-1', type: 'out', params: { level: 0.75 } },
