@@ -556,6 +556,14 @@ white-screening on load with the user's work apparently gone.
 
 Roughly in the order I would do them.
 
+These are the *product's* next moves. A separate axis — what the platform already offers
+that nothing here has reached for — is measured in
+[docs/PLATFORM-GAPS.md](docs/PLATFORM-GAPS.md), which ranks offline and installability,
+MIDI clock and output-latency compensation ahead of the rest, and records the technologies
+deliberately declined so the argument does not have to be had twice. Item 1 below has an
+entry there too: the adaptive-scoring API is the half of it the engine can already almost
+do.
+
 ### 1. Score Driftlings with it
 
 The reason the engine boundary exists, and the last part of it still unproven. The
