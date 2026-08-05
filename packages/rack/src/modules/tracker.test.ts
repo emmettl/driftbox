@@ -427,3 +427,97 @@ describe('the pattern bank', () => {
     }
   })
 })
+
+describe('a Curve lane', () => {
+  // Reason's Matrix had a Note CV, a Gate CV and a freely drawn Curve. The Tracker answered the first two
+  // and the length that went with them; this mode is the third, and the one rule it inverts is the rule
+  // everything else here rests on — that zero is a rest.
+
+  const CURVE = 2
+
+  it('treats zero as a value rather than a rest', () => {
+    // The whole reason this is a mode and not a fourth interpretation of the existing rule. In Semi mode a
+    // zero step holds the previous note, because a bassline that dropped to zero on every rest would end
+    // each phrase on the wrong one. A curve that could not be drawn back down to nothing would be a curve
+    // with a floor.
+    const { lane } = run(STEP * 4, { lanes: [[16, 0, 8, 0]], length: 4, unit: [CURVE] })
+    const at = (step: number) => lane(0).cv[step * STEP + STEP - 1]
+    expect(at(0)).toBeCloseTo(1, 6)
+    expect(at(1)).toBeCloseTo(0, 6)
+    expect(at(2)).toBeCloseTo(0.5, 6)
+    expect(at(3)).toBeCloseTo(0, 6)
+
+    // And the same pattern in the default mode holds instead, which is what makes the two modes worth
+    // having separately rather than one of them being a better version of the other.
+    const held = run(STEP * 4, { lanes: [[16, 0, 8, 0]], length: 4 })
+    const heldAt = (step: number) => held.lane(0).cv[step * STEP + STEP - 1]
+    expect(heldAt(1)).toBeCloseTo(heldAt(0), 6)
+  })
+
+  it('goes below zero, so a bipolar sweep needs no second control', () => {
+    // Free, because a lane holds numbers rather than switches. Reason needed a unipolar/bipolar switch for
+    // this; here the only thing that ever stopped a negative step was the editor's own clamp.
+    const { lane } = run(STEP * 3, { lanes: [[-16, 0, 16]], length: 3, unit: [CURVE] })
+    const at = (step: number) => lane(0).cv[step * STEP + STEP - 1]
+    expect(at(0)).toBeCloseTo(-1, 6)
+    expect(at(1)).toBeCloseTo(0, 6)
+    expect(at(2)).toBeCloseTo(1, 6)
+  })
+
+  it('emits no gate and no trigger, because a curve is not a note', () => {
+    const { lane } = run(STEP * 4, { lanes: [[16, 4, 12, 8]], length: 4, unit: [CURVE] })
+    expect(pulses(lane(0).gate)).toBe(0)
+    expect(pulses(lane(0).trig)).toBe(0)
+    expect([...lane(0).gate].every((x) => x === 0)).toBe(true)
+    expect([...lane(0).trig].every((x) => x === 0)).toBe(true)
+    // The CV is still moving, so this is silence on two outlets rather than a dead lane.
+    expect(lane(0).cv[STEP - 1]).toBeCloseTo(1, 6)
+  })
+
+  it('holds each step until the next clock rather than sliding between them', () => {
+    // The Matrix's curve is stepped, and so is this. A lane that interpolated would be a different feature
+    // and would need somewhere to put the slew time.
+    const { lane } = run(STEP * 2, { lanes: [[16, 0]], length: 2, unit: [CURVE] })
+    for (let i = 0; i < STEP; i++) expect(lane(0).cv[i]).toBeCloseTo(1, 6)
+    for (let i = STEP; i < STEP * 2; i++) expect(lane(0).cv[i]).toBeCloseTo(0, 6)
+  })
+
+  it('freezes when the lane is muted, like every other mode', () => {
+    // Mute stops a lane's output and keeps its data. One lane behaving differently under mute would be the
+    // surprise, so a muted curve holds wherever it was rather than running on silently.
+    const { lane } = run(STEP * 4, { lanes: [[16, 4, 12, 8]], length: 4, unit: [CURVE], mute: [1] })
+    expect([...lane(0).cv].every((x) => x === 0)).toBe(true)
+  })
+
+  it('leaves the other lanes alone', () => {
+    // A mode is per lane. The common patch is a note lane and a curve lane off one clock, and the point of
+    // it is that they stay in step with each other.
+    const { lane } = run(STEP * 4, {
+      lanes: [[12, 0, 7, 0], [16, 8, 0, 4]],
+      length: 4,
+      unit: [0, CURVE],
+    })
+    // Lane 1 is unchanged: semitones, held across its rests, gating as it always did.
+    expect(lane(0).cv[STEP - 1]).toBeCloseTo(1, 6)
+    expect(pulses(lane(0).gate)).toBeGreaterThan(0)
+    // Lane 2 is a curve over the same four steps, including the zero.
+    const at = (step: number) => lane(1).cv[step * STEP + STEP - 1]
+    expect(at(0)).toBeCloseTo(1, 6)
+    expect(at(2)).toBeCloseTo(0, 6)
+    expect(pulses(lane(1).gate)).toBe(0)
+  })
+
+  it('shares the pattern banks, which is why this is a mode and not a module', () => {
+    // Everything a curve needs beyond "zero is a value" already existed here: a step per clock, a length,
+    // and eight banks. Building a Matrix device to get one lane behaviour would have meant reimplementing
+    // all of it.
+    const { lane } = run(STEP * 2, {
+      lanes: [[16, 0, 0, 16]],
+      length: 2,
+      unit: [CURVE],
+      patternKnob: 1,
+    })
+    expect(lane(0).cv[STEP - 1]).toBeCloseTo(0, 6)
+    expect(lane(0).cv[STEP * 2 - 1]).toBeCloseTo(1, 6)
+  })
+})

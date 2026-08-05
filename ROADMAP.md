@@ -38,11 +38,12 @@ than an analogy.
 [docs/REASON-GAP.md](docs/REASON-GAP.md) is the other half of the comparison — what the rack
 still lacks measured against *Reason* rather than against the groovebox, which is a different
 list with a different order. Everything it originally ordered has landed — undo, stereo cables,
-recorded automation, the rack-wide table and every missing device — as has the second oscillator
-family and the six-channel Line Mixer that came out of measuring the tree again afterwards. What
-leads the file now is the one architectural gap that pass turned up and this one has not closed:
-nothing records audio against the timeline, which forces the "does PCM enter the document"
-decision the Looper and the Multisampler have each deferred in opposite directions.
+recorded automation, the rack-wide table and every missing device — as has everything the second
+pass turned up but one: a wavetable oscillator, a six-channel Line Mixer, the reverb's four
+algorithms with a wet-path EQ and gate, and the Matrix's Curve lane as a Tracker lane mode. What
+is left is the single architectural gap, and it has not moved: nothing records audio against the
+timeline, which forces the "does PCM enter the document" decision the Looper and the Multisampler
+have each deferred in opposite directions.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. Its dependency order—independent machine clips,
