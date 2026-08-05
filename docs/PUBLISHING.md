@@ -25,10 +25,24 @@ override the OIDC path.
 
 **A package's first publish is the exception, and `@driftbox/rack` has not had one.** Trusted
 publishing cannot be configured for a name that does not exist on the registry yet — the same
-bootstrap problem the engine hit at `0.1.0`, recorded under *Provenance* below. So the rack's
-first release needs a one-time manual `npm publish` with a granular token, after which its npm
-package settings can be pointed at this workflow and the token revoked. Every release after
-that goes through OIDC with the others.
+bootstrap problem the engine hit at `0.1.0`, recorded under *Provenance* below.
+
+So the rack's first release runs on a temporary `NPM_TOKEN` secret, which the workflow reads
+**only for the rack**. Not for the step: npm prefers an explicit token over OIDC, so a token in
+scope for all three would silently take over the engine and app publishes as well, and would fail
+them outright if it were granted for the rack alone.
+
+Doing it in the workflow rather than by hand is what keeps the ordering right. The rack depends on
+the engine, and publishing it before `@driftbox/engine@0.6.0` exists leaves an installable tarball
+whose install fails — so the rack has to go out *after* the engine and *before* the app, which is
+exactly the order this workflow already publishes in. It also matters that the rack cannot simply
+be left to fail: the publish loop runs under `set -e`, so a failing rack would take the app down
+with it and half-ship the release.
+
+**Once it has published, undo it** — point the rack's npm package settings at this workflow, revoke
+the token, delete the `NPM_TOKEN` secret, and delete the `BOOTSTRAP` block from `publish.yml`. Every
+release after that goes through OIDC with the others, and a token left behind is the 401 above
+waiting to happen.
 
 `publishConfig.access` is `public` in all three packages. A scoped package defaults to
 *private*, and a publish without that setting fails with a payment-required error that reads
