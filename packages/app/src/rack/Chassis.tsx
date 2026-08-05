@@ -3,6 +3,7 @@ import { sizeFor } from './faceplates/index.js'
 import { DevicePatches } from './DevicePatches.js'
 import { Driven } from './Driven.js'
 import { ModuleGuide } from './ModuleGuide.js'
+import { ModuleTools } from './ModuleTools.js'
 import {
   boundsBetween,
   dragBounds,
@@ -359,53 +360,14 @@ export function Chassis({ layout }: Props) {
             {module.bypassed && <span className="rk-bypass-flag">bypassed</span>}
 
             {isSelected && (
-              <div
-                className="rk-module-tools"
-                // The section beneath selects on pointerdown, so without this a click on Remove first
-                // collapsed the group to this one module and then removed only it — while the button still
-                // said "Remove 4 modules", because the label was decided at render and the action read the
-                // store afterwards. Operating a module's own tools is not a selection gesture.
-                onPointerDown={(event) => event.stopPropagation()}
-              >
-                <button type="button" onClick={() => moveModule(placement.id, -1)} aria-label="Move up">
-                  ↑
-                </button>
-                <button type="button" onClick={() => moveModule(placement.id, 1)} aria-label="Move down">
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBypassed(placement.id, !module.bypassed)}
-                  aria-label="Bypass"
-                  aria-pressed={module.bypassed === true}
-                  title="Bypass — out of circuit, its input passed straight through"
-                >
-                  ⏻
-                </button>
-                {/* Next to Remove rather than next to the arrows: both of these change what is in the
-                    rack, while the arrows only change where it sits. */}
-                <button
-                  type="button"
-                  onClick={() => duplicateModule(placement.id)}
-                  aria-label="Duplicate"
-                  title="Duplicate — a copy with the same settings, unpatched"
-                >
-                  ⧉
-                </button>
-                {/* Removes the whole group when this module is part of one — in one edit, so four modules
-                    are one undo rather than four. The label says how many, because a button that quietly
-                    took four things away when you expected one is the worst kind of surprise. */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    inGroup ? removeSelected() : removeModule(placement.id)
-                  }
-                  aria-label={inGroup ? `Remove ${selection.length} modules` : 'Remove'}
-                  title={inGroup ? `Remove all ${selection.length} selected` : undefined}
-                >
-                  ✕
-                </button>
-              </div>
+              <ModuleTools
+                bypassed={module.bypassed === true}
+                group={selection.length}
+                onMove={(by) => moveModule(placement.id, by)}
+                onBypass={() => setBypassed(placement.id, !module.bypassed)}
+                onDuplicate={() => duplicateModule(placement.id)}
+                onRemove={() => (inGroup ? removeSelected() : removeModule(placement.id))}
+              />
             )}
           </section>
         )
