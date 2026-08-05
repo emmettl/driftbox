@@ -167,7 +167,7 @@ body {
 }
 
 .rk-header button,
-.rk-module-tools button {
+.rk-module-tools-panel button {
   font: inherit;
   color: var(--ink);
   background: var(--panel);
@@ -1360,8 +1360,18 @@ kbd {
    * the clearance between the readout and the help button's ring.
    *
    * Fixed rather than fitted to the patch name, which also stops the arrows and the save button moving
-   * every time you step to a patch whose name is a different length. */
-  --rk-browser: 176px;
+   * every time you step to a patch whose name is a different length.
+   *
+   * It is now two tenants rather than one: `--rk-bank` is the patch browser, `--rk-tools` is the module
+   * tools' trigger beside it, and this is the sum. Everything that anchors to the corner reads the sum, so
+   * a faceplate readout keeps clear of both without knowing that there are two. */
+  --rk-bank: 176px;
+  /* The width of the module tools' `⋯`, plus the gap to the browser beside it. Zero until the module is
+     selected, which is when the trigger exists: the tools are the *rack's* controls for a module, and a
+     rack of forty modules should not hold forty buttons' worth of title strip empty for them. The two used
+     to be drawn on top of each other in this corner — see `ModuleTools.tsx`. */
+  --rk-tools: 0px;
+  --rk-browser: calc(var(--rk-bank) + var(--rk-tools));
 }
 
 /* Half the width, and there is not room in it for all three of a name, a readout and a full browser: a
@@ -1370,22 +1380,34 @@ kbd {
    the only place a generic faceplate says what the module's jacks are, and a truncated count is worse
    than no arrows. */
 .rk-module[data-span='1'] {
-  --rk-browser: 92px;
+  --rk-bank: 92px;
 }
 
 /* Noise and S&H have nothing to turn, so they get help and no bank. A module type this build does not
    have gets no strip at all. Neither should hold a browser's worth of title strip empty. */
 .rk-module[data-span]:has(.rk-device-patches[data-browser='none']) {
-  --rk-browser: 42px;
+  --rk-bank: 42px;
 }
 
+/* No bank at all — but a module can still be moved and removed, so `--rk-tools` stands on its own here. */
 .rk-module[data-span]:not(:has(.rk-device-patches)) {
-  --rk-browser: 0px;
+  --rk-bank: 0px;
 }
 
 .rk-module-on {
   border-color: var(--nine);
   box-shadow: 0 0 0 1px rgba(95, 240, 208, 0.25);
+  /* The trigger's room, taken while it is there and given back when it is not. */
+  --rk-tools: 26px;
+}
+
+/* Half the width, and 26px of it is a quarter of what the title has left after the browser. The readout
+   is what gives way here rather than the name — and it goes rather than truncating, which is the same
+   argument the name's own ellipsis rule makes in reverse: "PING-PONG D…" is still that module, whereas
+   "3 in · 1 o…" is not a count of anything. It comes straight back when the module is deselected, and on
+   a generic faceplate the same count is on the back panel as jacks either way. */
+.rk-module-on[data-span='1'] .rk-ports {
+  display: none;
 }
 
 .rk-title {
@@ -2545,12 +2567,13 @@ kbd {
   pointer-events: none;
 }
 
+/* The rack's own controls for a module, in the corner beside the device patch browser rather than on top
+   of it. `--rk-tools` is the room the title strip keeps for this, so the trigger sits exactly where the
+   browser's reservation ends and the two cannot collide again. */
 .rk-module-tools {
   position: absolute;
   top: 6px;
-  right: 8px;
-  display: flex;
-  gap: 4px;
+  right: calc(var(--rk-browser) - var(--rk-tools) + 6px);
   /* **Above the drag grip, which it was not.** The grip is a transparent overlay across the whole title
      bar at `z-index: 2`, and these buttons sit inside that band at `top: 6px` — so every one of them has
      been covered since the grip arrived, and a pointer could not reach any of them. The keyboard could,
@@ -2558,9 +2581,58 @@ kbd {
      anybody who cannot drag, and they were working for exactly those people and nobody else. */
   z-index: 3;
 }
-.rk-module-tools button {
+
+/* Shaped like the browser's buttons beside it, because it is one more control in the same strip. */
+.rk-module-tools-trigger {
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+
+.rk-module-tools-trigger:hover,
+.rk-module-tools-trigger[aria-expanded='true'] {
+  color: var(--ink);
+  border-color: var(--edge);
+}
+
+/* A row rather than a list, and inside the module rather than over its title: the shortest module in the
+   rack is two rows tall, so a stacked menu would be clipped by the faceplate it belongs to, and a panel
+   that dropped over the title strip would be back to covering the browser. Right-aligned to its own
+   trigger, so it opens into the module rather than off the edge of it. */
+.rk-module-tools-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 6;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  background: rgba(10, 7, 22, 0.98);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6);
+}
+
+.rk-module-tools-panel button {
   padding: 1px 6px;
   font-size: 11px;
+}
+
+.rk-module-tools-panel button:hover {
+  border-color: var(--nine);
+}
+
+/* Bypass is the one button here that has a state, and it is the one that stays open — so it says which
+   way it is set rather than leaving that to the dimmed faceplate behind the panel. */
+.rk-module-tools-panel button[aria-pressed='true'] {
+  border-color: var(--nine);
+  color: var(--nine);
 }
 
 /* ---- knobs (the sequencer's component, restyled for a faceplate) -------------- */
@@ -5409,9 +5481,10 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
-  /* The room the title strip reserves, less the clearance, so the reservation is right by construction
-     rather than by a number somebody remembered to update. The name inside takes what the buttons leave. */
-  width: calc(var(--rk-browser) - 8px);
+  /* The room the title strip reserves, less the module tools' share of that corner and the clearance, so
+     the reservation is right by construction rather than by a number somebody remembered to update. The
+     name inside takes what the buttons leave. */
+  width: calc(var(--rk-browser) - var(--rk-tools) - 8px);
 }
 
 /* Naming a patch is the one moment the strip is worth more than the readout beside it: you are typing

@@ -351,7 +351,8 @@ function RackHelp({ topic }: { topic: string }) {
         <HelpSection title="Selecting and arranging devices">
           <dl className="help-definitions">
             <div><dt>Select</dt><dd>Click a module’s empty faceplate area. Cmd/Ctrl-click toggles one; Shift-click selects a range; drag empty rack space for a selection box.</dd></div>
-            <div><dt>Move</dt><dd>Drag the module grip or use ↑ / ↓. A selected group moves, bypasses, or removes together where applicable.</dd></div>
+            <div><dt>Device tools</dt><dd>A selected module shows ⋯ beside its patch browser: move it up or down, bypass, duplicate, remove. A selected group moves, bypasses, or removes together where applicable.</dd></div>
+            <div><dt>Move</dt><dd>Drag the module grip, or use ↑ / ↓ in the ⋯ tools.</dd></div>
             <div><dt>Bypass</dt><dd>Takes a processor out of circuit while passing its input onward. Duplicate copies settings but leaves the new device unpatched.</dd></div>
             <div><dt>Undo / redo</dt><dd>Restores graph edits, device moves, parameter changes, and destructive rack actions.</dd></div>
           </dl>

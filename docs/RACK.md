@@ -1182,6 +1182,36 @@ The risk is all in the first item. Do it first and alone.
    One line of CSS. **Only driving the page finds this**, which is now the fourth time that sentence has
    had to be written here.
 
+   **And then the same corner again, from the other side.** The five buttons were reachable, and they were
+   drawn on top of the device patch browser — which arrived later and anchored to the same top-right of the
+   same title strip. Selecting a module therefore covered its own patch browser, and on a half-width panel
+   it covered the port readout and the name with it: the thing you select a module in order to work on was
+   the thing selecting it hid. Sitting them side by side is not available, and the numbers say so — the
+   tools are 130 design units wide and the browser is 168, against the 214 a half-width title strip has in
+   total before the name and the readout have taken any of it.
+
+   So the tools became a disclosure: one `⋯` in the strip, and a row of five that drops over the faceplate
+   while it is open. It is the bargain `HeaderMenu` records for Export, and it is worth paying for the same
+   reason — the alternative was a corner where two controls fought and one always lost.
+
+   - **The corner is now two reservations rather than one.** `--rk-bank` is the browser, `--rk-tools` is the
+     trigger, `--rk-browser` is the sum, and everything that anchors to the corner — the title's padding,
+     five hand-built readouts, the browser's own width — reads the sum. Nothing had to learn that there are
+     now two tenants.
+   - **`--rk-tools` is zero until the module is selected**, which is when the trigger exists. A rack of
+     forty modules should not hold forty buttons' worth of title strip empty for a control that is not
+     there, and reserving it permanently truncated every half-width name in the rack.
+   - **On a half-width panel the readout steps aside for it**, rather than the name giving up another 26
+     units. Same argument the name's own ellipsis rule makes, in reverse: "PING-PONG D…" is still that
+     module, and "3 in · 1 o…" is not a count of anything — so the count goes, and comes back on deselect.
+   - **Bypass is the one button that leaves the panel open.** Half of why anybody bypasses something is to
+     compare it against itself, and a toggle you have to reopen a menu to undo cannot do that.
+   - `ModuleTools.browser.test.ts` asserts the two boxes do not intersect and that the browser, the help
+     button and the trigger each win their own hit test against the transparent grip over all of them.
+     Geometry with the real stylesheet loaded, because both elements existed and both had their labels the
+     whole time this was broken — a DOM test would have passed throughout. **Only driving the page finds
+     this**, and now it is a test rather than a fifth telling of that sentence.
+
 ## Teaching it: guided tours that watch rather than drive
 
 The rack accumulated conveniences faster than it accumulated ways of finding out about them. Three of the
