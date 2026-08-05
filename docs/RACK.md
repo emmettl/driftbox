@@ -562,7 +562,8 @@ useGuidedTour.ts    the tour beside the rack, and which ones this browser has fi
 groovebox-host.ts   which retained machines are diverted into the rack, and the hosted transport clamps
 warnings.ts         what the page says when something is not quite right
 document-notice.ts  what it says about a document it did not author
-shortcuts.ts        the four page-level keys, and the rule that a field's keystrokes are the field's
+shortcuts.ts        the four page-level keys, over the shared rule in `src/text-entry.ts` that a
+                    field's keystrokes are the field's — the sequencer's Keys panel needs it too
 hints.ts            the one line of instruction in the footer
 download.ts         a patch name as something an operating system will take
 RackStage.tsx       the two bays and the rack's two faces

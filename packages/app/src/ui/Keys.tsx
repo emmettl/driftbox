@@ -19,66 +19,26 @@ import {
   grooveboxMidiTargetRange,
   grooveboxMidiTargets,
 } from '../groovebox-midi.js'
+import { liftNote, pressNote } from './keys-hold.js'
+import { LAYOUT, noteName, outOfRange, semitoneOf, shiftOctave } from './keys-layout.js'
+import { midiVoiceStep, soundingSemitones, type ChannelVoice } from './keys-midi.js'
+import { claimsKey, keysKeyDown, keysKeyUp } from './keys-shortcuts.js'
 
 // A keyboard for the 303s — and for the toms, which are pitched percussion and have
 // wanted playing chromatically since the day they were added.
 //
 // The layout is the one every tracker and DAW has used for thirty years: the home row is
-// the white keys and the row above it the black ones. What matters is that the colours
-// follow the PITCH — the 303's note 0 is an A, so the white keys from the root spell A
-// natural minor, and the two gaps in the black row fall where B meets C and E meets F,
-// exactly as they do on a piano. For a major scale under the fingers, start on `d`, which
-// is a C.
+// the white keys and the row above it the black ones. Monophonic, because a 303 is — that
+// is not a limitation to work around, it is the feature: hold one key, press another
+// without letting go, and the two glide together on one envelope. Which is the slide from
+// the sequencer, arrived at from the other end.
 //
-// Monophonic, because a 303 is. That is not a limitation to work around, it is the
-// feature: hold one key, press another without letting go, and the two glide together on
-// one envelope. Which is the slide from the sequencer, arrived at from the other end.
-
-/**
- * One octave of a real piano, from the 303's root.
- *
- * The colours follow the PITCH, not the scale. That sounds obvious and the first version
- * got it wrong: it put white keys at 0,2,4,5,7,9,11 — the shape of a piano starting at C —
- * while the 303's note 0 is an A. So C, F and G came out on black keys and C#, F# and G#
- * on white ones, which is precisely backwards from every keyboard ever built, and no
- * amount of helpful degree labelling makes that read as anything but wrong.
- *
- * From A the pattern is: one black, a gap where B meets C, two blacks, a gap where E meets
- * F, then two more. Those two gaps are the thing that makes a keyboard legible at a glance
- * — they are how you find middle C without counting — and they only appear if the black
- * keys are placed by pitch.
- *
- * The consequence, worth saying out loud: the home row now spells A natural MINOR rather
- * than A major, because that is what the white keys from an A are. The major third, sixth
- * and seventh moved up to the black row where they belong. For a major scale under the
- * fingers, start on `d` — which is a C, and C major is all white keys.
- *
- * The letters keep the shape of the computer keyboard: black keys sit on the number row's
- * neighbours, above the gap between the two white keys they fall between.
- */
-const LAYOUT: { key: string; semitone: number; black: boolean; degree: string }[] = [
-  { key: 'a', semitone: 0, black: false, degree: '1' },
-  { key: 'w', semitone: 1, black: true, degree: '\u266d2' },
-  { key: 's', semitone: 2, black: false, degree: '2' },
-  // No black key between B and C. This gap is not a mistake.
-  { key: 'd', semitone: 3, black: false, degree: '\u266d3' },
-  { key: 'r', semitone: 4, black: true, degree: '3' },
-  { key: 'f', semitone: 5, black: false, degree: '4' },
-  { key: 't', semitone: 6, black: true, degree: '\u266d5' },
-  { key: 'g', semitone: 7, black: false, degree: '5' },
-  // Nor between E and F.
-  { key: 'h', semitone: 8, black: false, degree: '\u266d6' },
-  { key: 'u', semitone: 9, black: true, degree: '6' },
-  { key: 'j', semitone: 10, black: false, degree: '\u266d7' },
-  { key: 'i', semitone: 11, black: true, degree: '7' },
-  { key: 'k', semitone: 12, black: false, degree: '8' },
-]
-
-const NAMES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#']
-const noteName = (semitones: number) => NAMES[((semitones % 12) + 12) % 12]
-
-/** Highest octave offset the grid can still show — notes run 0..24. */
-const MAX_OCTAVE = 1
+// What moved out, because none of it could be reached without a controller on a desk:
+//
+//   keys-layout.ts     which key is which semitone, what it is called, how far it moves
+//   keys-hold.ts       the monophonic stack: the glide, and the fallback that closes gaps
+//   keys-midi.ts       what a note on a channel does, and what that channel is committed to
+//   keys-shortcuts.ts  what a keystroke means here, and when it belongs to a field instead
 
 export function Keys() {
   const selectedBass = useBox((s) => s.selectedBass)
@@ -137,14 +97,8 @@ export function Keys() {
   const midi = useRef<MidiHandle | null>(null)
   const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
   const [midiInputs, setMidiInputs] = useState<string[]>([])
-  /** Bass voice a channel started on. A selection change while a key is held must not
-   * send the eventual note-off to a different 303. */
-  const midiBass = useRef(new Map<number, string>())
-  /** Pitched drums are hits, not sustained voices. Remember a channel's passage so the
-   * mono allocator returning to an older held key does not strike that tom twice. */
-  const midiDrums = useRef(
-    new Map<number, { id: string; played: Set<number>; current: number }>(),
-  )
+  /** What each channel is committed to until its gate closes — see `keys-midi.ts`. */
+  const channels = useRef(new Map<number, ChannelVoice>())
 
   // The grid's selected voice, if the keyboard could play it.
   const pitchedVoice = voiceById(selectedVoice)?.pitched ? voiceById(selectedVoice) : undefined
@@ -154,48 +108,26 @@ export function Keys() {
     (state: VoiceState, channel: number) => {
       init()
       const box = useBox.getState()
-      const capturedBass = midiBass.current.get(channel)
-      const capturedDrum = midiDrums.current.get(channel)
+      const selectedTarget = targetRef.current
+      const selectedDrum = selectedTarget ? voiceById(selectedTarget) : undefined
+      const step = midiVoiceStep(state, channels.current.get(channel), {
+        drumId: selectedDrum?.pitched ? selectedDrum.id : null,
+        bassId: box.selectedBass,
+      })
 
-      if (state.gate === 0) {
-        if (capturedBass) {
-          box.engine?.bassNoteOff(capturedBass)
-          midiBass.current.delete(channel)
-        }
-        midiDrums.current.delete(channel)
-        setMidiHeld(bank.current.sounding().map((note) => note - 33))
-        return
-      }
+      if (step.capture) channels.current.set(channel, step.capture)
+      else channels.current.delete(channel)
 
-      // Once a legato passage starts on a 303 it stays there until its gate closes,
-      // even if the editor selection changes while the player's fingers are down.
-      if (capturedBass) {
-        box.engine?.bassNoteOn(capturedBass, state.note - 33, state.velocity >= 0.8, true)
-      } else if (capturedDrum) {
-        // A repeated note-on should retrigger; a fallback to an older held note should
-        // not. The allocator reports both as gate-on, so the held passage disambiguates.
-        if (!capturedDrum.played.has(state.note) || capturedDrum.current === state.note) {
-          box.engine?.auditionPitched(capturedDrum.id, state.note - 33, state.velocity >= 0.8)
-        }
-        capturedDrum.played.add(state.note)
-        capturedDrum.current = state.note
-      } else {
-        const selectedTarget = targetRef.current
-        const selectedDrum = selectedTarget ? voiceById(selectedTarget) : undefined
-        if (selectedDrum?.pitched) {
-          box.engine?.auditionPitched(selectedDrum.id, state.note - 33, state.velocity >= 0.8)
-          midiDrums.current.set(channel, {
-            id: selectedDrum.id,
-            played: new Set([state.note]),
-            current: state.note,
-          })
-        } else {
-          midiBass.current.set(channel, box.selectedBass)
-          box.enterBassNote(state.note - 33, state.velocity >= 0.8)
-          box.engine?.bassNoteOn(box.selectedBass, state.note - 33, state.velocity >= 0.8, false)
-        }
+      const { action } = step
+      if (action.kind === 'bass-off') {
+        box.engine?.bassNoteOff(action.voiceId)
+      } else if (action.kind === 'drum') {
+        box.engine?.auditionPitched(action.voiceId, action.semitone, action.accent)
+      } else if (action.kind === 'bass-on') {
+        if (action.write) box.enterBassNote(action.semitone, action.accent)
+        box.engine?.bassNoteOn(action.voiceId, action.semitone, action.accent, action.legato)
       }
-      setMidiHeld(bank.current.sounding().map((note) => note - 33))
+      setMidiHeld(soundingSemitones(bank.current.sounding()))
     },
     [init],
   )
@@ -258,9 +190,11 @@ export function Keys() {
   useEffect(
     () => () => {
       midi.current?.close()
-      for (const voice of midiBass.current.values()) useBox.getState().engine?.bassNoteOff(voice)
-      midiBass.current.clear()
-      midiDrums.current.clear()
+      // Every 303 a channel had committed to, so unmounting mid-phrase cannot leave one sustaining.
+      for (const voice of channels.current.values()) {
+        if (voice?.kind === 'bass') useBox.getState().engine?.bassNoteOff(voice.voiceId)
+      }
+      channels.current.clear()
     },
     [],
   )
@@ -269,8 +203,9 @@ export function Keys() {
     (semitone: number) => {
       init()
       const engine = useBox.getState().engine
-      heldRef.current = [...heldRef.current.filter((n) => n !== semitone), semitone]
-      setHeld([...heldRef.current])
+      const { held: next, legato } = pressNote(heldRef.current, semitone)
+      heldRef.current = next
+      setHeld([...next])
 
       if (drum) {
         // A tom is a hit, not a note — struck and gone, with nothing to sustain and
@@ -279,9 +214,6 @@ export function Keys() {
         return
       }
       useBox.getState().enterBassNote(semitone, accent)
-      // Legato when something is already down: the second note glides into the first
-      // rather than restarting it, which is the 303's slide.
-      const legato = heldRef.current.length > 1
       engine?.bassNoteOn(useBox.getState().selectedBass, semitone, accent, legato)
     },
     [accent, init, drum],
@@ -289,20 +221,15 @@ export function Keys() {
 
   const lift = useCallback(
     (semitone: number) => {
-      heldRef.current = heldRef.current.filter((n) => n !== semitone)
-      setHeld([...heldRef.current])
+      const { held: next, sounding } = liftNote(heldRef.current, semitone)
+      heldRef.current = next
+      setHeld([...next])
       if (drum) return
 
       const engine = useBox.getState().engine
       const voice = useBox.getState().selectedBass
-      const remaining = heldRef.current[heldRef.current.length - 1]
-      if (remaining === undefined) {
-        engine?.bassNoteOff(voice)
-      } else {
-        // Something is still down — fall back to it rather than going silent, so rolling
-        // between two keys never leaves a gap.
-        engine?.bassNoteOn(voice, remaining, false, true)
-      }
+      if (sounding === null) engine?.bassNoteOff(voice)
+      else engine?.bassNoteOn(voice, sounding, false, true)
     },
     [drum],
   )
@@ -311,38 +238,23 @@ export function Keys() {
   useEffect(() => {
     if (collapsed) return
 
-    const down = (event: KeyboardEvent) => {
-      // Auto-repeat would retrigger the note thirty times a second while a key is simply
-      // held down, which is the opposite of holding a note.
-      if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return
-      const target = event.target as HTMLElement | null
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+    const entry = bassEntryStep !== null && view === 'bass' && !drum
 
-      const mapped = LAYOUT.find((k) => k.key === event.key.toLowerCase())
-      if (mapped) {
-        event.preventDefault()
-        press(mapped.semitone + octave * 12)
-        return
-      }
-      if (bassEntryStep !== null && view === 'bass' && !drum && event.key === 'Backspace') {
-        event.preventDefault()
-        enterBassRest()
-        return
-      }
-      if (bassEntryStep !== null && view === 'bass' && !drum && event.key === 'Enter') {
-        event.preventDefault()
-        enterBassTie()
-        return
-      }
-      if (event.key === 'z') setOctave((o) => Math.max(-1, o - 1))
-      if (event.key === 'x') setOctave((o) => Math.min(MAX_OCTAVE, o + 1))
-      if (event.key === 'Shift') setAccent(true)
+    const down = (event: KeyboardEvent) => {
+      const action = keysKeyDown(event, { octave, entry })
+      if (!action) return
+      if (claimsKey(action)) event.preventDefault()
+      if (action.kind === 'note') press(action.semitone)
+      else if (action.kind === 'rest') enterBassRest()
+      else if (action.kind === 'tie') enterBassTie()
+      else if (action.kind === 'octave') setOctave((o) => shiftOctave(o, action.delta))
+      else if (action.kind === 'accent') setAccent(action.down)
     }
 
     const up = (event: KeyboardEvent) => {
-      const mapped = LAYOUT.find((k) => k.key === event.key.toLowerCase())
-      if (mapped) lift(mapped.semitone + octave * 12)
-      if (event.key === 'Shift') setAccent(false)
+      const action = keysKeyUp(event, octave)
+      if (action?.kind === 'note') lift(action.semitone)
+      else if (action?.kind === 'accent') setAccent(action.down)
     }
 
     // A key held while the window loses focus never sends its key-up, so the note would
@@ -375,14 +287,6 @@ export function Keys() {
     view,
   ])
 
-  const semitoneOf = (k: (typeof LAYOUT)[number]) => k.semitone + octave * 12
-
-  // A tom tunes across a little under an octave, so the top of the keyboard is out of
-  // its reach. Those keys are dimmed rather than removed — the shape stays a keyboard,
-  // and it is obvious why the end of it has gone quiet. The way further up is the next
-  // tom, which is what the machine's three of them are for.
-  const outOfRange = (semitone: number) =>
-    drum?.pitched ? drum.pitched.low * Math.pow(2, semitone / 12) > drum.pitched.high : false
   const entryPattern = song.patterns.find((candidate) => candidate.id === editing)
   const entryAvailable = view === 'bass' && !drum && Boolean(entryPattern)
 
@@ -493,14 +397,14 @@ export function Keys() {
               </button>
               <div className="keys-octave">
                 <button
-                  onClick={() => setOctave((o) => Math.max(-1, o - 1))}
+                  onClick={() => setOctave((o) => shiftOctave(o, -1))}
                   aria-label="Octave down"
                 >
                   −
                 </button>
                 <span>{octave > 0 ? `+${octave}` : octave}</span>
                 <button
-                  onClick={() => setOctave((o) => Math.min(MAX_OCTAVE, o + 1))}
+                  onClick={() => setOctave((o) => shiftOctave(o, 1))}
                   aria-label="Octave up"
                 >
                   +
@@ -577,13 +481,13 @@ export function Keys() {
           }}
         >
           {LAYOUT.map((k) => {
-            const semitone = semitoneOf(k)
+            const semitone = semitoneOf(k, octave)
             const on = held.includes(semitone) || midiHeld.includes(semitone)
             return (
               <button
                 key={k.key}
                 className={`key${k.black ? ' black' : ' white'}${on ? ' on' : ''}${
-                  outOfRange(semitone) ? ' unreachable' : ''
+                  outOfRange(drum?.pitched, semitone) ? ' unreachable' : ''
                 }`}
                 onPointerDown={(e) => {
                   e.currentTarget.releasePointerCapture?.(e.pointerId)
