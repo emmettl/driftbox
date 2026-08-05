@@ -17,6 +17,43 @@ export interface AudioInputHandle {
 
 type MediaAccess = Pick<MediaDevices, 'getUserMedia' | 'enumerateDevices'>
 
+/**
+ * How far the host has got with the browser's permission for one input.
+ *
+ * `denied` and `unavailable` are kept apart because they ask for different things of the person reading
+ * them: a refusal can be granted from the address bar, and a browser without capture at all cannot.
+ */
+export type AudioInputState = 'off' | 'opening' | 'on' | 'denied' | 'unavailable'
+
+/** What the host should show, and go back to, when opening an input did not work. */
+export interface AudioInputFailure {
+  state: AudioInputState
+  message: string
+}
+
+/**
+ * Read a rejected `getUserMedia` as a state and a sentence.
+ *
+ * `monitoring` is whether an input was already open, and it is the load-bearing argument: a *switch* that
+ * the browser refuses leaves the previous stream sounding, so reporting `denied` there would be a lie
+ * about audio the person can still hear. The failed switch is worth a sentence; the state stays `on`.
+ *
+ * Only a `DOMException` is read for its name. Anything else is some other failure wearing an unrelated
+ * `name`, and guessing from it would produce a confident, wrong sentence.
+ */
+export function audioInputFailure(error: unknown, monitoring: boolean): AudioInputFailure {
+  const name = error instanceof DOMException ? error.name : ''
+  return {
+    state: monitoring ? 'on' : name === 'NotSupportedError' ? 'unavailable' : 'denied',
+    message:
+      name === 'NotAllowedError'
+        ? 'Audio-input permission was denied.'
+        : name === 'NotFoundError' || name === 'OverconstrainedError'
+          ? 'That audio input is no longer available.'
+          : 'The browser could not open that audio input.',
+  }
+}
+
 /** Capture raw interface audio rather than speech-processed microphone audio. */
 export function audioCaptureConstraints(deviceId?: string): MediaStreamConstraints {
   return {

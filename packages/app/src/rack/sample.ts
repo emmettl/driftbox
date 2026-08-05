@@ -124,3 +124,19 @@ export function waveformPeaks(samples: Float32Array, buckets = 96): number[] {
 export function sampleName(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, '').slice(0, 60) || 'sample'
 }
+
+/**
+ * The rate a retained sample was decoded at, recovered from its frame count and its exact duration.
+ *
+ * Auditioning a loaded file means putting it back into a buffer, and a buffer needs a rate. The decode
+ * rate is not kept — only the frames and the seconds they lasted — and dividing recovers it, because that
+ * is the definition. Giving the preview context its own rate instead would change both the length and the
+ * pitch of everything anybody loaded on a 48kHz interface.
+ *
+ * Clamped to what `createBuffer` will accept, so a zero-length or nonsense duration cannot throw inside a
+ * click handler. Both bounds are the Web Audio range every browser supports.
+ */
+export function previewSampleRate(frames: number, seconds: number): number {
+  if (!(seconds > 0)) return 44100
+  return Math.max(3_000, Math.min(192_000, Math.round(frames / seconds)))
+}

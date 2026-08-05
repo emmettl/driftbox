@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { initialRackView, SPLIT_MIN_WIDTH } from './view.js'
+import { initialRackView, nextRackView, SPLIT_MIN_WIDTH } from './view.js'
 
 // The opening view is one comparison, and its two halves live in different languages: this side decides,
 // and `rack.css` lays out what was decided. The arithmetic is here; `rack-motion.test.ts` holds the two
@@ -17,5 +17,15 @@ describe('the view the rack opens on', () => {
     expect(initialRackView(390)).toBe('rack')
     // Zero is what a missing window reports, and the rack is the safe thing to guess.
     expect(initialRackView(0)).toBe('rack')
+  })
+})
+
+describe('the View button', () => {
+  it('walks one way through the three arrangements and comes back', () => {
+    expect(nextRackView('rack')).toBe('split')
+    expect(nextRackView('split')).toBe('pad')
+    expect(nextRackView('pad')).toBe('rack')
+    // Three presses is a round trip, which is what makes the button safe to press when you are unsure.
+    expect(nextRackView(nextRackView(nextRackView('split')))).toBe('split')
   })
 })

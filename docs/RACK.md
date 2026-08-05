@@ -543,6 +543,38 @@ packages/app/src/rack/   everything behind it: chassis, back panel, cables, face
 packages/app/src/        shared — the hash codec, styles, controls, scenes
 ```
 
+### The page itself, in pieces
+
+`RackApp.tsx` is the assembly and nothing else. It reached seventeen hundred lines honestly — a page
+hosting a synth, a sequencer's worth of retained song, two kinds of keyboard, a sampler, a microphone and
+three exports has that much to hold — but almost none of it was *about* the component, and none of it
+could be tested without starting audio in a browser by hand.
+
+```
+nodes.ts            the two live audio objects everything else shares
+useRackEngine.ts    starting audio; keeping the graph, transport and lanes in step with the document
+useSampleBank.ts    breaks, files, multisamples, previews — and getting the PCM back for an export
+useRackKeyboards.ts notes, controllers, and the performance/document line between them
+useAudioInput.ts    permission, device choice, and the sentence shown when either fails
+useRackView.ts      Rack → Split → Pad, and the shared-element transition between them
+useOpeningPatch.ts  what the page was opened with: a link, the last session, or the starter patch
+useGuidedTour.ts    the tour beside the rack, and which ones this browser has finished
+groovebox-host.ts   which retained machines are diverted into the rack, and the hosted transport clamps
+warnings.ts         what the page says when something is not quite right
+document-notice.ts  what it says about a document it did not author
+shortcuts.ts        the four page-level keys, and the rule that a field's keystrokes are the field's
+hints.ts            the one line of instruction in the footer
+download.ts         a patch name as something an operating system will take
+RackStage.tsx       the two bays and the rack's two faces
+RackWarnings.tsx    the stack under the header · DocumentNotice · TourOffer · RackFooter
+```
+
+The split is by *what a test can hold a claim against*. `rackWarnings` is a function from session state to
+a list of sentences, so "a link warns about the file it cannot carry" and "a suspended context says so
+only once something is playing" became assertions rather than things somebody noticed. Same for the
+transport clamps, the routing rule, and the six footer hints — a hint telling you to drag a knob while
+you are looking at the back of the rack is not a crash and not a glitch, and nothing but a test finds it.
+
 ## A separate entry point, not a tab
 
 **The rack is its own page.** `index.html` opens the sequencer and nothing about it changes;

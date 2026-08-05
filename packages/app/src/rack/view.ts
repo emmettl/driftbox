@@ -32,3 +32,15 @@ export const SPLIT_MIN_WIDTH = 1016
 export function initialRackView(viewportWidth: number): RackView {
   return viewportWidth >= SPLIT_MIN_WIDTH ? 'split' : 'rack'
 }
+
+/**
+ * Where the View button goes next: Rack → Split → Pad → Rack.
+ *
+ * One cycle rather than two booleans, because two booleans can describe a fourth view that does not exist
+ * — a pad that is also hidden — and every place that reads the view would have to agree not to produce it.
+ * The order is the amount of performance surface on screen, increasing, so pressing the button repeatedly
+ * reads as one movement in one direction and arrives back where it started.
+ */
+export function nextRackView(view: RackView): RackView {
+  return view === 'rack' ? 'split' : view === 'split' ? 'pad' : 'rack'
+}
