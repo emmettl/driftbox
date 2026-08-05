@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { SPLIT_MIN_WIDTH } from './src/rack/view.js'
 
 const styles = readFileSync(new URL('./src/rack/rack.css', import.meta.url), 'utf8')
-const rackApp = readFileSync(new URL('./src/rack/RackApp.tsx', import.meta.url), 'utf8')
+// The two halves of the performance view, read as text. `useRackView` decides which arrangement is on
+// screen and how the browser gets there; `RackStage` lays the result out. They were one component when
+// these assertions were written, and the claims are the same either way — a stylesheet and the code that
+// drives it, held in step.
+const rackView = readFileSync(new URL('./src/rack/useRackView.ts', import.meta.url), 'utf8')
+const rackStage = readFileSync(new URL('./src/rack/RackStage.tsx', import.meta.url), 'utf8')
 
 describe('the rack turn', () => {
   it('hands off both stable faces at the same edge in either direction', () => {
@@ -32,7 +37,7 @@ describe('the rack turn', () => {
 
 describe('the performance view hand-off', () => {
   it('uses the real pad as a shared element between split and full layouts', () => {
-    expect(rackApp).toContain('document.startViewTransition(() => flushSync(update))')
+    expect(rackView).toContain('document.startViewTransition(() => flushSync(update))')
     expect(styles).toContain('view-transition-name: rk-performance-pad;')
     expect(styles).toContain('view-transition-name: rk-performance-rack;')
     expect(styles).toContain(
@@ -41,7 +46,7 @@ describe('the performance view hand-off', () => {
   })
 
   it('captures a non-rotating shell so cycling views cannot flatten the rack turn', () => {
-    expect(rackApp).toContain('className="rk-rack-snapshot"')
+    expect(rackStage).toContain('className="rk-rack-snapshot"')
     expect(styles).toContain(
       '.rk-rack-snapshot {\n  position: relative;\n  view-transition-name: rk-performance-rack;',
     )
@@ -49,11 +54,11 @@ describe('the performance view hand-off', () => {
   })
 
   it('reopens split at the rack bay and keeps the keyboard above transition snapshots', () => {
-    expect(rackApp).toContain(
+    expect(rackView).toContain(
       "if (rackView === 'split' && performanceSpace.current) performanceSpace.current.scrollLeft = 0",
     )
-    expect(rackApp).toContain('ref={performanceSpace}')
-    expect(rackApp).toContain('className={`rk-performance-space rk-performance-space-${rackView}')
+    expect(rackStage).toContain('ref={performanceSpace}')
+    expect(rackStage).toContain('className={`rk-performance-space rk-performance-space-${rackView}')
     expect(styles).toContain('view-transition-name: rk-performance-keyboard;')
     expect(styles).toContain('::view-transition-group(rk-performance-keyboard) {\n  z-index: 2;')
   })
@@ -73,17 +78,17 @@ describe('the performance view hand-off', () => {
     expect(styles).toContain(
       "html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-rack)",
     )
-    expect(rackApp).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)').matches")
+    expect(rackView).toContain("window.matchMedia?.('(prefers-reduced-motion: reduce)').matches")
   })
 
   it('opens on split where there is room, without animating an arrival nothing moved into', () => {
-    expect(rackApp).toContain(
+    expect(rackView).toContain(
       "initialRackView(typeof window === 'undefined' ? 0 : window.innerWidth)",
     )
     // The entrance keyframes are cancelled until the View button has actually moved something, and
     // restored from then on — so cycling back into split still slides the rack aside.
-    expect(rackApp).toContain("viewCycled ? '' : ' rk-performance-space-seated'")
-    expect(rackApp).toContain('setViewCycled(true)')
+    expect(rackStage).toContain("viewCycled ? '' : ' rk-performance-space-seated'")
+    expect(rackView).toContain('setViewCycled(true)')
     expect(styles).toContain(
       '.rk-performance-space-seated .rk-stage,\n.rk-performance-space-seated .rk-perform {\n  animation: none;\n}',
     )

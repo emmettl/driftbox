@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { guessBars, normalise, sampleName, tempoForBars, toMono, waveformPeaks } from './sample.js'
+import {
+  guessBars,
+  normalise,
+  previewSampleRate,
+  sampleName,
+  tempoForBars,
+  toMono,
+  waveformPeaks,
+} from './sample.js'
 
 // Loading somebody's own break. The whole thing turns on one question — how long is a bar of this file —
 // because the Sampler slices by equal division and a chop only lands on the beat if the answer is right.
@@ -138,5 +146,25 @@ describe('preparing the samples', () => {
     expect(sampleName('no-extension')).toBe('no-extension')
     // A file called nothing but an extension still has to produce a name.
     expect(sampleName('.wav')).toBe('sample')
+  })
+})
+
+// Auditioning a loaded file means putting it back into a buffer, and a buffer needs the rate it was
+// decoded at. That rate is not kept — only the frames and the seconds they lasted — so it is recovered by
+// division, and the wrong answer here changes the length and the pitch of everything anybody loaded.
+describe('auditioning a retained sample', () => {
+  it('recovers the rate it was decoded at', () => {
+    expect(previewSampleRate(44100, 1)).toBe(44100)
+    expect(previewSampleRate(96000, 2)).toBe(48000)
+    // Two bars of a 174bpm break at 48kHz, to the frame.
+    expect(previewSampleRate(132414, 132414 / 48000)).toBe(48000)
+  })
+
+  it('stays inside what createBuffer will accept, whatever it is handed', () => {
+    // A click handler must not throw because a duration was recorded as zero or missing.
+    expect(previewSampleRate(1000, 0)).toBe(44100)
+    expect(previewSampleRate(1000, -1)).toBe(44100)
+    expect(previewSampleRate(0, 1)).toBe(3_000)
+    expect(previewSampleRate(44100, 0.0001)).toBe(192_000)
   })
 })
