@@ -1778,6 +1778,54 @@ both bundle cost on the editing-only path and visual competition with a readable
    opening this later is a small change rather than a rewrite, so there is nothing to pay in
    advance.
 
+   **5c′. The importer, caught up with the rack it imports into.** ✅ The table above was written when
+   this rack had twenty modules, mono cables and one voice, and it did not move while thirty modules,
+   stereo, polyphony, bypass and per-module `data` landed around it. Five things followed from measuring
+   it again rather than from remembering it.
+
+   **A fourth note kind, `approximate`, and it is the important one.** A mapping can land on a real port
+   and still change what you hear: VCV gives each of a VCO's four waveforms its own jack where we have one
+   behind a Shape knob, and Shape is a knob and knobs do not come across. All of that was reported as
+   `mapped`, indistinguishable from an exact match — so the report said a patch had arrived intact when
+   half of it had been folded. This is the compiler's stereo-fold note by another name: the cable is real,
+   it is drawn, and the reader needs to know it is not what was there. It is keyed by *our* port rather
+   than by VCV's index, and said once per module and port, because fanning one outlet out four ways is
+   still one fact about one jack.
+
+   **A highpass stopped becoming a lowpass.** `Fundamental/VCF` has an LPF jack and an HPF jack, and both
+   were mapped onto the Ladder's single lowpass outlet — silently, the failure this whole file is built to
+   prevent. It maps to the `SVF` now, which has both. The cost is character and it is real: Fundamental's
+   VCF is ladder-derived and the SVF is the clean one. Topology is what this importer promises, a dropped
+   cable is a dead branch, and swapping a Ladder back in afterwards is one module and two cables — so it
+   takes the wiring and the note says what it gave up.
+
+   **One VCV module becomes one of ours**, stated rather than assumed, because it settles three arguments
+   at once. `8vert` does not become eight Offsets. An Audio-8 does not become four stereo Outs — its first
+   two inputs land on our one stereo `in`, which means the pair arrives summed and centred, and that is a
+   sentence in the report rather than a silence. And the tempting fix for that — two Outs panned hard
+   apart — would have had the importer writing pan knobs after promising it writes none.
+
+   **Three things the document gained after the table was written, now read.** A module VCV had bypassed
+   arrives bypassed (`bypassed` in v2, `disabled` in v1; neither is a published format, so take either). A
+   MIDI-CV's channel count becomes `Patch.voices`, which is not the knob decision in disguise — a count is
+   a count rather than a value in somebody else's units — guarded so that anything unexpected leaves the
+   patch monophonic, which is what every import did before. And `pos`, which round-tripped through
+   `patch-io` while nothing on earth read it, now decides the **order of the module list** — which is our
+   layout, so a rack built left to right over an evening no longer arrives shuffled into VCV's creation
+   order.
+
+   **Four models added and several deliberately not.** WT VCO, VCMixer, Scope and the Audio-8/16 slugs map;
+   `VCMixer` goes to our plain `Mixer` rather than to the `Line Mixer` whose name it resembles, because
+   four channels each with a level CV is exactly what `mixer.ts` is. `8vert`, `Merge`, `Split` and `Random`
+   stay placeholders: the first three lose to the one-to-one rule and the last has no module here — our
+   Sample & Hold samples something you patch into it, so mapping the two would produce silence with a
+   confident report attached. `SEQ3` stays mapped and now says it arrives empty, because its steps are
+   knobs; wired and silent otherwise reads as the importer having broken it.
+
+   **Still unverified, and now by a wider margin.** None of these indices has been checked against a real
+   `.vcv` written by Rack, and the table is bigger than it was. The test still holds every mapping to
+   naming only ports we actually have, which is a much weaker property than being right.
+
    **5d. A stereo imager.** ✅ Built. Stereo cables stopped being plumbing and became an instrument:
    the Imager splits the side signal around one crossover and gives the low and high bands independent
    widths, so a mix can keep its kick and bass centred while opening the top.
