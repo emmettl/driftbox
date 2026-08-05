@@ -213,13 +213,33 @@ where "the sounding set is always the newest N held" is a stated invariant and t
 one class instead of two rests on it — a property test is how that argument stays true. And
 swing, where a per-voice offset must never reorder an event past the next step.
 
-**Scene code-splitting, and a size budget in CI.** `visual/scenes/index.ts` statically imports all
-eighteen scenes, so first load pays for every one of them plus three. The only dynamic import in
-the app is `PerformPad.tsx:7`. Meanwhile ROADMAP quotes 1.27MB as a hand-measurement, and neither
-`package.json` nor any workflow contains a size check. Splitting the scenes is probably the
-largest single first-load win available; asserting a per-chunk budget in `ci.yml` is what stops it
-silently regressing, on the same principle already applied to the level measurements — a check
-that finds real problems should not depend on somebody remembering it.
+**~~Scene code-splitting, and a size budget in CI.~~ — landed, and it was worth less than it
+looked.** The registry now defers only the component and keeps the metadata eager, so a page can
+still list scenes and read their accent colours without fetching any. Measured on the built
+output, first load went from **400kB to 365kB gzipped** on the sequencer and 515kB to 481kB on the
+rack — about 9%, not the third the raw chunk sizes suggested, because **three is 220kB gzipped of
+what remains** and every scene shares it. The eighteen scenes are 3–4kB each now, fetched one at a
+time.
+
+The structural change matters more than the number: a nineteenth scene is now free to everyone who
+does not watch it, where before every scene taxed every visit.
+
+Two things came out of doing it. **The budget had to be per page rather than per chunk** — a chunk
+table would have called splitting one 400kB chunk into four 100kB ones an improvement when all
+four are still fetched on load — so `scripts/check-size.mjs` sums the entry plus every declared
+`modulepreload`, which is exactly the static import graph. And **the size ceiling alone does not
+protect the split**: adding a static import of one scene back into the registry was measured at
++3kB gzip, comfortably inside any headroom a non-brittle ceiling needs. So the real guard is
+structural and not a number at all — no scene may appear in either page's first-load graph — and
+that assertion catches the regression the ceilings sail past. Verified by making it.
+
+Deferring **three itself** is the next real win available, and it is a product decision rather
+than a build one: the argument for the phone is that it opens straight into the visuals.
+
+Naming was a side effect worth having. Shared chunks were being named after whichever module the
+bundler happened to pick — `Oscilloscope`, then `offline`, then `audio` for a file that is 856kB
+of three — so the two that are really libraries are now named `three` and `react`. A budget keyed
+on chunk names needs names that mean something.
 
 **Capturing a performance, rather than only rendering one.** Stems are correct and their two
 load-bearing decisions are right. What they cannot capture is the thing somebody just *played* —
@@ -293,15 +313,20 @@ reaches a server.
 
 If they were done one at a time, this order:
 
-1. **Manifest and service worker.** Smallest, and the only one that changes what the thing *is*
-   on the platform the README argues it is best on.
-2. **Output-latency compensation.** A few lines, measurable, and it makes an existing claim true
-   on hardware where it currently is not.
-3. **Scene code-splitting, with the size budget landing in the same change.** The budget is worth
-   little on its own and worth a lot the moment it is guarding a number somebody just improved.
+1. ~~**Manifest and service worker.**~~ Landed. Smallest, and the only one that changes what the
+   thing *is* on the platform the README argues it is best on.
+2. ~~**Output-latency compensation.**~~ Landed. A few lines, measurable, and it made an existing
+   claim true on hardware where it was not.
+3. ~~**Scene code-splitting, with the size budget landing in the same change.**~~ Landed, and the
+   prediction held for the wrong reason: the budget was worth more than the split, because the
+   assertion that protects the split turned out not to be a size at all.
 4. **MIDI clock in.** The largest of the four, and the one that changes what the project is. In
    before out: being slaved is the common case, and it proves the filter that sending would then
-   reuse.
+   reuse. **Not started** — the only one of the four still open.
+
+Everything under *Everything else* remains genuinely optional, with one exception that has been
+promoted by being measured twice: **seeding the noise buffer** is now blocking test work rather
+than only fingerprinting, and it is small.
 
 Everything under *Everything else* is genuinely optional. The four above are the ones where the
 gap is between what the project claims and what it does, which is the only kind of gap this file

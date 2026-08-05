@@ -42,3 +42,8 @@ jobs:
       # above — and it serves that artifact at /driftbox/ as well as at the root, because every
       # path involved is relative and only the subdirectory tells the two apart.
       - run: npm run verify:offline --workspace @driftbox/app
+
+      # What each page costs to open, and the structural half of that: no scene may be in either
+      # page's first-load graph. One static import in the registry welds all eighteen back into
+      # the entry, and it is a change nobody would see reviewing the diff that caused it.
+      - run: npm run check:size --workspace @driftbox/app

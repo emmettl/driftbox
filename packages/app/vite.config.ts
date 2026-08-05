@@ -129,6 +129,28 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         rack: fileURLToPath(new URL('./rack.html', import.meta.url)),
       },
+      output: {
+        // Name the two chunks that are actually libraries.
+        //
+        // Left alone, a shared chunk is named after whichever of its modules the bundler happened
+        // to pick, which has meant `Oscilloscope`, then `offline`, then `audio` — a file of
+        // 856kB called `audio` that is in fact all of three, and a 368kB one called `offline`
+        // that is React. Every one of those names is a lie about the biggest thing in the build,
+        // and `offline` in particular reads as the cost of the service worker, which is 2kB.
+        //
+        // It is also what makes a size budget possible at all. `scripts/check-size.mjs` matches on
+        // the name in front of the content hash, so a name that moves when an unrelated module is
+        // added is a budget that silently stops covering anything.
+        // `advancedChunks` rather than `manualChunks`: under rolldown the latter is a function
+        // only, and passing it the name-to-modules object every Rollup example shows is a type
+        // error rather than a silent no-op — which is the good version of that surprise.
+        advancedChunks: {
+          groups: [
+            { name: 'three', test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/ },
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
     },
   },
 
