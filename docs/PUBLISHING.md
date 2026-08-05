@@ -1,9 +1,16 @@
 # Publishing
 
-Today, two packages go to npm: `@driftbox/engine` and `@driftbox/app`. Both are published at
-`0.5.0`. The work-in-progress `@driftbox/rack` package will join them when it is complete
-and ready to support a public API. **Nothing publishes automatically** — the workflow only
-runs when a GitHub Release is published, or when somebody runs it by hand.
+Three packages go to npm: `@driftbox/engine` and `@driftbox/app`, both published at `0.5.0`,
+and `@driftbox/rack`, which is release-ready at `0.1.0` and has not had its first publish yet
+— see *Authentication* for why that one is not simply a matter of cutting a release.
+**Nothing publishes automatically** — the workflow only runs when a GitHub Release is
+published, or when somebody runs it by hand.
+
+The rack is on `0.x` on purpose rather than because it is unfinished. Its capability ledgers
+are complete and its public surface is tiered and pinned by `api.test.ts`; what is unsettled
+is whether audio enters the document, which `REASON-GAP.md` records as the last architectural
+gap and which could want a new shape in `Patch` rather than another optional field. `1.0.0` is
+for when that is answered.
 
 That is deliberate. `npm unpublish` is heavily restricted after 72 hours, so a bad version
 is effectively permanent: the remedy is a new version with the broken one sitting on the
@@ -11,12 +18,19 @@ registry forever. The trigger should be something you had to go and do.
 
 ## Authentication
 
-Both packages use npm trusted publishing. The npm package settings trust this repository's
+Every package uses npm trusted publishing. The npm package settings trust this repository's
 publish workflow, and GitHub's `id-token: write` permission supplies a short-lived OIDC
 credential for each run. There is no `NPM_TOKEN` secret to create, rotate or accidentally
 override the OIDC path.
 
-`publishConfig.access` remains `public` in both packages. A scoped package defaults to
+**A package's first publish is the exception, and `@driftbox/rack` has not had one.** Trusted
+publishing cannot be configured for a name that does not exist on the registry yet — the same
+bootstrap problem the engine hit at `0.1.0`, recorded under *Provenance* below. So the rack's
+first release needs a one-time manual `npm publish` with a granular token, after which its npm
+package settings can be pointed at this workflow and the token revoked. Every release after
+that goes through OIDC with the others.
+
+`publishConfig.access` is `public` in all three packages. A scoped package defaults to
 *private*, and a publish without that setting fails with a payment-required error that reads
 like a billing problem rather than a missing option.
 
@@ -41,13 +55,18 @@ ticked — the default. It does everything except the upload, including the real
 | | contents |
 |---|---|
 | `@driftbox/engine` | `dist/` (JS + `.d.ts` + maps), `src/` without tests, README |
+| `@driftbox/rack` | `dist/` (JS + `.d.ts` + maps), `src/` without tests, `examples/`, README |
 | `@driftbox/app` | `dist/` (the built app), `bin/`, README |
 
-The engine ships its **source** as well as its build, because the maps point at it — without
-it they dangle and "go to definition" lands nowhere — and because the reasoning in this
-engine lives in its comments.
+The engine and the rack ship their **source** as well as their build, because the maps point
+at it — without it they dangle and "go to definition" lands nowhere — and because the
+reasoning in these packages lives in their comments. For the rack that is load-bearing twice
+over: a module's processor is read as text at runtime and its comments are the DSP argument.
 
-Neither package has a runtime dependency.
+`@driftbox/rack` depends on `@driftbox/engine` at `^0.5.0`, for the shared ladder and the
+Song codec it refuses to fork. That is why `PACKAGES` in the workflow lists the engine first:
+publishing a package before the version it depends on exists leaves an installable tarball
+whose install fails. The engine and the app have no runtime dependency at all.
 
 ## Provenance
 

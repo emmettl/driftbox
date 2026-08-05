@@ -1,0 +1,40 @@
+{
+  // The node-context files in this package, which today is one test.
+  //
+  // It exists for the same reason `packages/app/tsconfig.node.json` does: `docs.test.ts` reads
+  // files off disk, so it needs `@types/node`, and this package must not have node globals in
+  // scope while type-checking `src`. Everything in `src` is compiled into an AudioWorklet or run
+  // in a browser, where `process` and `node:fs` do not exist — and a `types` array that admitted
+  // them would let a module processor reference one and type-check clean, failing instead at the
+  // first patch load in somebody's page. Verified rather than assumed: `process` is an error under
+  // both of the other configs in this package.
+  //
+  // So `tsconfig.json` keeps `include: ["src"]` and its narrow `types`, this covers the file that
+  // needs more, and the two never see each other. `npm run typecheck` names both.
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.rack-node.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true,
+
+    "module": "nodenext",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // The same source-not-dist resolution `tsconfig.json` explains at length: this file imports
+    // the registry to count it, and reading that through the workspace symlink would resolve it
+    // to a dist/ that may not have been built.
+    "paths": {
+      "./src/modules/index.js": ["./src/modules/index.ts"]
+    }
+  },
+  "include": ["docs.test.ts"]
+}

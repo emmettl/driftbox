@@ -3,10 +3,12 @@
 A modular synth rack: modules, cables between any of them, and one graph running at sample
 rate inside a single AudioWorklet.
 
-It is still a work in progress and is intentionally private and unpublished. Once complete
-and ready to support a public API, it can join the engine and app on npm.
+Versioned `0.1.0` rather than `1.0.0`, deliberately: the patch format is designed to be
+stable and is tested that way, but whether audio enters the document is still an open
+question, and it is the one that could still want a new shape in `Patch` rather than another
+optional field. See "The patch format is the part worth being stable about" below.
 
-Thirty-seven modules, a compiler, a worklet host and a patch format. The app supplies the
+Forty-seven modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
 tracker, sampler, patchable VU meters, patch library, Combinator routing with MIDI learn,
 drag-to-reorder, performance mode and offline export.
@@ -255,6 +257,13 @@ them a line in a diff.
 hoped for: a version in the envelope, every added field optional, a decoder that never throws and
 preserves what it does not recognise, and a test that a patch written before a field existed still
 round-trips byte-identically. Adding `modulation` for the Combinator exercised all of that.
+
+**What the `0.x` reserves is the one case that machinery does not obviously cover.** Nothing records
+audio against the timeline yet, and `../../docs/REASON-GAP.md` records it as the only architectural
+gap left — the Looper keeps its PCM out of the document and the Multisampler puts its zone map in, so
+the "does audio enter the document" question has been deferred in two directions at once. Every
+addition so far has been an optional field; an audio track might not be. `1.0.0` is for when that is
+settled, not for when the module list stops growing.
 
 ## Tests
 

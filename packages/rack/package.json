@@ -1,7 +1,6 @@
 {
   "name": "@driftbox/rack",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "A modular synth rack: modules, cables between any of them, one graph at sample rate in a single AudioWorklet.",
   "keywords": [
     "web-audio",
@@ -20,7 +19,11 @@
   },
   "homepage": "https://emmettl.github.io/driftbox/",
   "type": "module",
-  "//private": "Intentionally unpublished while the rack remains a work in progress. It is playable, but its engine and patch API are still moving quickly; a version on npm would make compatibility promises the in-repo app does not need. When complete and ready to support external consumers, drop this, add publishConfig.access and publish it alongside the engine and app.",
+  "//version": "0.1.0 rather than 1.0.0, deliberately. The capability ledgers are complete — every row of docs/REBIRTH-PARITY.md and every ordered item in docs/REASON-GAP.md has landed — and the API is tiered and pinned by api.test.ts, so this is supportable. What is not settled is whether audio enters the document: REASON-GAP.md records that as the one architectural gap left, and the Looper and the Multisampler have each deferred it in opposite directions. That decision could still want a new shape in `Patch` rather than another optional field, and 0.x is the honest way to say so. It goes to 1.0.0 when that question is answered.",
+  "//publishConfig": "A scoped package defaults to private, and a publish without this fails with a payment-required error that reads like a billing problem rather than a missing option. Same setting as the engine and the app.",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -51,6 +54,7 @@
   },
   "//devDependencies": "rolldown is here for one test. `minified.test.ts` bundles this package the way a consumer would and evaluates the worklet assembled from what came out, because the failure that scheme has is silent and happens only in somebody else's build. It is the bundler Vite already uses, so the test measures the pipeline the app really ships through rather than a stand-in.",
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "rolldown": "^1.2.2",
     "typescript": "~7.0.2",
     "vitest": "^4.1.10"

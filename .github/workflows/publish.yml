@@ -27,6 +27,12 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Every package that goes to npm, in dependency order — the rack depends on the engine,
+    # and publishing a package before the version it depends on exists leaves an installable
+    # tarball whose install fails. `npm run build` already builds them in this order because
+    # the root `workspaces` array is ordered the same way.
+    env:
+      PACKAGES: engine rack app
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -68,22 +74,34 @@ jobs:
       - run: npm run build
 
       # Guards against the commonest release mistake: cutting v0.2.0 having forgotten to
-      # bump either package, and silently republishing — or failing to publish — 0.1.0.
+      # bump any package, and silently republishing — or failing to publish — 0.1.0.
       # Deliberately not a lockstep requirement: the packages version independently, so
       # this only asks that the tag matches SOMETHING.
+      #
+      # The package list lives in PACKAGES, once, and both this check and the publish step
+      # below read it. Adding the rack meant editing two hardcoded lists that had no reason
+      # to disagree and every opportunity to — a package missing from one of them either
+      # never publishes or publishes without the tag guard, and neither failure announces
+      # itself.
       - name: Check the release tag matches a package version
         if: github.event_name == 'release'
         run: |
+          set -euo pipefail
           TAG="${GITHUB_REF_NAME#v}"
-          ENGINE=$(node -p "require('./packages/engine/package.json').version")
-          APP=$(node -p "require('./packages/app/package.json').version")
-          echo "tag=$TAG engine=$ENGINE app=$APP"
-          if [ "$TAG" != "$ENGINE" ] && [ "$TAG" != "$APP" ]; then
-            echo "::error::Release tag $GITHUB_REF_NAME matches neither @driftbox/engine ($ENGINE) nor @driftbox/app ($APP). Bump a package, or retag."
+          matched=""
+          for pkg in $PACKAGES; do
+            name=$(node -p "require('./packages/$pkg/package.json').name")
+            version=$(node -p "require('./packages/$pkg/package.json').version")
+            echo "$name=$version"
+            if [ "$TAG" = "$version" ]; then matched="$name"; fi
+          done
+          if [ -z "$matched" ]; then
+            echo "::error::Release tag $GITHUB_REF_NAME matches no package version. Bump a package, or retag."
             exit 1
           fi
+          echo "tag=$TAG matches $matched"
 
-      # No NODE_AUTH_TOKEN. Both packages are published by a TRUSTED PUBLISHER — npm
+      # No NODE_AUTH_TOKEN. Every package here is published by a TRUSTED PUBLISHER — npm
       # trades the `id-token: write` identity below for a short-lived credential, so there
       # is no long-lived secret in this repo to leak, rotate or forget. Leaving a stale
       # token in the environment would be worse than useless: npm prefers an explicit
@@ -95,11 +113,11 @@ jobs:
           set -euo pipefail
           published_any=0
 
-          for pkg in engine app; do
+          for pkg in $PACKAGES; do
             name=$(node -p "require('./packages/$pkg/package.json').name")
             version=$(node -p "require('./packages/$pkg/package.json').version")
 
-            # Already on the registry? Skip rather than fail. Both packages are released
+            # Already on the registry? Skip rather than fail. The packages are released
             # together but version independently, so a release that only touches the
             # engine will find the app unchanged — and that is not an error.
             if npm view "$name@$version" version > /dev/null 2>&1; then
