@@ -42,7 +42,7 @@
   "sideEffects": false,
   "//dependencies": "Narrowly, for shared DSP and the additive groovebox document bridge. The ladder module wraps the engine's `Ladder` rather than copying it, while `groovebox.ts` uses the engine-owned Song codec rather than forking its schema. The engine is sideEffects:false, so consumers that only need the rack graph still drop the sequencer and songs.",
   "dependencies": {
-    "@driftbox/engine": "^0.4.0"
+    "@driftbox/engine": "^0.5.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
