@@ -249,6 +249,9 @@ describe('the registry', () => {
       // behave unlike anything else on the Sources shelf, and a device whose two best features read as
       // ordinary knobs is exactly the case a generated control reference cannot cover.
       'wavetable',
+      // Thirty-nine knobs, and the three that matter are not knobs at all: where a send sits in the
+      // channel strip, what solo means on a module that is not the mix, and why a return goes one way.
+      'line-mixer',
     ]
 
     for (const type of guided) {

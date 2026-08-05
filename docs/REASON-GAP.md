@@ -352,11 +352,35 @@ being a history. So the tree was measured against Reason once more rather than r
 what came back. Same rule as the top of this file: checked against the source, and a gap that turns out to
 be patchable is recorded as patchable.
 
-1. **The Mixer is a four-in mono adder.** `modules/mixer.ts` is four signals, four level CVs and one mono
-   outlet; pan, mute and solo live on `Out` instead, and there is no aux send, no return and no channel EQ.
-   Post-6 Reason essentially *is* the SSL mixer. **Patchable rather than architectural** — splitting is free
-   and merging is what Mixer is, so a send bus is a second Mixer and some cables — but it is a page of
-   cables for the thing every patch does, which is the same argument that made the Voice a module.
+1. **~~The Mixer is a four-in mono adder.~~ Landed as `Line Mixer`.** `modules/mixer.ts` is four signals,
+   four level CVs and one mono outlet; pan, mute and solo lived on `Out` instead, and there was no aux
+   send, no return and no channel EQ. Post-6 Reason essentially *is* the SSL mixer.
+
+   The entry above recorded this as **patchable rather than architectural** and that was right — splitting
+   an outlet is free, merging is what `Mixer` is, and a send level is a Mixer channel — so what landed is
+   the `voice.ts` argument rather than a new capability: six sources with pan, mute, solo and two sends
+   each cost six Outs, two Mixers and twelve cables, and the patch that resulted said "mixer" and nothing
+   more specific. `Line Mixer` is Reason's 6:2 — six stereo channels, two stereo aux sends with their
+   returns, a stereo master. Four decisions worth keeping:
+
+   - **It is not terminal.** An `Out` is the end of the rack and this feeds one, exactly as Reason's mixer
+     fed the hardware interface. A second kind of terminal would have meant two solo systems that could
+     disagree, since the Graph's mute and solo are facts about the *set* of terminals.
+   - **Its solo lives in the processor, where the Out's could not.** `out.ts` says its solo "could not live
+     in this processor even in principle: one channel soloed silences the OTHERS, and a module has no idea
+     the others exist" — true for a terminal and false here, because this module *is* the set. Same word,
+     same behaviour, opposite implementation, and the difference is scope rather than mixing.
+   - **Sends are post-fader, post-pan and post-mute**, which is the only choice that makes solo behave: a
+     channel that is muted or unsoloed sends nothing, so the returns carry what you are auditioning rather
+     than the whole mix through a reverb.
+   - **Returns land before the master and never reach the sends.** That would be a feedback loop inside one
+     device with no cable to explain it — the one loop this rack should not offer, since every other one is
+     something you patched and can see.
+
+   Not done, and deliberately: **no channel EQ** — Reason's strip has one, and here an `EQ` module per
+   channel is a real answer where six hard-wired two-band strips would be six approximations nobody asked
+   for. **No level CV inlets** either; automation lanes and Combinator routings already reach every knob,
+   and the plain `Mixer` remains the module for mixing control signals.
 
 2. **Nothing records audio against the timeline.** `Patch.automation` gave parameters a lane; audio has
    `audio-input.ts` and `looper.ts`, and the Loop Station deliberately keeps its PCM out of the document,

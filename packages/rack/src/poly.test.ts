@@ -193,10 +193,15 @@ describe('what the compiler says about voices', () => {
     // and `Rack.setParam` already spreads one of those across every voice, so a per-voice Combinator would
     // have nothing different to say. If a new module appears here, it should be because duplicating it would
     // be wrong rather than because nobody thought about it.
+    //
+    // The Line Mixer is the plainest case on the list and the one worth reading the rule from: a shared desk
+    // is the entire point of it, so eight of them would be eight desks each hearing one note. Its neighbour
+    // `mixer` is deliberately NOT here, and the contrast is the whole distinction — that one is a summing
+    // utility you put *inside* a voice, this one is where voices arrive.
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
     expect(mono.sort()).toEqual([
       'arp', 'arranger', 'audio-input', 'cabinet', 'clock', 'combi', 'delay', 'distortion', 'groovebox', 'imager',
-      'limiter', 'looper', 'meter', 'out', 'phaser', 'ping-pong', 'reverb', 'seq',
+      'limiter', 'line-mixer', 'looper', 'meter', 'out', 'phaser', 'ping-pong', 'reverb', 'seq',
       'tracker', 'transport', 'tuner', 'vocoder',
     ])
   })
