@@ -1,8 +1,6 @@
 import {
   PATCHES,
   SONG_PATCHES,
-  embedGrooveboxSong,
-  grooveboxSong,
   importVcv,
   type ImportNote,
   type Patch,
@@ -19,8 +17,29 @@ import {
   savePatch,
   type SavedDocument,
 } from './library.js'
+import {
+  PROBLEMS,
+  adoptDocument,
+  deleteQuestion,
+  entryAction,
+  meterCount,
+  nameAfterDelete,
+  nameAfterRename,
+  presetAction,
+  presetSummary,
+  saveAsName,
+  saveTarget,
+  vcvOutcome,
+  type Dialogs,
+} from './patch-browser.js'
 import { downloadPatch, pickPatchFile, pickVcvFile } from './persistence.js'
 import { useRack } from './store.js'
+
+/** The two questions only a person can answer. Injected so `patch-browser.ts` can be asked them. */
+const DIALOGS: Dialogs = {
+  ask: (question, suggestion) => prompt(question, suggestion),
+  confirm: (question) => confirm(question),
+}
 
 interface Props {
   onClose: () => void
@@ -54,8 +73,6 @@ function PresetCard({
   onPick: (built: Patch) => void
 }) {
   const built = preset.build()
-  const meters = built.modules.filter((module) => module.type === 'meter').length
-  const tempo = built.tempo ?? grooveboxSong(built)?.bpm
 
   return (
     <button
@@ -73,7 +90,7 @@ function PresetCard({
         <i />
         <i />
         <i />
-        <b>VU—{meters}</b>
+        <b>VU—{meterCount(built)}</b>
       </span>
       <strong>{preset.name}</strong>
       <span className="rk-preset-blurb">{preset.blurb}</span>
@@ -83,11 +100,8 @@ function PresetCard({
         ))}
       </span>
       <span className="rk-preset-meta">
-        <span>
-          {built.modules.length} modules · {built.cables.length} cables
-          {tempo ? ` · ${tempo} bpm` : ''}
-        </span>
-        <b>{current === preset.name ? 'open' : 'load →'}</b>
+        <span>{presetSummary(built)}</span>
+        <b>{presetAction(preset.name, current)}</b>
       </span>
     </button>
   )
@@ -117,10 +131,9 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
     onClose()
   }
 
-  const saveCurrent = () => {
-    const target = name ?? freshName('Patch')
+  const write = (target: string, problem: string) => {
     if (!savePatch(target, patch)) {
-      setProblem('Could not save — storage is unavailable or full.')
+      setProblem(problem)
       return
     }
     setName(target)
@@ -128,19 +141,11 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
     refresh()
   }
 
+  const saveCurrent = () => write(saveTarget(name, freshName), PROBLEMS.save)
+
   const saveCurrentAs = () => {
-    const wanted = prompt('Save as', freshName(name ?? 'Patch'))
-    if (wanted === null || wanted.trim() === '') return
-    const target = wanted.trim()
-    const existing = saved.find((entry) => entry.name === target)
-    if (existing && !confirm(`Replace “${target}” (${existing.kind})?`)) return
-    if (!savePatch(target, patch)) {
-      setProblem('Could not save under that name.')
-      return
-    }
-    setName(target)
-    setProblem(null)
-    refresh()
+    const target = saveAsName(name, saved, DIALOGS, freshName)
+    if (target) write(target, PROBLEMS.saveAs)
   }
 
   return (
@@ -250,10 +255,10 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                       onSubmit={(event) => {
                         event.preventDefault()
                         if (!renameDocument(entry.name, draft)) {
-                          setProblem(`Could not rename to “${draft.trim()}” — that name is taken.`)
+                          setProblem(PROBLEMS.rename(draft))
                           return
                         }
-                        if (name === entry.name) setName(draft.trim())
+                        setName(nameAfterRename(name, entry.name, draft))
                         setRenaming(null)
                         setProblem(null)
                         refresh()
@@ -278,13 +283,10 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                         onClick={() => {
                           const next = loadDocument(entry.name)
                           if (!next) {
-                            setProblem(`“${entry.name}” could not be read.`)
+                            setProblem(PROBLEMS.unreadable(entry.name))
                             return
                           }
-                          adopt(
-                            next.kind === 'song' ? embedGrooveboxSong(next.song) : next.patch,
-                            entry.name,
-                          )
+                          adopt(adoptDocument(next), entry.name)
                         }}
                       >
                         <strong>
@@ -293,13 +295,7 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                           </i>
                           {entry.name}
                         </strong>
-                        <span>
-                          {name === entry.name
-                            ? 'Open now'
-                            : entry.kind === 'song'
-                              ? 'Load song →'
-                              : `${entry.compatibility.replace('-', ' ')} →`}
-                        </span>
+                        <span>{entryAction(entry, name)}</span>
                       </button>
                       <button
                         type="button"
@@ -317,9 +313,9 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                         className="rk-tiny"
                         aria-label={`Delete ${entry.name}`}
                         onClick={() => {
-                          if (!confirm(`Delete “${entry.name}”?`)) return
+                          if (!DIALOGS.confirm(deleteQuestion(entry.name))) return
                           deleteDocument(entry.name)
-                          if (name === entry.name) setName(null)
+                          setName(nameAfterDelete(name, entry.name))
                           refresh()
                         }}
                       >
@@ -396,15 +392,15 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
                 onClick={async () => {
                   const bytes = await pickVcvFile()
                   if (!bytes) return
-                  const result = await importVcv(bytes)
-                  if (!result) {
-                    setProblem('That is not a VCV Rack patch.')
+                  const outcome = vcvOutcome(await importVcv(bytes))
+                  if (outcome.kind === 'rejected') {
+                    setProblem(outcome.problem)
                     return
                   }
                   setProblem(null)
-                  setReport(result.notes)
-                  if (result.patch.modules.length > 0) {
-                    load(result.patch)
+                  setReport(outcome.notes)
+                  if (outcome.kind === 'loaded') {
+                    load(outcome.patch)
                     setName(null)
                   }
                 }}
