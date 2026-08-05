@@ -860,6 +860,9 @@ kbd {
   min-width: 92px;
   color: var(--nine);
 }
+/* An approximation reads as a warning rather than as a success: the cable is real and drawn, but what
+   arrived is not what was there. Same amber as a placeholder, because both mean "look at this one". */
+.rk-note-approximate span,
 .rk-note-placeholder span {
   color: var(--three);
 }

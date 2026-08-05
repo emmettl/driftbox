@@ -157,7 +157,7 @@ describe('importing a VCV patch', () => {
     expect(result).not.toBeNull()
     const { patch, notes } = result!
 
-    expect(patch.modules.map((m) => m.type)).toEqual(['vco', 'ladder', 'out'])
+    expect(patch.modules.map((m) => m.type)).toEqual(['vco', 'svf', 'out'])
     expect(patch.cables).toHaveLength(2)
     // Every mapping is reported, both endpoints named — which is the whole safety net for a port index table
     // that has not been checked against a file Rack actually wrote.
@@ -169,7 +169,133 @@ describe('importing a VCV patch', () => {
     const plan = compile(patch, MODULES)
     expect(plan.notes.filter((n) => n.kind === 'dropped-cable')).toEqual([])
     expect(plan.outputs.length).toBeGreaterThan(0)
-    expect(plan.nodes.map((n) => n.type)).toEqual(['vco', 'ladder', 'out'])
+    expect(plan.nodes.map((n) => n.type)).toEqual(['vco', 'svf', 'out'])
+  })
+
+  it('keeps a highpass a highpass', () => {
+    // The table used to send VCF's LPF and HPF jacks to the Ladder's one lowpass outlet, so a highpass branch
+    // silently became a second lowpass — a patch that sounds subtly wrong for reasons nobody can find, which
+    // is the exact failure the report exists to prevent.
+    const { patch, notes } = importVcvPatch(
+      JSON.stringify({
+        modules: [
+          { id: 1, plugin: 'Fundamental', model: 'VCF' },
+          { id: 2, plugin: 'Core', model: 'AudioInterface' },
+        ],
+        cables: [
+          { outputModuleId: 1, outputId: 0, inputModuleId: 2, inputId: 0 },
+          { outputModuleId: 1, outputId: 1, inputModuleId: 2, inputId: 1 },
+        ],
+      }),
+    )!
+    expect(patch.cables.map((c) => c.from[1])).toEqual(['lp', 'hp'])
+    // And the swap it cost is said out loud rather than left for somebody to notice by ear.
+    expect(notes.some((n) => n.kind === 'approximate' && n.detail.includes('ladder-derived'))).toBe(true)
+  })
+
+  it('says when several jacks arrive at one, once per jack', () => {
+    // Four waveform outputs land on the VCO's single Out, and fanning that out three ways is still one fact
+    // about one jack. Before this it was reported as `mapped` — indistinguishable from an exact match.
+    const { notes } = importVcvPatch(
+      JSON.stringify({
+        modules: [
+          { id: 1, plugin: 'Fundamental', model: 'VCO' },
+          { id: 2, plugin: 'Fundamental', model: 'VCA' },
+          { id: 3, plugin: 'Fundamental', model: 'VCA' },
+        ],
+        cables: [
+          { outputModuleId: 1, outputId: 0, inputModuleId: 2, inputId: 1 },
+          { outputModuleId: 1, outputId: 2, inputModuleId: 3, inputId: 1 },
+        ],
+      }),
+    )!
+    const folds = notes.filter((n) => n.kind === 'approximate')
+    expect(folds).toHaveLength(1)
+    expect(folds[0].detail).toContain('vco-1.out')
+  })
+
+  it('says that an audio interface arrives summed and centred', () => {
+    // The Out's In became stereo after this importer was written, so VCV's two mono inputs both feed both
+    // channels. One module stays one module — the alternative was inventing a second Out with a pan knob we
+    // wrote ourselves — so what is owed is the sentence.
+    const { patch, notes } = importVcvPatch(
+      JSON.stringify({
+        modules: [
+          { id: 1, plugin: 'Fundamental', model: 'VCO' },
+          { id: 2, plugin: 'Core', model: 'Audio8' },
+        ],
+        cables: [
+          { outputModuleId: 1, outputId: 0, inputModuleId: 2, inputId: 0 },
+          { outputModuleId: 1, outputId: 0, inputModuleId: 2, inputId: 1 },
+          // Past the pair there is nothing to map to, and that is a dropped cable rather than a guess.
+          { outputModuleId: 1, outputId: 0, inputModuleId: 2, inputId: 4 },
+        ],
+      }),
+    )!
+    expect(patch.modules.map((m) => m.type)).toEqual(['vco', 'out'])
+    expect(patch.cables).toHaveLength(2)
+    expect(notes.some((n) => n.kind === 'approximate' && n.detail.includes('summed and centred'))).toBe(true)
+    expect(notes.filter((n) => n.kind === 'dropped-cable')).toHaveLength(1)
+  })
+
+  it('says that a mapped sequencer arrives empty', () => {
+    // SEQ3 is the one mapped model whose content is entirely knobs, and knobs do not come across. Wired and
+    // silent reads as a broken import unless something says otherwise.
+    const { notes } = importVcvPatch(
+      JSON.stringify({ modules: [{ id: 1, plugin: 'Fundamental', model: 'SEQ3' }], cables: [] }),
+    )!
+    expect(notes.some((n) => n.kind === 'approximate' && n.detail.includes('empty'))).toBe(true)
+  })
+
+  it('carries a bypassed module across bypassed', () => {
+    // v2 writes `bypassed` and v1 wrote `disabled`. A module somebody had switched out of the chain should
+    // not come back in with the rest.
+    const { patch } = importVcvPatch(
+      JSON.stringify({
+        modules: [
+          { id: 1, plugin: 'Fundamental', model: 'VCO', bypassed: true },
+          { id: 2, plugin: 'Fundamental', model: 'Delay', disabled: true },
+          { id: 3, plugin: 'Bogaudio', model: 'Wavefolder', bypassed: true },
+          { id: 4, plugin: 'Fundamental', model: 'VCA' },
+        ],
+        cables: [],
+      }),
+    )!
+    expect(patch.modules.map((m) => m.bypassed)).toEqual([true, true, true, undefined])
+    expect(decodePatch(encodePatch(patch))).toEqual(patch)
+  })
+
+  it('reads a MIDI module’s channel count as voices', () => {
+    // A count is a count — not a value in somebody else’s units — which is why this is not the knob
+    // decision in disguise. Polyphony landed after this importer did, so before it every import was mono.
+    const poly = importVcvPatch(
+      JSON.stringify({
+        modules: [{ id: 1, plugin: 'Core', model: 'MIDIToCVInterface', data: { channels: 4 } }],
+        cables: [],
+      }),
+    )!
+    expect(poly.patch.voices).toBe(4)
+
+    // Clamped to what this rack will build, and said so.
+    const wide = importVcvPatch(
+      JSON.stringify({
+        modules: [{ id: 1, plugin: 'Core', model: 'MIDIToCVInterface', data: { channels: 16 } }],
+        cables: [],
+      }),
+    )!
+    expect(wide.patch.voices).toBe(8)
+    expect(wide.notes.some((n) => n.kind === 'approximate' && n.detail.includes('maximum'))).toBe(true)
+
+    // And anything unexpected leaves the patch monophonic, which is what every import did before this.
+    for (const data of [undefined, {}, { channels: 'four' }, { channels: 1 }, { channels: 0 }, { channels: 99 }, 7]) {
+      const { patch } = importVcvPatch(
+        JSON.stringify({
+          modules: [{ id: 1, plugin: 'Core', model: 'MIDIToCVInterface', data }],
+          cables: [],
+        }),
+      )!
+      expect(patch.voices, JSON.stringify(data)).toBeUndefined()
+    }
   })
 
   it('keeps a module it has never heard of, with its cables', async () => {
@@ -221,6 +347,24 @@ describe('importing a VCV patch', () => {
       JSON.stringify({ modules: [{ id: 1, plugin: 'Fundamental', model: 'VCO', pos: [3, 4] }], cables: [] }),
     )!
     expect(patch.modules[0].pos).toEqual([3, 4])
+  })
+
+  it('lands the modules in the order they were on screen, not the order they were saved in', () => {
+    // Our layout IS the module list, and VCV's array is creation order — so a rack built left to right over
+    // an evening used to arrive shuffled. Row first, then x.
+    const { patch } = importVcvPatch(
+      JSON.stringify({
+        modules: [
+          { id: 1, plugin: 'Fundamental', model: 'VCA', pos: [30, 1] },
+          { id: 2, plugin: 'Fundamental', model: 'VCO', pos: [10, 0] },
+          { id: 3, plugin: 'Fundamental', model: 'VCF', pos: [2, 1] },
+          { id: 4, plugin: 'Fundamental', model: 'ADSR' },
+          { id: 5, plugin: 'Fundamental', model: 'Delay', pos: [0, 0] },
+        ],
+        cables: [],
+      }),
+    )!
+    expect(patch.modules.map((m) => m.type)).toEqual(['delay', 'vco', 'svf', 'vca', 'adsr'])
   })
 
   it('carries no knob positions, deliberately', () => {

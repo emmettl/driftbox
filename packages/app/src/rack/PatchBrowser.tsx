@@ -415,7 +415,10 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
 
         {report && tab === 'files' && (
           <section className="rk-report">
-            <h2>VCV import report · knob values are not carried over, so check these mappings.</h2>
+            <h2>
+              VCV import report · knob values are not carried over, and an approximate line means the cable
+              arrived but folded.
+            </h2>
             <ul>
               {report.map((note, index) => (
                 <li key={index} className={`rk-note rk-note-${note.kind}`}>
