@@ -10,7 +10,11 @@ import { useCallback, useEffect, useState } from 'react'
 // Kept apart from the song autosave deliberately: this is about the person, not the music,
 // and resetting the song should not make the app start explaining itself again.
 
-export type Lesson = 'played' | 'vibed'
+// `toured` is the rack's, and belongs in the same box for the reason above: whether somebody has been
+// offered the guided tour is a fact about them, not about the patch open in front of them. It records the
+// *offer* rather than a finished tour — declining one is knowing about it, and being asked again every
+// time you open the rack is the failure this file exists to prevent.
+export type Lesson = 'played' | 'vibed' | 'toured'
 
 const KEY = 'driftbox.learnt.v1'
 

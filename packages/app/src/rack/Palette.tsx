@@ -112,7 +112,12 @@ export function Palette({ onModule, onChunk, onClose }: Props) {
                   <span className="rk-card-name">{chunk.name}</span>
                   <span className="rk-card-blurb">{chunk.blurb}</span>
                   <span className="rk-card-ports">
-                    {chunk.modules.length} modules{chunk.needsSample ? ' · needs a break' : ''}
+                    {chunk.modules.length} modules
+                    {chunk.needsSample ? ' · needs a break' : ''}
+                    {/* Said on the card rather than discovered by silence. Every other chunk starts
+                        playing when it lands, so one that waits for a key looks broken unless the picker
+                        says which kind it is before you drop it. */}
+                    {chunk.playable ? ' · play it' : ''}
                   </span>
                 </button>
               ))}

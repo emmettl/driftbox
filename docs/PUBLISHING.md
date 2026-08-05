@@ -1,7 +1,7 @@
 # Publishing
 
 Today, two packages go to npm: `@driftbox/engine` and `@driftbox/app`. Both are published at
-`0.4.0`. The work-in-progress `@driftbox/rack` package will join them when it is complete
+`0.5.0`. The work-in-progress `@driftbox/rack` package will join them when it is complete
 and ready to support a public API. **Nothing publishes automatically** — the workflow only
 runs when a GitHub Release is published, or when somebody runs it by hand.
 

@@ -44,6 +44,16 @@ export interface Chunk {
   clocked?: [string, string][]
   /** True if this chunk contains a Sampler that needs a break loading into it. */
   needsSample?: boolean
+  /**
+   * True if this chunk is an instrument rather than a running part: silent until somebody plays it.
+   *
+   * Declared for the same reason `needsSample` is. "A chunk makes a sound the moment it is dropped" is a
+   * real rule that this package has broken twice, and the test enforcing it measures the output of every
+   * chunk inserted into an empty rack. A playable chunk fails that measurement while being completely
+   * correct — so the exemption has to be a stated property of the chunk rather than a name in a test's
+   * skip list, and the test then holds it to the *other* standard instead: it presses a key and measures.
+   */
+  playable?: boolean
 }
 
 export const CHUNKS: readonly Chunk[] = [
@@ -261,6 +271,97 @@ export const CHUNKS: readonly Chunk[] = [
     ],
     output: ['vca', 'out'],
     clocked: [['tracker', 'clock']],
+  },
+  // The two below are the only chunks with no sequencer in them, and that is the reason they exist.
+  //
+  // Every other chunk on this shelf arrives playing. That is the right default — a chunk that made no
+  // sound when you dropped it would be indistinguishable from a broken one, which is the failure the
+  // note above `CHUNKS` is about. But it meant the picker had no answer at all to "give me something I
+  // can play", and the on-screen keyboard's only reward for a curious first press was silence: it will
+  // add a MIDI module for you, and a MIDI module on its own is not an instrument.
+  //
+  // So these two carry their own MIDI module and end in an effect rather than in a gated VCA. Dropping
+  // one puts a playable instrument on its own channel, which is what the keyboard was always for.
+  {
+    id: 'keys',
+    name: 'Keys',
+    blurb: 'A playable synth voice and a room, straight from MIDI',
+    playable: true,
+    modules: [
+      { id: 'midi', type: 'midi' },
+      {
+        id: 'voice',
+        type: 'voice',
+        // Deliberately unhurried. This is the chunk somebody drops in to find out whether the keyboard
+        // works, and a percussive patch answers that question in a tenth of a second and teaches nothing.
+        params: {
+          shapeB: 2,
+          detune: 12,
+          mix: 0.45,
+          cutoff: 1800,
+          resonance: 0.2,
+          envAmount: 2,
+          attack: 0.02,
+          decay: 1,
+          sustain: 0.55,
+          release: 0.8,
+          fDecay: 1.1,
+          level: 0.6,
+        },
+      },
+      { id: 'reverb', type: 'reverb', params: { size: 0.7, decay: 0.78, damp: 0.5, mix: 0.28 } },
+    ],
+    cables: [
+      { from: ['midi', 'pitch'], to: ['voice', 'pitch'] },
+      { from: ['midi', 'gate'], to: ['voice', 'gate'] },
+      { from: ['voice', 'out'], to: ['reverb', 'in'] },
+    ],
+    output: ['reverb', 'out'],
+  },
+  {
+    id: 'arp',
+    name: 'Arp',
+    blurb: 'Hold one note and an arpeggio runs out of it',
+    playable: true,
+    modules: [
+      { id: 'midi', type: 'midi' },
+      {
+        id: 'arp',
+        type: 'arp',
+        // Root source, so a single held key builds the chord — the opposite choice from the One Finger
+        // preset, and the right one here because a chunk has to be playable with one finger on a phone.
+        // Tempo timing follows the transport's tempo without needing it started, so this runs on the
+        // first key press rather than after somebody finds Play.
+        params: { source: 0, chord: 3, hold: 1, timing: 1, division: 4, mode: 2, octaves: 2 },
+      },
+      {
+        id: 'voice',
+        type: 'voice',
+        params: {
+          shapeA: 1,
+          width: 0.42,
+          detune: 5,
+          cutoff: 2400,
+          resonance: 0.38,
+          envAmount: 3,
+          attack: 0.002,
+          decay: 0.2,
+          sustain: 0.05,
+          release: 0.15,
+          fDecay: 0.18,
+          level: 0.6,
+        },
+      },
+      { id: 'delay', type: 'delay', params: { time: 0.28, feedback: 0.34 } },
+    ],
+    cables: [
+      { from: ['midi', 'pitch'], to: ['arp', 'pitch'] },
+      { from: ['midi', 'gate'], to: ['arp', 'gate'] },
+      { from: ['arp', 'pitch'], to: ['voice', 'pitch'] },
+      { from: ['arp', 'gate'], to: ['voice', 'gate'] },
+      { from: ['voice', 'out'], to: ['delay', 'in'] },
+    ],
+    output: ['delay', 'out'],
   },
   {
     id: 'hats',

@@ -24,8 +24,8 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Visuals | Four meters, eighteen 3D scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
-| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.4.0, with provenance |
-| Rack | An unpublished work in progress with 37 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, recordable parameter automation with drawable/erasable point, value and curve lane editing, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
+| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.5.0, with provenance |
+| Rack | An unpublished work in progress with 37 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, recordable parameter automation with drawable/erasable point, value and curve lane editing, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. Learning it is six guided tours that watch the patch and tick themselves — they press nothing — plus a silent-patch troubleshooting guide and a factory bank that now includes two playable presets and two playable chunks rather than only self-running ones. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It is intended to join the published packages when complete: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -37,7 +37,12 @@ than an analogy.
 
 [docs/REASON-GAP.md](docs/REASON-GAP.md) is the other half of the comparison — what the rack
 still lacks measured against *Reason* rather than against the groovebox, which is a different
-list with a different order. Undo and stereo cables have landed; recorded automation now leads it.
+list with a different order. Everything it originally ordered has landed — undo, stereo cables,
+recorded automation, the rack-wide table and every missing device — as has the second oscillator
+family and the six-channel Line Mixer that came out of measuring the tree again afterwards. What
+leads the file now is the one architectural gap that pass turned up and this one has not closed:
+nothing records audio against the timeline, which forces the "does PCM enter the document"
+decision the Looper and the Multisampler have each deferred in opposite directions.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. Its dependency order—independent machine clips,

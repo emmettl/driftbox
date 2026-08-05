@@ -18,6 +18,7 @@ import { GROOVEBOX_MODULE } from './groovebox.js'
 import { IMAGER_MODULE } from './imager.js'
 import { LADDER_MODULE } from './ladder.js'
 import { LIMITER_MODULE } from './limiter.js'
+import { LINE_MIXER_MODULE } from './line-mixer.js'
 import { LFO_MODULE } from './lfo.js'
 import { LOOPER_MODULE } from './looper.js'
 import { MIDI_MODULE } from './midi.js'
@@ -44,8 +45,9 @@ import { VCA_MODULE } from './vca.js'
 import { VCO_MODULE } from './vco.js'
 import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
+import { WAVETABLE_MODULE } from './wavetable.js'
 
-// Forty-four modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty-seven modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -88,6 +90,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   GROOVEBOX_MODULE,
   AUDIO_INPUT_MODULE,
   VCO_MODULE,
+  WAVETABLE_MODULE,
   VOICE_MODULE,
   NOISE_MODULE,
   SAMPLER_MODULE,
@@ -138,6 +141,7 @@ export const MODULE_LIST: readonly ModuleDef[] = [
   TUNER_MODULE,
 
   MIXER_MODULE,
+  LINE_MIXER_MODULE,
   OUT_MODULE,
 ]
 
@@ -162,6 +166,7 @@ export { GROOVEBOX_MODULE, GROOVEBOX_PORTS, GrooveboxProcessor } from './grooveb
 export { IMAGER_MODULE, ImagerProcessor } from './imager.js'
 export { LADDER_MODULE, LadderProcessor } from './ladder.js'
 export { LIMITER_MODULE, LimiterProcessor } from './limiter.js'
+export { LINE_MIXER_MODULE, LineMixerProcessor } from './line-mixer.js'
 export { LFO_MODULE, LfoProcessor } from './lfo.js'
 export { LOOPER_MODULE, LooperProcessor } from './looper.js'
 export { MIDI_INPUTS, MIDI_MODULE, MidiProcessor } from './midi.js'
@@ -201,6 +206,7 @@ export { TUNER_MODULE, TunerProcessor } from './tuner.js'
 export { VCA_MODULE, VcaProcessor } from './vca.js'
 export { VCO_MODULE, VcoProcessor } from './vco.js'
 export { VOICE_MODULE, VoiceProcessor } from './voice.js'
+export { WAVETABLE_MODULE, WavetableProcessor } from './wavetable.js'
 export {
   VOCODER_BAND_COUNTS,
   VOCODER_MAX_BANDS,
