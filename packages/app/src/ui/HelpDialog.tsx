@@ -424,9 +424,9 @@ function RackHelp({ topic }: { topic: string }) {
             <li><strong>Start audio</strong> so the rack transport has a live timeline.</li>
             <li><strong>Press ● Rec</strong> beside the rack transport.</li>
             <li><strong>Play and move knobs.</strong> Supported parameter moves are recorded at the current rack step.</li>
-            <li><strong>Open Automation</strong> to draw points with the Pencil, place them by bar and step, change values, choose linear or hold curves, or clear a lane or the complete take.</li>
+            <li><strong>Open Automation</strong> to draw points with the Pencil, remove them with the Eraser, place them by bar and step, change values, choose linear or hold curves, or clear a lane or the complete take.</li>
           </ol>
-          <p className="help-note">The Pencil snaps to sixteenths and one drag is one undo step. Stepped parameters stay on hold curves so they never pass through invalid choices. This is separate from automation retained inside an embedded Groovebox song.</p>
+          <p className="help-note">The Pencil and Eraser snap to sixteenths; one drag is one undo step. Stepped parameters stay on hold curves so they never pass through invalid choices. This is separate from automation retained inside an embedded Groovebox song.</p>
         </HelpSection>
         <HelpSection title="Performance views">
           <dl className="help-definitions">
