@@ -2,12 +2,23 @@
  *
  * Fixed to the right edge and clear of the keyboard dock, because the tour spends most of its life asking
  * you to touch something at the bottom of the screen. It is deliberately not a modal and deliberately not
- * wide: it has to be readable while the rack behind it stays usable, which rules out both. */
+ * wide: it has to be readable while the rack behind it stays usable, which rules out both.
+ *
+ * **Clear of the dock means clear of all of it**, and getting that wrong does not look like a spacing
+ * mistake. The dock is the keyboard *plus* the Hide keyboard tab above it, and clearing only
+ * `--keys-height` left the tab overlapping the instruction — where it drew straight through an opaque
+ * panel at `z-index: 20`, because `rack.css` gives the dock a `view-transition-name` and a named element
+ * paints above ordinary z-index layers. Hit-testing still puts this panel on top, so the pointer and the
+ * pixels disagree and every explanation except the right one fits. Clear both, and there is nothing to
+ * paint over. */
 
 .rk-coach {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: calc(var(--keys-height) + 22px);
+  bottom: calc(var(--keys-height) + var(--keys-toggle-height) + 16px);
+  /* Never off the top of a short window. The body scrolls rather than the panel growing upwards, so the
+     step you are on stays where you last saw it. */
+  max-height: calc(100dvh - var(--keys-height) - var(--keys-toggle-height) - 32px);
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -15,9 +26,13 @@
   overflow: hidden;
   border: 1px solid rgba(95, 240, 208, 0.34);
   border-radius: 14px;
+  /* Opaque, and the last three percent is the whole point. On a short window this panel lands over the
+     keyboard dock's Hide keyboard tab, and at 0.97 the tab's label read straight through the instruction
+     it was sitting on — which looks exactly like a stacking bug and is not one: the panel is on top and
+     takes the pointer. A panel with words in it cannot be see-through. */
   background:
     radial-gradient(80% 60% at 100% 0, rgba(95, 240, 208, 0.12), transparent 60%),
-    rgba(10, 7, 22, 0.97);
+    #0a0716;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.62);
   color: var(--ink);
   font-family: var(--mono);
@@ -37,12 +52,11 @@
   }
 }
 
-/* Below the keyboard's own dock on a short screen: the panel losing its margin is a better outcome than
-   the panel sitting on top of the thing step three is about. */
-@media (max-height: 640px) {
-  .rk-coach {
-    bottom: calc(var(--keys-toggle-height) + 12px);
-  }
+/* With the keyboard hidden there is only the tab to clear, and a tour that spent that space on nothing
+   would be sitting a keyboard's height above the bottom of an empty screen. */
+.rk[data-keyboard='closed'] .rk-coach {
+  bottom: calc(var(--keys-toggle-height) + 16px);
+  max-height: calc(100dvh - var(--keys-toggle-height) - 32px);
 }
 
 .rk-coach-head {
@@ -129,7 +143,10 @@
 }
 
 .rk-coach-body {
+  min-height: 0;
   padding: 2px 13px 13px;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .rk-coach-where {
