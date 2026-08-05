@@ -1,0 +1,19 @@
+/* The beacon's own layer.
+ *
+ * Here rather than in `styles.css`, and the move was not tidiness. These rules lived in the groovebox's
+ * stylesheet, which the rack page does not load — so the first time this component was used from anywhere
+ * else it rendered as a canvas's intrinsic 300x150 box in the top-left corner, drawing particles into the
+ * wrong place and, because nothing had set `pointer-events`, swallowing clicks on whatever was under it.
+ *
+ * A component that only works when its caller has imported the right stylesheet is not a component. The
+ * positioning stays a caller's business — the groovebox pins one inside the stage and one to the viewport
+ * — but everything that has to be true wherever it is used belongs with the thing that has to be true. */
+
+.play-beacon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}

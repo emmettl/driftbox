@@ -28,6 +28,11 @@ import { useRack } from './store.js'
 //
 // **3. The five ways out live behind one button.** See `HeaderMenu` for why that one and nothing else.
 //
+// A handful of controls carry a `data-beacon`. That is the guided tour's aim: a tour step is written long
+// before this header renders and cannot hold a ref, so it names a control the way it names a module type —
+// by a stable attribute rather than by a class, a label or a position, all three of which are things this
+// file is allowed to change.
+//
 // It reads the store directly and takes props only for what belongs to the page rather than the document —
 // audio having been started, which panel is open, a render in flight. That keeps the prop list about
 // session state instead of restating the patch, and lets a browser test drive it with `useRack` the way
@@ -164,11 +169,16 @@ export function RackHeader({
         {failed ? (
           <span className="rk-warn">No AudioWorklet — this browser cannot run a rack.</span>
         ) : started ? (
-          <button type="button" onClick={() => setRunning(!playing)} aria-pressed={playing}>
+          <button
+            type="button"
+            data-beacon="transport"
+            onClick={() => setRunning(!playing)}
+            aria-pressed={playing}
+          >
             {playing ? '■ Stop' : '▶ Play'}
           </button>
         ) : (
-          <button type="button" className="rk-primary" onClick={onStart}>
+          <button type="button" className="rk-primary" data-beacon="transport" onClick={onStart}>
             Start audio
           </button>
         )}
@@ -180,6 +190,7 @@ export function RackHeader({
             appearing later and moving everything along. */}
         <button
           type="button"
+          data-beacon="rec"
           className={automating ? 'rk-arm rk-arm-on' : 'rk-arm'}
           onClick={() => setAutomating(!automating)}
           aria-pressed={automating}
@@ -205,6 +216,7 @@ export function RackHeader({
 
         <button
           type="button"
+          data-beacon="automation"
           onClick={onOpenAutomation}
           aria-expanded={automationOpen}
           title="Inspect and edit recorded rack parameter lanes"
@@ -214,10 +226,10 @@ export function RackHeader({
       </div>
 
       <div className="rk-group" role="group" aria-label="Build">
-        <button type="button" onClick={onToggleAdd} aria-expanded={adding}>
+        <button type="button" data-beacon="add" onClick={onToggleAdd} aria-expanded={adding}>
           Add module
         </button>
-        <button type="button" onClick={onToggleBrowse} aria-expanded={browsing}>
+        <button type="button" data-beacon="patches" onClick={onToggleBrowse} aria-expanded={browsing}>
           Patches
         </button>
         {/* Buttons as well as the shortcut, the same standard the back panel holds itself to — where Enter
@@ -238,7 +250,7 @@ export function RackHeader({
       </div>
 
       <div className="rk-group" role="group" aria-label="View">
-        <button type="button" onClick={() => flip()} aria-pressed={flipped}>
+        <button type="button" data-beacon="flip" onClick={() => flip()} aria-pressed={flipped}>
           {flipped ? 'Front' : 'Back'} <kbd>Tab</kbd>
         </button>
         {/* No extra class: the header already styles `aria-pressed` buttons, the way the flip button does.

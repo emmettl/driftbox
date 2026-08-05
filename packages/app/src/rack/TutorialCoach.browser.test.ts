@@ -42,6 +42,7 @@ const TOUR: Tutorial = {
       title: 'Start the audio.',
       body: 'The first flag.',
       done: (state) => state.started,
+      spotlight: ['[data-beacon="transport"]'],
     },
     {
       id: 'two',
@@ -49,6 +50,7 @@ const TOUR: Tutorial = {
       title: 'Turn the rack around.',
       body: 'The one that goes away again.',
       done: (state) => state.flipped,
+      spotlight: ['.rk-card[data-module="voice"]', '[data-beacon="add"]'],
     },
     {
       id: 'three',
@@ -103,6 +105,33 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   host.remove()
+})
+
+describe('the beacon on the current step', () => {
+  const beacon = () => host.querySelector('canvas.rk-coach-beacon')
+
+  it('follows the step, and goes out on one that names nothing', () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<div id="stage"><button data-beacon="transport">Start audio</button>' +
+        '<button data-beacon="add">Add module</button></div>',
+    )
+
+    show(BLANK)
+    expect(beacon(), 'step one names a target').toBeTruthy()
+
+    show({ ...BLANK, started: true })
+    expect(instruction()).toBe('Turn the rack around.')
+    expect(beacon(), 'step two names one too').toBeTruthy()
+
+    // Step three is deliberately unaimed, the way the real tours leave "play the keyboard" unaimed. One
+    // stream at a time and not on every step: the beacon has to be able to go out, or it is decoration.
+    show({ ...BLANK, started: true, flipped: true })
+    expect(instruction()).toBe('Press play.')
+    expect(beacon(), 'step three names none').toBeNull()
+
+    document.getElementById('stage')!.remove()
+  })
 })
 
 describe('the guided-tour panel', () => {

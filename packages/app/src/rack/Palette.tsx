@@ -107,6 +107,7 @@ export function Palette({ onModule, onChunk, onClose }: Props) {
                   key={chunk.id}
                   type="button"
                   className="rk-card rk-card-chunk"
+                  data-chunk={chunk.id}
                   onClick={() => onChunk(chunk)}
                 >
                   <span className="rk-card-name">{chunk.name}</span>
@@ -135,6 +136,7 @@ export function Palette({ onModule, onChunk, onClose }: Props) {
                   type="button"
                   className="rk-card"
                   data-group={def.group}
+                  data-module={def.type}
                   onClick={() => onModule(def.type)}
                 >
                   <span className="rk-card-top">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
+import './PlayBeacon.css'
 
 // Particles falling toward a button that wants pressing.
 //
@@ -25,6 +26,16 @@ export interface BeaconTarget {
   count?: number
   /** Where particles are born, as a multiple of the button's radius. */
   spawn?: number
+  /**
+   * A cap on that distance in pixels, for a caller whose targets are not all one size.
+   *
+   * The multiple is right when every target is a button: it makes one stream suit a 62px play circle and
+   * a 40px one without being told which. It stops being right the moment the same stream has to point at
+   * a 40px button and at a 300px-wide card in a picker — five radii is 260px for one and 800px for the
+   * other, and at 800px the particles are spread over the whole window and read as weather rather than as
+   * an arrow. Whichever is nearer wins, so a caller with uniform targets never notices this exists.
+   */
+  reach?: number
 }
 
 interface Particle {
@@ -50,6 +61,12 @@ function radiusOf(box: DOMRect): number {
   return Math.hypot(box.width, box.height) / 2
 }
 
+/** How far out this target's particles are born, in multiples of its own radius. */
+function reachOf(target: BeaconTarget | undefined, button: number): number {
+  const radii = target?.spawn ?? SPAWN
+  return target?.reach ? Math.min(radii, target.reach / button) : radii
+}
+
 export function PlayBeacon({ targets, className }: { targets: BeaconTarget[]; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   // Read inside the loop rather than closed over, so a tint or a count can change without
@@ -67,7 +84,11 @@ export function PlayBeacon({ targets, className }: { targets: BeaconTarget[]; cl
     if (!element || !context) return
 
     const spawn = (at: number): Particle => {
-      const reach = live.current[at]?.spawn ?? SPAWN
+      const target = live.current[at]
+      // Measured here as well as in the draw loop, because a pixel cap cannot be applied without knowing
+      // how big the thing being pointed at is, and a particle is born before the loop has looked.
+      const box = target?.target.current?.getBoundingClientRect()
+      const reach = reachOf(target, box ? radiusOf(box) : 1)
       return {
         at,
         angle: Math.random() * Math.PI * 2,
@@ -120,8 +141,8 @@ export function PlayBeacon({ targets, className }: { targets: BeaconTarget[]; cl
         const t = live.current[p.at]
         const box = boxes[p.at]
         if (!t || !box) continue
-        const reach = t.spawn ?? SPAWN
         const button = radiusOf(box)
+        const reach = reachOf(t, button)
 
         p.radius -= (p.speed / button) * dt
         // A slow curl on the way in, so they spiral rather than falling straight — a
@@ -137,11 +158,16 @@ export function PlayBeacon({ targets, className }: { targets: BeaconTarget[]; cl
 
         // Brightest just before arrival, and faded right out at the spawn edge so nothing
         // pops into existence.
-        const near = 1 - (p.radius - 1) / reach
-        const alpha = Math.max(0, Math.min(1, near * near)) * 0.85
+        //
+        // Clamped here rather than only on the alpha, and both halves of that mattered once the reach
+        // could change under a particle already in flight — which is exactly what a pixel cap does when
+        // the stream moves from a header button to a card three times the size. A particle outside the
+        // new reach has a negative `near`: squared, that made the *most distant* particles the brightest,
+        // and the radius it was drawn at went negative and threw out of the animation frame.
+        const near = Math.max(0, Math.min(1, 1 - (p.radius - 1) / reach))
 
         context.beginPath()
-        context.fillStyle = `rgba(${t.tint}, ${alpha})`
+        context.fillStyle = `rgba(${t.tint}, ${near * near * 0.85})`
         context.arc(x, y, p.size * (0.5 + near), 0, Math.PI * 2)
         context.fill()
       }

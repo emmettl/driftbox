@@ -15,11 +15,13 @@
 .rk-coach {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
+  /* One above its own beacon: particles falling in front of the instruction that sent them would be the
+     wrong way round. */
+  z-index: 21;
   bottom: calc(var(--keys-height) + var(--keys-toggle-height) + 16px);
   /* Never off the top of a short window. The body scrolls rather than the panel growing upwards, so the
      step you are on stays where you last saw it. */
   max-height: calc(100dvh - var(--keys-height) - var(--keys-toggle-height) - 32px);
-  z-index: 20;
   display: flex;
   flex-direction: column;
   width: min(320px, calc(100vw - 32px));
@@ -37,6 +39,18 @@
   color: var(--ink);
   font-family: var(--mono);
   animation: rk-coach-in 160ms ease-out;
+}
+
+/* The step's beacon. Fixed and viewport-sized, because it reads its target's position in viewport
+   coordinates — the same reason the groovebox keeps its console beacon outside the console rather than
+   inside a panel that slides.
+ *
+ * Under the coach and over everything else, including the module picker — which sits at the same layer as
+ * the coach, so the two of them straddle it by one. Half the steps aim at a card inside that picker, and a
+ * stream drawn behind it points at nothing at all. */
+.rk-coach-beacon {
+  position: fixed;
+  z-index: 20;
 }
 
 @keyframes rk-coach-in {
