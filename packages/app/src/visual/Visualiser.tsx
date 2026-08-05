@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { resetSceneAudio, setSceneAudio } from './audio'
 import { SCENES, type SceneId } from './scenes'
 
@@ -47,7 +47,15 @@ export function Visualiser({ className, scene, analyser = null, running = false,
       // one's state would look subtly wrong in a way that is miserable to debug.
       key={scene}
     >
-      <Scene />
+      {/* The scenes are fetched on demand, so there is a moment before the first one exists. The
+          fallback is nothing rather than a spinner: the canvas is already the background colour,
+          and a loading indicator over a black screen for two frames is more noticeable than the
+          black screen. Inside the Canvas rather than around it, so the WebGL context is created
+          once and the scene arrives into it — wrapping the Canvas would tear it down and rebuild
+          it on every scene change. */}
+      <Suspense fallback={null}>
+        <Scene />
+      </Suspense>
     </Canvas>
   )
 }

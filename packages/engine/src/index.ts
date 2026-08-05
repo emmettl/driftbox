@@ -8,6 +8,7 @@ import {
   type ClipLaunchQuantization,
 } from './clip-launch.js'
 import { metronomeClick } from './metronome.js'
+import { MONITOR_MAX_DELAY, outputLatencyOf } from './monitor.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
@@ -43,6 +44,10 @@ export * from './schedule.js'
 export * from './stems.js'
 export * from './kit.js'
 export { metronomeClick } from './metronome.js'
+// Exported because the rack builds its own analysis tap around its own graph and must arrive at
+// the same number. Two implementations of "how far behind is the speaker" would be two chances to
+// compensate the two pages by different amounts.
+export { MONITOR_MAX_DELAY, outputLatencyOf, type LatencyReporting } from './monitor.js'
 export { Transport, type StepEvent } from './transport.js'
 export { renderVoice } from './render.js'
 export { Bassline } from './bassline.js'
@@ -98,7 +103,14 @@ export interface EngineOptions {
 
 export class DriftboxEngine {
   readonly ctx: AudioContext
-  /** Tap for visualisers. Everything left on the engine's mastered route passes through it. */
+  /**
+   * Tap for visualisers. Everything left on the engine's mastered route passes through it.
+   *
+   * It reads the mix **delayed by the output latency**, so what it reports is what is being heard
+   * at that instant rather than what is about to be heard. That is a side branch: the analyser is
+   * no longer between the master and the output, and nothing a visualiser does can affect the
+   * sound. See `monitor.ts`, and `syncOutputLatency` for when the amount is re-read.
+   */
   readonly analyser: AnalyserNode
   /**
    * One unity output per authored machine, before the shared bus and effect returns.
@@ -114,6 +126,10 @@ export class DriftboxEngine {
   /** Optional non-destructive observation route per section. */
   private readonly sectionTaps: Partial<Record<GrooveboxSection, AudioNode>> = {}
   private readonly master: GainNode
+  /** The analysis tap's delay line, holding the output latency. */
+  private readonly monitor: DelayNode
+  /** Keeps the tap on a path to the output so it is guaranteed to be processed. Gain is zero. */
+  private readonly monitorSink: GainNode
   private readonly inserts: MasterEffects
   private readonly transport: Transport
   /** Session performance state: never written into `song`. */
@@ -216,8 +232,36 @@ export class DriftboxEngine {
     this.bus.connect(this.inserts.input)
     this.inserts.output.connect(this.kaoss.input)
     this.kaoss.output.connect(this.master)
-    this.master.connect(this.analyser)
-    this.analyser.connect(destination)
+
+    // The mix goes straight out. The analyser used to sit in this line, and moving it off is what
+    // lets the picture be compensated without the sound being delayed with it.
+    this.master.connect(destination)
+
+    // The monitor tap: the same mix, delayed by however far behind the speaker is, read by the
+    // analyser every scene and the oscilloscope draw from. See `monitor.ts` for why.
+    this.monitor = this.ctx.createDelay(MONITOR_MAX_DELAY)
+    this.master.connect(this.monitor)
+    this.monitor.connect(this.analyser)
+
+    // A silent path from the analyser to the output, and it is not superstition.
+    //
+    // Web Audio only guarantees that nodes on a path to the destination are processed. An analyser
+    // hanging off the end of a branch is pulled anyway in every implementation anybody has
+    // measured — checked here in Chromium, where a leaf analyser reads a full-scale 255 on a tone,
+    // identical to one in the signal path. But the failure mode if some browser disagrees is not a
+    // slightly wrong picture, it is an analyser that reads silence for ever and a visualiser that
+    // is simply dead, on a page whose whole argument is that a phone should open into the visuals.
+    // That is not a bet worth taking against one gain node, and the gain is exactly zero, so what
+    // it contributes to the mix is exactly nothing — which the offline level measurements in
+    // `render.browser.test.ts` would catch immediately if it were ever not true.
+    this.monitorSink = this.ctx.createGain()
+    this.monitorSink.gain.value = 0
+    this.analyser.connect(this.monitorSink)
+    this.monitorSink.connect(destination)
+
+    // Set outright rather than ramped: there is nothing to glide from, and a context built
+    // suspended almost always answers 0 here anyway. `resume()` is where the real number arrives.
+    this.monitor.delayTime.value = outputLatencyOf(this.ctx)
 
     this.transport = new Transport(this.ctx, {
       onBar: (bar) => this.clipLauncher.activate('bar', bar),
@@ -375,6 +419,35 @@ export class DriftboxEngine {
    *  page. Call this from a click; starting the transport without it is silent. */
   async resume(): Promise<void> {
     if (this.ctx.state !== 'running') await this.ctx.resume()
+    // Here rather than only in the constructor, because a context that has not run yet does not
+    // know: it is created suspended, and `outputLatency` is 0 or undefined until there is a device
+    // attached to be late. This is the one line every path to making a sound goes through.
+    this.syncOutputLatency()
+  }
+
+  /**
+   * Re-read how far behind the output device is, and retune the analysis tap to match.
+   *
+   * Called on every resume, which covers starting and returning from a suspended tab. It is public
+   * for the case that is not covered: the latency changes when the *device* changes — plugging in
+   * an interface, or a Bluetooth pair completing — and there is no event for that worth relying
+   * on. A host that knows its output moved can say so.
+   *
+   * Ramped rather than assigned. `delayTime` is an `AudioParam` and stepping it re-reads the delay
+   * line at a new offset, which is an audible click on anything passing through — inaudible here,
+   * where the branch ends in a silent gain, but the analyser would see the discontinuity and every
+   * scene reading it would flinch. 50ms is under a frame's worth of visual change and far shorter
+   * than any latency being corrected.
+   */
+  syncOutputLatency(): void {
+    const target = outputLatencyOf(this.ctx)
+    this.monitor.delayTime.setTargetAtTime(target, this.ctx.currentTime, 0.05)
+  }
+
+  /** How far the analysis tap is currently behind the graph, in seconds. Zero where the platform
+   *  reports no latency, and for an offline render. A host can show it; a test can measure it. */
+  get monitorDelay(): number {
+    return this.monitor.delayTime.value
   }
 
   async start(): Promise<void> {
@@ -609,6 +682,8 @@ export class DriftboxEngine {
     this.bus.disconnect()
     this.master.disconnect()
     this.analyser.disconnect()
+    this.monitor.disconnect()
+    this.monitorSink.disconnect()
   }
 }
 

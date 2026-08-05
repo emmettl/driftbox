@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "package.test.ts"]
+  "include": ["vite.config.ts", "package.test.ts", "install.test.ts", "service-worker.test.ts"]
 }

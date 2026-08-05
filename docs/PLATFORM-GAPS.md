@@ -18,7 +18,49 @@ half" is a different piece of work from "start".
 
 Ordered by what it costs to do them *later* rather than by how much they are wanted.
 
-### 1. Nothing works offline, and nothing offers to install
+### 1. ~~Nothing works offline, and nothing offers to install~~ — landed
+
+`public/manifest.webmanifest` and a generated `sw.js` shipped together. Everything below is kept
+because the reasoning is what the next person needs, and because two of the decisions are ones a
+tidy-up would undo.
+
+**It is verified rather than asserted.** `npm run verify:offline --workspace @driftbox/app` serves
+a real `dist/` at the root and at `/driftbox/`, registers the worker, pulls the network and
+reloads, and CI runs it after every build. Seventeen entries cached, both pages open offline, at
+both roots. It earned its place immediately: the first version of the precache plugin ran at
+normal plugin order, and Vite emits the two HTML documents from its own `generateBundle`, so the
+list came out with every script and stylesheet in it and neither page. The build succeeded, the
+app worked online, and the offline copy was a set of assets with no document to hang them on.
+The plugin now runs at `enforce: 'post'` and fails the build if fewer than two documents reach
+the list.
+
+Three things are load-bearing and none of them is obvious:
+
+- **There is no `skipWaiting()`, and its absence is the feature.** Taking over immediately would
+  hand a page that is already running — already holding its own JS in memory — a new cache that
+  does not contain the chunk hashes it is about to ask for. With the scenes loading on demand that
+  is not hypothetical. Without it the new worker installs quietly and takes over once every tab
+  has closed, which is also what makes deleting the old caches on activate safe: activation cannot
+  happen while a client still depends on them.
+- **Every path is relative** — the precache list, the manifest's `start_url`, `scope` and icons,
+  the registration and its scope. Same rule as `base: './'`, and `cache.addAll` being atomic turns
+  one absolute path into no cache at all rather than a partial one. This is why the verification
+  serves from a subdirectory: at the root, an absolute path is right by accident.
+- **The cache key carries the commit**, for the reason `version.ts` gives about the label it
+  shows. Pages redeploys on every push while the version moves only at a release, so a
+  version-only key would serve the first deploy's assets until the next release.
+
+The iOS half was already done before any of this — `index.html` carried `mobile-web-app-capable`,
+a black-translucent status bar and `viewport-fit=cover`, so Add to Home Screen already gave a
+fullscreen app. What was missing was the manifest Chrome needs before it will offer to install at
+all, and the caching. The icons are generated from `public/favicon.svg` by
+`scripts/icons.mjs`, through the Chromium the browser tests already require, because that SVG is
+fifteen blurred ellipses behind an alpha mask in `color(display-p3 ...)` and nothing smaller than
+a browser renders it correctly.
+
+The original entry follows.
+
+---
 
 There is no service worker and no web manifest anywhere in `packages/app` — a grep for
 `serviceWorker` and `manifest.webmanifest` across the tree returns nothing.
@@ -76,7 +118,40 @@ the Node project next to `timing.ts`, and it is testable by feeding it synthetic
 with deliberate jitter and dropouts. Which is to say the risky part of this feature is the part
 this repo is already best at testing.
 
-### 3. Nothing compensates for output latency
+### 3. ~~Nothing compensates for output latency~~ — landed
+
+**The fix was not to move the picture, it was to move the reading.** The analyser now sits on a
+branch fed through a `DelayNode` holding `outputLatency`, so what it reports and what the ear
+receives are the same moment. Nothing about the signal path changed — and the reason it could not
+simply be delayed in place is that the analyser *was* the signal path: `master → analyser →
+destination`. Delaying it there would have delayed the music along with the picture.
+
+`monitor.ts` holds the arithmetic and `DriftboxEngine.syncOutputLatency()` re-reads it on every
+resume, because a context built suspended reports 0 until there is a device attached to be late.
+The rack builds its own tap around its own graph from the same exported function, since the two
+pages share their scenes and compensating them differently would be worse than compensating
+neither.
+
+Two things are worth keeping:
+
+- **The tap ends in a gain of zero that reaches the output.** Web Audio only guarantees that nodes
+  on a path to the destination are processed, and a leaf analyser is pulled anyway in everything
+  measurable — checked in Chromium, where a leaf reads a full-scale 255 on a tone, identical to one
+  in the signal path, and the rack has shipped a leaf analyser for as long as it has had visuals.
+  But the engine is a published package embedded in browsers nobody here can test, and the failure
+  if one disagrees is not a slightly wrong picture, it is a dead visualiser. One gain node against
+  that is cheap, and `render.browser.test.ts` would catch it immediately if the zero were ever not
+  exactly zero.
+- **`monitor.browser.test.ts` measures the property that matters** — the first non-zero sample
+  arrives at the same index whether the context claims no latency or 300ms of it. "The kick still
+  sounds like it did" is an opinion; a sample index is a measurement.
+
+`latencyHint: 'interactive'` was already set on the rack's context. `setSinkId` is untouched and
+still worth having.
+
+The original entry follows.
+
+---
 
 A grep for `outputLatency` and `baseLatency` across the tree returns nothing, and the
 `AudioContext` is constructed without a `latencyHint`.
@@ -121,6 +196,14 @@ renders. Either those two sites take a seed the way `pattern.ts:458` already tak
 `RandomSource`, or the band reduction is made coarse enough and long enough to average the
 difference away. The first is more honest and follows a pattern the repo already uses.
 
+**This stopped being theoretical while the monitor tap was being tested.** A test comparing the
+peak of two renders of `808.bd` — which should be identical to six decimal places, since it is the
+same voice triggered the same way — failed, because `bassDrum` has a noise layer and the two
+renders got different noise. The test was rewritten around `808.cb`, two square oscillators with
+nothing random in them, and passes exactly. So the cost of the unseeded buffer is already being
+paid: it is not only fingerprinting that it blocks, it is *any* test that compares one render to
+another, which is most of the useful ones.
+
 **Property-based testing.** No `fast-check` in the tree, against an unusually good surface for it.
 Three targets, in the order I would expect them to find something. `hash.ts` round-trips —
 `encode` then `decode` is identity for any document — where a marker table read longest-first
@@ -130,13 +213,33 @@ where "the sounding set is always the newest N held" is a stated invariant and t
 one class instead of two rests on it — a property test is how that argument stays true. And
 swing, where a per-voice offset must never reorder an event past the next step.
 
-**Scene code-splitting, and a size budget in CI.** `visual/scenes/index.ts` statically imports all
-eighteen scenes, so first load pays for every one of them plus three. The only dynamic import in
-the app is `PerformPad.tsx:7`. Meanwhile ROADMAP quotes 1.27MB as a hand-measurement, and neither
-`package.json` nor any workflow contains a size check. Splitting the scenes is probably the
-largest single first-load win available; asserting a per-chunk budget in `ci.yml` is what stops it
-silently regressing, on the same principle already applied to the level measurements — a check
-that finds real problems should not depend on somebody remembering it.
+**~~Scene code-splitting, and a size budget in CI.~~ — landed, and it was worth less than it
+looked.** The registry now defers only the component and keeps the metadata eager, so a page can
+still list scenes and read their accent colours without fetching any. Measured on the built
+output, first load went from **400kB to 365kB gzipped** on the sequencer and 515kB to 481kB on the
+rack — about 9%, not the third the raw chunk sizes suggested, because **three is 220kB gzipped of
+what remains** and every scene shares it. The eighteen scenes are 3–4kB each now, fetched one at a
+time.
+
+The structural change matters more than the number: a nineteenth scene is now free to everyone who
+does not watch it, where before every scene taxed every visit.
+
+Two things came out of doing it. **The budget had to be per page rather than per chunk** — a chunk
+table would have called splitting one 400kB chunk into four 100kB ones an improvement when all
+four are still fetched on load — so `scripts/check-size.mjs` sums the entry plus every declared
+`modulepreload`, which is exactly the static import graph. And **the size ceiling alone does not
+protect the split**: adding a static import of one scene back into the registry was measured at
++3kB gzip, comfortably inside any headroom a non-brittle ceiling needs. So the real guard is
+structural and not a number at all — no scene may appear in either page's first-load graph — and
+that assertion catches the regression the ceilings sail past. Verified by making it.
+
+Deferring **three itself** is the next real win available, and it is a product decision rather
+than a build one: the argument for the phone is that it opens straight into the visuals.
+
+Naming was a side effect worth having. Shared chunks were being named after whichever module the
+bundler happened to pick — `Oscilloscope`, then `offline`, then `audio` for a file that is 856kB
+of three — so the two that are really libraries are now named `three` and `react`. A budget keyed
+on chunk names needs names that mean something.
 
 **Capturing a performance, rather than only rendering one.** Stems are correct and their two
 load-bearing decisions are right. What they cannot capture is the thing somebody just *played* —
@@ -210,15 +313,20 @@ reaches a server.
 
 If they were done one at a time, this order:
 
-1. **Manifest and service worker.** Smallest, and the only one that changes what the thing *is*
-   on the platform the README argues it is best on.
-2. **Output-latency compensation.** A few lines, measurable, and it makes an existing claim true
-   on hardware where it currently is not.
-3. **Scene code-splitting, with the size budget landing in the same change.** The budget is worth
-   little on its own and worth a lot the moment it is guarding a number somebody just improved.
+1. ~~**Manifest and service worker.**~~ Landed. Smallest, and the only one that changes what the
+   thing *is* on the platform the README argues it is best on.
+2. ~~**Output-latency compensation.**~~ Landed. A few lines, measurable, and it made an existing
+   claim true on hardware where it was not.
+3. ~~**Scene code-splitting, with the size budget landing in the same change.**~~ Landed, and the
+   prediction held for the wrong reason: the budget was worth more than the split, because the
+   assertion that protects the split turned out not to be a size at all.
 4. **MIDI clock in.** The largest of the four, and the one that changes what the project is. In
    before out: being slaved is the common case, and it proves the filter that sending would then
-   reuse.
+   reuse. **Not started** — the only one of the four still open.
+
+Everything under *Everything else* remains genuinely optional, with one exception that has been
+promoted by being measured twice: **seeding the noise buffer** is now blocking test work rather
+than only fingerprinting, and it is small.
 
 Everything under *Everything else* is genuinely optional. The four above are the ones where the
 gap is between what the project claims and what it does, which is the only kind of gap this file

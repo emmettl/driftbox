@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import { cacheName, precacheUrls, serviceWorkerSource } from './build/service-worker.ts'
 
 const engineSource = fileURLToPath(new URL('../engine/src/index.ts', import.meta.url))
 const rackSource = fileURLToPath(new URL('../rack/src/index.ts', import.meta.url))
@@ -40,13 +41,66 @@ function commit(): string {
 
 /** Injected into both pages. Kept next to the workspace aliases because it is the same kind of thing:
  *  something the build knows and the source cannot look up for itself. */
+/** Asked once. It spawns a process, and the service-worker plugin wants the same answer. */
+const COMMIT = commit()
+
 const buildDefines = {
   __APP_VERSION__: JSON.stringify(version),
-  __APP_COMMIT__: JSON.stringify(commit()),
+  __APP_COMMIT__: JSON.stringify(COMMIT),
+}
+
+/**
+ * Emit `sw.js` naming everything this build produced.
+ *
+ * The list has to come from the build rather than from a glob of `dist/`, because the filenames
+ * carry content hashes that only exist once rolldown has decided them — and `cache.addAll` is
+ * atomic, so one stale name in the list is not a missing file, it is an install that fails and
+ * an app that never caches anything. `generateBundle` is the first hook that knows all of them.
+ *
+ * `public/` is read separately because Vite copies it verbatim and it never enters the bundle.
+ * Reading the directory rather than listing the files by hand means an icon added later is
+ * precached without anybody remembering to come back here.
+ *
+ * Build-only: a worker in dev would serve a cached build over the one being edited, which is
+ * why `registerOffline` refuses to register there. `apply: 'build'` is the other half of that,
+ * so nothing is even emitted for the dev server to trip over.
+ */
+function serviceWorker(): Plugin {
+  const publicDir = fileURLToPath(new URL('./public', import.meta.url))
+  return {
+    name: 'driftbox-service-worker',
+    apply: 'build',
+    // `post`, and it is not a preference. Vite emits index.html and rack.html from its own
+    // `generateBundle`, so a plugin running at normal order sees a bundle with every script and
+    // stylesheet in it and neither document — a precache that caches all of the app except the
+    // pages that load it, which installs cleanly and then opens nothing offline.
+    enforce: 'post',
+    generateBundle(_options, bundle) {
+      const urls = precacheUrls([...Object.keys(bundle), ...readdirSync(publicDir)])
+
+      // Loudly, because the failure it guards against is silent. This went wrong once already,
+      // for the ordering reason above, and nothing about the build looked wrong: it succeeded,
+      // the app worked online, and the offline copy was a set of assets with no document to
+      // hang them on.
+      const documents = urls.filter((url) => url.endsWith('.html'))
+      if (documents.length < 2) {
+        this.error(
+          `The precache is missing a document — found ${documents.length}, expected index.html and rack.html. ` +
+            'Vite emits them during generateBundle, so this plugin has to run after it.',
+        )
+      }
+
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sw.js',
+        source: serviceWorkerSource(cacheName(version, COMMIT), urls),
+      })
+    },
+  }
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), serviceWorker()],
 
   define: buildDefines,
 
@@ -74,6 +128,28 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         rack: fileURLToPath(new URL('./rack.html', import.meta.url)),
+      },
+      output: {
+        // Name the two chunks that are actually libraries.
+        //
+        // Left alone, a shared chunk is named after whichever of its modules the bundler happened
+        // to pick, which has meant `Oscilloscope`, then `offline`, then `audio` — a file of
+        // 856kB called `audio` that is in fact all of three, and a 368kB one called `offline`
+        // that is React. Every one of those names is a lie about the biggest thing in the build,
+        // and `offline` in particular reads as the cost of the service worker, which is 2kB.
+        //
+        // It is also what makes a size budget possible at all. `scripts/check-size.mjs` matches on
+        // the name in front of the content hash, so a name that moves when an unrelated module is
+        // added is a budget that silently stops covering anything.
+        // `advancedChunks` rather than `manualChunks`: under rolldown the latter is a function
+        // only, and passing it the name-to-modules object every Rollup example shows is a type
+        // error rather than a silent no-op — which is the good version of that surprise.
+        advancedChunks: {
+          groups: [
+            { name: 'three', test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/ },
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
       },
     },
   },

@@ -13,6 +13,12 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#07040f" />
+    <!-- The meta tags above already give iOS a fullscreen app from Add to Home Screen. This is
+         what makes Chrome and Android offer to install one at all, and what names the icons
+         when they do — everything inside it is relative, so one manifest serves /driftbox/ and
+         the root alike, exactly like `base: './'` in vite.config.ts. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <title>Driftbox — an 808, a 909 and two 303s in the browser</title>
     <meta
