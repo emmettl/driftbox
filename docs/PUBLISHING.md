@@ -1,6 +1,6 @@
 # Publishing
 
-Three packages go to npm: `@driftbox/engine` and `@driftbox/app`, both published at `0.5.0`,
+Three packages go to npm: `@driftbox/engine` and `@driftbox/app`, both published at `0.6.0`,
 and `@driftbox/rack`, which is release-ready at `0.1.0` and has not had its first publish yet
 — see *Authentication* for why that one is not simply a matter of cutting a release.
 **Nothing publishes automatically** — the workflow only runs when a GitHub Release is
@@ -25,10 +25,24 @@ override the OIDC path.
 
 **A package's first publish is the exception, and `@driftbox/rack` has not had one.** Trusted
 publishing cannot be configured for a name that does not exist on the registry yet — the same
-bootstrap problem the engine hit at `0.1.0`, recorded under *Provenance* below. So the rack's
-first release needs a one-time manual `npm publish` with a granular token, after which its npm
-package settings can be pointed at this workflow and the token revoked. Every release after
-that goes through OIDC with the others.
+bootstrap problem the engine hit at `0.1.0`, recorded under *Provenance* below.
+
+So the rack's first release runs on a temporary `NPM_TOKEN` secret, which the workflow reads
+**only for the rack**. Not for the step: npm prefers an explicit token over OIDC, so a token in
+scope for all three would silently take over the engine and app publishes as well, and would fail
+them outright if it were granted for the rack alone.
+
+Doing it in the workflow rather than by hand is what keeps the ordering right. The rack depends on
+the engine, and publishing it before `@driftbox/engine@0.6.0` exists leaves an installable tarball
+whose install fails — so the rack has to go out *after* the engine and *before* the app, which is
+exactly the order this workflow already publishes in. It also matters that the rack cannot simply
+be left to fail: the publish loop runs under `set -e`, so a failing rack would take the app down
+with it and half-ship the release.
+
+**Once it has published, undo it** — point the rack's npm package settings at this workflow, revoke
+the token, delete the `NPM_TOKEN` secret, and delete the `BOOTSTRAP` block from `publish.yml`. Every
+release after that goes through OIDC with the others, and a token left behind is the 401 above
+waiting to happen.
 
 `publishConfig.access` is `public` in all three packages. A scoped package defaults to
 *private*, and a publish without that setting fails with a payment-required error that reads
@@ -63,7 +77,7 @@ at it — without it they dangle and "go to definition" lands nowhere — and be
 reasoning in these packages lives in their comments. For the rack that is load-bearing twice
 over: a module's processor is read as text at runtime and its comments are the DSP argument.
 
-`@driftbox/rack` depends on `@driftbox/engine` at `^0.5.0`, for the shared ladder and the
+`@driftbox/rack` depends on `@driftbox/engine` at `^0.6.0`, for the shared ladder and the
 Song codec it refuses to fork. That is why `PACKAGES` in the workflow lists the engine first:
 publishing a package before the version it depends on exists leaves an installable tarball
 whose install fails. The engine and the app have no runtime dependency at all.
