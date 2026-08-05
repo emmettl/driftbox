@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { appKeyDown, claimsKey } from './app-shortcuts'
+import { consoleBeacons } from './ui/beacons'
 import { useAudioRecovery } from './audio-recovery'
 import { useFollowPlayhead } from './ui/useFollowPlayhead'
 import { useBox } from './store'
@@ -79,15 +81,17 @@ export default function App() {
 
   // Fewer particles and a shorter throw than the phone's, because these land on a 40px
   // button in a room already full of controls rather than on an empty picture.
-  const consoleBeacons: BeaconTarget[] = []
-  if (roomy && !stillness && !performing) {
-    if (!running && !learnt.has('played')) {
-      consoleBeacons.push({ key: 'play', target: consolePlay, tint: TEAL, count: 34, spawn: 5 })
-    }
-    if (!learnt.has('vibed')) {
-      consoleBeacons.push({ key: 'vibes', target: vibesButton, tint: AMBER, count: 34, spawn: 5 })
-    }
-  }
+  const beacons: BeaconTarget[] = consoleBeacons({
+    roomy,
+    stillness,
+    performing,
+    running,
+    learnt,
+  }).map((key) =>
+    key === 'play'
+      ? { key, target: consolePlay, tint: TEAL, count: 34, spawn: 5 }
+      : { key, target: vibesButton, tint: AMBER, count: 34, spawn: 5 },
+  )
 
   // The console flies out of the edit button, and folds back into it.
   //
@@ -116,25 +120,14 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // Not while typing in a control — space on a focused slider should not also
-      // start the transport.
-      const target = event.target as HTMLElement | null
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-
-      if (event.code === 'Space') {
-        event.preventDefault()
-        toggleTransport()
-      }
-      if (event.key === '?') {
-        event.preventDefault()
-        setHelpOpen(true)
-      }
-      if (event.key.toLowerCase() === 'v') togglePerformance()
-      if (event.key === 'Escape' && performing) togglePerformance()
-      if (event.key.toLowerCase() === 'x') setScope(nextScope(useBox.getState().scope))
-      if (event.key.toLowerCase() === 'c') {
-        setScene(nextScene(useBox.getState().scene))
-      }
+      const action = appKeyDown(event, performing)
+      if (!action) return
+      if (claimsKey(action)) event.preventDefault()
+      if (action.kind === 'transport') toggleTransport()
+      else if (action.kind === 'help') setHelpOpen(true)
+      else if (action.kind === 'performance') togglePerformance()
+      else if (action.kind === 'scope') setScope(nextScope(useBox.getState().scope))
+      else if (action.kind === 'scene') setScene(nextScene(useBox.getState().scene))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -274,7 +267,7 @@ export default function App() {
           transform and a canvas inside it would be drawn in the transformed space while
           reading its targets in viewport space — the particles would swim away from the
           buttons for the length of the animation. */}
-      <PlayBeacon className="console-beacon" targets={consoleBeacons} />
+      <PlayBeacon className="console-beacon" targets={beacons} />
       {helpOpen && <HelpDialog surface="groovebox" onClose={() => setHelpOpen(false)} />}
     </div>
   )
