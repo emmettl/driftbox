@@ -9,10 +9,27 @@ import type { Breakpoint, FilterSpec, Source, VoiceSpec } from './types.js'
  *  below audibility, but a legal target. */
 const SILENCE = 1e-4
 
-/** Noise buffers are shared by context and format. Snares and claps use full-rate random
- *  noise; the 909's digital cymbals use deterministic, quantised low-rate noise so each
- *  hit reads the same generated "ROM" rather than allocating a waveform per trigger. */
+/** Noise buffers are shared by context and format. Snares and claps use full-rate noise;
+ *  the 909's digital cymbals use quantised low-rate noise so each hit reads the same
+ *  generated "ROM" rather than allocating a waveform per trigger. */
 const noiseBuffers = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>()
+
+/**
+ * The seed ordinary noise gets when a voice does not name one.
+ *
+ * **This used to be `Math.random`, and the cost of that was not variety — it was that no two
+ * renders of the same song were the same song.** Within one context nothing changed either way:
+ * the buffer is generated once and shared, so every snare in a session already read the same
+ * noise. What moved was everything across contexts. A stem rendered offline got different noise
+ * from the mix it was supposed to match. The busiest pattern's measured peak wandered between
+ * runs. And any test comparing one render to another was comparing two different pieces of noise
+ * — which is exactly how it was found, by a test asserting that two renders of `808.bd` had the
+ * same peak, which they should and did not.
+ *
+ * White noise is white noise: a fixed stream sounds the same as a fresh one, and nobody can hear
+ * which realisation they got. What they can hear is a stem that does not sit back into its mix.
+ */
+const DEFAULT_NOISE_SEED = 0x64726966
 
 interface NoiseBufferOptions {
   sampleRate?: number
@@ -20,7 +37,9 @@ interface NoiseBufferOptions {
   seed?: number
 }
 
-function seededRandom(seed: number): () => number {
+/** A deterministic stream of 0..1. Exported because the reverb's impulse response needs the same
+ *  one — two noise generators with different characters would be two things to reason about. */
+export function seededRandom(seed: number): () => number {
   let state = seed >>> 0 || 1
   return () => {
     // xorshift32: tiny, deterministic and amply long for a few seconds of noise.
@@ -36,7 +55,9 @@ export function noiseBuffer(
   options: NoiseBufferOptions = {},
 ): AudioBuffer {
   const sampleRate = options.sampleRate ?? ctx.sampleRate
-  const key = `${sampleRate}:${options.bitDepth ?? 'float'}:${options.seed ?? 'random'}`
+  // `'default'` rather than the seed's value, so that unseeded noise and a voice that happened to
+  // ask for exactly DEFAULT_NOISE_SEED stay different entries — they are different lengths.
+  const key = `${sampleRate}:${options.bitDepth ?? 'float'}:${options.seed ?? 'default'}`
   let buffers = noiseBuffers.get(ctx)
   if (!buffers) {
     buffers = new Map()
@@ -46,12 +67,14 @@ export function noiseBuffer(
   if (cached) return cached
 
   // Four seconds covers the longest cymbal decay without looping its generated ROM.
-  // Ordinary noise keeps the original two-second allocation and can loop invisibly.
+  // Ordinary noise keeps the original two-second allocation and can loop invisibly. The length
+  // still keys off whether a seed was *asked for*, not off the seed used — everything is seeded
+  // now, and conflating the two would quietly make every snare buffer twice the size.
   const seconds = options.seed === undefined ? 2 : 4
   const length = Math.floor(sampleRate * seconds)
   const buffer = ctx.createBuffer(1, length, sampleRate)
   const data = buffer.getChannelData(0)
-  const random = options.seed === undefined ? Math.random : seededRandom(options.seed)
+  const random = seededRandom(options.seed ?? DEFAULT_NOISE_SEED)
   const maximumCode = options.bitDepth
     ? Math.pow(2, Math.max(2, Math.min(16, options.bitDepth))) - 1
     : 0
@@ -127,12 +150,52 @@ function driveCurve(amount: number): Float32Array<ArrayBuffer> {
   return curve
 }
 
+/**
+ * Which slice of the noise buffer this particular hit should read from.
+ *
+ * **A function of the hit rather than of chance, and the distinction is the whole point.** The
+ * offset exists so that two noise sources overlapping do not read the same samples and comb-filter
+ * each other — most audibly inside a clap, which is one voice retriggering itself three times.
+ * That needs the offsets to differ *from each other*. It never needed them to differ between one
+ * render and the next, and `Math.random()` gave both: a clap was a slightly different clap every
+ * time the page loaded, and a stem could not be cut to match the mix it came from.
+ *
+ * So it hashes the three things that make a hit that hit — which voice, which source within it,
+ * and when — into a seed. Two sources in one clap have different `delay`s and therefore different
+ * `start`s. Two voices landing on the same step have different ids. The same song rendered twice
+ * has the same times, so it gets the same offsets, and the clap still does not comb-filter itself.
+ *
+ * Live playback still varies, because `start` there is an absolute context time that depends on
+ * when somebody pressed play. That is the one place variation was ever worth anything.
+ */
+function noiseOffsetSeed(voice: string, index: number, start: number): number {
+  let hash = 0x811c9dc5
+  const mix = (value: number) => {
+    hash ^= value
+    hash = Math.imul(hash, 0x01000193)
+  }
+  for (let i = 0; i < voice.length; i++) mix(voice.charCodeAt(i))
+  mix(index + 1)
+  // Milliseconds, so that a float that differs in its last bit between two otherwise identical
+  // schedules cannot land on a different slice of noise.
+  mix(Math.round(start * 1000))
+  // A final avalanche. FNV alone leaves adjacent inputs — index 0 and index 1 — with seeds that
+  // are close, and xorshift32's first output from two close seeds is close too, which would put
+  // two sources of one clap almost on top of each other.
+  hash ^= hash >>> 15
+  hash = Math.imul(hash, 0x2c1b3c6d)
+  hash ^= hash >>> 12
+  return hash >>> 0
+}
+
 function buildSource(
   ctx: BaseAudioContext,
   source: Source,
   destination: AudioNode,
   time: number,
   duration: number,
+  /** Identifies this source among all the ones that could be sounding at once. */
+  offsetSeed = 0,
 ): AudioScheduledSourceNode {
   const start = time + (source.delay ?? 0)
 
@@ -182,10 +245,16 @@ function buildSource(
   // which this is, and the global only exists in a browser — so the instanceof made the
   // renderer unusable anywhere else, including from a test.
   if (source.kind === 'noise') {
-    // Ordinary analogue-style noise starts at a random offset, so overlapping claps do
+    // Ordinary analogue-style noise starts at an offset of its own, so overlapping claps do
     // not comb-filter. A seeded source represents generated PCM ROM and starts at zero:
     // repeated hits being identical is part of a sampled voice's character.
-    const offset = source.seed === undefined ? Math.random() * 1.5 : 0
+    //
+    // Derived from the hit rather than drawn at random — see `noiseOffsetSeed`. The stream is
+    // advanced once before it is read, because xorshift32's first output still carries some of
+    // the shape of its seed.
+    const pick = seededRandom(offsetSeed || 1)
+    pick()
+    const offset = source.seed === undefined ? pick() * 1.5 : 0
     const noise = node as AudioBufferSourceNode
     noise.start(start, offset)
   } else node.start(start)
@@ -210,6 +279,13 @@ export function renderVoice(
   spec: VoiceSpec,
   destination: AudioNode,
   time: number,
+  /**
+   * Which voice this is, used only to keep two of them landing on the same step from reading the
+   * same slice of noise. Optional and defaulted because a `VoiceSpec` does not carry an id — a
+   * caller that has one should pass it, and the metronome, which is alone on its own output, has
+   * nothing to collide with.
+   */
+  voice = '',
 ): VoiceHandle {
   // The last node before the destination, kept as a bare gain so a choke can duck the
   // whole voice without knowing anything about how it was built.
@@ -244,7 +320,16 @@ export function renderVoice(
 
   head.connect(output)
 
-  const nodes = spec.sources.map((source) => buildSource(ctx, source, out, time, spec.duration))
+  const nodes = spec.sources.map((source, index) =>
+    buildSource(
+      ctx,
+      source,
+      out,
+      time,
+      spec.duration,
+      noiseOffsetSeed(voice, index, time + (source.delay ?? 0)),
+    ),
+  )
 
   // Release the graph once the tail has run out. Without this, a few minutes of a
   // pattern at 140bpm leaves thousands of dead nodes connected to the master bus.

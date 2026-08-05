@@ -1,4 +1,10 @@
+import { seededRandom } from './render.js'
 import { secondsPerStep } from './timing.js'
+
+/** One per channel, and they must differ: the whole point of generating each side separately is
+ *  that the two are uncorrelated, which is what a wide room is. Two equal seeds would produce a
+ *  reverb that collapses to mono, silently and only on headphones. */
+const REVERB_SEEDS = [0x726f6f6d, 0x776964_65] as const
 
 // Song-wide master inserts plus two send effects: one delay, one reverb.
 //
@@ -99,12 +105,19 @@ export function impulseResponse(
     const data = buffer.getChannelData(channel)
     // Independent noise per channel, which is what makes the result wide. Copying one
     // channel to the other would give a reverb that collapses to mono.
+    //
+    // Independent of *each other*, which is not the same as independent of the run — and this was
+    // `Math.random`, which gave both. So every page load built a different room, and a stem
+    // rendered offline landed in a different room from the mix it was cut from. Two fixed seeds
+    // keep the width, which is the property that was actually wanted, and drop the variation,
+    // which nobody asked for and which meant a reverb tail could not be measured twice.
+    const random = seededRandom(REVERB_SEEDS[channel])
     let filtered = 0
     for (let i = 0; i < length; i++) {
       const t = i / length
       // A one-pole lowpass whose corner closes as the tail decays.
       const coefficient = Math.max(0.015, (1 - damping) * (1 - t) + 0.015)
-      filtered += coefficient * (Math.random() * 2 - 1 - filtered)
+      filtered += coefficient * (random() * 2 - 1 - filtered)
       // Exponential-ish decay. The power is what makes the tail taper rather than stop.
       data[i] = filtered * Math.pow(1 - t, 2.2)
     }
