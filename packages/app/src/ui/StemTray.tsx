@@ -1,17 +1,18 @@
-import {
-  ALL_VOICES,
-  BASS_VOICES,
-  planSong,
-  renderStems,
-  songBars,
-  toWav,
-  voicesUsed,
-  type Song,
-} from '@driftbox/engine'
+import { renderStems, toWav, voicesUsed, type Song } from '@driftbox/engine'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { downloadBlob } from '../persistence'
 import { useBox } from '../store'
+import {
+  PREVIEW_SECONDS,
+  PROBLEMS,
+  StemCache,
+  stemFileName,
+  stemName,
+  stemPreviewStart,
+  stemRow,
+  trayStatus,
+} from './stem-review.js'
 import './StemTray.css'
 
 interface Props {
@@ -25,12 +26,6 @@ interface ReviewProps extends Props {
   stopTransport: () => void
   /** Prefix shared by one-off saves and the complete set. */
   filePrefix?: string
-}
-
-function stemName(id: string): string {
-  return ALL_VOICES.find((voice) => voice.id === id)?.name
-    ?? BASS_VOICES.find((voice) => voice.id === id)?.name
-    ?? id
 }
 
 export interface StemReviewItem {
@@ -56,23 +51,6 @@ interface AudioReviewProps extends Props {
   renderFull: (id: string) => Promise<ReviewStem | null>
 }
 
-const fileName = (stem: ReviewStem, index: number, prefix = 'driftbox') => {
-  const safe = stem.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  const document = prefix.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  return `${document || 'driftbox'}-${index + 1}-${safe}.wav`
-}
-
-const PREVIEW_SECONDS = 4
-
-function stemPreviewStart(song: Song, id: string): number {
-  const plan = planSong(song, songBars(song))
-  const times = plan.flatMap((step) => [
-    ...step.drums.filter((hit) => hit.voiceId === id).map((hit) => hit.time),
-    ...step.bass.filter((hit) => hit.voiceId === id).map((hit) => hit.time),
-  ])
-  return Math.max(0, (times[0] ?? 0) - 0.25)
-}
-
 /** Shared review step between “stems” and a folder full of files. */
 export function AudioStemReviewTray({
   items,
@@ -88,8 +66,11 @@ export function AudioStemReviewTray({
   onExported,
 }: AudioReviewProps) {
   const names = useMemo(() => new Map(items.map((item) => [item.id, item.name])), [items])
-  const cache = useRef(new Map<string, ReviewStem>())
-  const pending = useRef(new Map<string, Promise<ReviewStem | null>>())
+  // The render function follows the current song; the cache outlives it, as it always has — this tray is
+  // mounted for one document at a time.
+  const renderRef = useRef(renderPreview)
+  renderRef.current = renderPreview
+  const [cache] = useState(() => new StemCache<ReviewStem>((id) => renderRef.current(id)))
   const context = useRef<AudioContext | null>(null)
   const source = useRef<AudioBufferSourceNode | null>(null)
   const alive = useRef(true)
@@ -111,22 +92,13 @@ export function AudioStemReviewTray({
     if (update && alive.current) setPlaying(null)
   }, [])
 
-  const ensureStem = useCallback(async (id: string): Promise<ReviewStem | null> => {
-    const cached = cache.current.get(id)
-    if (cached) return cached
-    const existing = pending.current.get(id)
-    if (existing) return existing
-    const work = renderPreview(id).then((stem) => {
-      if (!stem) return null
-      cache.current.set(id, stem)
-      if (alive.current) setReady((current) => new Set([...current, id]))
-      return stem
-    }).finally(() => {
-      pending.current.delete(id)
-    })
-    pending.current.set(id, work)
-    return work
-  }, [renderPreview])
+  const ensureStem = useCallback(
+    (id: string): Promise<ReviewStem | null> =>
+      cache.ensure(id, (rendered) => {
+        if (alive.current) setReady((current) => new Set([...current, rendered]))
+      }),
+    [cache],
+  )
 
   const preview = async (id: string) => {
     if (playing === id) {
@@ -159,7 +131,7 @@ export function AudioStemReviewTray({
       setPlaying(id)
       next.start()
     } catch {
-      if (alive.current) setError(`Could not render ${names.get(id) ?? id}.`)
+      if (alive.current) setError(PROBLEMS.render(names.get(id) ?? id))
     } finally {
       if (alive.current) setRendering(null)
     }
@@ -172,9 +144,9 @@ export function AudioStemReviewTray({
     try {
       const stem = await renderFull(id)
       if (!stem || !alive.current) return
-      downloadBlob(toWav(stem.buffer), fileName(stem, index, filePrefix))
+      downloadBlob(toWav(stem.buffer), stemFileName(stem.name, index, filePrefix))
     } catch {
-      if (alive.current) setError(`Could not render ${names.get(id) ?? id}.`)
+      if (alive.current) setError(PROBLEMS.render(names.get(id) ?? id))
     } finally {
       if (alive.current) setRendering(null)
     }
@@ -211,7 +183,7 @@ export function AudioStemReviewTray({
         setExporting(item.id)
         const stem = await renderFull(item.id)
         if (!stem || !alive.current) return
-        downloadBlob(toWav(stem.buffer), fileName(stem, index, filePrefix))
+        downloadBlob(toWav(stem.buffer), stemFileName(stem.name, index, filePrefix))
         written++
         // Browsers commonly collapse several downloads dispatched in one event turn.
         await new Promise((done) => setTimeout(done, 120))
@@ -223,7 +195,7 @@ export function AudioStemReviewTray({
     } catch {
       if (alive.current) {
         setExporting(null)
-        setError('Could not export the complete stem set.')
+        setError(PROBLEMS.exportAll)
       }
     }
   }
@@ -252,35 +224,41 @@ export function AudioStemReviewTray({
         <div className="stem-list">
           {items.length === 0 && <p className="stem-empty">{empty}</p>}
           {items.map((item, index) => {
-            const stem = cache.current.get(item.id)
-            const isPlaying = playing === item.id
-            const isRendering = rendering === item.id || exporting === item.id
+            const row = stemRow({
+              id: item.id,
+              duration: cache.cached(item.id)?.buffer.duration,
+              ready: ready.has(item.id),
+              playing: playing === item.id,
+              rendering: rendering === item.id || exporting === item.id,
+              busy: busy !== null,
+            })
             return (
-              <div key={item.id} className={isPlaying ? 'stem-row stem-row-playing' : 'stem-row'}>
+              <div
+                key={item.id}
+                className={row.sounding ? 'stem-row stem-row-playing' : 'stem-row'}
+              >
                 <button
                   type="button"
                   className="stem-play"
-                  disabled={busy !== null && !isPlaying}
-                  aria-label={isPlaying ? `Stop ${item.name} stem` : `Preview ${item.name} stem`}
-                  aria-pressed={isPlaying}
+                  disabled={row.playDisabled}
+                  aria-label={
+                    row.sounding ? `Stop ${item.name} stem` : `Preview ${item.name} stem`
+                  }
+                  aria-pressed={row.sounding}
                   onClick={() => void preview(item.id)}
                 >
-                  {isRendering ? '…' : isPlaying ? '■' : '▶'}
+                  {row.glyph}
                 </button>
                 <span className="stem-number">{String(index + 1).padStart(2, '0')}</span>
                 <span className="stem-name">
                   <strong>{item.name}</strong>
-                  <small>
-                    {item.id}{stem ? ` · ${stem.buffer.duration.toFixed(1)}s` : ready.has(item.id) ? ' · ready' : ''}
-                  </small>
+                  <small>{row.detail}</small>
                 </span>
-                <span className="stem-status">
-                  {isRendering ? 'rendering' : isPlaying ? 'playing' : stem ? 'ready' : 'not rendered'}
-                </span>
+                <span className="stem-status">{row.status}</span>
                 <button
                   type="button"
                   className="stem-save"
-                  disabled={busy !== null}
+                  disabled={row.saveDisabled}
                   onClick={() => void save(item.id, index)}
                 >
                   save
@@ -291,7 +269,9 @@ export function AudioStemReviewTray({
         </div>
 
         <footer>
-          <span>{error ?? (busy ? `Rendering ${names.get(busy) ?? busy}…` : summary(items.length))}</span>
+          <span>
+            {trayStatus(error, busy ? names.get(busy) ?? busy : null, summary(items.length))}
+          </span>
           <button
             type="button"
             className="stem-export"
