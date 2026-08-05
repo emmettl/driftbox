@@ -1,6 +1,6 @@
 # Publishing
 
-Three packages go to npm: `@driftbox/engine` and `@driftbox/app`, both published at `0.5.0`,
+Three packages go to npm: `@driftbox/engine` and `@driftbox/app`, both published at `0.6.0`,
 and `@driftbox/rack`, which is release-ready at `0.1.0` and has not had its first publish yet
 — see *Authentication* for why that one is not simply a matter of cutting a release.
 **Nothing publishes automatically** — the workflow only runs when a GitHub Release is
@@ -63,7 +63,7 @@ at it — without it they dangle and "go to definition" lands nowhere — and be
 reasoning in these packages lives in their comments. For the rack that is load-bearing twice
 over: a module's processor is read as text at runtime and its comments are the DSP argument.
 
-`@driftbox/rack` depends on `@driftbox/engine` at `^0.5.0`, for the shared ladder and the
+`@driftbox/rack` depends on `@driftbox/engine` at `^0.6.0`, for the shared ladder and the
 Song codec it refuses to fork. That is why `PACKAGES` in the workflow lists the engine first:
 publishing a package before the version it depends on exists leaves an installable tarball
 whose install fails. The engine and the app have no runtime dependency at all.
