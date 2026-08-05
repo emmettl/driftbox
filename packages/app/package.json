@@ -41,7 +41,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "node bin/driftbox.js"
+    "start": "node bin/driftbox.js",
+    "//icons": "Regenerates the manifest icons from public/favicon.svg. Not part of the build — the PNGs are committed; this is what you re-run when the artwork changes.",
+    "icons": "node scripts/icons.mjs",
+    "//verify:offline": "Needs a dist/. Serves it at the root and at /driftbox/, registers the worker, pulls the network and reloads — the only way to test the claim is to make it.",
+    "verify:offline": "node scripts/verify-offline.mjs"
   },
   "//": "No runtime dependencies, deliberately. What ships is a prebuilt dist/ with everything already bundled into it, and a bin that serves it using nothing but Node built-ins — so `npx @driftbox/app` downloads one small package and runs, instead of resolving React, three and the rest first. That includes @driftbox/engine: it is compiled into the bundle at build time, so listing it as a dependency would make every user install a copy nothing loads.",
   "devDependencies": {

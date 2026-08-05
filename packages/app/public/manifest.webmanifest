@@ -1,0 +1,31 @@
+{
+  "name": "Driftbox — an 808, a 909 and two 303s",
+  "short_name": "Driftbox",
+  "description": "A drum machine and step sequencer with nothing sampled, and eighteen scenes that move with the music.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07040f",
+  "theme_color": "#07040f",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Rack",
+      "short_name": "Rack",
+      "description": "The modular — cables, modules and a patch that fits in a URL.",
+      "url": "./rack.html",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

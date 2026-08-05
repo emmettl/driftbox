@@ -26,6 +26,10 @@ const TYPES = {
   '.png': 'image/png',
   '.woff2': 'font/woff2',
   '.map': 'application/json; charset=utf-8',
+  // Without this the manifest is served as application/octet-stream and every browser ignores
+  // it, so `npx @driftbox/app` would be the one way of running Driftbox that cannot be
+  // installed — silently, because a rejected manifest is a devtools warning and nothing else.
+  '.webmanifest': 'application/manifest+json',
 }
 
 function parseArgs(argv) {

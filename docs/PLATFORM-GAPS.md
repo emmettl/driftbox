@@ -18,7 +18,49 @@ half" is a different piece of work from "start".
 
 Ordered by what it costs to do them *later* rather than by how much they are wanted.
 
-### 1. Nothing works offline, and nothing offers to install
+### 1. ~~Nothing works offline, and nothing offers to install~~ — landed
+
+`public/manifest.webmanifest` and a generated `sw.js` shipped together. Everything below is kept
+because the reasoning is what the next person needs, and because two of the decisions are ones a
+tidy-up would undo.
+
+**It is verified rather than asserted.** `npm run verify:offline --workspace @driftbox/app` serves
+a real `dist/` at the root and at `/driftbox/`, registers the worker, pulls the network and
+reloads, and CI runs it after every build. Seventeen entries cached, both pages open offline, at
+both roots. It earned its place immediately: the first version of the precache plugin ran at
+normal plugin order, and Vite emits the two HTML documents from its own `generateBundle`, so the
+list came out with every script and stylesheet in it and neither page. The build succeeded, the
+app worked online, and the offline copy was a set of assets with no document to hang them on.
+The plugin now runs at `enforce: 'post'` and fails the build if fewer than two documents reach
+the list.
+
+Three things are load-bearing and none of them is obvious:
+
+- **There is no `skipWaiting()`, and its absence is the feature.** Taking over immediately would
+  hand a page that is already running — already holding its own JS in memory — a new cache that
+  does not contain the chunk hashes it is about to ask for. With the scenes loading on demand that
+  is not hypothetical. Without it the new worker installs quietly and takes over once every tab
+  has closed, which is also what makes deleting the old caches on activate safe: activation cannot
+  happen while a client still depends on them.
+- **Every path is relative** — the precache list, the manifest's `start_url`, `scope` and icons,
+  the registration and its scope. Same rule as `base: './'`, and `cache.addAll` being atomic turns
+  one absolute path into no cache at all rather than a partial one. This is why the verification
+  serves from a subdirectory: at the root, an absolute path is right by accident.
+- **The cache key carries the commit**, for the reason `version.ts` gives about the label it
+  shows. Pages redeploys on every push while the version moves only at a release, so a
+  version-only key would serve the first deploy's assets until the next release.
+
+The iOS half was already done before any of this — `index.html` carried `mobile-web-app-capable`,
+a black-translucent status bar and `viewport-fit=cover`, so Add to Home Screen already gave a
+fullscreen app. What was missing was the manifest Chrome needs before it will offer to install at
+all, and the caching. The icons are generated from `public/favicon.svg` by
+`scripts/icons.mjs`, through the Chromium the browser tests already require, because that SVG is
+fifteen blurred ellipses behind an alpha mask in `color(display-p3 ...)` and nothing smaller than
+a browser renders it correctly.
+
+The original entry follows.
+
+---
 
 There is no service worker and no web manifest anywhere in `packages/app` — a grep for
 `serviceWorker` and `manifest.webmanifest` across the tree returns nothing.

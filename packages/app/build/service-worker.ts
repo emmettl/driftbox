@@ -1,0 +1,125 @@
+// The service worker, generated from the build that will be served.
+//
+// Kept out of `vite.config.ts` and out of `src/` because it is neither: it is build-time code
+// that emits *runtime* code, and it is the half of offline support that has decisions in it
+// worth arguing about. The plugin in `vite.config.ts` does nothing but collect filenames and
+// call this; `service-worker.test.ts` covers the decisions.
+//
+// **Precaching is enough here, and that is not true of most apps.** What ships is a prebuilt
+// bundle with no runtime dependencies, no web fonts, and no media files — and both AudioWorklets
+// are built from a string and loaded through `URL.createObjectURL`, so the DSP that reaches the
+// audio thread never touches the network at all. So there is no runtime-caching strategy to
+// design: cache the build, serve the build.
+
+/** What never earns its place in a precache. */
+const SKIP = [
+  // Source maps are large, are fetched only when devtools is open, and devtools is not open
+  // on the train.
+  /\.map$/,
+  // The link-preview cards. Nobody but a crawler ever requests them, and a crawler is online
+  // by definition. Two files, ~200kB, for a request that will never come from a cached client.
+  /^og(-[a-z]+)?\.png$/,
+]
+
+/**
+ * The URLs to precache, relative and sorted.
+ *
+ * **Relative, and that is load-bearing rather than tidy.** One build serves the Pages project
+ * site at `/driftbox/`, `npx @driftbox/app` at the root, and any static host at either — which
+ * is why `base` is `'./'`. A precache list of absolute paths would pin the service worker to one
+ * of those and 404 the whole `addAll` on the others, and because `addAll` is atomic that is not
+ * a degraded cache, it is no cache at all and an install that fails for ever. Relative URLs
+ * resolve against the worker's own location, which is exactly the directory the app was served
+ * from, whichever one it is.
+ *
+ * `'./'` is listed alongside `'./index.html'` because a visitor arrives at the directory, and a
+ * cached entry for the file does not answer a request for the directory. Both are the same few
+ * kilobytes of HTML, and having only one of them is the difference between opening offline and
+ * not.
+ */
+export function precacheUrls(files: readonly string[]): string[] {
+  const kept = files.filter((file) => !SKIP.some((pattern) => pattern.test(file)))
+  const unique = new Set(['./', ...kept.map((file) => `./${file}`)])
+  return [...unique].sort()
+}
+
+/**
+ * The cache name for a build. Anything sharing a name shares a fate.
+ *
+ * Keyed on the commit as well as the version for the reason `version.ts` gives about the label
+ * it shows: Pages redeploys on every push while the version only moves at a release, so a
+ * version-only key would leave every deploy between releases serving the first one's assets for
+ * ever. The commit is what makes the key change when the build changes.
+ *
+ * Falls back to the version alone when there is no commit — a build from an npm tarball, which
+ * has no git repository to ask. That build is immutable anyway: it changes only by installing a
+ * different version, which changes the key.
+ */
+export function cacheName(version: string, commit: string): string {
+  return commit ? `driftbox-${version}-${commit}` : `driftbox-${version}`
+}
+
+/**
+ * The worker itself.
+ *
+ * **There is no `skipWaiting()`, and it is the most important line that is not here.** Taking
+ * over immediately would mean a page that is already running — already holding its own JS in
+ * memory — asking the new cache for a lazily-loaded chunk, under a filename hash that only the
+ * old build ever had. The scenes load on demand, so that is not hypothetical: it is a black
+ * visualiser and a console error, for the one user who happened to have the tab open across a
+ * deploy. Without it, the new worker installs quietly in the background and takes over the next
+ * time every tab has been closed, which is the moment the old build stops being needed by
+ * anyone.
+ *
+ * That same rule is what makes deleting the old caches on activate safe rather than reckless.
+ * Activation cannot happen while a client is still controlled by the old worker, so by the time
+ * this runs, nothing is reading what it deletes.
+ *
+ * `clients.claim()` stays, and does not contradict any of that. It matters exactly once — on the
+ * very first install, where there is no previous worker and no previous cache — and it is what
+ * makes a first visit followed by a flight actually work, instead of requiring one more load
+ * online before anything is controlled.
+ *
+ * Cache-only with a network fallback, and nothing is written at runtime. Everything the app can
+ * ask for is either in the precache or is one of the two things deliberately left out of it, and
+ * a runtime cache that grew would only be a second copy of the build with no rule for when it
+ * dies.
+ */
+export function serviceWorkerSource(name: string, urls: readonly string[]): string {
+  return `// Generated by the driftbox build. Do not edit — see packages/app/build/service-worker.ts.
+const CACHE = ${JSON.stringify(name)}
+const PRECACHE = ${JSON.stringify(urls, null, 2)}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)))
+})
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((key) => key.startsWith('driftbox-') && key !== CACHE).map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  )
+})
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request
+  if (request.method !== 'GET') return
+  if (new URL(request.url).origin !== self.location.origin) return
+
+  event.respondWith(
+    caches.open(CACHE).then(async (cache) => {
+      // ignoreSearch, because a shared link can carry a query string the cached entry does not
+      // have, and serving the app is the right answer for every one of them.
+      const hit = await cache.match(request, { ignoreSearch: true })
+      return hit ?? fetch(request)
+    }),
+  )
+})
+`
+}

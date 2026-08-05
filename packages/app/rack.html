@@ -10,6 +10,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#07040f" />
+    <!-- The same manifest as the sequencer, on purpose: one installed app with two pages, where
+         the rack is a shortcut rather than a second icon. Its `start_url` is therefore the
+         sequencer even when the rack is what was installed from. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
 
     <title>Driftbox Rack — a modular synth in the browser</title>
     <meta

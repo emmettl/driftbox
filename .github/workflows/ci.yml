@@ -35,3 +35,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - run: npm run build
+
+      # Offline support is the one feature that cannot be tested before a build: it caches the
+      # built filenames, and the worker is deliberately not registered by the dev server. So it
+      # runs here, against the artifact that would be deployed, in the Chromium already installed
+      # above — and it serves that artifact at /driftbox/ as well as at the root, because every
+      # path involved is relative and only the subdirectory tells the two apart.
+      - run: npm run verify:offline --workspace @driftbox/app
