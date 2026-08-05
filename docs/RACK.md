@@ -8,9 +8,13 @@ That framing turned out to be half right, and step 5b½ at the bottom says where
 what makes a rack a rack; the **Combinator** is what made a Reason patch playable, and it is here
 too now — four rotaries and four buttons that move any parameter of any module at once.
 
-The rack works end to end but remains a work in progress and is intentionally unpublished.
-Once complete and ready to support a public API, it can join the engine and app on npm.
-`packages/rack` has the compiler, worklet host, patch format and 37 modules; the app has
+The rack is releasable now: it is versioned `0.1.0`, the publish workflow carries it, and its
+first release is a one-time manual publish because trusted publishing cannot be configured
+for a name the registry has never seen — [PUBLISHING.md](PUBLISHING.md) has that. `0.1.0`
+rather than `1.0.0` because the capability ledgers are complete and the API is tiered and
+pinned, but whether audio enters the document is still open, and that is the one remaining
+question that could want a new shape in `Patch` rather than another optional field.
+`packages/rack` has the compiler, worklet host, patch format and 47 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -423,7 +427,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Forty-four modules
+## Forty-seven modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -432,6 +436,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **Groovebox** | Retained 808, 909 and two 303s as four stereo host-fed rack sources |
 | **Audio Input** | permission-gated microphone or audio-interface capture, with device selection in the host |
 | **VCO** | saw / pulse / tri, PWM, linear FM inlet, hard sync inlet |
+| **Wavetable** | a second oscillator family: a swept position through a table, where the VCO sweeps a shape |
 | **Voice** | a whole synth in one module: two oscillators, a ladder and two envelopes, playable in chords |
 | **Noise** | white and pink |
 | **Sampler** | loaded or generated audio, sliced and retriggered from CV |
@@ -473,6 +478,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 | **VU Meter** | patchable needle, LED and waveform displays; unchanged Thru signal and a ballistic envelope outlet |
 | **Tuner** | chromatic pitch and confidence analysis, with a silent-tuning thru mute |
 | **Looper** | stereo record, play and overdub with session-only capture |
+| **Line Mixer** | six stereo channels with pan, mute, solo and two aux sends and returns. Not terminal — it feeds an Out |
 | **Out** | terminal. Feeds the existing scope and visualiser |
 
 Two original omissions were later reversed for the rack specifically. The **sampler** and

@@ -1,0 +1,47 @@
+{
+  // The node-context files in this package, which today is one test.
+  //
+  // It exists because `docs.test.ts` reads files off disk, so it needs `@types/node`, and
+  // `tsconfig.json` deliberately admits only `vitest/globals` — everything under `src` is
+  // compiled into an AudioWorklet or run in a browser, where `process` and `node:fs` do not
+  // exist. Same split as `packages/app/tsconfig.node.json`, for the same reason.
+  //
+  // That split still holds with this config in the build: a permissive second program cannot
+  // un-fail a strict first one. `tsconfig.json` type-checks all of `src` and rejects `process`
+  // there, and `npm run typecheck` runs both — so a module reaching for a node global fails the
+  // run regardless of what is in scope here.
+  //
+  // **The `paths` below is the part that CI had to teach twice.** `docs.test.ts` imports the
+  // registry to count it, which pulls every module into this program — including the three that
+  // import `@driftbox/engine`. Without the mapping this resolves the engine through the workspace
+  // symlink to its `exports`, which points at `dist/`, and `typecheck` runs before `build`. It
+  // passed locally against a dist/ left over from an earlier run and failed on a clean checkout,
+  // which is the exact failure `tsconfig.json` already describes one comment above its own copy
+  // of this mapping. Verified here by deleting both dist/ directories before re-running.
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.rack-node.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "vitest/globals"],
+    "skipLibCheck": true,
+
+    // Bundler resolution rather than nodenext, matching `tsconfig.build.json`. It is also what
+    // lets `./src/modules/index.js` resolve to the `.ts` beside it without a second mapping.
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "paths": {
+      "@driftbox/engine": ["../engine/src/index.ts"]
+    }
+  },
+  "include": ["docs.test.ts"]
+}

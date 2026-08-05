@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "preview": "npm run preview --workspace @driftbox/app",
     "start": "npm run start --workspace @driftbox/app",
-    "typecheck": "tsc -b packages/engine packages/rack packages/app",
+    "//typecheck": "`packages/rack/tsconfig.node.json` is named separately because `packages/rack/tsconfig.json` deliberately covers only `src` with no node types in scope — see the comment in it. The app's equivalent is reached through its own solution-style tsconfig.",
+    "typecheck": "tsc -b packages/engine packages/rack packages/rack/tsconfig.node.json packages/app",
     "bench": "vitest bench --run"
   },
   "devDependencies": {
