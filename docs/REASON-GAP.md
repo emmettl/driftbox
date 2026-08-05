@@ -253,6 +253,41 @@ Ordered by return, not by how big Reason's version was.
   patch has the mastering device that is a creative decision: stereo-linked 5 ms look-ahead, input gain,
   a ceiling, release, and gain reduction as an outlet. The final comparison guarantees the stated ceiling;
   the terminal still protects patches that do not use the device.
+- **~~Every pitched sound started in the same place.~~ Landed.** The VCO and both of the Voice's
+  oscillators were one PolyBLEP saw, pulse and triangle — a good one, measured against an additive
+  reference in `vco.test.ts`, and the *only* raw sound this rack could make. The one route out of it was a
+  filter, which shapes harmonics rather than choosing them. Reason did not answer Subtractor with a better
+  Subtractor; it answered it with Malström, and the difference is a different way of *making* the sound.
+
+  `Wavetable` is that second family. Eight waveforms — sine, triangle, organ, square, saw, vocal, and 25%
+  and 12% pulses — with a Position control that crossfades between neighbours, is read per sample and has
+  an inlet of its own. Four decisions worth keeping:
+
+  - **The tables are generated, not sampled**, which is the same argument `patch-io.ts` and the Sampler
+    both settle the same way. A patch travels in a URL, so a wavetable read from a file would have made
+    this the first oscillator whose sound could not be shared, and one baked into the bundle would have
+    been the same kilobytes with fewer options. Eight harmonic recipes are forty lines of arithmetic and
+    reproduce byte for byte on every machine.
+  - **Band-limited by construction rather than by correction**, and this is the half that makes it worth
+    having two families rather than one with more waveforms. PolyBLEP approximates a band-limited edge and
+    `vco.ts` is honest about the price — 25 to 52dB of suppression, a third harmonic 3dB shy at 5kHz. A
+    table built from a spectrum that stops below Nyquist has nothing to suppress: measured against the same
+    frequency/image pairs `vco.test.ts` uses, the alias sits at 2.7e-6 rather than 1e-2, and the harmonics
+    that should survive come back within a twentieth of a percent of exact.
+  - **The mip crossfade completes before the limit, not at it.** One table cannot serve the keyboard, so
+    each waveform is built at eleven harmonic limits and the oscillator picks by frequency — and stepping
+    between those levels is audible as a lurch in brightness exactly where a swept pitch crosses an octave.
+    The obvious fix is to blend the sharper table in as the pitch *rises*, which is precisely backwards:
+    it fades in the table that has already started folding. So the fade runs the other way, over the top
+    half-octave of the sharper level's safe range, and `wavetable.test.ts` measures both halves — no alias
+    while the fade runs, and brightness that falls monotonically across a boundary instead of halving.
+  - **PM is a second inlet rather than a mode of the first.** FM moves the frequency and is the VCO's, in
+    the same units, so swapping one device for the other leaves a cable meaning what it meant. PM offsets
+    the phase instead, cannot drift, and is what every digital FM synth since the DX7 has actually done
+    under that name — so a sine at Position 0 with something audio-rate at PM is a two-operator FM voice.
+    Its Index is a front-panel knob rather than the rear input trim every inlet already has, because a
+    trim is a calibration you set once and this is the most performed parameter in FM synthesis.
+
 - **~~Audio input~~ — landed.** `getUserMedia()` capture enters the worklet on a fifth host bus
   and the Audio Input source makes it patchable. The app enumerates `audioinput` devices after
   permission, switches them by exact `deviceId`, disables speech processing, and stops every
@@ -305,6 +340,30 @@ Worth writing down so nobody builds them twice.
 4. ~~EQ~~, then ~~a complete voice~~. Both landed.
 5. ~~The rack-wide table above.~~ Landed: duplicate, bypass, auto-routing, device patches,
    multi-select (including its rubber band), and bipolar input trim.
+6. ~~A second oscillator family.~~ Landed as `Wavetable`.
 
 Update this file when one lands, the same way the capability ledger is updated. A gap list that
 goes stale is worse than none, because it argues for work that is already done.
+
+## Measured again, with the list above struck through
+
+Everything ordered above had landed, which is the point at which a gap list stops being a list and starts
+being a history. So the tree was measured against Reason once more rather than remembered, and these are
+what came back. Same rule as the top of this file: checked against the source, and a gap that turns out to
+be patchable is recorded as patchable.
+
+1. **The Mixer is a four-in mono adder.** `modules/mixer.ts` is four signals, four level CVs and one mono
+   outlet; pan, mute and solo live on `Out` instead, and there is no aux send, no return and no channel EQ.
+   Post-6 Reason essentially *is* the SSL mixer. **Patchable rather than architectural** — splitting is free
+   and merging is what Mixer is, so a send bus is a second Mixer and some cables — but it is a page of
+   cables for the thing every patch does, which is the same argument that made the Voice a module.
+
+2. **Nothing records audio against the timeline.** `Patch.automation` gave parameters a lane; audio has
+   `audio-input.ts` and `looper.ts`, and the Loop Station deliberately keeps its PCM out of the document,
+   as `Multisampler` does for everything but its zone map. So there is no audio track in the arrangement.
+   **The only architectural one left**, and the one that gets more expensive later: it forces the "does PCM
+   enter the document" decision that two devices have now each deferred in their own direction.
+
+3. Smaller, and both genuinely small: `Seq` is eight steps with no curve lane where the Matrix was
+   thirty-two with one, and `Reverb` is a single FDN algorithm with no RV7000-style algorithm select,
+   EQ or gate.

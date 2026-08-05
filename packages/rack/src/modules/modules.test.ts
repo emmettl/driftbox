@@ -245,6 +245,10 @@ describe('the registry', () => {
       'arp',
       'scale-player',
       'note-echo',
+      // Not because it is complicated to patch — it is an oscillator — but because Position and PM both
+      // behave unlike anything else on the Sources shelf, and a device whose two best features read as
+      // ordinary knobs is exactly the case a generated control reference cannot cover.
+      'wavetable',
     ]
 
     for (const type of guided) {
