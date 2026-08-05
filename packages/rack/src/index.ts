@@ -114,6 +114,11 @@ export {
 } from './groovebox.js'
 export { PATCH_FORMAT, decodePatch, encodePatch } from './patch-io.js'
 export { PATCHES, patchPresetById, type PatchPreset } from './patches/index.js'
+export {
+  SONG_PATCHES,
+  songPatchPresetById,
+  type SongPatchPreset,
+} from './patches/songs.js'
 export { CHUNKS, chunkById, insertChunk, type Chunk, type Inserted } from './chunks/index.js'
 export {
   DEVICE_PATCHES,

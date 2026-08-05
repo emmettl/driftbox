@@ -118,7 +118,7 @@ export default function RackApp() {
   const nodes = useRackNodes()
   const { loadedBreak, intendedBreak, setIntendedBreak, loadBreak, patchRenderData, hydrate } =
     useSampleBank(nodes)
-  const opening = useOpeningPatch(setIntendedBreak)
+  useOpeningPatch(setIntendedBreak)
   const {
     hasAudioInput,
     state: audioInputState,
@@ -142,7 +142,6 @@ export default function RackApp() {
       connectAudioInput,
       hydrate,
       loadBreak,
-      opening,
     },
   )
 

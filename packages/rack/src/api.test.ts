@@ -110,6 +110,9 @@ const PROMISED = [
   // Content: patches to open, chunks to drop in.
   'PATCHES',
   'patchPresetById',
+  // The same promise for the rack versions of the shipped groovebox songs.
+  'SONG_PATCHES',
+  'songPatchPresetById',
   'CHUNKS',
   'chunkById',
   'insertChunk',

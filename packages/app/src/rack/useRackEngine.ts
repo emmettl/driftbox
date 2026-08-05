@@ -14,7 +14,7 @@ import { clearLive, publishLive } from './live.js'
 import { publishMeters } from './meter.js'
 import type { RackNodes } from './nodes.js'
 import { moveTo, stepAt, STOPPED, type Playhead } from './playhead.js'
-import { useRack, type Opening } from './store.js'
+import { useRack } from './store.js'
 
 // The live audio session: starting it, keeping it in step with the document, and taking it down again.
 //
@@ -40,7 +40,6 @@ export interface RackEngineOptions {
   /** Push retained sample PCM into a rack that has only just been built. */
   hydrate: (live: Rack) => void
   loadBreak: (id: string) => Promise<void>
-  opening: RefObject<Opening | null>
 }
 
 export interface RackEngine {
@@ -70,7 +69,6 @@ export function useRackEngine(nodes: RackNodes, options: RackEngineOptions): Rac
     connectAudioInput,
     hydrate,
     loadBreak,
-    opening,
   } = options
   const setNotes = useRack((s) => s.setNotes)
   const setRunning = useRack((s) => s.setRunning)
@@ -268,9 +266,18 @@ export function useRackEngine(nodes: RackNodes, options: RackEngineOptions): Rac
     // a bleep. The opening patch is a chopped break for a first-time visitor, and a break is silent until
     // one has been rendered into it — so the gesture that starts audio is also the one that fills the
     // Sampler.
-    const wanted = useRack.getState().patch.break ?? opening.current?.preset?.needsBreak
+    //
+    // **The current document's own break, and nothing else's.** This used to fall back to the *opening*
+    // preset's `needsBreak`, which for the patch that opened is the same value as `patch.break` —
+    // `patches.test.ts` asserts the two always agree — and is somebody else's the instant a different
+    // document is loaded. So the fallback could only ever fire on a patch it was not describing, and
+    // `loadBreak` is not a read: it adds a Sampler if there is nowhere to put the audio and adopts the
+    // break's tempo. Choosing any breakless patch and pressing Start therefore bolted a Sampler onto it
+    // and dragged it to 174bpm, which for a rack++ song meant a 102bpm record playing at the tempo of the
+    // starter it happened to replace.
+    const wanted = useRack.getState().patch.break
     if (wanted) void loadBreakRef.current(wanted)
-  }, [bindGrooveboxPerformance, connectAudioInput, hydrate, nodes, opening, setRunning])
+  }, [bindGrooveboxPerformance, connectAudioInput, hydrate, nodes, setRunning])
 
   /**
    * Make the rack able to make a sound, because somebody is about to play one.
