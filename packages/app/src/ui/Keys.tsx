@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BASS_VOICES, voiceById } from '@driftbox/engine'
+import { BASS_VOICES, ClockFollower, voiceById } from '@driftbox/engine'
 import { useBox } from '../store'
 import { KeyboardBank, openMidi, type MidiHandle, type VoiceState } from '../midi.js'
 import {
@@ -23,6 +23,7 @@ import { liftNote, pressNote } from './keys-hold.js'
 import { LAYOUT, noteName, outOfRange, semitoneOf, shiftOctave } from './keys-layout.js'
 import { midiVoiceStep, soundingSemitones, type ChannelVoice } from './keys-midi.js'
 import { claimsKey, keysKeyDown, keysKeyUp } from './keys-shortcuts.js'
+import { clockLost, followClock } from '../clock-follow.js'
 
 // A keyboard for the 303s — and for the toms, which are pitched percussion and have
 // wanted playing chromatically since the day they were added.
@@ -97,6 +98,18 @@ export function Keys() {
   const midi = useRef<MidiHandle | null>(null)
   const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
   const [midiInputs, setMidiInputs] = useState<string[]>([])
+  /**
+   * Whether to follow an incoming MIDI clock, and off by default.
+   *
+   * Opt-in rather than automatic, because plenty of gear streams clock the moment it is plugged
+   * in — a DAW, a groovebox, some keyboards — and a sequencer that silently handed its transport
+   * and tempo to whatever was on the other end of the cable would be taking somebody's instrument
+   * away from them without being asked. Following is a decision, so it gets a switch.
+   */
+  const [sync, setSync] = useState(false)
+  const syncing = useRef(false)
+  const follower = useRef(new ClockFollower())
+  const [external, setExternal] = useState<number | null>(null)
   /** What each channel is committed to until its gate closes — see `keys-midi.ts`. */
   const channels = useRef(new Map<number, ChannelVoice>())
 
@@ -170,6 +183,21 @@ export function Keys() {
     const handle = await openMidi(
       {
         onVoice: playMidiVoice,
+        onClock: (message, time) => {
+          if (!syncing.current) return
+          const engine = useBox.getState().engine
+          if (!engine) return
+          const command = followClock(message, time, follower.current, { bpm: engine.bpm })
+          if (command.bpm !== undefined) {
+            // `followTempo`, not `bpm`: the latter writes through to the document, and a DAW at
+            // 174 would silently rewrite a 120bpm song and let the autosave keep it.
+            engine.followTempo(command.bpm)
+            setExternal(command.bpm)
+          }
+          if (command.transport === 'start') void engine.startAt(0, 0)
+          else if (command.transport === 'resume') void engine.start()
+          else if (command.transport === 'stop') engine.stop()
+        },
         // The mod wheel is an ordinary learnable CC in the groovebox. Rack mode adds
         // the dedicated modulation output, one of the ways it remains the superset.
         onMod: () => {},
@@ -186,6 +214,30 @@ export function Keys() {
     setMidiInputs(handle.inputs)
     setMidiState('on')
   }, [onControl, playMidiVoice])
+
+  // A ref beside the state because the MIDI handler is created once, inside `openMidi`, and closes
+  // over whatever it can see at that moment. Reading the state directly would freeze it at
+  // whatever `sync` was when the port opened.
+  useEffect(() => {
+    syncing.current = sync
+    if (!sync) {
+      useBox.getState().engine?.followTempo(null)
+      setExternal(null)
+    }
+  }, [sync])
+
+  // The clock going away is the one event that never arrives, so it has to be looked for. A second
+  // is comfortably longer than the follower's own half-second patience and short enough that a
+  // pulled cable does not leave the song at somebody else's tempo for long.
+  useEffect(() => {
+    if (!sync) return
+    const timer = setInterval(() => {
+      if (!clockLost(follower.current, performance.now()).release) return
+      useBox.getState().engine?.followTempo(null)
+      setExternal(null)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [sync])
 
   useEffect(
     () => () => {
@@ -458,6 +510,19 @@ export function Keys() {
               forget
             </button>
           )}
+          <button
+            className={`ghost${sync ? ' on' : ''}`}
+            disabled={midiState !== 'on'}
+            aria-pressed={sync}
+            title={
+              sync
+                ? 'Following an incoming MIDI clock. The song keeps its own tempo — this one is not saved.'
+                : 'Follow an incoming MIDI clock: tempo, play and stop come from the other machine'
+            }
+            onClick={() => setSync((on) => !on)}
+          >
+            {sync ? `sync${external ? ` · ${external.toFixed(1)}` : ' · waiting'}` : 'sync'}
+          </button>
           <span className="keys-midi-hint">
             {midiState === 'on'
               ? learning

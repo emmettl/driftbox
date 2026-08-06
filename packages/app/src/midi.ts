@@ -1,3 +1,5 @@
+import { parseClock, type ParsedClock } from '@driftbox/engine'
+
 // Web MIDI, and the note-priority rule that turns a keyboard into one or more voices.
 //
 // Two halves, deliberately split. `MonoVoice` is the rule and knows nothing about the browser, so it is
@@ -253,6 +255,15 @@ export interface MidiEvents {
   onControl(cc: number, value: number, channel: number): void
   /** The currently connected inputs, including hot-plug changes. */
   onInputs?(inputs: string[]): void
+  /**
+   * A clock, start, stop, continue or song position, with the timestamp it arrived at.
+   *
+   * Optional, and delivered raw rather than interpreted, for the same reason `onControl` is: what
+   * to do with an external clock is a decision about the instrument, and the message handler should
+   * not be making it. The host feeds these to a `ClockFollower` — which lives in the engine,
+   * because it is arithmetic on timestamps rather than anything to do with the browser.
+   */
+  onClock?(message: ParsedClock, time: number): void
 }
 
 export type MidiPerformanceControl = 'mod' | 'bend' | 'aftertouch' | 'expression' | 'breath' | 'sustain'
@@ -329,7 +340,26 @@ export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<
 
   const onMessage = (event: MIDIMessageEvent) => {
     const data = event.data
-    if (!data || data.length < 2) return
+    if (!data) return
+
+    // Clock first, and above the length check rather than below it.
+    //
+    // **System real-time messages are a single byte.** Note, control and pitch are all two or
+    // three, so the `length < 2` guard below — which is correct for everything it was written for
+    // — silently discarded every clock tick, start and stop before anything looked at them. The
+    // symptom of getting this wrong is not an error: it is a MIDI input that demonstrably works
+    // for notes and a clock that never arrives.
+    //
+    // `event.timeStamp` rather than a clock read here: it is when the message actually arrived,
+    // not when this handler got round to running, so it has already had some of the main thread's
+    // jitter taken out of it before the estimator sees it.
+    const clock = parseClock(data)
+    if (clock) {
+      events.onClock?.(clock, event.timeStamp)
+      return
+    }
+
+    if (data.length < 2) return
     const status = data[0] & 0xf0
     const channel = (data[0] & 0x0f) + 1
     const keyboard = bank.for(channel)

@@ -90,7 +90,54 @@ that a small screen opens straight into the visuals because that is the part it 
 The natural end of that argument is an icon on a home screen that opens without a URL bar and
 plays without a signal.
 
-### 2. No MIDI clock, in or out
+### 2. ~~No MIDI clock, in~~ — landed. Out, still open.
+
+Driftbox follows an external clock: tempo, play, stop, continue and song position. `midi-clock.ts`
+holds the estimator, `clock-follow.ts` the rules about what the sequencer does with it, and the
+**sync** button beside the MIDI controls in the Keys panel turns it on.
+
+**It is opt-in, deliberately.** Plenty of gear streams clock the moment it is plugged in, and a
+sequencer that silently handed its transport and tempo to whatever was on the other end of the
+cable would be taking somebody's instrument away without asking.
+
+**The tempo is not written into the song.** `bpm` writes through to the document, which is right
+for a knob and destructive here — a DAW at 174 would rewrite a 120bpm song and the autosave would
+keep it. `DriftboxEngine.followTempo` moves the transport and re-syncs the tempo-locked delay
+while leaving the document alone, and passing null hands the tempo back.
+
+Three things the estimator had to get right, each found by measurement:
+
+- **Fitting a line, not dividing an interval.** At 120bpm a tick is 20.8ms apart, so two
+  milliseconds of main-thread jitter on one interval is a ten percent tempo error. A least-squares
+  slope over two beats reads the same stream to better than half a beat per minute; the naive
+  estimate on that stream swings by more than ten.
+- **A dropped tick must not read as half speed, and a *late* tick must not read as a dropped one.**
+  Rounding a gap to the nearest whole tick is the obvious rule and biases badly: a tick stalled by
+  fifteen milliseconds — a garbage collection, ordinary — rounds up, and every index after it
+  shifts. The threshold sits at 1.75 intervals rather than 1.5 because being wrong in that
+  direction costs far more than being wrong in the other.
+- **The fit itself has to reject outliers, and this was the one that mattered.** A single stalled
+  tick near the edge of the window pulled the estimate from 120 to 121.7 on leverage alone. That
+  biased slope then made the *next* stalled tick look dropped, which inserted an index nobody
+  sent, which biased it further — a runaway that settled at **126.2bpm on a 120bpm stream**, five
+  percent out and growing, from noise worth a twentieth of that. A second pass excluding samples
+  more than three mean absolute residuals from the first line stops it at source. With it, one
+  stall in twenty ticks reads within 1bpm, and even ten milliseconds of jitter on *every* tick —
+  half the interval — stays within two.
+
+**What it does not do is lock phase.** It follows tempo and transport, and re-aligns on every start
+and continue, but there is no per-tick correction pulling the local playhead back onto the
+sender's. Over a long take a small residual tempo error integrates into audible drift. The pieces
+for closing that are in place — the follower already tracks its position in ticks, and
+`TICKS_PER_STEP` converts it — so the remaining work is a correction term on the applied tempo
+rather than a redesign. **This is the next thing to do here.**
+
+**Clock out** is untouched, and is now the cheaper half: the filter it would need is the one that
+already exists.
+
+The original entry follows.
+
+---
 
 `midi.ts` holds a genuinely good keyboard allocator — one class for mono and poly because the
 rule is one rule, and a ninth note on an eight-voice patch steals the oldest and hands it back on
@@ -350,13 +397,19 @@ If they were done one at a time, this order:
 3. ~~**Scene code-splitting, with the size budget landing in the same change.**~~ Landed, and the
    prediction held for the wrong reason: the budget was worth more than the split, because the
    assertion that protects the split turned out not to be a size at all.
-4. **MIDI clock in.** The largest of the four, and the one that changes what the project is. In
-   before out: being slaved is the common case, and it proves the filter that sending would then
-   reuse. **Not started** — the only one of the four still open.
+4. ~~**MIDI clock in.**~~ Landed, and it did change what the project is: Driftbox can be slaved to
+   a DAW or a hardware sequencer. In before out was the right order — the filter that sending would
+   need is the one that now exists.
 
-Everything under *Everything else* remains genuinely optional, with one exception that has been
-promoted by being measured twice: **seeding the noise buffer** is now blocking test work rather
-than only fingerprinting, and it is small.
+All four are done, as is the noise seeding that got promoted out of *Everything else* by being
+measured twice. What is left there is genuinely optional, except for the two that this work
+created rather than found:
+
+- **Phase-locking the external clock.** Tempo and transport are followed; the playhead is not
+  pulled back onto the sender's, so a long take drifts. The follower already tracks its position in
+  ticks, so this is a correction term rather than a redesign.
+- **Spectral fingerprints need tolerances**, sized against the 6.6e-5 that Chromium's own renderer
+  varies by. That number is measured and recorded above.
 
 Everything under *Everything else* is genuinely optional. The four above are the ones where the
 gap is between what the project claims and what it does, which is the only kind of gap this file

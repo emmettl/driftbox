@@ -131,8 +131,10 @@ the release steps; nothing goes to npm without cutting a release on purpose.
 not undoing, and what to build next. [docs/VERIFYING-AUDIO.md](docs/VERIFYING-AUDIO.md)
 is how to check a change actually sounds right without trusting your ears or the tests.
 [docs/PLATFORM-GAPS.md](docs/PLATFORM-GAPS.md) is the third ledger: what the *browser*
-offers that this does not yet reach for — offline and installability, MIDI clock, output
-latency — along with the fashionable things that would be a downgrade, and why.
+offers that this does not yet reach for, along with the fashionable things that would be a
+downgrade, and why. Everything it originally ordered has landed — it installs and opens
+offline, the visuals are compensated for output latency, the scenes load one at a time, and
+it follows an external MIDI clock.
 
 **The link previews are real screenshots**, so they go stale when the UI changes. There are
 two, because there are two pages and a shared rack link previewing as a step grid would be
