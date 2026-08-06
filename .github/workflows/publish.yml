@@ -107,14 +107,14 @@ jobs:
       # useless: npm prefers an explicit token over OIDC, so a revoked one turns a working release
       # into a 401.
       #
-      # The one exception is the rack's first publish, which by definition cannot use a trusted
-      # publisher yet. That is deliberately scoped to the rack inside the loop and is meant to be
-      # deleted the moment it has served its purpose — see BOOTSTRAP below.
+      # A package's first publish is the exception, because a trusted publisher cannot be
+      # configured for a name the registry has never seen. The engine and the rack were each
+      # bootstrapped from a temporary token and it was revoked straight afterwards; if a fourth
+      # package ever needs the same, docs/PUBLISHING.md records how to scope it so that it does
+      # not take the working publishes over with it.
       - name: Publish
         env:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
-          # TEMPORARY, and only the rack reads it. See BOOTSTRAP below.
-          BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           published_any=0
@@ -122,26 +122,6 @@ jobs:
           for pkg in $PACKAGES; do
             name=$(node -p "require('./packages/$pkg/package.json').name")
             version=$(node -p "require('./packages/$pkg/package.json').version")
-
-            # BOOTSTRAP — remove this block, and the NPM_TOKEN secret, once the rack is on the
-            # registry and its npm package settings trust this workflow.
-            #
-            # Trusted publishing cannot be configured for a name that does not exist yet, so the
-            # rack's FIRST publish is the one that cannot use OIDC — the same bootstrap the engine
-            # needed at 0.1.0. Without this the rack fails, and because this loop runs under
-            # `set -e` in dependency order, it fails *between* the engine and the app: the engine
-            # ships, the app does not, and the release is half done.
-            #
-            # Scoped to the one package that needs it rather than set for the step, because npm
-            # prefers an explicit token over OIDC — a token in scope for all three would quietly
-            # take over the engine and app publishes too, and would 401 them outright if it turns
-            # out to be granted only for the rack.
-            if [ "$pkg" = "rack" ] && [ -n "${BOOTSTRAP_TOKEN:-}" ]; then
-              echo "::notice::$name is using the bootstrap token, not OIDC — first publish"
-              export NODE_AUTH_TOKEN="$BOOTSTRAP_TOKEN"
-            else
-              unset NODE_AUTH_TOKEN || true
-            fi
 
             # Already on the registry? Skip rather than fail. The packages are released
             # together but version independently, so a release that only touches the

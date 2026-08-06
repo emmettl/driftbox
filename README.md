@@ -18,9 +18,9 @@ Run it without installing anything at
 npx @driftbox/app
 ```
 
-## Two published packages, and the rack
+## Three published packages
 
-The engine and app are on npm, published from CI with [provenance](https://docs.npmjs.com/generating-provenance-statements)
+All three are on npm, published from CI with [provenance](https://docs.npmjs.com/generating-provenance-statements)
 — every tarball carries a signed attestation naming the commit and the workflow run that
 built it.
 
@@ -28,7 +28,13 @@ built it.
 |---|---|
 | [`@driftbox/engine`](https://www.npmjs.com/package/@driftbox/engine) | The synthesis and the sequencer. No React, no DOM — meant to be embedded. |
 | [`@driftbox/app`](https://www.npmjs.com/package/@driftbox/app) | This sequencer, as a runnable app. |
-| `@driftbox/rack` | The unpublished, work-in-progress modular engine behind [`rack.html`](packages/app/rack.html); it will join the npm packages when complete. |
+| [`@driftbox/rack`](https://www.npmjs.com/package/@driftbox/rack) | The modular engine behind [`rack.html`](packages/app/rack.html), at `0.1.0`. On `0.x` deliberately, not because it is unfinished — see below. |
+
+The rack's version is the one thing worth reading twice. Its capability ledgers are complete
+and its public surface is tiered and pinned by a test, so it is supportable today. What is
+unsettled is whether audio enters the document — the last architectural gap, and the one
+change that might want a new shape in `Patch` rather than another optional field.
+[docs/REASON-GAP.md](docs/REASON-GAP.md) records it. `1.0.0` is for when it is answered.
 
 The rack is intended to be a **strict superset** of the groovebox, in the same sense that
 Reason contained and extended ReBirth: anything authored in the 303/808/909 editor should
