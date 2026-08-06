@@ -44,6 +44,18 @@ export * from './schedule.js'
 export * from './stems.js'
 export * from './kit.js'
 export { metronomeClick } from './metronome.js'
+// The clock follower is engine-side rather than app-side because it is arithmetic on timestamps
+// and belongs next to `timing.ts` — and because an embedding host that wants to be slaved to a DAW
+// should get that from the engine rather than reimplementing the estimator.
+export {
+  ClockFollower,
+  parseClock,
+  TICKS_PER_QUARTER,
+  TICKS_PER_STEP,
+  type ClockMessage,
+  type ClockState,
+  type ParsedClock,
+} from './midi-clock.js'
 // Exported because the rack builds its own analysis tap around its own graph and must arrive at
 // the same number. Two implementations of "how far behind is the speaker" would be two chances to
 // compensate the two pages by different amounts.
@@ -399,6 +411,24 @@ export class DriftboxEngine {
 
   get bpm(): number {
     return this.transport.bpm
+  }
+
+  /**
+   * Play at a tempo that is not the song's, without the song finding out.
+   *
+   * **Setting `bpm` would be wrong here, and quietly.** It writes through to `song.bpm`, which is
+   * correct for a knob — the document should remember where you left it — and destructive for an
+   * external clock: a DAW at 174 would silently rewrite a 120bpm song to 174 and the autosave
+   * would keep it. Somebody would open their song the next day at somebody else's tempo, with
+   * nothing to point at.
+   *
+   * So this moves the transport and re-syncs the tempo-locked delay, and leaves the document
+   * alone. Pass null to hand control back to the song, which is what happens when the clock stops
+   * or the cable comes out.
+   */
+  followTempo(bpm: number | null): void {
+    this.transport.bpm = bpm ?? this.song.bpm
+    this.syncFx()
   }
 
   set swing(value: number) {
