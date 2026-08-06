@@ -24,8 +24,8 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Visuals | Four meters, eighteen 3D scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
-| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.6.0, with provenance. `@driftbox/rack` is release-ready at 0.1.0 and awaiting its first publish |
-| Rack | Release-ready at 0.1.0 with 47 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, recordable parameter automation with drawable/erasable point, value and curve lane editing, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. Learning it is six guided tours that watch the patch and tick themselves — they press nothing — plus a silent-patch troubleshooting guide and a factory bank that now includes two playable presets and two playable chunks rather than only self-running ones. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It stays on 0.x until the one architectural gap left — nothing records audio against the timeline — is settled, because that is the one change that might not fit the patch format as an optional field: see [docs/RACK.md](docs/RACK.md) |
+| Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.6.0, and `@driftbox/rack` at 0.1.0, all with provenance |
+| Rack | Published at 0.1.0 with 47 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, recordable parameter automation with drawable/erasable point, value and curve lane editing, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. Learning it is six guided tours that watch the patch and tick themselves — they press nothing — plus a silent-patch troubleshooting guide and a factory bank that now includes two playable presets and two playable chunks rather than only self-running ones. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It stays on 0.x until the one architectural gap left — nothing records audio against the timeline — is settled, because that is the one change that might not fit the patch format as an optional field: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -625,10 +625,12 @@ minifier, and it can move again.
 
 ## Releasing
 
-**There is no npm token.** Both packages are published by a **trusted publisher** — npm
+**There is no npm token.** All three packages are published by a **trusted publisher** — npm
 trades the workflow's `id-token: write` identity for a short-lived credential, so nothing
-long-lived is stored in this repo, and there is no secret to leak, rotate or forget. The
-Automation token that got 0.1.0 out has been revoked and `NPM_TOKEN` deleted.
+long-lived is stored in this repo, and there is no secret to leak, rotate or forget. Each
+package needed one token to exist in the first place, because a trusted publisher cannot be
+configured for a name the registry has never seen: one for the engine at its `0.1.0`, and one
+for the rack at its. Both have been revoked and `NPM_TOKEN` deleted.
 
 Two consequences worth knowing before touching `publish.yml`:
 
