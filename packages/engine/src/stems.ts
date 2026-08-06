@@ -199,7 +199,7 @@ async function renderOne(
           const time = hit.time - start
           if (time < 0 || time >= duration) continue
           const spec = buildVoice(voice, hit.params, hit.accent)
-          const handle = renderVoice(ctx, spec, bus, time)
+          const handle = renderVoice(ctx, spec, bus, time, voiceId)
           sendTo(handle.output, hit.sends)
         }
       }
@@ -371,7 +371,13 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
           previous.output.gain.linearRampToValueAtTime(0, time + 0.004)
         }
       }
-      const handle = renderVoice(ctx, buildVoice(voice, hit.params, hit.accent), bus, time)
+      const handle = renderVoice(
+        ctx,
+        buildVoice(voice, hit.params, hit.accent),
+        bus,
+        time,
+        hit.voiceId,
+      )
       sendTo(handle.output, hit.sends)
       if (voice.choke) choking.set(voice.choke, handle)
     }

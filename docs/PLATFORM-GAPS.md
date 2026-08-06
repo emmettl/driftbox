@@ -196,13 +196,43 @@ renders. Either those two sites take a seed the way `pattern.ts:458` already tak
 `RandomSource`, or the band reduction is made coarse enough and long enough to average the
 difference away. The first is more honest and follows a pattern the repo already uses.
 
-**This stopped being theoretical while the monitor tap was being tested.** A test comparing the
-peak of two renders of `808.bd` — which should be identical to six decimal places, since it is the
-same voice triggered the same way — failed, because `bassDrum` has a noise layer and the two
-renders got different noise. The test was rewritten around `808.cb`, two square oscillators with
-nothing random in them, and passes exactly. So the cost of the unseeded buffer is already being
-paid: it is not only fingerprinting that it blocks, it is *any* test that compares one render to
-another, which is most of the useful ones.
+**~~This stopped being theoretical while the monitor tap was being tested.~~ — landed.** A test
+comparing the peak of two renders of `808.bd` failed, because `bassDrum` has a noise layer and the
+two renders got different noise. That made the cost concrete: it was never only fingerprinting
+that the unseeded buffer blocked, it was *any* test comparing one render to another.
+
+All three sites are seeded now — the noise buffer, the reverb's impulse response (two seeds, one
+per channel, because their being uncorrelated is what makes the room wide), and the per-hit offset
+into the buffer. `determinism.browser.test.ts` asserts it.
+
+**The third site was the interesting one.** The offset exists so that overlapping noise bursts do
+not comb-filter — most audibly inside a clap, which is one voice retriggering itself. That needs
+the offsets to differ *from each other*, and never needed them to differ between one render and
+the next. So it is now a hash of which voice, which source within it, and when — deterministic per
+song, still varied per hit, and still varying live because the hit time there depends on when
+somebody pressed play.
+
+Three things fell out of doing it that are worth keeping:
+
+- **Chromium's renderer is not bit-reproducible.** What this code computes in JavaScript is
+  identical to the sample every time. What comes back from `startRendering()` is not: a bare voice
+  differs from itself by up to one float32 ULP, *intermittently*, and through the full master chain
+  by up to 6.6e-5 — about −84dBFS. It is not an RNG (the offsets were instrumented and match; a
+  biquad, a compressor and a waveshaper are each bit-exact alone) but float summation order in a
+  graph with several inputs. **The spectral fingerprints above will therefore need tolerances**, and
+  this is the number to size them against.
+- **`render.browser.test.ts` no longer stubs `Math.random`.** It used to replace the global for its
+  whole duration to stop a genuine CI flake. With the engine deterministic there is nothing left to
+  stabilise, and the sweep now asks for a different *variant* of the hit each pass.
+- **A hit that does not land on a render-quantum boundary changes far more than its noise offset.**
+  Sweeping start times was the obvious way to sample the distribution and is wrong: measured on the
+  808 closed hat, which contains no noise at all, the bare peak moves between 0.67 and 3.97 purely
+  with where the hit falls inside a quantum. Through the engine it is bounded — 0.28 to 0.78, well
+  under full scale, because of the bus and master gains — so it is not a shipping fault. But it is
+  real, it is unexplained, and anything measuring a voice in isolation should know about it.
+
+Better characterisation came free. Over 200 offsets the 808 clap runs 0.587 to 1.179, median 0.749,
+crossing full scale on 2 of them; the 909 clap runs 0.708 to 0.933 and never does.
 
 **Property-based testing.** No `fast-check` in the tree, against an unusually good surface for it.
 Three targets, in the order I would expect them to find something. `hash.ts` round-trips —

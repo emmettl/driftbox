@@ -556,7 +556,7 @@ export class DriftboxEngine {
       }
     }
 
-    const handle = renderVoice(this.ctx, spec, this.outputFor(voiceId), time)
+    const handle = renderVoice(this.ctx, spec, this.outputFor(voiceId), time, voiceId)
     this.routeSends(voiceId, handle.output, sends, time)
     if (voice.choke) this.choking.set(voice.choke, handle)
   }
@@ -622,7 +622,13 @@ export class DriftboxEngine {
 
     const params = { ...(this.song.kit.params[voiceId] ?? DEFAULT_PARAMS), tune }
     const spec = buildVoice(voice, params, accent ? 1 : 0.6)
-    const handle = renderVoice(this.ctx, spec, this.outputFor(voiceId), this.ctx.currentTime + 0.01)
+    const handle = renderVoice(
+      this.ctx,
+      spec,
+      this.outputFor(voiceId),
+      this.ctx.currentTime + 0.01,
+      voiceId,
+    )
     this.routeSends(voiceId, handle.output)
     // Whether the note actually landed where it was asked, so the UI can grey out the
     // keys this voice cannot reach rather than lighting them and lying.
@@ -700,11 +706,29 @@ export async function renderVoiceOffline(
   params: VoiceParams = DEFAULT_PARAMS,
   accent = 1,
   sampleRate = 44100,
+  /**
+   * Which of this voice's possible renders to produce. Zero is the voice as a song would play it.
+   *
+   * A noise voice does not have *a* peak, it has a distribution of them: the hit starts at an
+   * offset into the shared noise buffer, and that offset is a function of which hit it is — see
+   * `noiseOffsetSeed`. Measuring the distribution therefore needs more than one render, and this
+   * is what varies between them.
+   *
+   * **It perturbs the identity of the hit, not its position in time.** Rendering at a series of
+   * later start times was the obvious way to do this and is wrong: a start time that is not on a
+   * render-quantum boundary changes far more than the noise offset. Measured on the 808 closed
+   * hat, which contains no noise at all, the bare peak moves between 0.67 and 3.97 purely with
+   * where the hit falls inside a quantum. That is a real effect worth knowing about — it survives
+   * into the engine as a 0.28-to-0.78 spread, well under full scale because of the bus and master
+   * gains — but it is a different question from this one, and a sweep that moved both would be
+   * measuring neither.
+   */
+  variant = 0,
 ): Promise<Float32Array> {
   const spec = buildVoice(voice, params, accent)
   const length = Math.max(1, Math.ceil((spec.duration + 0.05) * sampleRate))
   const ctx = new OfflineAudioContext(1, length, sampleRate)
-  renderVoice(ctx, spec, ctx.destination, 0)
+  renderVoice(ctx, spec, ctx.destination, 0, variant ? `${voice.id}#${variant}` : voice.id)
   const buffer = await ctx.startRendering()
   return buffer.getChannelData(0)
 }

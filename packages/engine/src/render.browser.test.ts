@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { ALL_VOICES } from './kit.js'
 import { renderVoiceOffline } from './index.js'
 
@@ -22,42 +22,28 @@ import { renderVoiceOffline } from './index.js'
 const SR = 44100
 
 /**
- * `Math.random` is replaced for the duration of these tests, and this is the load-bearing
- * decision in the file.
- *
- * `render.ts` starts every analogue-style noise source at `Math.random() * 1.5` so that
- * overlapping claps do not comb-filter. That makes a voice's peak a random variable, and the
- * first version of this file asserted a hard ceiling on the worst of twenty-five samples — which
- * is a lottery, not a test. It passed 550 renders locally at a high-water mark of 0.916 and then
- * failed on its first CI run at 1.069, because CI drew from the same distribution and got a
- * different tail. A test that fails one run in some unknown number, on a threshold nobody chose
- * deliberately, teaches people to re-run CI until it goes green.
- *
- * Seeded, every number below is a fixed function of this constant: the same in CI, on a laptop,
- * and in a year. The seed itself is arbitrary — what matters is that it does not change, because
- * changing it changes every figure quoted in the comments here.
- */
-const SEED = 0x9e3779b9
-
-/** xorshift32, the same generator `render.ts` uses for its noise buffers. */
-function seeded(seed: number): () => number {
-  let state = seed
-  return () => {
-    state ^= state << 13
-    state ^= state >>> 17
-    state ^= state << 5
-    state >>>= 0
-    return state / 0x100000000
-  }
-}
-
-/**
  * How many times each voice is rendered before its peak is believed.
  *
- * The noise voices swing far too wide for one render to mean anything — the 808 clap alone
- * ranges from 0.60 to 1.03 across this sample. Twenty-five is enough for the mean to settle to
- * three decimal places, which is what the band and the spread are actually asking about, and it
- * costs about three seconds.
+ * **This file used to replace `Math.random` for its whole duration, and no longer has to.**
+ *
+ * `render.ts` starts every analogue-style noise source at an offset into the shared buffer so that
+ * overlapping claps do not comb-filter, and that offset used to be drawn at random. It made a
+ * voice's peak a random variable: the first version of this file asserted a hard ceiling on the
+ * worst of twenty-five samples, passed 550 renders locally at a high-water mark of 0.916, and then
+ * failed on its first CI run at 1.069 — the same distribution, a different tail. A test that fails
+ * one run in some unknown number teaches people to re-run CI until it goes green. Seeding the
+ * global made every number here a fixed function of one constant, which fixed the flake.
+ *
+ * The offset is now a function of *which hit it is* — the voice, the source within it, and when it
+ * lands — so there is no global left to seed and nothing random to stabilise. The sweep instead
+ * asks `renderVoiceOffline` for a different variant each pass, which perturbs that identity and
+ * nothing else. Deliberately not by rendering at later start times: a hit that does not land on a
+ * render-quantum boundary changes much more than its noise offset, by up to a factor of five on a
+ * voice containing no noise at all. See the parameter's own note.
+ *
+ * Twenty-five is enough for the mean to settle to three decimal places, which is what the band and
+ * the spread are actually asking about, and it costs about three seconds. The noise voices swing
+ * far too wide for one render to mean anything on its own.
  */
 const PASSES = 25
 
@@ -92,26 +78,22 @@ function measure(data: Float32Array): { peak: number; decayMs: number } {
 
 async function peaks(voice: (typeof ALL_VOICES)[number], count: number): Promise<number[]> {
   const out: number[] = []
-  for (let n = 0; n < count; n++) out.push(measure(await renderVoiceOffline(voice, undefined, 1, SR)).peak)
+  for (let n = 0; n < count; n++) {
+    out.push(measure(await renderVoiceOffline(voice, undefined, 1, SR, n)).peak)
+  }
   return out
 }
 
 /** Measured once and read by every test below: rendering the kit twenty-five times over is the
  *  expensive part, and all of these assertions ask about the same set of renders. */
 const kit = new Map<string, Measured>()
-const realRandom = Math.random
 
-// Assigned over rather than replaced with `vi.spyOn`, which would otherwise be the obvious way to
-// do this. A spy records every call it intercepts, and `noiseBuffer` fills two seconds of noise by
-// calling `Math.random` once per SAMPLE — 88,200 calls per render, 550 renders, about 48 million
-// entries in an array nothing ever reads. It made this file take fifty seconds instead of five.
 beforeAll(async () => {
-  Math.random = seeded(SEED)
   for (const voice of ALL_VOICES) {
     const collected: number[] = []
     let decayMs = 0
     for (let n = 0; n < PASSES; n++) {
-      const result = measure(await renderVoiceOffline(voice, undefined, 1, SR))
+      const result = measure(await renderVoiceOffline(voice, undefined, 1, SR, n))
       collected.push(result.peak)
       decayMs = result.decayMs
     }
@@ -122,10 +104,6 @@ beforeAll(async () => {
     })
   }
 }, 120_000)
-
-afterAll(() => {
-  Math.random = realRandom
-})
 
 /** The one voice known to cross full scale. Excluded from the ceiling below and given its own
  *  test, rather than quietly widening the threshold for everything. */
@@ -170,15 +148,16 @@ describe('the kit balances against itself', () => {
 })
 
 describe('the 808 clap crosses full scale, and it is not the test being unlucky', () => {
-  // Found by CI on the first run of this file, at 1.069, and characterised afterwards: over 120
-  // independent offsets the clap ranges from 0.580 to 1.095, with a mean of about 0.78. Its trim
-  // is set from that mean and is correct on that basis, which is exactly why nothing had noticed —
-  // the voice is right on average and over full scale at the top of its own distribution.
+  // Found by CI on the first run of this file, at 1.069, and characterised since over 200 offsets:
+  // the clap runs 0.587 to 1.179, median 0.749, mean 0.759, and crosses full scale on 2 of the 200
+  // — one percent of the hits. Its trim is set from that mean and is correct on that basis, which
+  // is exactly why nothing had noticed: the voice is right on average and over full scale at the
+  // top of its own distribution.
   //
   // The cause is structural rather than a mistake. A clap is several noise bursts a few
-  // milliseconds apart, each starting at its own random offset into the shared buffer; when those
-  // offsets happen to line up the bursts stop cancelling and start summing. The 909 clap is built
-  // the same way and stays under, topping out at 0.954 over the same sweep.
+  // milliseconds apart, each starting at its own offset into the shared buffer; when those offsets
+  // happen to line up the bursts stop cancelling and start summing. The 909 clap is built the same
+  // way and stays under, running 0.708 to 0.933 over the same sweep.
   //
   // NOT fixed here, because the fix is a judgement rather than an edit. Trimming the worst case
   // under 1.0 means scaling by about 0.87, which drops the clap's mean to 0.69 and puts it below
@@ -191,20 +170,18 @@ describe('the 808 clap crosses full scale, and it is not the test being unlucky'
 
   it('peaks past full scale on some offsets, and no worse than it does today', async () => {
     const voice = ALL_VOICES.find((v) => v.id === CLIPS)!
-    // Re-seeded rather than carrying on from wherever `beforeAll` left the generator. Otherwise
-    // this test's numbers are a function of how many voices the kit happens to contain, and adding
-    // one would move them for no reason anybody could see from here.
-    Math.random = seeded(SEED)
-    // Fifty rather than the twenty-five above: the tail is the whole point of this test, and
-    // twenty-five draws from this seed happen not to reach it.
-    const p = await peaks(voice, 50)
+    // Its own sweep rather than the twenty-five in `beforeAll`: the tail is the whole point of this
+    // test, and it needs more of the distribution than the band and spread do. Nothing has to be
+    // reset first — the offsets are a function of the hit times below and of nothing else, so this
+    // measures the same thing whatever ran before it and however many voices the kit contains.
+    const p = await peaks(voice, 200)
     const worst = Math.max(...p)
 
-    // 1.034 under this seed. Asserted from both sides on purpose — the upper bound catches the
-    // clap getting louder, and the lower one catches this test quietly stopping to sample the tail
-    // it exists to measure, which is how it would rot into a test of nothing.
+    // 1.179 over these 200 variants. Asserted from both sides on purpose — the upper bound catches
+    // the clap getting louder, and the lower one catches this test quietly stopping to sample the
+    // tail it exists to measure, which is how it would rot into a test of nothing.
     expect(worst).toBeGreaterThan(1)
-    expect(worst).toBeLessThan(1.15)
+    expect(worst).toBeLessThan(1.25)
   }, 60_000)
 })
 
