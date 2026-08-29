@@ -25,7 +25,7 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.6.0, and `@driftbox/rack` at 0.1.0, all with provenance |
-| Rack | Published at 0.1.0 with 47 modules, patching UI, selectable live microphone/audio-interface input, EQ, keyboard/MIDI, tracker, sampler, recordable parameter automation with drawable/erasable point, value and curve lane editing, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. Learning it is six guided tours that watch the patch and tick themselves — they press nothing — plus a silent-patch troubleshooting guide and a factory bank that now includes two playable presets and two playable chunks rather than only self-running ones. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. It stays on 0.x until the one architectural gap left — nothing records audio against the timeline — is settled, because that is the one change that might not fit the patch format as an optional field: see [docs/RACK.md](docs/RACK.md) |
+| Rack | Published at 0.1.0 with 48 modules, patching UI, selectable live microphone/audio-interface input, Audio Track placement, EQ, keyboard/MIDI, tracker, sampler, recordable parameter automation with drawable/erasable point, value and curve lane editing, a Combinator whose four rotaries drive any parameter anywhere and can be learned onto a hardware controller, a patchable VU Meter, undo, per-module bypass, stereo cables, rubber-band selection, per-device patch banks, rear-panel input trim, a shared-scene performance mode, offline export, retained groovebox playback and a metered four-machine Groovebox source with level, pan and mute strips. Learning it is six guided tours that watch the patch and tick themselves — they press nothing — plus a silent-patch troubleshooting guide and a factory bank that now includes two playable presets and two playable chunks rather than only self-running ones. It also runs with no browser at all — `RackRenderer` walks the same compiled plan through the same modules in plain JavaScript, and `Adaptive` maps a host's intensity onto the patch's knobs so a game can score itself. Session-loaded Audio Track PCM follows the existing Sampler boundary while placement stays portable; IndexedDB remains the durable-storage follow-up: see [docs/RACK.md](docs/RACK.md) |
 
 ## Product direction
 
@@ -41,9 +41,9 @@ list with a different order. Everything it originally ordered has landed — und
 recorded automation, the rack-wide table and every missing device — as has everything the second
 pass turned up but one: a wavetable oscillator, a six-channel Line Mixer, the reverb's four
 algorithms with a wet-path EQ and gate, and the Matrix's Curve lane as a Tracker lane mode. What
-is left is the single architectural gap, and it has not moved: nothing records audio against the
-timeline, which forces the "does PCM enter the document" decision the Looper and the Multisampler
-have each deferred in opposite directions.
+The last architectural gap has now landed as Audio Track: musical placement enters the patch while PCM
+follows the same session-data boundary as Sampler and Multisampler. Durable local recordings remain an
+IndexedDB concern rather than a reason to put megabytes into the document.
 
 [docs/REBIRTH-PARITY.md](docs/REBIRTH-PARITY.md) is the acceptance ledger for that
 promise and for editor parity with ReBirth. Its dependency order—independent machine clips,

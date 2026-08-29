@@ -1,5 +1,6 @@
 import type { ModuleDef, Registry } from '../types.js'
 import { ADSR_MODULE } from './adsr.js'
+import { AUDIO_TRACK_MODULE } from './audio-track.js'
 import { AUDIO_INPUT_MODULE } from './audio-input.js'
 import { ARP_MODULE } from './arp.js'
 import { ARRANGER_MODULE } from './arranger.js'
@@ -47,7 +48,7 @@ import { VOCODER_MODULE } from './vocoder.js'
 import { VOICE_MODULE } from './voice.js'
 import { WAVETABLE_MODULE } from './wavetable.js'
 
-// Forty-seven modules: enough to make a track, something to play it with, something that knows what a bar
+// Forty-eight modules: enough to make a track, something to play it with, something that knows what a bar
 // is, something that can chop a break — and, as of the Combinator, something to play all of it *with one
 // hand*.
 //
@@ -89,6 +90,7 @@ import { WAVETABLE_MODULE } from './wavetable.js'
 export const MODULE_LIST: readonly ModuleDef[] = [
   GROOVEBOX_MODULE,
   AUDIO_INPUT_MODULE,
+  AUDIO_TRACK_MODULE,
   VCO_MODULE,
   WAVETABLE_MODULE,
   VOICE_MODULE,
@@ -150,6 +152,7 @@ export const MODULES: Registry = Object.fromEntries(
 )
 
 export { ADSR_MODULE, AdsrProcessor } from './adsr.js'
+export { AUDIO_TRACK_MODULE, AudioTrackProcessor } from './audio-track.js'
 export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './audio-input.js'
 export { ARP_MODULE, ARP_PATTERN_STEPS, ArpProcessor } from './arp.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './arranger.js'

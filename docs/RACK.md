@@ -12,9 +12,10 @@ The rack is releasable now: it is versioned `0.1.0`, the publish workflow carrie
 first release is a one-time manual publish because trusted publishing cannot be configured
 for a name the registry has never seen — [PUBLISHING.md](PUBLISHING.md) has that. `0.1.0`
 rather than `1.0.0` because the capability ledgers are complete and the API is tiered and
-pinned, but whether audio enters the document is still open, and that is the one remaining
-question that could want a new shape in `Patch` rather than another optional field.
-`packages/rack` has the compiler, worklet host, patch format and 47 modules; the app has
+pinned, but that surface still needs external use before its promises harden. The last format
+question has an answer: Audio Track stores placement in the patch and leaves PCM in host-owned
+session data, so it needed no second document shape.
+`packages/rack` has the compiler, worklet host, patch format and 48 modules; the app has
 front and back panels, cable dragging, keyboard/MIDI, tracker, sampler, patch library,
 Combinator routing with MIDI learn, performance mode and offline export. `packages/app/src/hash.ts` carries
 patches in a URL alongside songs. Everything below records the shape of it and the decisions
@@ -427,7 +428,7 @@ who knows what the old value meant. It is called from `compile`, which is the on
 both the saved params and the def that owns them — `decodePatch` preserves the version and
 deliberately does nothing with it.
 
-## Forty-seven modules
+## Forty-eight modules
 
 Enough to make a track, and no more. Chosen so that nothing here is a placeholder.
 
@@ -435,6 +436,7 @@ Enough to make a track, and no more. Chosen so that nothing here is a placeholde
 |---|---|
 | **Groovebox** | Retained 808, 909 and two 303s as four stereo host-fed rack sources |
 | **Audio Input** | permission-gated microphone or audio-interface capture, with device selection in the host |
+| **Audio Track** | one session-loaded stereo recording placed once at a saved rack sixteenth |
 | **VCO** | saw / pulse / tri, PWM, linear FM inlet, hard sync inlet |
 | **Wavetable** | a second oscillator family: a swept position through a table, where the VCO sweeps a shape |
 | **Voice** | a whole synth in one module: two oscillators, a ladder and two envelopes, playable in chords |
@@ -1533,7 +1535,7 @@ both bundle cost on the editing-only path and visual competition with a readable
    | mono | poly | a scratch holding every voice summed — **the collapse** |
    | mono | mono | the one buffer |
 
-   Twenty-two modules are now `poly: false`: **Arp, Arranger, Audio Input, Amp / Cab, Clock, Combinator, Delay,
+   Twenty-three modules are now `poly: false`: **Arp, Arranger, Audio Input, Audio Track, Amp / Cab, Clock, Combinator, Delay,
    Distortion, Groovebox, Imager, Limiter, Loop Station, Meter, Out, Phaser, Ping-Pong Delay, Reverb, Seq, Tracker,
    Transport, Tuner and Vocoder**. They are shared buses, clocks, controllers or processors whose state belongs
    to the rack rather than to one voice. Delay is the clearest example — eight two-second buffers would
@@ -1920,6 +1922,17 @@ both bundle cost on the editing-only path and visual competition with a readable
    PCM remains in `sample0`, `sample1`, … session data slots, where large audio buffers already belong;
    a patch never silently grows by megabytes. The module is explicitly polyphonic, which makes a chord
    one MIDI-to-Multisampler cable rather than a bank of manually duplicated samplers.
+
+   **5l½. Audio against the rack timeline.** ✅ Built as Audio Track. One device places one stereo local
+   recording at a saved bar and sixteenth, plays it once from the rack transport, and exposes an ordinary
+   stereo Out so filters, mixers, automation, renders and stems need no audio-track special case. Several
+   placements are several visible devices rather than a second hidden arrangement model.
+
+   The recording follows the existing PCM boundary: left, right and source rate travel through `setData`,
+   while only start and level enter the patch. The app retains copies for live rebuilds and offline export,
+   and the processor resamples them against its host so a 48k output and 44.1k render keep the same duration
+   and pitch. A shared link therefore reopens the device empty and says so; IndexedDB can later make the
+   session audio durable without putting megabytes into the synchronous document store.
 
    The stacked editor completes the human half. Key Atlas accepts a multi-file picker or drop, recognises
    note names, MIDI numbers and dynamic/velocity suffixes in filenames, fills the ranges between roots,

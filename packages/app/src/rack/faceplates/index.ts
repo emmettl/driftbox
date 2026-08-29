@@ -2,6 +2,7 @@ import type { ModuleDef } from '@driftbox/rack'
 import { CELL_HEIGHT, PAD, ROW, TITLE, columnsFor, rowsForJacks, type Size, type Span } from '../layout.js'
 import { Arranger } from './Arranger.js'
 import { Arp } from './Arp.js'
+import { AudioTrack } from './AudioTrack.js'
 import { ChordPlayer } from './ChordPlayer.js'
 import { Combinator } from './Combinator.js'
 import { Generic } from './Generic.js'
@@ -51,6 +52,7 @@ interface Entry {
 }
 
 const FACEPLATES: Record<string, Entry> = {
+  'audio-track': { component: AudioTrack, rows: 4 },
   // Sixteen configuration steps above all nine RPG controls. Played mode is deliberately a lane diagram:
   // live pitches stay in the audio thread, so the panel does not invent telemetry it was never sent.
   arp: { component: Arp, rows: 5 },

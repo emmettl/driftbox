@@ -4093,6 +4093,201 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   font: 8px var(--mono);
 }
 
+/* ---- Audio Track --------------------------------------------------------------
+ *
+ * A compact tape lane rather than another sampler: the waveform says what is on the track, while the two
+ * numeric fields expose its actual timeline address without disguising bar and step as an arbitrary knob.
+ */
+.rk-audio-track-title {
+  align-items: center;
+}
+
+.rk-audio-track-model {
+  color: var(--nine);
+  font: 8px var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.rk-audio-track-display {
+  position: relative;
+  height: 74px;
+  flex: 0 0 74px;
+  overflow: hidden;
+  border: 1px solid rgba(95, 240, 208, 0.24);
+  border-radius: 6px;
+  background:
+    linear-gradient(rgba(95, 240, 208, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(238, 205, 100, 0.05) 1px, transparent 1px),
+    #07100f;
+  background-size: 18px 18px, 48px 18px, auto;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.72);
+}
+
+.rk-audio-track-display[data-empty='yes'] {
+  border-style: dashed;
+  border-color: rgba(232, 228, 255, 0.24);
+  background: #08080d;
+}
+
+.rk-audio-track-display[data-dragging='yes'] {
+  border-color: var(--nine);
+  box-shadow: inset 0 0 22px rgba(95, 240, 208, 0.18);
+}
+
+.rk-audio-track-display svg {
+  position: absolute;
+  inset: 5px 7px;
+  width: calc(100% - 14px);
+  height: calc(100% - 10px);
+}
+
+.rk-audio-track-display svg line {
+  stroke: rgba(238, 205, 100, 0.24);
+  stroke-width: 1;
+}
+
+.rk-audio-track-display svg rect {
+  fill: var(--nine);
+  opacity: 0.78;
+}
+
+.rk-audio-track-display > button {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  border: 0;
+  color: rgba(232, 228, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
+}
+
+.rk-audio-track-display > button strong {
+  color: var(--nine);
+  font: 11px var(--mono);
+}
+
+.rk-audio-track-display > button span {
+  font: 8px var(--mono);
+}
+
+.rk-audio-track-drop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #07100f;
+  background: rgba(95, 240, 208, 0.9);
+  font: 700 10px var(--mono);
+  text-transform: uppercase;
+}
+
+.rk-audio-track-file {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rk-audio-track-file > button {
+  min-width: 76px;
+  height: 25px;
+  border: 1px solid rgba(95, 240, 208, 0.28);
+  border-radius: 4px;
+  color: var(--nine);
+  background: rgba(5, 18, 16, 0.76);
+  font: 8px var(--mono);
+  cursor: pointer;
+}
+
+.rk-audio-track-file > button:hover:not(:disabled) {
+  border-color: var(--nine);
+}
+
+.rk-audio-track-file > button:disabled,
+.rk-audio-track-display > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.rk-audio-track-file > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.rk-audio-track-file strong,
+.rk-audio-track-file small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-audio-track-file strong {
+  color: rgba(232, 228, 255, 0.86);
+  font: 9px var(--mono);
+}
+
+.rk-audio-track-file small {
+  color: rgba(232, 228, 255, 0.44);
+  font: 7px var(--mono);
+}
+
+.rk-audio-track-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 12px;
+}
+
+.rk-audio-track-position {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  align-items: end;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid rgba(238, 205, 100, 0.18);
+  border-radius: 5px;
+  background: rgba(7, 8, 13, 0.66);
+}
+
+.rk-audio-track-position[data-routed='yes'] {
+  border-color: var(--three);
+}
+
+.rk-audio-track-position > span,
+.rk-audio-track-position label span {
+  color: rgba(232, 228, 255, 0.48);
+  font: 7px var(--mono);
+  text-transform: uppercase;
+}
+
+.rk-audio-track-position > span {
+  align-self: center;
+  color: var(--three);
+}
+
+.rk-audio-track-position label {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.rk-audio-track-position input {
+  width: 100%;
+  min-width: 0;
+  height: 25px;
+  box-sizing: border-box;
+  border: 1px solid rgba(232, 228, 255, 0.18);
+  border-radius: 3px;
+  color: #fff;
+  background: #090a0e;
+  font: 10px var(--mono);
+  text-align: center;
+}
+
 /* ---- Key Atlas multisample instrument -----------------------------------------
  *
  * The map uses the same axes as the data: 128 keys across, velocity from bottom to top. Zone blocks are

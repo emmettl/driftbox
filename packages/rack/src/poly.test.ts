@@ -200,7 +200,7 @@ describe('what the compiler says about voices', () => {
     // utility you put *inside* a voice, this one is where voices arrive.
     const mono = Object.values(MODULES).filter((d) => d.poly === false).map((d) => d.type)
     expect(mono.sort()).toEqual([
-      'arp', 'arranger', 'audio-input', 'cabinet', 'clock', 'combi', 'delay', 'distortion', 'groovebox', 'imager',
+      'arp', 'arranger', 'audio-input', 'audio-track', 'cabinet', 'clock', 'combi', 'delay', 'distortion', 'groovebox', 'imager',
       'limiter', 'line-mixer', 'looper', 'meter', 'out', 'phaser', 'ping-pong', 'reverb', 'seq',
       'tracker', 'transport', 'tuner', 'vocoder',
     ])

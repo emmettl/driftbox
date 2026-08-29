@@ -40,7 +40,7 @@ export interface RackWarningState {
   placeholders: number
   /** Whether a share link has been made this session. The sample warning is about that link. */
   shared: boolean
-  /** Samples that came from somebody's own file rather than a shipped break. */
+  /** Audio that came from somebody's own file rather than a shipped break. */
   loadedFiles: readonly string[]
 }
 
@@ -55,8 +55,8 @@ export function rackWarnings(state: RackWarningState): RackWarning[] {
       id: 'unshareable-samples',
       text:
         state.loadedFiles.length === 1
-          ? `That link does not carry “${state.loadedFiles[0]}” — whoever opens it gets the patch with an empty sampler.`
-          : `That link does not carry ${state.loadedFiles.length} loaded samples — whoever opens it gets the patch with empty samplers.`,
+          ? `That link does not carry “${state.loadedFiles[0]}” — whoever opens it gets that audio device empty.`
+          : `That link does not carry ${state.loadedFiles.length} loaded audio files — whoever opens it gets those audio devices empty.`,
     })
   }
 

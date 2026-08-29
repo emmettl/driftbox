@@ -85,11 +85,11 @@ describe('a link that cannot carry what is loaded', () => {
     const one = { shared: true, loadedFiles: ['amen.wav'] }
     expect(ids(one)).toEqual(['unshareable-samples'])
     expect(text(one, 'unshareable-samples')).toContain('“amen.wav”')
-    expect(text(one, 'unshareable-samples')).toContain('an empty sampler')
+    expect(text(one, 'unshareable-samples')).toContain('audio device empty')
 
     const several = { shared: true, loadedFiles: ['amen.wav', 'think.wav'] }
-    expect(text(several, 'unshareable-samples')).toContain('2 loaded samples')
-    expect(text(several, 'unshareable-samples')).toContain('empty samplers')
+    expect(text(several, 'unshareable-samples')).toContain('2 loaded audio files')
+    expect(text(several, 'unshareable-samples')).toContain('audio devices empty')
   })
 
   it('says nothing until a link has actually been made', () => {

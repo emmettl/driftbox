@@ -512,6 +512,12 @@ interface RackState {
     | ((moduleId: string, files: readonly File[]) => Promise<void>)
     | null
   setMultisampleLoader: (load: RackState['loadMultisamplesInto']) => void
+  /** Display metadata for session-loaded Audio Track recordings. PCM stays in `useSampleBank`. */
+  audioTracks: Record<string, AudioTrackInfo>
+  setAudioTrack: (moduleId: string, track: AudioTrackInfo | null) => void
+  /** Decode one local recording into an Audio Track. Installed by `RackApp`. */
+  loadAudioTrackInto: ((moduleId: string, file: File) => Promise<void>) | null
+  setAudioTrackLoader: (load: RackState['loadAudioTrackInto']) => void
   /** Session state, not part of the patch. */
   running: boolean
   setRunning: (running: boolean) => void
@@ -620,6 +626,14 @@ export interface MultisampleInfo {
   name: string
   seconds: number
   sampleRate: number
+  peaks: readonly number[]
+}
+
+/** What an Audio Track faceplate needs to draw and label its session recording. */
+export interface AudioTrackInfo {
+  name: string
+  seconds: number
+  channels: 1 | 2
   peaks: readonly number[]
 }
 
@@ -1244,6 +1258,16 @@ export const useRack = create<RackState>((set, get) => {
       }),
     loadMultisamplesInto: null,
     setMultisampleLoader: (loadMultisamplesInto) => set({ loadMultisamplesInto }),
+    audioTracks: {},
+    setAudioTrack: (moduleId, track) =>
+      set((state) => {
+        const audioTracks = { ...state.audioTracks }
+        if (track) audioTracks[moduleId] = track
+        else delete audioTracks[moduleId]
+        return { audioTracks }
+      }),
+    loadAudioTrackInto: null,
+    setAudioTrackLoader: (loadAudioTrackInto) => set({ loadAudioTrackInto }),
 
     setMidi: (midiNote, inputs) =>
       set((state) => ({ midiNote, midiInputs: inputs ?? state.midiInputs })),

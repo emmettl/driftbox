@@ -88,6 +88,7 @@ export default function RackApp() {
    *  reference every call and re-renders for ever — this app has had that bug once already. */
   const samples = useRack((s) => s.samples)
   const multisamples = useRack((s) => s.multisamples)
+  const audioTracks = useRack((s) => s.audioTracks)
   // `s.notes` and not `s.notes.filter(...)`, for the same reason: a selector that builds a new array every
   // call hands zustand a different snapshot on every render, and `useSyncExternalStore` responds by
   // rendering again — an infinite loop, which React reports as "Maximum update depth exceeded" and a blank
@@ -175,8 +176,9 @@ export default function RackApp() {
         .filter((entry) => entry.source === 'file')
         .map((entry) => entry.name),
       ...Object.values(multisamples).flatMap((entries) => entries.map((entry) => entry.name)),
+      ...Object.values(audioTracks).map((entry) => entry.name),
     ],
-    [multisamples, samples],
+    [audioTracks, multisamples, samples],
   )
   const placeholders = useMemo(
     () => notes.filter((note) => note.kind === 'placeholder').length,

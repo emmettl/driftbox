@@ -382,11 +382,17 @@ be patchable is recorded as patchable.
    for. **No level CV inlets** either; automation lanes and Combinator routings already reach every knob,
    and the plain `Mixer` remains the module for mixing control signals.
 
-2. **Nothing records audio against the timeline.** `Patch.automation` gave parameters a lane; audio has
-   `audio-input.ts` and `looper.ts`, and the Loop Station deliberately keeps its PCM out of the document,
-   as `Multisampler` does for everything but its zone map. So there is no audio track in the arrangement.
-   **The only architectural one left**, and the one that gets more expensive later: it forces the "does PCM
-   enter the document" decision that two devices have now each deferred in their own direction.
+2. **~~Nothing records audio against the timeline.~~ Landed as Audio Track.** One module owns one stereo
+   recording and one musical start position, measured in rack sixteenths. It follows the rack transport,
+   plays once, preserves pitch across output and offline-render sample rates, and reaches every effect and
+   stem through ordinary cables. Several placements are several modules, so the arrangement remains visible
+   on the rack rather than becoming a hidden clip list.
+
+   **PCM remains session data.** The patch stores placement and level; `setData` carries left, right and the
+   source sample rate to the graph, while the app retains copies for a rebuilt rack and offline export. That
+   is the same boundary Sampler and Multisampler already use: links and JSON stay small, and the existing
+   warning now names every local audio file that will not travel. IndexedDB is still the later feature that
+   can make those retained recordings durable without pushing megabytes through `localStorage`.
 
 3. **~~`Reverb` is a single FDN algorithm with no RV7000-style algorithm select, EQ or gate.~~ Landed.**
    All three, and the part worth recording is **which algorithms did not land**, because Reason ships nine
