@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { Keyboard, midiPerformance, midiTargets, type VoiceState, KeyboardBank } from './midi.js'
+import {
+  Keyboard,
+  KeyboardBank,
+  midiClockOrigin,
+  midiPerformance,
+  midiTargets,
+  midiTimestamp,
+  type VoiceState,
+} from './midi.js'
 
 // The allocation rule, tested as arithmetic on note numbers. It is split away from the Web MIDI plumbing for
 // exactly this reason — the rule is where the behaviour anybody would notice lives, and the plumbing is three
@@ -38,6 +46,32 @@ describe('performance MIDI decoding', () => {
   it('ignores messages without a dedicated performance outlet', () => {
     expect(midiPerformance(Uint8Array.of(0x90, 60, 100))).toBeNull()
     expect(midiPerformance(Uint8Array.of(0xb0, 74, 100))).toBeNull()
+  })
+})
+
+describe('MIDI output timing', () => {
+  it('maps future audio time onto the Web MIDI performance timeline', () => {
+    expect(midiTimestamp(12.25, 12, 5000)).toBe(5250)
+  })
+
+  it('sends a late event immediately rather than scheduling it in the past', () => {
+    expect(midiTimestamp(11.9, 12, 5000)).toBe(5000)
+  })
+
+  it('uses the audio device timestamp as the clock bridge', () => {
+    const context = {
+      currentTime: 12,
+      getOutputTimestamp: () => ({ contextTime: 11.9, performanceTime: 5020 }),
+    } as AudioContext
+    expect(midiClockOrigin(context, 5000)).toEqual({ audioTime: 11.9, performanceTime: 5020 })
+  })
+
+  it('falls back to sampling both clocks before the audio device reports a timestamp', () => {
+    const context = {
+      currentTime: 12,
+      getOutputTimestamp: () => ({ contextTime: 0, performanceTime: 0 }),
+    } as AudioContext
+    expect(midiClockOrigin(context, 5000)).toEqual({ audioTime: 12, performanceTime: 5000 })
   })
 })
 

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { ClockFollower, parseClock, TICKS_PER_QUARTER } from './midi-clock.js'
+import {
+  ClockFollower,
+  clockBytes,
+  parseClock,
+  scheduleClockStart,
+  scheduleClockStep,
+  TICKS_PER_QUARTER,
+  TICKS_PER_STEP,
+} from './midi-clock.js'
 
 // The estimator, fed streams that are deliberately worse than a real one.
 //
@@ -71,6 +79,34 @@ describe('parseClock', () => {
     expect(parseClock([0xfe])).toBeNull()
     expect(parseClock([])).toBeNull()
     expect(parseClock([0xf2, 16])).toBeNull()
+  })
+})
+
+describe('clock output', () => {
+  it('starts at the top with Start and elsewhere with position then Continue', () => {
+    expect(scheduleClockStart(0, 1)).toEqual([{ message: 'start', time: 1 }])
+    expect(scheduleClockStart(129, 2)).toEqual([
+      { message: 'position', step: 129, time: 2 },
+      { message: 'continue', time: 2 },
+    ])
+  })
+
+  it('places six evenly spaced ticks across every sixteenth', () => {
+    const ticks = scheduleClockStep(10, 0.125)
+    expect(ticks).toHaveLength(TICKS_PER_STEP)
+    expect(ticks[0]).toEqual({ message: 'tick', time: 10 })
+    for (let index = 1; index < ticks.length; index++) {
+      expect(ticks[index].time - ticks[index - 1].time).toBeCloseTo(0.125 / TICKS_PER_STEP, 12)
+    }
+  })
+
+  it('encodes real-time messages and 14-bit song positions', () => {
+    expect(clockBytes({ message: 'tick' })).toEqual([0xf8])
+    expect(clockBytes({ message: 'start' })).toEqual([0xfa])
+    expect(clockBytes({ message: 'continue' })).toEqual([0xfb])
+    expect(clockBytes({ message: 'stop' })).toEqual([0xfc])
+    expect(clockBytes({ message: 'position', step: 129 })).toEqual([0xf2, 1, 1])
+    expect(clockBytes({ message: 'position', step: 99_999 })).toEqual([0xf2, 0x7f, 0x7f])
   })
 })
 

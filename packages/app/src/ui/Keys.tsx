@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BASS_VOICES, ClockFollower, voiceById } from '@driftbox/engine'
 import { useBox } from '../store'
-import { KeyboardBank, openMidi, type MidiHandle, type VoiceState } from '../midi.js'
+import {
+  KeyboardBank,
+  midiClockOrigin,
+  openMidi,
+  type MidiHandle,
+  type MidiPort,
+  type VoiceState,
+} from '../midi.js'
 import {
   bindingsFor,
   ccValue,
@@ -47,6 +54,8 @@ export function Keys() {
   const selectedVoice = useBox((s) => s.selectedVoice)
   const view = useBox((s) => s.view)
   const song = useBox((s) => s.song)
+  const engine = useBox((s) => s.engine)
+  const running = useBox((s) => s.running)
   const editing = useBox((s) => s.editing)
   const bassEntryStep = useBox((s) => s.bassEntryStep)
   const toggleBassEntry = useBox((s) => s.toggleBassEntry)
@@ -98,6 +107,11 @@ export function Keys() {
   const midi = useRef<MidiHandle | null>(null)
   const [midiState, setMidiState] = useState<'off' | 'on' | 'unavailable'>('off')
   const [midiInputs, setMidiInputs] = useState<string[]>([])
+  const [midiOutputs, setMidiOutputs] = useState<MidiPort[]>([])
+  const [clockOutput, setClockOutput] = useState('')
+  const clockOutputRef = useRef('')
+  const [clockOut, setClockOut] = useState(false)
+  const clocking = useRef(false)
   /**
    * Whether to follow an incoming MIDI clock, and off by default.
    *
@@ -169,12 +183,57 @@ export function Keys() {
     }
   }, [])
 
+  const stopClockOut = useCallback(() => {
+    const handle = midi.current
+    const output = clockOutputRef.current
+    const currentEngine = useBox.getState().engine
+    if (clocking.current && handle && output && currentEngine) {
+      const origin = midiClockOrigin(currentEngine.ctx, performance.now())
+      handle.clearOutput(output)
+      handle.sendClock(
+        output,
+        { message: 'stop', time: currentEngine.ctx.currentTime },
+        origin.audioTime,
+        origin.performanceTime,
+      )
+    }
+    clocking.current = false
+    setClockOut(false)
+  }, [])
+
+  const updateMidiOutputs = useCallback(
+    (outputs: MidiPort[]) => {
+      const current = clockOutputRef.current
+      if (clocking.current && !outputs.some((output) => output.id === current)) stopClockOut()
+      const next = outputs.some((output) => output.id === current) ? current : (outputs[0]?.id ?? '')
+      clockOutputRef.current = next
+      setMidiOutputs(outputs)
+      setClockOutput(next)
+    },
+    [stopClockOut],
+  )
+
+  useEffect(() => {
+    if (!engine) return
+    return engine.onMidiClock((event) => {
+      if (!clocking.current) return
+      const handle = midi.current
+      const output = clockOutputRef.current
+      if (!handle || !output) return
+      if (event.message === 'stop') handle.clearOutput(output)
+      const origin = midiClockOrigin(engine.ctx, performance.now())
+      handle.sendClock(output, event, origin.audioTime, origin.performanceTime)
+    })
+  }, [engine])
+
   const toggleMidi = useCallback(async () => {
     if (midi.current) {
+      stopClockOut()
       for (const { state, channel } of bank.current.allOff()) playMidiVoice(state, channel)
       midi.current.close()
       midi.current = null
       setMidiInputs([])
+      updateMidiOutputs([])
       setMidiState('off')
       setLearning(null)
       return
@@ -208,6 +267,7 @@ export function Keys() {
         onMod: () => {},
         onControl,
         onInputs: setMidiInputs,
+        onOutputs: updateMidiOutputs,
       },
       bank.current,
     )
@@ -217,8 +277,9 @@ export function Keys() {
     }
     midi.current = handle
     setMidiInputs(handle.inputs)
+    updateMidiOutputs(handle.outputs)
     setMidiState('on')
-  }, [onControl, playMidiVoice])
+  }, [onControl, playMidiVoice, stopClockOut, updateMidiOutputs])
 
   // A ref beside the state because the MIDI handler is created once, inside `openMidi`, and closes
   // over whatever it can see at that moment. Reading the state directly would freeze it at
@@ -244,8 +305,33 @@ export function Keys() {
     return () => clearInterval(timer)
   }, [sync])
 
+  const toggleClockOut = useCallback(() => {
+    if (clockOut) {
+      stopClockOut()
+      return
+    }
+    if (!midi.current || !clockOutput || running || engine?.running) return
+    syncing.current = false
+    setSync(false)
+    clocking.current = true
+    setClockOut(true)
+  }, [clockOut, clockOutput, engine, running, stopClockOut])
+
   useEffect(
     () => () => {
+      const handle = midi.current
+      const output = clockOutputRef.current
+      const currentEngine = useBox.getState().engine
+      if (handle && output && clocking.current && currentEngine) {
+        const origin = midiClockOrigin(currentEngine.ctx, performance.now())
+        handle.clearOutput(output)
+        handle.sendClock(
+          output,
+          { message: 'stop', time: currentEngine.ctx.currentTime },
+          origin.audioTime,
+          origin.performanceTime,
+        )
+      }
       midi.current?.close()
       // Every 303 a channel had committed to, so unmounting mid-phrase cannot leave one sustaining.
       for (const voice of channels.current.values()) {
@@ -346,6 +432,7 @@ export function Keys() {
 
   const entryPattern = song.patterns.find((candidate) => candidate.id === editing)
   const entryAvailable = view === 'bass' && !drum && Boolean(entryPattern)
+  const transportRunning = running || Boolean(engine?.running)
 
   return (
     <section
@@ -524,10 +611,49 @@ export function Keys() {
                 ? 'Following an incoming MIDI clock. The song keeps its own tempo — this one is not saved.'
                 : 'Follow an incoming MIDI clock: tempo, play and stop come from the other machine'
             }
-            onClick={() => setSync((on) => !on)}
+            onClick={() => {
+              if (!sync) stopClockOut()
+              setSync((on) => !on)
+            }}
           >
             {sync ? `sync${external ? ` · ${external.toFixed(1)}` : ' · waiting'}` : 'sync'}
           </button>
+          {midiState === 'on' && (
+            <>
+              <select
+                aria-label="MIDI clock output"
+                title="MIDI clock output"
+                value={clockOutput}
+                disabled={clockOut || transportRunning || midiOutputs.length === 0}
+                onChange={(event) => {
+                  clockOutputRef.current = event.target.value
+                  setClockOutput(event.target.value)
+                }}
+              >
+                {midiOutputs.length === 0 && <option value="">no MIDI outputs</option>}
+                {midiOutputs.map((output) => (
+                  <option key={output.id} value={output.id}>
+                    {output.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className={`ghost${clockOut ? ' on' : ''}`}
+                disabled={!clockOutput || (transportRunning && !clockOut)}
+                aria-pressed={clockOut}
+                title={
+                  clockOut
+                    ? 'Sending MIDI clock, song position, play and stop to the selected output'
+                    : transportRunning
+                      ? 'Stop playback before enabling MIDI clock output'
+                      : 'Send MIDI clock, song position, play and stop to the selected output'
+                }
+                onClick={toggleClockOut}
+              >
+                clock out
+              </button>
+            </>
+          )}
           <span className="keys-midi-hint">
             {midiState === 'on'
               ? learning

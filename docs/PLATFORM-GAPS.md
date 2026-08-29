@@ -90,7 +90,7 @@ that a small screen opens straight into the visuals because that is the part it 
 The natural end of that argument is an icon on a home screen that opens without a URL bar and
 plays without a signal.
 
-### 2. ~~No MIDI clock, in~~ — landed. Out, still open.
+### 2. ~~No MIDI clock~~ — in and out landed.
 
 Driftbox follows an external clock: tempo, play, stop, continue and song position. `midi-clock.ts`
 holds the estimator, `clock-follow.ts` the rules about what the sequencer does with it, and the
@@ -133,8 +133,12 @@ clamped correction is added to the fitted tempo until the local sixteenth grid i
 sender. Song Position Pointer now also reaches the engine on `continue`, so starting from the
 middle of a DAW song lands in the matching Driftbox bar rather than merely sharing its tempo.
 
-**Clock out** is untouched, and is now the cheaper half: the filter it would need is the one that
-already exists.
+**Clock out has landed too.** The engine expands every scheduled sixteenth into six evenly spaced
+MIDI pulses on the same audio timeline as the notes, then publishes Start, Continue, Song Position
+Pointer and Stop beside them. The browser translates those audio times into Web MIDI timestamps,
+so the device receives a short lookahead queue rather than the jitter of a main-thread timer. The
+Keys panel offers an explicit output selector and a separate **clock out** switch; it never starts
+sending merely because a device appeared, and clock in and out cannot be active together.
 
 The original entry follows.
 
@@ -403,9 +407,8 @@ If they were done one at a time, this order:
    need is the one that now exists.
 
 All four are done, as is the noise seeding that got promoted out of *Everything else* by being
-measured twice. Phase-locking the external clock has also landed, leaving Clock Out as the open
-MIDI-platform half. What is left there is genuinely optional, except for the tolerance work this
-created rather than found:
+measured twice. Phase-locking the external clock and sending that clock back out have also landed.
+What is left is genuinely optional, except for the tolerance work this created rather than found:
 
 - **Spectral fingerprints need tolerances**, sized against the 6.6e-5 that Chromium's own renderer
   varies by. That number is measured and recorded above.

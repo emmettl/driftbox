@@ -16,6 +16,7 @@ import {
   patternForVoice,
   positionForStep,
   songBars,
+  stepForPosition,
   swingFor,
   type Song,
 } from './pattern.js'
@@ -159,6 +160,19 @@ describe('which pattern plays', () => {
   it('maps song-position steps across the fallback loop when there is no chain', () => {
     const s = song({ chain: [] })
     expect(positionForStep(s, 18)).toEqual({ bar: 1, index: 2 })
+  })
+
+  it('maps variable-length arrangement positions back to song-position steps', () => {
+    const s = song()
+    expect(stepForPosition(s, 0, 0)).toBe(0)
+    expect(stepForPosition(s, 1, 1)).toBe(17)
+    expect(stepForPosition(s, 2, 0)).toBe(32)
+    expect(stepForPosition(s, 3, 0)).toBe(40)
+    expect(stepForPosition(s, 5, 0)).toBe(0)
+  })
+
+  it('maps fallback bars without wrapping when there is no finite arrangement', () => {
+    expect(stepForPosition(song({ chain: [] }), 3, 2)).toBe(50)
   })
 })
 

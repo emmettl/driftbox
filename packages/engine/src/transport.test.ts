@@ -165,6 +165,22 @@ describe('bar lengths', () => {
 })
 
 describe('starting and stopping', () => {
+  it('reports lifecycle events on the audio timeline around its scheduled steps', () => {
+    const calls: string[] = []
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      onStart: ({ bar, index, time }) => calls.push(`start:${bar}:${index}:${time}`),
+      onStop: (time) => calls.push(`stop:${time}`),
+      barLength: () => 8,
+      onStep: () => calls.push('step'),
+    })
+
+    transport.startAt(3, 5)
+    expect(calls.slice(0, 2)).toEqual(['start:3:5:0.06', 'step'])
+    clock.advance(0.02)
+    transport.stop()
+    expect(calls.at(-1)).toBe('stop:0.02')
+  })
+
   it('starts from the top every time', () => {
     const transport = start(() => 4)
     run(clock, 1)

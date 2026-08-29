@@ -118,6 +118,11 @@ export interface ParsedClock {
   step?: number
 }
 
+/** One outgoing clock message placed on the host's audio timeline. */
+export interface ScheduledClock extends ParsedClock {
+  time: number
+}
+
 /**
  * Read a system message, if this is one.
  *
@@ -148,6 +153,44 @@ export function parseClock(data: ArrayLike<number>): ParsedClock | null {
       return { message: 'position', step: (data[1] & 0x7f) | ((data[2] & 0x7f) << 7) }
     default:
       return null
+  }
+}
+
+/** Start from the top, or locate and continue when playback begins elsewhere in the song. */
+export function scheduleClockStart(step: number, time: number): ScheduledClock[] {
+  const position = Number.isFinite(step) ? Math.max(0, Math.floor(step)) : 0
+  if (position === 0) return [{ message: 'start', time }]
+  return [
+    { message: 'position', step: position, time },
+    { message: 'continue', time },
+  ]
+}
+
+/** Six MIDI clock pulses across one Driftbox sixteenth-note step. */
+export function scheduleClockStep(time: number, stepSeconds: number): ScheduledClock[] {
+  if (!Number.isFinite(time) || !Number.isFinite(stepSeconds) || stepSeconds <= 0) return []
+  const tickSeconds = stepSeconds / TICKS_PER_STEP
+  return Array.from({ length: TICKS_PER_STEP }, (_, tick) => ({
+    message: 'tick' as const,
+    time: time + tick * tickSeconds,
+  }))
+}
+
+/** Encode one clock message for `MIDIOutput.send`. */
+export function clockBytes(clock: ParsedClock): number[] {
+  switch (clock.message) {
+    case 'tick':
+      return [0xf8]
+    case 'start':
+      return [0xfa]
+    case 'continue':
+      return [0xfb]
+    case 'stop':
+      return [0xfc]
+    case 'position': {
+      const step = Math.max(0, Math.min(0x3fff, Math.floor(clock.step ?? 0)))
+      return [0xf2, step & 0x7f, (step >> 7) & 0x7f]
+    }
   }
 }
 

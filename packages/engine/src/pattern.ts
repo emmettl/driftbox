@@ -906,6 +906,22 @@ export function positionForStep(song: Song, step: number): { bar: number; index:
   return { bar: 0, index: 0 }
 }
 
+/** Convert a Driftbox bar and step back to MIDI Song Position Pointer sixteenths. */
+export function stepForPosition(song: Song, bar: number, index = 0): number {
+  const requestedBar = Number.isFinite(bar) ? Math.max(0, Math.floor(bar)) : 0
+  const bars = songBars(song)
+  const resolvedBar = bars > 0 ? requestedBar % bars : requestedBar
+  let step = 0
+  for (let current = 0; current < resolvedBar; current++) {
+    step += Math.max(1, barLengthForBar(song, current))
+  }
+  const length = Math.max(1, barLengthForBar(song, resolvedBar))
+  const resolvedIndex = Number.isFinite(index)
+    ? Math.max(0, Math.min(length - 1, Math.floor(index)))
+    : 0
+  return step + resolvedIndex
+}
+
 // ---- editing the arrangement ----
 
 export function chainAppend(song: Song, patternId: string): ChainStep[] {

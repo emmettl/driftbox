@@ -24,7 +24,18 @@ export interface StepEvent {
   stepSeconds: number
 }
 
+export interface TransportStartEvent {
+  bar: number
+  index: number
+  /** When the first step sounds, on the audio clock. */
+  time: number
+}
+
 export interface TransportOptions {
+  /** Called before the first step is scheduled. */
+  onStart?: (event: TransportStartEvent) => void
+  /** Called when a running transport stops, on the audio clock. */
+  onStop?: (time: number) => void
   /**
    * Called at a bar boundary before `barLength` is read.
    *
@@ -149,6 +160,7 @@ export class Transport {
     // pattern opens with a stumble.
     this.nextTime = this.ctx.currentTime + 0.06
     this.active = true
+    this.options.onStart?.({ bar: this.bar, index: this.index, time: this.nextTime })
     this.tick()
     this.ticker ??= createTicker(() => this.tick())
     this.ticker.start(TICK_MS)
@@ -180,6 +192,7 @@ export class Transport {
     if (!this.active) return
     this.active = false
     this.ticker?.stop()
+    this.options.onStop?.(this.ctx.currentTime)
   }
 
   private tick(): void {
