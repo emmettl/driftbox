@@ -187,7 +187,12 @@ export function Keys() {
           if (!syncing.current) return
           const engine = useBox.getState().engine
           if (!engine) return
-          const command = followClock(message, time, follower.current, { bpm: engine.bpm })
+          const now = performance.now()
+          const command = followClock(message, time, follower.current, {
+            bpm: engine.bpm,
+            ticks: engine.clockTicks,
+            time: now,
+          })
           if (command.bpm !== undefined) {
             // `followTempo`, not `bpm`: the latter writes through to the document, and a DAW at
             // 174 would silently rewrite a 120bpm song and let the autosave keep it.
@@ -195,7 +200,7 @@ export function Keys() {
             setExternal(command.bpm)
           }
           if (command.transport === 'start') void engine.startAt(0, 0)
-          else if (command.transport === 'resume') void engine.start()
+          else if (command.transport === 'resume') void engine.startAtStep(command.step ?? 0)
           else if (command.transport === 'stop') engine.stop()
         },
         // The mod wheel is an ordinary learnable CC in the groovebox. Rack mode adds

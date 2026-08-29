@@ -12,10 +12,12 @@ import { MONITOR_MAX_DELAY, outputLatencyOf } from './monitor.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
+import { TICKS_PER_STEP } from './midi-clock.js'
 import {
   CLIP_SLOTS,
   clipSlotForVoice,
   patternForBar,
+  positionForStep,
   type ClipSlot,
   type Song,
 } from './pattern.js'
@@ -480,6 +482,17 @@ export class DriftboxEngine {
     return this.monitor.delayTime.value
   }
 
+  /**
+   * Continuous MIDI-clock ticks since the current transport run began.
+   *
+   * Hosts that follow external clock use this for phase lock. Kept as ticks rather than bars so
+   * the app does not have to know the transport's internals or the clock's pulses-per-quarter.
+   */
+  get clockTicks(): number | null {
+    const phase = this.transport.phaseSteps()
+    return phase === null ? null : phase * TICKS_PER_STEP
+  }
+
   async start(): Promise<void> {
     await this.resume()
     await this.ensureBass()
@@ -494,6 +507,12 @@ export class DriftboxEngine {
     await this.ensureBass()
     this.countInUntil = 0
     this.transport.startAt(bar, index)
+  }
+
+  /** Start from a MIDI Song Position Pointer step. */
+  async startAtStep(step: number): Promise<void> {
+    const position = positionForStep(this.song, step)
+    await this.startAt(position.bar, position.index)
   }
 
   setLoop(start: number, bars: number): void {

@@ -193,6 +193,20 @@ export class ClockFollower {
   }
 
   /**
+   * Where the sender is at `time`, including the fraction since the latest tick.
+   *
+   * `state.ticks` is deliberately integer: MIDI clock arrives as pulses. Phase locking needs the
+   * space between those pulses too, otherwise a receiver can only discover it is late on a
+   * sixteenth boundary and spends the rest of the step already wrong. Extrapolating from the last
+   * tick through the fitted interval gives a continuous playhead without making the transport
+   * follow every jittery real-time message.
+   */
+  positionAt(time: number): number | null {
+    if (!this.playing || !this.line || this.lastTime === null) return null
+    return Math.max(0, this.position + (time - this.lastTime) / this.line.slope)
+  }
+
+  /**
    * One tick arrived. Returns the state after it, so a caller can act on the change without
    * asking a second question.
    */

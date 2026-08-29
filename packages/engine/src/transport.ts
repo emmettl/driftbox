@@ -116,6 +116,21 @@ export class Transport {
     return { bar: this.bar, index: this.index }
   }
 
+  /**
+   * Continuous steps since this transport run began, sampled against the audio clock.
+   *
+   * `position` is intentionally discrete because it labels the grid. A clock follower needs the
+   * fraction too: if the next scheduled step is 40ms away, the transport is not "on" the previous
+   * step any more, it is most of the way to the next one. This derives the answer from the next
+   * scheduled step rather than from a wall-clock origin, so tempo changes keep the future schedule
+   * authoritative instead of rewriting the past.
+   */
+  phaseSteps(time = this.ctx.currentTime): number | null {
+    if (!this.active) return null
+    const stepSeconds = secondsPerStep(this.bpm)
+    return Math.max(0, this.absolute - (this.nextTime - time) / stepSeconds)
+  }
+
   start(): void {
     this.startAt(0)
   }
