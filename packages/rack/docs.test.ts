@@ -18,7 +18,7 @@ import { MODULE_LIST } from './src/modules/index.js'
 
 const doc = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-/** `47` → `forty-seven`. Under a hundred, which is well past where this list should stop. */
+/** `48` → `forty-eight`. Under a hundred, which is well past where this list should stop. */
 function spell(n: number): string {
   const units = [
     'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',

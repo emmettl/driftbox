@@ -137,6 +137,7 @@ export { MODULES, MODULE_LIST } from './modules/index.js'
 // them; the rest are here because a supported way to control the bundle cannot be built out of imports that
 // are not offered.
 export { ADSR_MODULE } from './modules/adsr.js'
+export { AUDIO_TRACK_MODULE } from './modules/audio-track.js'
 export { CABINET_MODULE } from './modules/cabinet.js'
 export { DISTORTION_MODULE } from './modules/distortion.js'
 export { IMAGER_MODULE } from './modules/imager.js'
@@ -177,6 +178,7 @@ export { TUNER_MODULE } from './modules/tuner.js'
 export { VCA_MODULE } from './modules/vca.js'
 
 export { ALLIGATOR_BANDS, ALLIGATOR_MODULE, AlligatorProcessor } from './modules/alligator.js'
+export { AudioTrackProcessor } from './modules/audio-track.js'
 export { AUDIO_INPUT_MODULE, AudioInputProcessor } from './modules/audio-input.js'
 export { ARP_MODULE, ARP_PATTERN_STEPS, ArpProcessor } from './modules/arp.js'
 export { ARRANGER_MODULE, ARRANGER_SECTIONS, ArrangerProcessor } from './modules/arranger.js'

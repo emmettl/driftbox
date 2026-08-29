@@ -8,7 +8,7 @@ stable and is tested that way, but whether audio enters the document is still an
 question, and it is the one that could still want a new shape in `Patch` rather than another
 optional field. See "The patch format is the part worth being stable about" below.
 
-Forty-seven modules, a compiler, a worklet host and a patch format. The app supplies the
+Forty-eight modules, a compiler, a worklet host and a patch format. The app supplies the
 playable front and back panels at [`rack.html`](../app/rack.html): cable dragging, keyboard and MIDI,
 tracker, sampler, patchable VU meters, patch library, Combinator routing with MIDI learn,
 drag-to-reorder, performance mode and offline export.
@@ -258,12 +258,12 @@ hoped for: a version in the envelope, every added field optional, a decoder that
 preserves what it does not recognise, and a test that a patch written before a field existed still
 round-trips byte-identically. Adding `modulation` for the Combinator exercised all of that.
 
-**What the `0.x` reserves is the one case that machinery does not obviously cover.** Nothing records
-audio against the timeline yet, and `../../docs/REASON-GAP.md` records it as the only architectural
-gap left — the Looper keeps its PCM out of the document and the Multisampler puts its zone map in, so
-the "does audio enter the document" question has been deferred in two directions at once. Every
-addition so far has been an optional field; an audio track might not be. `1.0.0` is for when that is
-settled, not for when the module list stops growing.
+**The last format question has an answer now.** Audio Track stores musical placement and level in the
+patch while its stereo PCM stays in host-owned session data, beside Sampler and Multisampler recordings.
+That kept the addition inside the existing optional-field and `setData` contracts: links remain compact,
+offline renders can be hydrated by the host, and durable local PCM belongs in IndexedDB rather than in the
+JSON document. The package remains on `0.x` while that published surface gets real external use, not because
+an unresolved audio-track shape is waiting behind it.
 
 ## Tests
 

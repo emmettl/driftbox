@@ -412,11 +412,12 @@ export interface PatchModule {
   /**
    * Bulk data that belongs *in* the document — a sequencer's pattern.
    *
-   * Plain number arrays, so it is JSON and travels in a file and a URL like everything else. The other kind of
-   * bulk data, a sample buffer, deliberately does **not** live here: it is pushed straight at the audio thread
-   * with `Rack.setData`, because a patch should store *which* break rather than several hundred kilobytes of
-   * one. Same argument as the MIDI module's hidden params, and the same consequence — a patch using a loaded
-   * sample cannot travel in a URL, and has to say so.
+   * Plain number arrays, so it is JSON and travels in a file and a URL like everything else. The other kind
+   * of bulk data, PCM for a Sampler, Multisampler or Audio Track, deliberately does **not** live here: it is
+   * pushed straight at the audio thread with `Rack.setData`, because a patch should store *which* break or
+   * where a track starts rather than several megabytes of one. Same argument as the MIDI module's hidden
+   * params, and the same consequence — a patch using a loaded file cannot carry that file in a URL, and has
+   * to say so.
    */
   data?: Record<string, number[]>
   /**

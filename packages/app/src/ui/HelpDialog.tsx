@@ -378,6 +378,7 @@ function RackHelp({ topic }: { topic: string }) {
             <div><dt>Groovebox</dt><dd>Individual 808, 909, and 303 song sources retained from the sequencer.</dd></div>
             <div><dt>VCO / Voice / Noise</dt><dd>Oscillator building blocks, a complete playable synth voice, and noise.</dd></div>
             <div><dt>Sampler</dt><dd>One audio file chopped into slices. Multisampler maps several files across keyboard zones.</dd></div>
+            <div><dt>Audio Track</dt><dd>Places one stereo recording at a bar and sixteenth on the rack transport, then sends it through ordinary cables.</dd></div>
             <div><dt>Audio input</dt><dd>Live microphone or interface signal. Use headphones to avoid speaker feedback.</dd></div>
           </dl>
         </HelpSection>
@@ -558,7 +559,7 @@ function RackHelp({ topic }: { topic: string }) {
         </HelpSection>
         <HelpSection title="Share and render">
           <dl className="help-definitions">
-            <div><dt>Copy link</dt><dd>Embeds the patch in a URL. User-loaded audio files are not carried, so linked samplers arrive empty.</dd></div>
+            <div><dt>Copy link</dt><dd>Embeds the patch in a URL. User-loaded audio files are not carried, so linked samplers, multisamplers and audio tracks arrive empty.</dd></div>
             <div><dt>Patch WAV</dt><dd>Renders the rack graph. It does not require real-time playback.</dd></div>
             <div><dt>Patch stems</dt><dd>Previews, saves or exports one stereo WAV per active Out strip, preserving each strip’s complete routed chain, level, pan, mute and automation.</dd></div>
             <div><dt>Song WAV</dt><dd>Renders an embedded Groovebox song through its mastered stereo bus.</dd></div>

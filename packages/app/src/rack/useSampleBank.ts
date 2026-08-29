@@ -67,6 +67,10 @@ export function useSampleBank(nodes: RackNodes): SampleBank {
   const sampleAudio = useRef(new Map<string, Float32Array>())
   /** Multisampler PCM, retained for export just like `sampleAudio`, ordered to match `sampleN` slots. */
   const multisampleAudio = useRef(new Map<string, readonly Float32Array[]>())
+  /** Stereo timeline recordings, retained for hydration and offline render just like Sampler PCM. */
+  const audioTrackAudio = useRef(
+    new Map<string, { left: Float32Array; right: Float32Array; sampleRate: number }>(),
+  )
   /** One raw-sample audition at a time, independent of the rack transport and patch cables. */
   const samplePreviewContext = useRef<AudioContext | null>(null)
   const samplePreviewSource = useRef<AudioBufferSourceNode | null>(null)
@@ -290,6 +294,40 @@ export function useSampleBank(nodes: RackNodes): SampleBank {
     useRack.getState().setMultisampleLoader(loadMultisamplesInto)
   }, [loadMultisamplesInto])
 
+  /** Decode a local recording to the rack's stable data rate and place it in one Audio Track. */
+  const loadAudioTrackInto = useCallback(
+    async (moduleId: string, file: File) => {
+      stopSamplePreview()
+      const bytes = await file.arrayBuffer()
+      // Decode at one stable rate, then send that rate beside the PCM. The processor resamples against its
+      // host, so live playback on a 48k device and a 44.1k offline render keep the same duration and pitch.
+      const decoder = new OfflineAudioContext(2, 1, 44100)
+      const decoded = await decoder.decodeAudioData(bytes)
+      const left = decoded.getChannelData(0).slice()
+      const sourceRight = decoded.numberOfChannels > 1 ? decoded.getChannelData(1) : left
+      const right = sourceRight.slice()
+      const display = Float32Array.from(left, (sample, index) => (sample + right[index]) * 0.5)
+
+      audioTrackAudio.current.set(moduleId, { left, right, sampleRate: decoded.sampleRate })
+      useRack.getState().setAudioTrack(moduleId, {
+        name: sampleName(file.name),
+        seconds: decoded.length / decoded.sampleRate,
+        channels: decoded.numberOfChannels > 1 ? 2 : 1,
+        peaks: waveformPeaks(display, 96),
+      })
+      // Copies because each transfer detaches its buffer and the retained pair is needed again for export.
+      nodes.rack.current?.setData(moduleId, 'left', left.slice())
+      nodes.rack.current?.setData(moduleId, 'right', right.slice())
+      nodes.rack.current?.setData(moduleId, 'sampleRate', Float32Array.of(decoded.sampleRate))
+      setRunning(true)
+    },
+    [nodes, setRunning, stopSamplePreview],
+  )
+
+  useEffect(() => {
+    useRack.getState().setAudioTrackLoader(loadAudioTrackInto)
+  }, [loadAudioTrackInto])
+
   const patchRenderData = useCallback(
     async (patch: Patch) => {
       const breakId = patch.break ?? intendedBreak
@@ -304,6 +342,13 @@ export function useSampleBank(nodes: RackNodes): SampleBank {
         data[moduleId] = Object.fromEntries(
           samples.map((sample, index) => [multisampleSlot(index), sample.slice()]),
         )
+      }
+      for (const [moduleId, track] of audioTrackAudio.current) {
+        data[moduleId] = {
+          left: track.left.slice(),
+          right: track.right.slice(),
+          sampleRate: Float32Array.of(track.sampleRate),
+        }
       }
       if (entry) {
         const rendered = await renderBreak(entry, { sampleRate: 44100 })
@@ -332,6 +377,11 @@ export function useSampleBank(nodes: RackNodes): SampleBank {
       for (let index = 0; index < samples.length; index++) {
         live.setData(moduleId, multisampleSlot(index), samples[index].slice())
       }
+    }
+    for (const [moduleId, track] of audioTrackAudio.current) {
+      live.setData(moduleId, 'left', track.left.slice())
+      live.setData(moduleId, 'right', track.right.slice())
+      live.setData(moduleId, 'sampleRate', Float32Array.of(track.sampleRate))
     }
   }, [])
 
