@@ -25,12 +25,15 @@
     "bench": "vitest bench --run"
   },
   "devDependencies": {
-    "@vitest/browser": "^4.1.10",
-    "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
-    "oxlint": "^1.78.0",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
+    "oxlint": "^1.80.0",
     "playwright": "^1.62.1",
     "typescript": "~7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
   }
 }
