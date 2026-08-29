@@ -1,10 +1,11 @@
-import { parseClock, type ParsedClock } from '@driftbox/engine'
+import { clockBytes, parseClock, type ParsedClock, type ScheduledClock } from '@driftbox/engine'
 
 // Web MIDI, and the note-priority rule that turns a keyboard into one or more voices.
 //
 // Two halves, deliberately split. `MonoVoice` is the rule and knows nothing about the browser, so it is
-// tested here as plain arithmetic on note numbers. `openMidi` is the plumbing, which is untestable in Node
-// and is correspondingly thin — it asks for access, subscribes, and forwards bytes.
+// tested here as plain arithmetic on note numbers. `openMidi` is the plumbing and is correspondingly thin —
+// it asks for access, subscribes, and forwards bytes. Its output half is driven against a fake `MIDIAccess`
+// in Node; real browser permission remains outside automation.
 //
 // The rack's audio thread cannot do any of this itself: an `AudioWorkletGlobalScope` has no `navigator`. See
 // the comment at the top of `@driftbox/rack`'s `modules/midi.ts` for why that needed no new message anyway.
@@ -255,6 +256,8 @@ export interface MidiEvents {
   onControl(cc: number, value: number, channel: number): void
   /** The currently connected inputs, including hot-plug changes. */
   onInputs?(inputs: string[]): void
+  /** The currently connected outputs, including hot-plug changes. */
+  onOutputs?(outputs: MidiPort[]): void
   /**
    * A clock, start, stop, continue or song position, with the timestamp it arrived at.
    *
@@ -264,6 +267,11 @@ export interface MidiEvents {
    * because it is arithmetic on timestamps rather than anything to do with the browser.
    */
   onClock?(message: ParsedClock, time: number): void
+}
+
+export interface MidiPort {
+  id: string
+  name: string
 }
 
 export type MidiPerformanceControl = 'mod' | 'bend' | 'aftertouch' | 'expression' | 'breath' | 'sustain'
@@ -306,10 +314,41 @@ export function midiPerformance(data: ArrayLike<number>): MidiPerformance | null
 export interface MidiHandle {
   /** Names of the inputs that were found, for telling somebody whether their keyboard is seen. */
   inputs: string[]
+  outputs: MidiPort[]
   /** Tell the keyboards how many voices the patch now has. Everything stops, which is what recompiling the
    *  graph does anyway. */
   setVoices(voices: number): void
+  /** Schedule one engine clock event on a named output. */
+  sendClock(outputId: string, event: ScheduledClock, audioNow: number, performanceNow: number): boolean
+  /** Cancel messages still queued on an output before sending Stop. */
+  clearOutput(outputId: string): void
   close(): void
+}
+
+/** Translate an AudioContext time into the DOMHighResTimeStamp Web MIDI schedules against. */
+export function midiTimestamp(audioTime: number, audioNow: number, performanceNow: number): number {
+  const mapped = performanceNow + (audioTime - audioNow) * 1000
+  return Math.max(performanceNow, mapped)
+}
+
+/** The browser's measured bridge from the AudioContext clock to `performance.now()`. */
+export function midiClockOrigin(
+  context: AudioContext,
+  fallbackPerformanceTime: number,
+): { audioTime: number; performanceTime: number } {
+  const output = context.getOutputTimestamp()
+  const audioTime = output.contextTime
+  const performanceTime = output.performanceTime
+  if (
+    typeof audioTime === 'number' &&
+    typeof performanceTime === 'number' &&
+    Number.isFinite(audioTime) &&
+    Number.isFinite(performanceTime) &&
+    performanceTime > 0
+  ) {
+    return { audioTime, performanceTime }
+  }
+  return { audioTime: context.currentTime, performanceTime: fallbackPerformanceTime }
 }
 
 /**
@@ -395,7 +434,7 @@ export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<
     }
   }
 
-  const subscribe = () => {
+  const subscribeInputs = () => {
     const names: string[] = []
     access.inputs.forEach((input) => {
       input.onmidimessage = onMessage
@@ -404,17 +443,48 @@ export async function openMidi(events: MidiEvents, bank: KeyboardBank): Promise<
     return names
   }
 
+  const outputPorts = (): MidiPort[] => {
+    const outputs: MidiPort[] = []
+    access.outputs.forEach((output) => {
+      if (output.state === 'disconnected') return
+      outputs.push({ id: output.id, name: output.name ?? 'unnamed' })
+    })
+    return outputs
+  }
+
   const handle: MidiHandle = {
-    inputs: subscribe(),
+    inputs: subscribeInputs(),
+    outputs: outputPorts(),
     setVoices: (voices) => {
       for (const { state, channel } of bank.setVoices(voices)) events.onVoice(state, channel)
+    },
+    sendClock: (outputId, event, audioNow, performanceNow) => {
+      const output = access.outputs.get(outputId)
+      if (!output || output.state === 'disconnected') return false
+      try {
+        output.send(clockBytes(event), midiTimestamp(event.time, audioNow, performanceNow))
+        return true
+      } catch {
+        return false
+      }
+    },
+    clearOutput: (outputId) => {
+      const output = access.outputs.get(outputId) as (MIDIOutput & { clear?: () => void }) | undefined
+      try {
+        output?.clear?.()
+      } catch {
+        // A port can disappear between the statechange event and this call.
+      }
     },
     close: () => {},
   }
   events.onInputs?.(handle.inputs)
+  events.onOutputs?.(handle.outputs)
   access.onstatechange = () => {
-    handle.inputs = subscribe()
+    handle.inputs = subscribeInputs()
+    handle.outputs = outputPorts()
     events.onInputs?.(handle.inputs)
+    events.onOutputs?.(handle.outputs)
   }
   handle.close = () => {
     access.inputs.forEach((input) => {

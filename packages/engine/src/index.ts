@@ -12,12 +12,18 @@ import { MONITOR_MAX_DELAY, outputLatencyOf } from './monitor.js'
 import { renderVoice, type VoiceHandle } from './render.js'
 import { STEPS_PER_BEAT } from './timing.js'
 import { Transport, type StepEvent } from './transport.js'
-import { TICKS_PER_STEP } from './midi-clock.js'
+import {
+  scheduleClockStart,
+  scheduleClockStep,
+  TICKS_PER_STEP,
+  type ScheduledClock,
+} from './midi-clock.js'
 import {
   CLIP_SLOTS,
   clipSlotForVoice,
   patternForBar,
   positionForStep,
+  stepForPosition,
   type ClipSlot,
   type Song,
 } from './pattern.js'
@@ -51,18 +57,22 @@ export { metronomeClick } from './metronome.js'
 // should get that from the engine rather than reimplementing the estimator.
 export {
   ClockFollower,
+  clockBytes,
   parseClock,
+  scheduleClockStart,
+  scheduleClockStep,
   TICKS_PER_QUARTER,
   TICKS_PER_STEP,
   type ClockMessage,
   type ClockState,
   type ParsedClock,
+  type ScheduledClock,
 } from './midi-clock.js'
 // Exported because the rack builds its own analysis tap around its own graph and must arrive at
 // the same number. Two implementations of "how far behind is the speaker" would be two chances to
 // compensate the two pages by different amounts.
 export { MONITOR_MAX_DELAY, outputLatencyOf, type LatencyReporting } from './monitor.js'
-export { Transport, type StepEvent } from './transport.js'
+export { Transport, type StepEvent, type TransportStartEvent } from './transport.js'
 export { renderVoice } from './render.js'
 export { Bassline } from './bassline.js'
 export { Ladder } from './dsp/ladder.js'
@@ -146,6 +156,7 @@ export class DriftboxEngine {
   private readonly monitorSink: GainNode
   private readonly inserts: MasterEffects
   private readonly transport: Transport
+  private readonly midiClockListeners = new Set<(event: ScheduledClock) => void>()
   /** Session performance state: never written into `song`. */
   private readonly clipLauncher = new ClipLauncher()
   /** One ringing voice per choke group, so a closed hat can cut off an open one. */
@@ -278,10 +289,19 @@ export class DriftboxEngine {
     this.monitor.delayTime.value = outputLatencyOf(this.ctx)
 
     this.transport = new Transport(this.ctx, {
+      onStart: ({ bar, index, time }) => {
+        for (const event of scheduleClockStart(stepForPosition(this.song, bar, index), time)) {
+          this.emitMidiClock(event)
+        }
+      },
+      onStop: (time) => this.emitMidiClock({ message: 'stop', time }),
       onBar: (bar) => this.clipLauncher.activate('bar', bar),
       barLength: (bar) =>
         barLengthForSelection(this.song, bar, this.clipLauncher.selection),
-      onStep: (event) => this.playStep(event),
+      onStep: (event) => {
+        for (const clock of scheduleClockStep(event.time, event.stepSeconds)) this.emitMidiClock(clock)
+        this.playStep(event)
+      },
     })
     this.transport.bpm = song.bpm
 
@@ -491,6 +511,16 @@ export class DriftboxEngine {
   get clockTicks(): number | null {
     const phase = this.transport.phaseSteps()
     return phase === null ? null : phase * TICKS_PER_STEP
+  }
+
+  /** Subscribe to MIDI clock already placed on the audio timeline. */
+  onMidiClock(listener: (event: ScheduledClock) => void): () => void {
+    this.midiClockListeners.add(listener)
+    return () => this.midiClockListeners.delete(listener)
+  }
+
+  private emitMidiClock(event: ScheduledClock): void {
+    for (const listener of this.midiClockListeners) listener(event)
   }
 
   async start(): Promise<void> {
