@@ -125,12 +125,13 @@ Three things the estimator had to get right, each found by measurement:
   stall in twenty ticks reads within 1bpm, and even ten milliseconds of jitter on *every* tick —
   half the interval — stays within two.
 
-**What it does not do is lock phase.** It follows tempo and transport, and re-aligns on every start
-and continue, but there is no per-tick correction pulling the local playhead back onto the
-sender's. Over a long take a small residual tempo error integrates into audible drift. The pieces
-for closing that are in place — the follower already tracks its position in ticks, and
-`TICKS_PER_STEP` converts it — so the remaining work is a correction term on the applied tempo
-rather than a redesign. **This is the next thing to do here.**
+**Phase lock has landed too.** Tempo and transport following were not enough on their own: over a
+long take, a small residual tempo error integrates into audible drift. The follower now
+extrapolates a continuous tick position between MIDI pulses, the transport exposes its own
+continuous tick phase, and the app compares both at the same `performance.now()` instant. A small,
+clamped correction is added to the fitted tempo until the local sixteenth grid is back under the
+sender. Song Position Pointer now also reaches the engine on `continue`, so starting from the
+middle of a DAW song lands in the matching Driftbox bar rather than merely sharing its tempo.
 
 **Clock out** is untouched, and is now the cheaper half: the filter it would need is the one that
 already exists.
@@ -402,12 +403,10 @@ If they were done one at a time, this order:
    need is the one that now exists.
 
 All four are done, as is the noise seeding that got promoted out of *Everything else* by being
-measured twice. What is left there is genuinely optional, except for the two that this work
+measured twice. Phase-locking the external clock has also landed, leaving Clock Out as the open
+MIDI-platform half. What is left there is genuinely optional, except for the tolerance work this
 created rather than found:
 
-- **Phase-locking the external clock.** Tempo and transport are followed; the playhead is not
-  pulled back onto the sender's, so a long take drifts. The follower already tracks its position in
-  ticks, so this is a correction term rather than a redesign.
 - **Spectral fingerprints need tolerances**, sized against the 6.6e-5 that Chromium's own renderer
   varies by. That number is measured and recorded above.
 

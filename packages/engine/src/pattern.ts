@@ -877,6 +877,35 @@ export function barLengthForBar(song: Song, bar: number): number {
   return Math.max(fallback.length, ...CLIP_SLOTS.map((slot) => patternForClip(song, bar, slot)?.length ?? 0))
 }
 
+/**
+ * Convert a MIDI Song Position Pointer step to this song's bar and step.
+ *
+ * MIDI counts sixteenth notes from the top. Driftbox bars are as long as the active machine
+ * clips, so a polymetric song cannot turn that into `Math.floor(step / 16)` without landing in
+ * the wrong section. Walk the same bar lengths the transport will read. At the end of a finite
+ * arrangement, wrap the way playback does.
+ */
+export function positionForStep(song: Song, step: number): { bar: number; index: number } {
+  let remaining = Number.isFinite(step) ? Math.max(0, Math.floor(step)) : 0
+  const bars = songBars(song)
+
+  if (bars <= 0) {
+    const length = Math.max(1, barLengthForBar(song, 0))
+    return { bar: Math.floor(remaining / length), index: remaining % length }
+  }
+
+  let totalSteps = 0
+  for (let bar = 0; bar < bars; bar++) totalSteps += Math.max(1, barLengthForBar(song, bar))
+  if (totalSteps > 0) remaining %= totalSteps
+
+  for (let bar = 0; bar < bars; bar++) {
+    const length = Math.max(1, barLengthForBar(song, bar))
+    if (remaining < length) return { bar, index: remaining }
+    remaining -= length
+  }
+  return { bar: 0, index: 0 }
+}
+
 // ---- editing the arrangement ----
 
 export function chainAppend(song: Song, patternId: string): ChainStep[] {

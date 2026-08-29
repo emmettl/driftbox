@@ -190,6 +190,24 @@ describe('starting and stopping', () => {
     expect(events[0]).toMatchObject({ absolute: 0, index: 5, bar: 3 })
   })
 
+  it('reports the continuous phase of the running transport', () => {
+    const transport = start(() => 16)
+    expect(transport.phaseSteps()).toBe(0)
+
+    clock.currentTime = events[0].time
+    expect(transport.phaseSteps()).toBeCloseTo(0, 6)
+
+    clock.advance(secondsPerStep(120) / 2)
+    expect(transport.phaseSteps()).toBeCloseTo(0.5, 6)
+    transport.stop()
+  })
+
+  it('has no phase while stopped', () => {
+    const transport = start(() => 16)
+    transport.stop()
+    expect(transport.phaseSteps()).toBeNull()
+  })
+
   it('emits nothing once stopped', () => {
     const transport = start(() => 4)
     run(clock, 0.5)

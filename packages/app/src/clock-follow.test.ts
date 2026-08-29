@@ -63,6 +63,60 @@ describe('following a tick', () => {
     expect(follower.state.running).toBe(false)
     expect(current.bpm).toBeCloseTo(150, 0)
   })
+
+  it('speeds up slightly when the local transport is behind the sender', () => {
+    const follower = new ClockFollower()
+    followClock({ message: 'start' }, 0, follower, { bpm: 120 })
+    const interval = msPerTick(120)
+    let command = {}
+    for (let i = 0; i < 48; i++) {
+      const time = 1000 + i * interval
+      command = followClock({ message: 'tick' }, time, follower, {
+        bpm: 120,
+        ticks: follower.state.ticks,
+        time,
+      })
+    }
+
+    expect(command).toHaveProperty('bpm')
+    expect((command as { bpm: number }).bpm).toBeGreaterThan(120)
+    expect((command as { bpm: number }).bpm).toBeLessThan(122)
+  })
+
+  it('slows down slightly when the local transport is ahead of the sender', () => {
+    const follower = new ClockFollower()
+    followClock({ message: 'start' }, 0, follower, { bpm: 120 })
+    const interval = msPerTick(120)
+    let command = {}
+    for (let i = 0; i < 48; i++) {
+      const time = 1000 + i * interval
+      command = followClock({ message: 'tick' }, time, follower, {
+        bpm: 120,
+        ticks: follower.state.ticks + 2,
+        time,
+      })
+    }
+
+    expect(command).toHaveProperty('bpm')
+    expect((command as { bpm: number }).bpm).toBeLessThan(120)
+    expect((command as { bpm: number }).bpm).toBeGreaterThan(118)
+  })
+
+  it('does not phase-correct a clock that is only streaming tempo', () => {
+    const follower = new ClockFollower()
+    const interval = msPerTick(120)
+    let command = {}
+    for (let i = 0; i < 48; i++) {
+      const time = 1000 + i * interval
+      command = followClock({ message: 'tick' }, time, follower, {
+        bpm: 120,
+        ticks: 0,
+        time,
+      })
+    }
+
+    expect(command).toEqual({})
+  })
 })
 
 describe('following the transport', () => {
@@ -71,7 +125,10 @@ describe('following the transport', () => {
     // happened to be would be a bar out for the rest of the take.
     const follower = new ClockFollower()
     expect(followClock({ message: 'start' }, 0, follower, { bpm: 120 }).transport).toBe('start')
-    expect(followClock({ message: 'continue' }, 0, follower, { bpm: 120 }).transport).toBe('resume')
+    expect(followClock({ message: 'continue' }, 0, follower, { bpm: 120 })).toMatchObject({
+      transport: 'resume',
+      step: 0,
+    })
     expect(followClock({ message: 'stop' }, 0, follower, { bpm: 120 }).transport).toBe('stop')
   })
 
@@ -88,6 +145,15 @@ describe('following the transport', () => {
     const command = followClock({ message: 'position', step: 32 }, 0, follower, { bpm: 120 })
     expect(command).toEqual({})
     expect(follower.step).toBe(32)
+  })
+
+  it('resumes from the sender position rather than from the top', () => {
+    const follower = new ClockFollower()
+    followClock({ message: 'position', step: 32 }, 0, follower, { bpm: 120 })
+    expect(followClock({ message: 'continue' }, 1000, follower, { bpm: 120 })).toMatchObject({
+      transport: 'resume',
+      step: 32,
+    })
   })
 })
 

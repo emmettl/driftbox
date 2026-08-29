@@ -251,6 +251,22 @@ describe('the transport', () => {
     expect(follower.state.ticks).toBe(32 * 6)
   })
 
+  it('extrapolates its running position between ticks', () => {
+    const follower = new ClockFollower()
+    follower.start()
+    play(follower, 120, 48, 0, 0x1234567, 1000)
+
+    const lastTick = 1000 + 47 * msPerTick(120)
+    expect(follower.positionAt(lastTick)).toBeCloseTo(48, 6)
+    expect(follower.positionAt(lastTick + msPerTick(120) / 2)).toBeCloseTo(48.5, 6)
+  })
+
+  it('does not invent a phase before the sender is running', () => {
+    const follower = new ClockFollower()
+    play(follower, 120, 48)
+    expect(follower.positionAt(3000)).toBeNull()
+  })
+
   it('refuses a negative position rather than counting backwards', () => {
     const follower = new ClockFollower()
     follower.locate(-4)

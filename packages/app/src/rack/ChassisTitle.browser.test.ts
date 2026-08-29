@@ -125,10 +125,14 @@ describe('the title strip and the patch browser over it', () => {
     // The reserve is not free and this is the bill, itemised: a half-width module with a long name pays
     // for its readout out of the name. Listed rather than counted so that a reserve which grew until it
     // started eating ordinary titles is a failing test, and not something to spot in a screenshot.
+    // Limiter sits within a pixel of the boundary and differs between the macOS and Linux font rasterisers.
     const cut = tenants()
       .filter((tenant) => cutBy(tenant.el) > 1)
       .map((tenant) => tenant.module)
       .sort()
-    expect(cut).toEqual(['imager', 'limiter', 'ping-pong', 'quantizer', 'tuner', 'wavetable'])
+    expect([
+      ['imager', 'limiter', 'ping-pong', 'quantizer', 'tuner', 'wavetable'],
+      ['imager', 'ping-pong', 'quantizer', 'tuner', 'wavetable'],
+    ]).toContainEqual(cut)
   })
 })

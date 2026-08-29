@@ -14,6 +14,7 @@ import {
   patternForBar,
   patternForClip,
   patternForVoice,
+  positionForStep,
   songBars,
   swingFor,
   type Song,
@@ -140,6 +141,24 @@ describe('which pattern plays', () => {
     })
     expect(patternForBar(s, 0)?.length).toBe(8)
     expect(barLengthForBar(s, 0)).toBe(16)
+  })
+
+  it('maps an external song-position step through variable bar lengths', () => {
+    const s = song()
+    expect(positionForStep(s, 0)).toEqual({ bar: 0, index: 0 })
+    expect(positionForStep(s, 17)).toEqual({ bar: 1, index: 1 })
+    expect(positionForStep(s, 32)).toEqual({ bar: 2, index: 0 })
+    expect(positionForStep(s, 40)).toEqual({ bar: 3, index: 0 })
+  })
+
+  it('wraps an external song-position step at the end of the arrangement', () => {
+    const s = song()
+    expect(positionForStep(s, 56)).toEqual({ bar: 0, index: 0 })
+  })
+
+  it('maps song-position steps across the fallback loop when there is no chain', () => {
+    const s = song({ chain: [] })
+    expect(positionForStep(s, 18)).toEqual({ bar: 1, index: 2 })
   })
 })
 
