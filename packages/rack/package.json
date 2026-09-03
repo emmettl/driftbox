@@ -54,9 +54,9 @@
   },
   "//devDependencies": "rolldown is here for one test. `minified.test.ts` bundles this package the way a consumer would and evaluates the worklet assembled from what came out, because the failure that scheme has is silent and happens only in somebody else's build. It is the bundler Vite already uses, so the test measures the pipeline the app really ships through rather than a stand-in.",
   "devDependencies": {
-    "@types/node": "^26.2.0",
-    "rolldown": "^1.2.3",
+    "@types/node": "^26.4.1",
+    "rolldown": "^1.2.7",
     "typescript": "~7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   }
 }
