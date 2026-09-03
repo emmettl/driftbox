@@ -83,6 +83,12 @@ export default defineConfig({
         test: {
           name: 'node',
           include: ['packages/*/src/**/*.test.ts', 'packages/*/*.test.ts'],
+          // Vitest 5 creates a benchmark variant of every configured project. These benchmarks
+          // exercise the Node graph deliberately, so keep them out of the browser project and
+          // scope discovery to this checkout rather than any nested worktrees.
+          benchmark: {
+            include: ['packages/**/*.bench.ts'],
+          },
           // `.browser.test.ts` DOES match the include above — the two differ by an infix, not by
           // an extension — so this exclude is the only thing keeping a browser test from being run
           // in Node with no browser in it, where every measurement in it would die on a missing
