@@ -1,4 +1,4 @@
-import { bench, describe } from 'vitest'
+import { test } from 'vitest'
 import { compile } from './compile.js'
 import { Graph } from './graph.js'
 import { MODULES } from './modules/index.js'
@@ -47,48 +47,51 @@ function ready(patch: Patch) {
   }
 }
 
-describe('shipped patches', () => {
-  for (const preset of PATCHES) bench(preset.id, ready(preset.build()))
+test('shipped patches', async ({ bench }) => {
+  await bench.compare(...PATCHES.map((preset) => bench(preset.id, ready(preset.build()))))
 })
 
-describe('chunks, one at a time', () => {
-  for (const chunk of CHUNKS) bench(chunk.id, ready(insertChunk(EMPTY_PATCH, chunk).patch))
+test('chunks, one at a time', async ({ bench }) => {
+  await bench.compare(
+    ...CHUNKS.map((chunk) => bench(chunk.id, ready(insertChunk(EMPTY_PATCH, chunk).patch))),
+  )
 })
 
-describe('deliberately heavy', () => {
+test('deliberately heavy', async ({ bench }) => {
   // Every chunk at once — more than anybody would build, and the honest ceiling.
   let all = EMPTY_PATCH
   for (const chunk of CHUNKS) all = insertChunk(all, chunk).patch
-  bench(`every chunk (${all.modules.length} modules)`, ready(all))
-
   // The most expensive module in the rack, four times over at its widest setting: 256 filters and 128
   // envelope followers per sample. Nothing sensible looks like this; it is here to bound the worst case.
-  bench(
-    'four 32-band vocoders',
-    ready({
-      modules: [
-        { id: 'n', type: 'noise' },
-        ...Array.from({ length: 4 }, (_, i) => ({
-          id: `v${i}`,
-          type: 'vocoder',
-          params: { bands: 2 },
-        })),
-        { id: 'out', type: 'out' },
-      ],
-      cables: [
-        ...Array.from({ length: 4 }, (_, i) => ({
-          from: ['n', 'white'] as [string, string],
-          to: [`v${i}`, 'carrier'] as [string, string],
-        })),
-        ...Array.from({ length: 4 }, (_, i) => ({
-          from: ['n', 'pink'] as [string, string],
-          to: [`v${i}`, 'mod'] as [string, string],
-        })),
-        ...Array.from({ length: 4 }, (_, i) => ({
-          from: [`v${i}`, 'out'] as [string, string],
-          to: ['out', 'in'] as [string, string],
-        })),
-      ],
-    }),
+  await bench.compare(
+    bench(`every chunk (${all.modules.length} modules)`, ready(all)),
+    bench(
+      'four 32-band vocoders',
+      ready({
+        modules: [
+          { id: 'n', type: 'noise' },
+          ...Array.from({ length: 4 }, (_, i) => ({
+            id: `v${i}`,
+            type: 'vocoder',
+            params: { bands: 2 },
+          })),
+          { id: 'out', type: 'out' },
+        ],
+        cables: [
+          ...Array.from({ length: 4 }, (_, i) => ({
+            from: ['n', 'white'] as [string, string],
+            to: [`v${i}`, 'carrier'] as [string, string],
+          })),
+          ...Array.from({ length: 4 }, (_, i) => ({
+            from: ['n', 'pink'] as [string, string],
+            to: [`v${i}`, 'mod'] as [string, string],
+          })),
+          ...Array.from({ length: 4 }, (_, i) => ({
+            from: [`v${i}`, 'out'] as [string, string],
+            to: ['out', 'in'] as [string, string],
+          })),
+        ],
+      }),
+    ),
   )
 })
