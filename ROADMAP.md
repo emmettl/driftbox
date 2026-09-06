@@ -15,13 +15,13 @@ with a performance mode. CI is green; the unit suite covers all three workspaces
 | Synthesis | Pure Web Audio nodes plus one AudioWorklet. **No recorded samples in the drum machines or 303s** — the rack is a separate instrument with a sampler and user-loaded breaks: see [docs/DNB.md](docs/DNB.md). |
 | Sequencer | Independent 808, 909, 303 A and 303 B clips; 1–64 parent steps plus independent drum-voice loop lengths; off / on / accent / 909 flam; drag paint/erase; add / copy / rename patterns; focused rotate / transpose / randomise / alter; swing per voice |
 | Song | Multi-clip sections with repeat counts, section seek and arbitrary whole-bar looping; recordable versioned tempo, swing, instrument, send and effect automation |
-| Ships with | Seventeen songs — chillwave, acid house, darkwave, electro, ISDN-era FSOL, downtempo, ambient house, hip house, minimal techno, UK garage, trance, chiptune, breakbeat, upbeat, Manchester rave, industrial electro and Driftlings |
-| Vibes mode | A player: now-playing, skip, filter pad, eighteen scenes — no grid required |
+| Ships with | Twenty-three catalog songs, with Paper Cities, Offset, Hothouse, Daydream Receiver, Switchback and the beatless First Light expanding the set. Nine rack++ arrangements include new chord and drone layers for Hothouse, Daydream Receiver and First Light. Driftlings remains available as an exported score. |
+| Vibes mode | A player: now-playing, skip, filter pad, twenty-four scenes — no grid required |
 | Basslines | Pitch / Note-Pause / accent / slide per step, including silent-step slides, plus a real 4-pole ladder filter |
 | Per voice | Level, tune, decay, tone, colour, pan, two sends · live waveform |
 | Effects | Drive, pattern-controlled filter and compressor as master inserts; tempo-synced delay and generated-IR reverb as sends |
 | Saving | Autosaved to localStorage, export/import a file, song in a shareable URL; scene identity travels with the document |
-| Visuals | Four meters, eighteen 3D scenes that react to music and touch, and a full-screen XY filter pad |
+| Visuals | Four meters, twenty-four scenes that react to music and touch, and a full-screen XY filter pad |
 | Son et lumière | One song, one visual — every song names its own, no scene used twice |
 | Touch | Thumb-sized targets, safe areas, a grid that scrolls, a transport that collapses |
 | Published | `@driftbox/engine` and `@driftbox/app` on npm at 0.6.0, and `@driftbox/rack` at 0.1.0, all with provenance |

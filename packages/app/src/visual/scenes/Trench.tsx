@@ -107,7 +107,9 @@ const SCENE_VERTEX = /* glsl */ `
     // gone by four hundred units — it makes the whole station invisible from orbit, where
     // the nearest hull is six hundred units away and the far side is fourteen hundred.
     // One fixed range cannot serve a shot that starts a kilometre out and ends in a ditch.
-    float dist = -view.z;
+    // Distance rather than forward depth: the far side of the enormous ring can share
+    // the near floor's depth and otherwise pile its machinery up into a bright horizon.
+    float dist = length(view.xyz);
     vFade = 1.0 - smoothstep(uFog.x, uFog.y, dist);
     vKind = aKind;
   }
@@ -125,7 +127,9 @@ const SCENE_FRAGMENT = /* glsl */ `
     // warmer, so the clutter separates from the walls it is bolted to.
     vec3 structure = vec3(0.62, 0.86, 1.0);
     vec3 greeble = vec3(1.0, 0.72, 0.45);
-    vec3 colour = mix(structure, greeble, vKind);
+    vec3 colour = mix(structure, greeble, clamp(vKind, 0.0, 1.0));
+    if (vKind > 1.5) colour = vec3(0.22, 0.85, 0.9);
+    if (vKind > 2.5) colour = vec3(1.0, 0.36, 0.12) * (1.0 + uHigh * 1.4);
     gl_FragColor = vec4(colour * (0.75 + uHigh * 0.9), vFade * (0.6 + uHigh * 0.4));
   }
 `
@@ -180,22 +184,125 @@ function useStation() {
         line(at(ang, y, r), at(next, y, r), 0)
       }
 
-      // Greebles: a box bolted to one wall, every few ribs. An outline rather than a solid,
-      // because everything else here is a line and a filled shape would look imported.
-      if (random() < 0.09) {
+      // Machinery comes in readable bays rather than isolated little cubes. The local
+      // coordinates are distance along the trench, projection from the wall, and height
+      // above the floor. Everything still follows the station's closed equatorial ring.
+      if (i % 4 === 0) {
         const side = random() < 0.5 ? -1 : 1
-        const y = side * TRENCH_HALF_WIDTH
-        const base = FLOOR_RADIUS + random() * (TRENCH_DEPTH - 6)
-        const tall = 1.5 + random() * 4.5
-        const inner = y - (1.2 + random() * 3.5) * side
-        const a2 = ang + (1.5 + random() * 4) / STATION_RADIUS
-        for (const t of [ang, a2]) {
-          line(at(t, y, base), at(t, inner, base), 1)
-          line(at(t, y, base + tall), at(t, inner, base + tall), 1)
-          line(at(t, inner, base), at(t, inner, base + tall), 1)
+        const point = (x: number, inset: number, h: number) =>
+          at(ang + x / STATION_RADIUS, side * (TRENCH_HALF_WIDTH - inset), FLOOR_RADIUS + h)
+        const edge = (a: [number, number, number], b: [number, number, number], kind = 1) =>
+          line(point(...a), point(...b), kind)
+        const box = (x0: number, x1: number, d0: number, d1: number, h0: number, h1: number, kind = 1) => {
+          for (const x of [x0, x1]) {
+            edge([x, d0, h0], [x, d1, h0], kind)
+            edge([x, d0, h1], [x, d1, h1], kind)
+            edge([x, d0, h0], [x, d0, h1], kind)
+            edge([x, d1, h0], [x, d1, h1], kind)
+          }
+          for (const d of [d0, d1]) {
+            edge([x0, d, h0], [x1, d, h0], kind)
+            edge([x0, d, h1], [x1, d, h1], kind)
+          }
         }
-        line(at(ang, inner, base), at(a2, inner, base), 1)
-        line(at(ang, inner, base + tall), at(a2, inner, base + tall), 1)
+        const width = 12 + random() * 6
+        const height = 9 + random() * 5
+        const base = 5 + random() * 17
+        const depth = 4 + random() * 2
+        const type = Math.floor(i / 4) % 4
+
+        // A mounting plate and two long supply runs make each assembly belong to the
+        // wall. Elbows bring the conduits out to the front of the housing.
+        box(-width / 2 - 1, width / 2 + 1, 0, 0.8, base - 1, base + height + 1, 0)
+        for (const h of [base - 2, base + height + 2]) {
+          edge([-12, 1.2, h], [10, 1.2, h], 2)
+          edge([10, 1.2, h], [10, depth, h], 2)
+          edge([10, depth, h], [width / 2, depth, h + (h < base ? 2 : -2)], 2)
+        }
+
+        if (type === 0) {
+          // Stepped heat exchanger: deep housing, raised rim and recessed louvres.
+          box(-width / 2, width / 2, 0.8, depth, base, base + height)
+          box(-width / 2 + 1, width / 2 - 1, depth, depth + 1.2, base + 1, base + height - 1)
+          for (let fin = 0; fin < 6; fin++) {
+            const h = base + 2 + fin * (height - 4) / 5
+            edge([-width / 2 + 2, depth + 0.9, h], [width / 2 - 2, depth + 0.9, h], 2)
+            edge([-width / 2 + 2, depth + 0.9, h], [-width / 2 + 2, depth + 0.2, h + 0.6])
+          }
+          for (let lamp = 0; lamp < 3; lamp++) {
+            const x = -width / 2 + 2 + lamp * 2
+            edge([x, depth + 1.25, base + height - 0.6], [x + 0.9, depth + 1.25, base + height - 0.6], 3)
+          }
+        } else if (type === 1) {
+          // Twin coolant cylinders, with retaining bands and connections to the wall.
+          for (const x of [-width * 0.25, width * 0.25]) {
+            const radius = 2.2
+            for (const h of [base, base + height * 0.25, base + height * 0.75, base + height]) {
+              for (let segment = 0; segment < 10; segment++) {
+                const a = segment * Math.PI / 5, b = (segment + 1) * Math.PI / 5
+                edge([x + Math.cos(a) * radius, 3.2 + Math.sin(a) * radius, h],
+                  [x + Math.cos(b) * radius, 3.2 + Math.sin(b) * radius, h], 2)
+              }
+            }
+            for (let rib = 0; rib < 4; rib++) {
+              const a = rib * Math.PI / 2
+              edge([x + Math.cos(a) * radius, 3.2 + Math.sin(a) * radius, base],
+                [x + Math.cos(a) * radius, 3.2 + Math.sin(a) * radius, base + height])
+            }
+            edge([x, 3.2, base + height], [x, 3.2, base + height + 2], 2)
+            edge([x, 3.2, base + height + 2], [x, 0, base + height + 2], 2)
+          }
+        } else if (type === 2) {
+          // An exhaust mouth inside a square duct, with an inner ring and radial vanes.
+          box(-width / 2, width / 2, 0.8, depth, base, base + height)
+          const radius = Math.min(width, height) * 0.4
+          const middle = base + height / 2
+          for (const r of [radius, radius * 0.3]) {
+            for (let segment = 0; segment < 12; segment++) {
+              const a = segment * Math.PI / 6, b = (segment + 1) * Math.PI / 6
+              edge([Math.cos(a) * r, depth + 0.15, middle + Math.sin(a) * r],
+                [Math.cos(b) * r, depth + 0.15, middle + Math.sin(b) * r])
+            }
+          }
+          for (let vane = 0; vane < 8; vane++) {
+            const a = vane * Math.PI / 4
+            edge([Math.cos(a) * radius * 0.3, depth + 0.2, middle + Math.sin(a) * radius * 0.3],
+              [Math.cos(a + 0.35) * radius, depth + 0.2, middle + Math.sin(a + 0.35) * radius], 2)
+          }
+        } else {
+          // A paired gun mount with a pedestal, a head and long stepped barrels. These
+          // project along the wall; none of the machinery enters the ship's flight lane.
+          box(-5, 5, 0.8, 6, base, base + 3)
+          box(-3, 3, 2, 5, base + 3, base + 6)
+          box(-4, 4, 1.5, 6, base + 6, base + 9)
+          for (const d of [2.3, 5.2]) {
+            box(4, 8, d - 0.7, d + 0.7, base + 7, base + 8.4)
+            box(8, 16, d - 0.4, d + 0.4, base + 7.3, base + 8.1, 2)
+            edge([16, d - 0.4, base + 7.7], [16, d + 0.4, base + 7.7], 3)
+          }
+        }
+
+        // Shallow service hatches near the floor's edge give downward glances detail,
+        // while the central twenty units remain clear for the run and its breathing floor.
+        box(-6, 6, 5, 12, 0.2, 0.8, 0)
+        for (let slat = 0; slat < 4; slat++) {
+          const x = -4 + slat * 2.5
+          edge([x, 6, 0.85], [x, 11, 0.85], 2)
+        }
+
+        // A recognisable landmark every eight bays: fly beneath a triangulated gantry.
+        // Its lowest tie is 36 units up, well clear of the 16-unit camera height.
+        if (i % 32 === 0) {
+          box(-2, 2, 0, TRENCH_HALF_WIDTH * 2, 36, 40, 0)
+          for (let span = 0; span < 6; span++) {
+            const d = span * 10
+            edge([-2, d, 36], [-2, d + 10, 40], 1)
+            edge([2, d, 40], [2, d + 10, 36], 1)
+          }
+          for (const d of [2, TRENCH_HALF_WIDTH * 2 - 2]) {
+            edge([0, d, 32], [0, d, 35], 3)
+          }
+        }
       }
     }
 

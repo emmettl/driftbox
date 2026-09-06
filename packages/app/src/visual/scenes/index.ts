@@ -17,7 +17,7 @@ import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
  * at once. A song names the scene it was written to be seen with, so the one that gets fetched is
  * the one being watched, and switching fetches the next.
  *
- * three itself does not multiply. It is shared by all eighteen, so the bundler keeps it in one
+ * three itself does not multiply. It is shared by all the scenes, so the bundler keeps it in one
  * chunk that arrives with whichever scene is first — paid once, as before.
  */
 function scene(
@@ -93,6 +93,12 @@ export const SCENES: SceneInfo[] = [
   { id: 'graphic', name: 'Graphic Lab', Component: scene(() => import('./GraphicLab'), 'GraphicLab'), accent: '255, 255, 255', trail: { scale: 0.8, ring: true } },
   // The mark itself persists in the scene, so the pad overlay stays small and quiet.
   { id: 'longhand', name: 'Longhand', Component: scene(() => import('./Longhand'), 'Longhand'), accent: '255, 95, 145', trail: { scale: 0.55 } },
+  { id: 'papercities', name: 'Paper Cities', Component: scene(() => import('./PaperCities'), 'PaperCities'), accent: '255, 238, 194', trail: { scale: 0.85, ring: true } },
+  { id: 'weave', name: 'Weave', Component: scene(() => import('./Weave'), 'Weave'), accent: '255, 237, 196', trail: { scale: 0.7, ring: true } },
+  { id: 'daydream', name: 'Daydream', Component: scene(() => import('./Daydream'), 'Daydream'), accent: '255, 228, 168', trail: { scale: 1.2, ring: true } },
+  { id: 'switchback', name: 'Switchback', Component: scene(() => import('./Switchback'), 'Switchback'), accent: '255, 250, 224', trail: { scale: 0.8, ring: true } },
+  { id: 'frost', name: 'Frost', Component: scene(() => import('./Frost'), 'Frost'), accent: '255, 202, 133', trail: { scale: 1.3, ring: true } },
+  { id: 'hothouse', name: 'Hothouse', Component: scene(() => import('./Hothouse'), 'Hothouse'), accent: '255, 221, 154', trail: { scale: 1.3, ring: true } },
 ]
 
 export type SceneId = string

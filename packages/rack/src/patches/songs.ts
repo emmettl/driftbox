@@ -19,7 +19,7 @@ import type { PatchPreset } from './index.js'
 //   - an **echo**. A Ping Pong at a musical fraction of the song's own tempo, on the second send.
 //   - **more instruments**. Every one of these adds at least one voice the groovebox does not have: a
 //     wavetable pad, a rack drone, hats made out of noise, a sub ducked by the 909, a re-filtered 303.
-//   - **macros**. One Combinator whose four rotaries and four buttons mean the same thing in all six, so
+//   - **macros**. One Combinator whose four rotaries and four buttons mean the same thing in every song, so
 //     somebody who learns one has learnt the set.
 //
 // **They share a spine, and that is the opposite of the rule next door.** `PATCHES` deliberately shares
@@ -41,7 +41,7 @@ const beats = (bpm: number, fraction: number): number =>
  *
  * `bass.ts` runs its Tune knob through a ratio range from an octave below A1 to an octave above it, so
  * 0.5 is 55Hz and the ends are 27.5 and 110. Repeated here rather than imported because it is one line of
- * arithmetic and the alternative is exporting a synthesis internal for the sake of six presets.
+ * arithmetic and the alternative is exporting a synthesis internal for the sake of these presets.
  */
 const bassRootHz = (tune = 0.5): number => 27.5 * Math.pow(4, Math.max(0, Math.min(1, tune)))
 
@@ -135,7 +135,7 @@ const stem = (index: 0 | 1 | 2 | 3): [string, string] => [
 /**
  * The desk every one of these songs is mixed on.
  *
- * Ten modules and twelve routings identical in all six, plus the one routing each song points at a knob of
+ * Ten modules and twelve routings identical throughout, plus the one routing each song points at a knob of
  * its own.
  *
  * The two meters are on the aux sends rather than across the master, and that is deliberate rather than
@@ -795,7 +795,157 @@ export interface SongPatchPreset extends PatchPreset {
   song: string
 }
 
+// Hothouse's chord voice belongs to the rack. The Tracker supplies C and the Chord
+// Player builds a minor seventh before the Voice's tuning moves the whole voicing onto
+// the groovebox root. Its gate is short; the desk's dotted echo finishes each phrase.
+const hothouse = (): Patch => {
+  const song = songOf('hothouse')
+  const rotaries = [68, 80, 74, 58] as const
+  return assemble(song, desk({
+    strips: [
+      { from: stem(0), level: 0.7, pan: -0.05, room: 0.18, echo: 0.2 },
+      { from: stem(1), level: 0.75, room: 0.06, echo: 0 },
+      { from: stem(2), level: 0.42, pan: 0.14, room: 0.3, echo: 0.5 },
+      { from: stem(3), level: 0.72, room: 0.03, echo: 0 },
+      { from: ['chord-voice', 'out'], pan: -0.12, room: 0.46, echo: 0.64 },
+    ],
+    master: 0.86, out: 0.6,
+    room: { algorithm: 1, size: 0.68, decay: [0.4, 0.82], damp: 0.72,
+      lowCut: 380, highCut: 5600, gate: { thresh: 0.07, hold: 0.2, release: 0.1 } },
+    echo: { time: beats(song.bpm, 0.75), feedback: [0.3, 0.72] },
+    eq: { low: 1.2, lowFreq: 76, mid: -1.8, midFreq: 320, q: 0.8,
+      high: [-1, 3], highFreq: 7600 },
+    width: { low: 0.8, high: [1.05, 1.65], crossover: 200 },
+    layer: [0, 0.65], opens: { to: ['chord-voice', 'cutoff'], range: [450, 2100] },
+    rotaries,
+  }), {
+    modules: [
+      { id: 'transport-1', type: 'transport' },
+      { id: 'tracker-1', type: 'tracker', params: { length: 16 },
+        data: { lane1: [0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0] } },
+      { id: 'chords-1', type: 'chord-player', params: { key: 0, scale: 1, notes: 4 } },
+      { id: 'chord-voice', type: 'voice', params: {
+        tune: rootOf(song, '303.b'), shapeA: 0, shapeB: 2, mix: 0.35, detune: 4,
+        cutoff: routed(450, 2100, 74), resonance: 0.22, envAmount: 0.7,
+        attack: 0.006, decay: 0.14, sustain: 0.08, release: 0.22,
+        fDecay: 0.12, level: 0.24,
+      } },
+    ],
+    cables: [
+      { from: ['transport-1', 'sixteenth'], to: ['tracker-1', 'clock'] },
+      { from: ['tracker-1', 'cv1'], to: ['chords-1', 'pitch'] },
+      { from: ['tracker-1', 'gate1'], to: ['chords-1', 'gate'] },
+      { from: ['chords-1', 'pitch'], to: ['chord-voice', 'pitch'] },
+      { from: ['chords-1', 'gate'], to: ['chord-voice', 'gate'] },
+    ],
+  })
+}
+
+// A 64-quarter-note score is sixteen bars: the same four-bar harmonic changes as
+// Daydream's retained arrangement. The small rests let the pad breathe at each change.
+const daydream = (): Patch => {
+  const song = songOf('daydream')
+  const rotaries = [64, 62, 76, 54] as const
+  return assemble(song, desk({
+    strips: [
+      { from: stem(0), level: 0.72, room: 0.12, echo: 0.03 },
+      { from: stem(1), level: 0.66, pan: 0.08, room: 0.12, echo: 0.08 },
+      { from: stem(2), level: 0.65, pan: 0.12, room: 0.28, echo: 0.28 },
+      { from: stem(3), level: 0.72, room: 0.03, echo: 0 },
+      { from: ['memory-voice', 'out'], pan: -0.14, room: 0.4, echo: 0.2 },
+    ],
+    master: 0.84, out: 0.62,
+    room: { algorithm: 2, size: 0.65, decay: [0.38, 0.75], damp: 0.68,
+      lowCut: 350, highCut: 6200, gate: { thresh: 0.08, hold: 0.18, release: 0.1 } },
+    echo: { time: beats(song.bpm, 0.75), feedback: [0.18, 0.5] },
+    eq: { low: 0.8, lowFreq: 85, mid: -1.2, midFreq: 360, q: 0.75, high: [-1, 3], highFreq: 7000 },
+    width: { low: 0.8, high: [1.1, 1.6], crossover: 220 },
+    layer: [0, 0.64], opens: { to: ['memory-voice', 'cutoff'], range: [550, 1900] }, rotaries,
+  }), {
+    modules: [
+      { id: 'transport-1', type: 'transport' },
+      { id: 'tracker-1', type: 'tracker', params: { length: 64 },
+        data: { lane1: [0, 9, 5, 7].flatMap((root) => Array.from({ length: 16 }, (_, i) => i === 15 ? 0 : root + 36)) } },
+      { id: 'memory-chords', type: 'chord-player', params: { key: 0, scale: 0, notes: 4 } },
+      { id: 'memory-voice', type: 'voice', params: {
+        tune: rootOf(song, '303.b'), shapeA: 2, shapeB: 0, mix: 0.28, detune: 9,
+        cutoff: routed(550, 1900, 76), resonance: 0.14, envAmount: 0.4,
+        attack: 0.45, decay: 0.8, sustain: 0.6, release: 1.6, level: 0.2,
+      } },
+    ],
+    cables: [
+      { from: ['transport-1', 'quarter'], to: ['tracker-1', 'clock'] },
+      { from: ['tracker-1', 'cv1'], to: ['memory-chords', 'pitch'] },
+      { from: ['tracker-1', 'gate1'], to: ['memory-chords', 'gate'] },
+      { from: ['memory-chords', 'pitch'], to: ['memory-voice', 'pitch'] },
+      { from: ['memory-chords', 'gate'], to: ['memory-voice', 'gate'] },
+    ],
+  })
+}
+
+const firstLight = (): Patch => {
+  const song = songOf('firstlight')
+  const rotaries = [76, 68, 74, 54] as const
+  return assemble(song, desk({
+    strips: [
+      { from: stem(0), level: 0.6, room: 0.1, echo: 0.1 },
+      { from: stem(1), level: 0.6, room: 0.1, echo: 0.1 },
+      { from: stem(2), level: 0.7, pan: 0.2, room: 0.5, echo: 0.5 },
+      { from: stem(3), level: 0.58, room: 0.22, echo: 0.12 },
+      { from: ['light-vca', 'out'], pan: -0.2, room: 0.64, echo: 0.22 },
+    ],
+    master: 0.82, out: 0.62,
+    room: { algorithm: 1, size: 0.86, decay: [0.5, 0.88], damp: 0.62,
+      lowCut: 240, highCut: 7200, gate: { thresh: 0.05, hold: 0.24, release: 0.2 } },
+    echo: { time: beats(song.bpm, 1.5), feedback: [0.2, 0.6] },
+    eq: { low: -0.5, lowFreq: 90, mid: -1, midFreq: 280, q: 0.7, high: [-1, 3], highFreq: 6500 },
+    width: { low: 0.8, high: [1.1, 1.8], crossover: 180 },
+    layer: [0, 0.58], opens: { to: ['light-filter', 'cutoff'], range: [400, 1800] }, rotaries,
+  }), {
+    modules: [
+      { id: 'transport-1', type: 'transport' },
+      { id: 'tracker-1', type: 'tracker', params: { length: 64 },
+        data: { lane1: [0, 5, 9, 7].flatMap((root) => Array.from({ length: 16 }, (_, i) => i === 15 ? 0 : root + 12)) } },
+      { id: 'light-table', type: 'wavetable', params: { tune: rootOf(song, '303.b'), position: 0.16 } },
+      { id: 'light-fifth', type: 'vco', params: { tune: rootOf(song, '303.b') + 7, shape: 2 } },
+      { id: 'light-mix', type: 'mixer', params: { level1: 0.42, level2: 0.26 } },
+      { id: 'light-filter', type: 'svf', params: { cutoff: routed(400, 1800, 74), resonance: 0.18 } },
+      { id: 'light-envelope', type: 'adsr', params: { attack: 1.8, decay: 1.2, sustain: 0.72, release: 3.5 } },
+      { id: 'light-vca', type: 'vca', params: { gain: 0 } },
+    ],
+    cables: [
+      { from: ['transport-1', 'quarter'], to: ['tracker-1', 'clock'] },
+      { from: ['tracker-1', 'cv1'], to: ['light-table', 'pitch'] },
+      { from: ['tracker-1', 'cv1'], to: ['light-fifth', 'pitch'] },
+      { from: ['tracker-1', 'gate1'], to: ['light-envelope', 'gate'] },
+      { from: ['light-table', 'out'], to: ['light-mix', 'in1'] },
+      { from: ['light-fifth', 'out'], to: ['light-mix', 'in2'] },
+      { from: ['light-mix', 'out'], to: ['light-filter', 'in'] },
+      { from: ['light-filter', 'lp'], to: ['light-vca', 'in'] },
+      { from: ['light-envelope', 'out'], to: ['light-vca', 'cv'] },
+    ],
+  })
+}
+
 export const SONG_PATCHES: readonly SongPatchPreset[] = [
+  {
+    id: 'daydream-plus', song: 'daydream', name: 'Daydream Receiver ++',
+    blurb: 'A detuned seventh-chord pad follows the changing harmony',
+    kicker: 'Rack++ song', features: ['four-chord score', 'detuned pad', 'plate send'],
+    accent: 'amber', featured: true, build: daydream,
+  },
+  {
+    id: 'firstlight-plus', song: 'firstlight', name: 'First Light ++',
+    blurb: 'A wavetable and a fifth unfolding into a long hall',
+    kicker: 'Rack++ song', features: ['beatless score', 'wavetable drone', 'long hall'],
+    accent: 'violet', featured: true, build: firstLight,
+  },
+  {
+    id: 'hothouse-plus', song: 'hothouse', name: 'Hothouse ++',
+    blurb: 'Minor-seventh stabs growing through a dotted echo',
+    kicker: 'Rack++ song', features: ['polyphonic chords', 'dotted echo', 'filtered hall'],
+    accent: 'mint', featured: true, build: hothouse,
+  },
   {
     id: 'sundown-plus',
     song: 'chillwave',
