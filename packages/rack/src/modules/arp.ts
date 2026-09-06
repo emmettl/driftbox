@@ -602,7 +602,8 @@ export class ArpProcessor implements Processor {
 
           this.interval = this.since
           this.since = 0
-          const patternLength = Math.max(1, Math.min(ARP_PATTERN_STEPS, Math.round(patternLengthParam[i])))
+          // This class is serialized without module scope into the worklet. Keep its bound local.
+          const patternLength = Math.max(1, Math.min(16, Math.round(patternLengthParam[i])))
           this.patternStep = this.patternStarted ? (this.patternStep + 1) % patternLength : 0
           this.patternStarted = true
           if (this.patternEnabled(this.patternStep)) {

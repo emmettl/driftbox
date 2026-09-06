@@ -113,6 +113,18 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
   // The bank that justifies the feature. A Voice has sixteen knobs, which is exactly the count at which
   // "find a good setting" stops being twiddling and starts being work.
   {
+    id: 'soft-keys', type: 'voice', name: 'Soft Keys',
+    params: { shapeA: 2, shapeB: 0, detune: 4, mix: 0.25, cutoff: 1800,
+      resonance: 0.15, envAmount: 1, attack: 0.008, decay: 0.5, sustain: 0.35,
+      release: 0.35, fDecay: 0.4, level: 0.35 },
+  },
+  {
+    id: 'warm-bass', type: 'voice', name: 'Warm Bass',
+    params: { tune: -12, shapeA: 2, shapeB: 0, detune: 2, mix: 0.3, cutoff: 700,
+      resonance: 0.2, envAmount: 1.1, attack: 0.006, decay: 0.2, sustain: 0.4,
+      release: 0.12, fDecay: 0.18, level: 0.45 },
+  },
+  {
     id: 'reese',
     type: 'voice',
     name: 'Reese',
@@ -130,7 +142,7 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
       release: 0.4,
       fDecay: 0.8,
       glide: 0.05,
-      level: 0.7,
+      level: 0.42,
     },
   },
   {
@@ -149,7 +161,7 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
       decay: 0.3,
       sustain: 1,
       release: 0.15,
-      level: 0.8,
+      level: 0.5,
     },
   },
   {
@@ -265,16 +277,16 @@ export const DEVICE_PATCHES: readonly DevicePatch[] = [
 
   // ---- Delay ------------------------------------------------------------------------------------
   { id: 'slap', type: 'delay', name: 'Slap', params: { time: 0.09, feedback: 0.15 } },
-  { id: 'eighth', type: 'delay', name: 'Eighth', params: { time: 0.25, feedback: 0.4 } },
-  { id: 'dub', type: 'delay', name: 'Dub', params: { time: 0.375, feedback: 0.72 } },
+  { id: 'eighth', type: 'delay', name: 'Eighth · 120 bpm', params: { time: 0.25, feedback: 0.4 } },
+  { id: 'dub', type: 'delay', name: 'Dub · 375 ms', params: { time: 0.375, feedback: 0.72 } },
   // A delay this short is a comb filter; patch an LFO at the time inlet and it is the chorus and flanger
   // `delay.ts` says are patchable rather than modules of their own.
   { id: 'flange', type: 'delay', name: 'Flange Base', params: { time: 0.005, feedback: 0.55 } },
 
   // ---- Ping-pong delay --------------------------------------------------------------------------
   { id: 'slap', type: 'ping-pong', name: 'Stereo Slap', params: { time: 0.09, feedback: 0.25 } },
-  { id: 'eighth', type: 'ping-pong', name: 'Eighth Bounce', params: { time: 0.25, feedback: 0.6 } },
-  { id: 'dub', type: 'ping-pong', name: 'Dub Bounce', params: { time: 0.375, feedback: 0.78 } },
+  { id: 'eighth', type: 'ping-pong', name: 'Eighth Bounce · 120 bpm', params: { time: 0.25, feedback: 0.6 } },
+  { id: 'dub', type: 'ping-pong', name: 'Dub Bounce · 375 ms', params: { time: 0.375, feedback: 0.78 } },
 
   // ---- Phaser -----------------------------------------------------------------------------------
   { id: 'slow', type: 'phaser', name: 'Slow Swirl', params: { rate: 0.12, depth: 0.8, feedback: 0.3 } },

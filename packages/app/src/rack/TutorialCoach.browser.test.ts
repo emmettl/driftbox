@@ -204,3 +204,38 @@ describe('the guided-tour panel', () => {
     expect(closed).toHaveBeenCalledTimes(1)
   })
 })
+
+it('offers setup before crediting steps from an existing patch', () => {
+  const setup = vi.fn(() => null)
+  const tour = { ...TOUR, setup: () => ({ modules: [], cables: [] }) }
+  act(() => root.render(createElement(TutorialCoach, {
+    tutorial: tour, state: { ...BLANK, started: true, playing: true, flipped: true },
+    onSetup: setup, onFinished: finished, onClose: closed,
+  })))
+  expect(instruction()).toBe('A small rack for this lesson')
+  expect(marks()).toEqual(['todo', 'todo', 'todo'])
+  expect(finished).not.toHaveBeenCalled()
+  press('Use current rack')
+  expect(setup).not.toHaveBeenCalled()
+  expect(finished).toHaveBeenCalledWith('test')
+})
+
+it('stays on the setup choice when saving the current rack fails', () => {
+  const setup = vi.fn(() => 'Storage is full')
+  act(() => root.render(createElement(TutorialCoach, {
+    tutorial: { ...TOUR, setup: () => ({ modules: [], cables: [] }) }, state: BLANK,
+    onSetup: setup, onFinished: finished, onClose: closed,
+  })))
+  press('Load lesson setup')
+  expect(instruction()).toBe('A small rack for this lesson')
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe('Storage is full')
+  expect(finished).not.toHaveBeenCalled()
+})
+
+it('lets a skipped step be read again from the progress strip', () => {
+  show(BLANK)
+  press('Skip this step')
+  press('Step 1: Start the audio.')
+  expect(instruction()).toBe('Start the audio.')
+  expect(marks()[0]).toBe('skipped')
+})

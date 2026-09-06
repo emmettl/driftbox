@@ -6,7 +6,7 @@ import {
   type Patch,
   type PatchPreset,
 } from '@driftbox/rack'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BREAKS } from './breaks.js'
 import {
   deleteDocument,
@@ -49,10 +49,37 @@ interface Props {
 type BrowserTab = 'showcase' | 'saved' | 'breaks' | 'files'
 
 const TABS: readonly { id: BrowserTab; label: string }[] = [
-  { id: 'showcase', label: 'Showcase' },
+  { id: 'showcase', label: 'Patches & songs' },
   { id: 'saved', label: 'My library' },
   { id: 'breaks', label: 'Breaks' },
   { id: 'files', label: 'Import / export' },
+]
+
+const GROUPS = [
+  {
+    id: 'start',
+    name: 'Start small',
+    body: 'Simple instruments with a clear signal path. Pocket Sequence plays itself; the others answer your keyboard.',
+    presets: PATCHES.filter((preset) => preset.category === 'start'),
+  },
+  {
+    id: 'songs',
+    name: 'Demo songs',
+    body: 'Complete arrangements. Start audio and try the macro controls while the song runs.',
+    presets: [...PATCHES.filter((preset) => preset.category === 'song'), ...SONG_PATCHES],
+  },
+  {
+    id: 'study',
+    name: 'Explore a technique',
+    body: 'Short studies to pull apart: filters, generative notes, chopped breaks and sidechain compression.',
+    presets: PATCHES.filter((preset) => preset.category === 'study'),
+  },
+  {
+    id: 'input',
+    name: 'Play an external instrument',
+    body: 'These patches need an audio input connection.',
+    presets: PATCHES.filter((preset) => preset.category === 'input'),
+  },
 ]
 
 /**
@@ -72,7 +99,7 @@ function PresetCard({
   current: string | null
   onPick: (built: Patch) => void
 }) {
-  const built = preset.build()
+  const built = useMemo(() => preset.build(), [preset])
 
   return (
     <button
@@ -82,7 +109,7 @@ function PresetCard({
     >
       <span className="rk-preset-topline">
         <span>{preset.kicker}</span>
-        {preset.featured && <em>editor’s pick</em>}
+        {preset.featured && <em>recommended</em>}
       </span>
       <span className="rk-preset-visual" aria-hidden="true">
         <i />
@@ -94,6 +121,8 @@ function PresetCard({
       </span>
       <strong>{preset.name}</strong>
       <span className="rk-preset-blurb">{preset.blurb}</span>
+      <span className="rk-preset-play">{preset.play}</span>
+      <span className="rk-preset-tip">{preset.tip}</span>
       <span className="rk-preset-tags">
         {preset.features.map((feature) => (
           <i key={feature}>{feature}</i>
@@ -117,6 +146,12 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
   const setName = useRack((s) => s.setName)
 
   const [tab, setTab] = useState<BrowserTab>('showcase')
+  const [query, setQuery] = useState('')
+  const matches = (preset: PatchPreset) =>
+    [preset.name, preset.blurb, ...preset.features, preset.play, preset.tip]
+      .join(' ')
+      .toLowerCase()
+      .includes(query.trim().toLowerCase())
   const [saved, setSaved] = useState<SavedDocument[]>(() => listDocuments())
   const [renaming, setRenaming] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
@@ -152,9 +187,9 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
     <div className="rk-library" aria-label="Patch browser">
       <header className="rk-library-head">
         <div>
-          <span className="rk-library-kicker">Factory signal archive</span>
-          <h2>Choose a system, not just a preset.</h2>
-          <p>Each one is wired to demonstrate a different side of the rack and opens ready to move.</p>
+          <span className="rk-library-kicker">Ready to play</span>
+          <h2>Find your first sound.</h2>
+          <p>Start with a small instrument, explore a technique, or play a complete song. Each card tells you what to do first.</p>
         </div>
         <button type="button" className="rk-library-close" onClick={onClose} aria-label="Close patch browser">
           ×
@@ -185,39 +220,43 @@ export function PatchBrowser({ onClose, onLoadBreak }: Props) {
       >
         {tab === 'showcase' && (
           <section className="rk-showcase">
-            <div className="rk-preset-grid">
-              {PATCHES.map((preset) => (
-                <PresetCard
-                  key={preset.id}
-                  preset={preset}
-                  current={name}
-                  onPick={(built) => {
-                    adopt(built, preset.name)
-                    if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* The other half of the shelf, and it needs its own heading rather than eight more cards in
-                the same grid: everything above is a system somebody has to play, and everything below is
-                a finished record that starts the moment it loads. Mixing the two made the whole tab read
-                as "here are sixteen things, good luck". */}
-            <div className="rk-showcase-break">
-              <h3>Rack++ songs</h3>
-              <p>
-                The groovebox songs, opened as rack documents. Each one keeps its arrangement and brings the
-                four machines in as separate stems — mixed on a desk, with a room and an echo on real sends,
-                and at least one instrument the groovebox does not have. Four macro knobs mean the same thing
-                in all of them.
-              </p>
-            </div>
-
-            <div className="rk-preset-grid">
-              {SONG_PATCHES.map((preset) => (
-                <PresetCard key={preset.id} preset={preset} current={name} onPick={(built) => adopt(built, preset.name)} />
-              ))}
-            </div>
+            <label className="rk-preset-search">
+              Search patches and songs
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Try keyboard, bass, echo…"
+              />
+            </label>
+            {GROUPS.map((group) => {
+              const presets = group.presets.filter(matches)
+              if (!presets.length) return null
+              return (
+                <section key={group.id} aria-label={group.name}>
+                  <div className="rk-showcase-break">
+                    <h3>{group.name}</h3>
+                    <p>{group.body}</p>
+                  </div>
+                  <div className="rk-preset-grid">
+                    {presets.map((preset) => (
+                      <PresetCard
+                        key={preset.id}
+                        preset={preset}
+                        current={name}
+                        onPick={(built) => {
+                          adopt(built, preset.name)
+                          if (preset.needsBreak) onLoadBreak?.(preset.needsBreak)
+                        }}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )
+            })}
+            {!GROUPS.some((group) => group.presets.some(matches)) && (
+              <p role="status">No patches match “{query}”. Try a sound or instrument name.</p>
+            )}
           </section>
         )}
 

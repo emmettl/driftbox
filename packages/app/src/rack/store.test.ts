@@ -25,7 +25,7 @@ const ACID = () => patchPresetById('acid')!.build()
 
 beforeEach(() => {
   useRack.setState({
-    patch: STARTER(),
+    patch: patchPresetById('pressure-system')!.build(),
     revision: 0,
     history: NO_HISTORY,
     selection: [],
@@ -504,7 +504,7 @@ describe('the starter patch', () => {
     // Decoding rebuilds object fields in canonical order, which is not the order a preset factory writes
     // them. Identity is about the document, not JSON insertion order.
     const reopened = decodePatch(encodePatch(STARTER()))!
-    expect(matchingPreset(reopened)?.name).toBe('Pressure System')
+    expect(matchingPreset(reopened)?.name).toBe('Pocket Sequence')
 
     const edited = {
       ...reopened,
@@ -592,7 +592,7 @@ describe('making somewhere to put a break', () => {
   it('wires a keyboard into whatever voice is already there', () => {
     // Pressing a key on a rack with no MIDI module used to be indistinguishable from a broken keyboard,
     // which is the same bug loading a break with no sampler had.
-    useRack.setState({ patch: STARTER(), revision: 0 })
+    useRack.setState({ patch: patchPresetById('pressure-system')!.build(), revision: 0 })
     const id = useRack.getState().ensureMidi()!
     const patch = useRack.getState().patch
     const cables = patch.cables.map((c) => `${c.from.join('.')}>${c.to.join('.')}`)
@@ -606,7 +606,7 @@ describe('making somewhere to put a break', () => {
     // One cable per inlet is the rule the compiler enforces and `connect` mirrors, and it is what dragging
     // a cable onto an occupied input does in Reason. Two sources into a pitch inlet would SUM, which is a
     // wrong note rather than an obvious break — much worse, because it sounds like the patch is fine.
-    useRack.setState({ patch: STARTER(), revision: 0 })
+    useRack.setState({ patch: patchPresetById('pressure-system')!.build(), revision: 0 })
     const before = useRack.getState().patch
     const vco = before.modules.find((m) => m.type === 'vco')!
     // The starter patch has its sequencer driving the VCO, so there is something to displace.
@@ -910,7 +910,7 @@ describe('an edit that changes nothing', () => {
   // each oscillator's phase and each filter's history, which is audible. Several edits here are
   // legitimately no-ops, and before this they all rebuilt the graph to achieve nothing.
   beforeEach(() => {
-    useRack.setState({ patch: STARTER(), revision: 0 })
+    useRack.setState({ patch: patchPresetById('pressure-system')!.build(), revision: 0 })
   })
 
   it('does not rebuild the graph when a module is moved off the top', () => {
@@ -1254,7 +1254,7 @@ describe('recording a knob move', () => {
 
 describe('writing a pattern', () => {
   beforeEach(() => {
-    useRack.setState({ patch: STARTER(), revision: 0 })
+    useRack.setState({ patch: patchPresetById('pressure-system')!.build(), revision: 0 })
   })
 
   it('writes a lane without rebuilding the graph', () => {

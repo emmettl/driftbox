@@ -137,7 +137,7 @@
 }
 
 .rk-coach-track li {
-  height: 4px;
+  height: 16px;
   flex: 1 1 0;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
@@ -226,3 +226,6 @@
 .rk-coach[data-collapsed='yes'] .rk-coach-track {
   padding-bottom: 11px;
 }
+
+.rk-coach-track li button { display: block; width: 100%; height: 100%; min-height: 14px; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.rk-coach-track li button:focus-visible { outline: 2px solid #bdebe1; outline-offset: 3px; }

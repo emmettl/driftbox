@@ -29,12 +29,12 @@ describe('the offer of a guided tour', () => {
     expect(html).toContain('rk-primary')
   })
 
-  it('promises what the tour costs and what it does not touch', () => {
+  it('explains the choice of lesson setup', () => {
     const html = renderToStaticMarkup(
       createElement(TourOffer, { onStart: vi.fn(), onDecline: vi.fn() }),
     )
     expect(html).toContain('three-minute')
     // The rack is somebody's document from the first frame; a tour that edited it would be unforgivable.
-    expect(html).toContain('never touches the rack itself')
+    expect(html).toContain('small lesson setup or use your current rack')
   })
 })

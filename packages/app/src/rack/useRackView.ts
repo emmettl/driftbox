@@ -25,6 +25,7 @@ export interface RackViewState {
    */
   viewCycled: boolean
   cycleRackView: () => void
+  showRack: () => void
   /** The scrollable split grid, whose offset survives a trip through full-pad mode. */
   performanceSpace: RefObject<HTMLDivElement | null>
 }
@@ -83,7 +84,13 @@ export function useRackView(onCycle: () => void): RackViewState {
     if (rackView === 'split' && performanceSpace.current) performanceSpace.current.scrollLeft = 0
   }, [rackView])
 
+  const showRack = useCallback(() => {
+    setRackView('rack')
+    onCycle()
+  }, [onCycle])
+
   return {
+    showRack,
     rackView,
     performing: rackView !== 'rack',
     viewCycled,
