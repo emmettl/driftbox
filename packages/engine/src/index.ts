@@ -423,6 +423,11 @@ export class DriftboxEngine {
     return this.transport.position
   }
 
+  /** Fractional score position reaching the speakers, for synchronised visuals. */
+  get playbackPosition(): { bar: number; index: number } | null {
+    return this.transport.positionAt(this.ctx.currentTime - this.monitorDelay)
+  }
+
   set bpm(value: number) {
     this.song.bpm = value
     this.transport.bpm = value

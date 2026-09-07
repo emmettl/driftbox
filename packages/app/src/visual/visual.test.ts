@@ -203,7 +203,7 @@ describe('what the scenes are watching', () => {
   it('goes back to silence on reset', () => {
     setSceneAudio({ analyser: fakeAnalyser(() => 0), running: true, bpm: 174 })
     resetSceneAudio()
-    expect(sceneAudio).toEqual({ analyser: null, running: false, bpm: 120 })
+    expect(sceneAudio).toEqual({ analyser: null, running: false, bpm: 120, readBeat: null })
   })
 })
 

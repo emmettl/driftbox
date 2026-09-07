@@ -144,6 +144,10 @@ export default function App() {
         analyser={engine?.analyser}
         running={running}
         bpm={bpm}
+        readBeat={() => {
+          const at = engine?.playbackPosition
+          return at ? at.bar * 4 + at.index / 4 : null
+        }}
       />
 
       {performing && (

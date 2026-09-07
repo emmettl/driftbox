@@ -230,9 +230,9 @@ The toms play from it too — they are pitched percussion, and each tunes across
 under an octave. Past that the keys dim: the way further up is the next tom, which is what
 the machine's three of them are for. Select one in the grid and it appears as a target.
 
-## Twenty-three songs, one pair of 303s
+## Twenty-five songs, one pair of 303s
 
-It ships with twenty-three — different tempos, different halves of the
+It ships with twenty-five — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -244,6 +244,7 @@ scene used twice:
 | **Acieed** | Acid house. 126bpm, dead straight, four to the floor. | *Web* |
 | **Paper Cities** | Trip-hop. 86bpm, swung hats, a dry backbeat and a verse melody answered by the refrain. | *Paper Cities* |
 | **Daydream Receiver** | Melodic electronica. 96bpm, a four-chord journey, soft broken drums and a melody returning through the haze. | *Daydream* |
+| **Small Hours** | Nocturnal jazz-electronica. 78bpm, soft swung drums, moving bass and upper chord extensions against rain-streaked train glass. | *Small Hours* |
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
 | **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
@@ -262,6 +263,7 @@ scene used twice:
 | **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and a major-key line leaping across two octaves. | *Trench* |
 | **Cübik Olympic** | Manchester rave. 124bpm, distorted square stabs, bright answering bleeps and a rippling 808 pattern. | *Cübik* |
 | **Mobilise** | Industrial electro. 90bpm, a rolling square-wave riff with toms for caterpillar tracks. | *Endless Convoy* |
+| **Orrery** | Orbital electronica. 92bpm, five- and seven-beat melodic phrases meeting every 35 beats, and aligning with the percussion every 35 bars. | *Orrery* |
 | **First Light** | Beatless ambient. A 64bpm editing clock, tied low tones and isolated high notes dissolving into a long room. | *Frost* |
 
 The order is a listening sequence rather than the order they were written: gentle, hard,
@@ -281,7 +283,7 @@ Saturn gets them by ghosting on a different, quieter **voice** rather than at a 
 velocity: an 808 rimshot doing all the in-between work a long way under a 909 snare. Which
 is also how it would have been programmed on the hardware.
 
-## Nine of them again, in the rack
+## Ten of them again, in the rack
 
 The showcase in [`rack.html`](packages/app/rack.html) has a second shelf under the system
 patches: **rack++ songs**. Each one is a rack document that retains one of the songs above
@@ -290,6 +292,7 @@ separate stereo stems instead of one finished mix.
 
 | | |
 |---|---|
+| **Small Hours ++** | Soft polyphonic seventh chords comp behind the moving bass in an intimate room. |
 | **Daydream Receiver ++** | A detuned, polyphonic seventh-chord pad follows the song’s four-bar harmonic changes through a warm plate. |
 | **First Light ++** | A wavetable drone and a triangle fifth follow the slow harmony through a long hall. |
 | **Hothouse ++** | Polyphonic minor-seventh stabs, filtered hall reflections and dotted echoes. |
@@ -303,7 +306,7 @@ separate stereo stems instead of one finished mix.
 They share a console on purpose, which is the opposite of the rule the system patches
 follow. Six stereo channels with their own balance, two aux sends — a room and an echo, the
 echo always at a musical fraction of the song's own tempo — and one Combinator whose four
-rotaries and four buttons mean the same thing in all nine, so learning one is learning the
+rotaries and four buttons mean the same thing in all ten, so learning one is learning the
 set. What varies is the mix, the room, and the instrument the rack brings.
 
 The rack layers are in tune without anybody writing a key down. A VCO reads 0V as C2 and one

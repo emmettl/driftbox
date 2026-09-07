@@ -39,3 +39,22 @@ describe('Offset’s interlocking phrase', () => {
     }
   })
 })
+
+it('keeps Orrery’s five- and seven-beat melodies independent across bars and codec round trips', async () => {
+  const { orrerySong } = await import('./orrery.js')
+  const { encodeSong, decodeSong } = await import('../song-io.js')
+  const song = decodeSong(encodeSong(orrerySong()))
+  if (!song) throw new Error('Orrery did not survive its codec round trip')
+  const score = planSong(song, 70)
+  for (const [voice, period] of [['303.a', 20], ['303.b', 28]] as const) {
+    const pitches = score.map((step) => step.bass.find((hit) => hit.voiceId === voice)?.note.frequency ?? null)
+    expect(pitches.slice(0, period)).toEqual(pitches.slice(period, period * 2))
+    expect(pitches.slice(0, 16)).not.toEqual(pitches.slice(16, 32))
+    expect(pitches.slice(0, 560)).toEqual(pitches.slice(560, 1120))
+  }
+  const accentedTogether = score.flatMap((_, i) => {
+    const p = song.patterns[Math.floor(i / 16) % 35]
+    return p.bass?.['303.a'][i % 16].accent && p.bass?.['303.b'][i % 16].accent ? [i] : []
+  })
+  expect(accentedTogether).toEqual([0, 140, 280, 420, 560, 700, 840, 980])
+})

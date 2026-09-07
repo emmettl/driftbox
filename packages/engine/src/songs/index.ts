@@ -23,12 +23,14 @@ import { hothouseSong } from './hothouse.js'
 import { daydreamSong } from './daydream.js'
 import { switchbackSong } from './switchback.js'
 import { firstLightSong } from './firstlight.js'
+import { smallHoursSong } from './smallhours.js'
+import { orrerySong } from './orrery.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Twenty-three songs demonstrate the range of the same small set of machines.
+// Twenty-five songs demonstrate the range of the same small set of machines.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -83,6 +85,11 @@ const PRESETS: SongPreset[] = [
     id: 'daydream', visual: 'daydream', name: 'Daydream Receiver',
     blurb: 'Melodic electronica — 96bpm, soft edges and a half-remembered melody',
     build: daydreamSong,
+  },
+  {
+    id: 'smallhours', visual: 'smallhours', name: 'Small Hours',
+    blurb: 'Nocturnal jazz-electronica — 78bpm, soft drums and suspended harmony',
+    build: smallHoursSong,
   },
   {
     id: 'darkwave',
@@ -205,6 +212,11 @@ const PRESETS: SongPreset[] = [
     build: mobiliseSong,
   },
   {
+    id: 'orrery', visual: 'orrery', name: 'Orrery',
+    blurb: 'Orbital electronica — 92bpm, five- and seven-beat melodies finding each other',
+    build: orrerySong,
+  },
+  {
     id: 'firstlight', visual: 'frost', name: 'First Light',
     blurb: 'Beatless ambient — overlapping tones, isolated notes and a slow thaw',
     build: firstLightSong,
@@ -262,4 +274,6 @@ export {
   daydreamSong,
   switchbackSong,
   firstLightSong,
+  smallHoursSong,
+  orrerySong,
 }

@@ -98,6 +98,7 @@ export class Transport {
 
   private ticker: { start: (ms: number) => void; stop: () => void } | undefined
   private active = false
+  private readonly recentSteps: StepEvent[] = []
   /** Unswung time of the next step. Advanced by one step duration at a time rather
    *  than recomputed from the origin, so a tempo change takes effect on the next step
    *  instead of retroactively rewriting where every previous step should have been. */
@@ -127,6 +128,18 @@ export class Transport {
     return { bar: this.bar, index: this.index }
   }
 
+  /** Fractional score position at an audio-clock time, including seeks and loop wraps.
+   * A bounded history separates the audible position from the scheduler's lookahead. */
+  positionAt(time = this.ctx.currentTime): { bar: number; index: number } | null {
+    if (!this.active || !this.recentSteps.length) return null
+    let event = this.recentSteps[0]
+    for (let i = this.recentSteps.length - 1; i >= 0; i--) {
+      if (this.recentSteps[i].time <= time) { event = this.recentSteps[i]; break }
+    }
+    const fraction = Math.max(0, Math.min(1, (time - event.time) / event.stepSeconds))
+    return { bar: event.bar, index: event.index + fraction }
+  }
+
   /**
    * Continuous steps since this transport run began, sampled against the audio clock.
    *
@@ -150,6 +163,7 @@ export class Transport {
    * else in the scheduler, so seeking to step `length` lands on the next bar instead. */
   startAt(bar: number, index = 0): void {
     if (this.active) return
+    this.recentSteps.length = 0
     this.bar = Math.max(0, Math.floor(bar))
     this.options.onBar?.(this.bar)
     this.length = Math.max(1, Math.floor(this.options.barLength(this.bar)))
@@ -204,13 +218,16 @@ export class Transport {
     while (this.nextTime < horizon && guard++ < 64) {
       const stepSeconds = secondsPerStep(this.bpm)
 
-      this.options.onStep({
+      const event = {
         absolute: this.absolute,
         index: this.index,
         bar: this.bar,
         time: this.nextTime,
         stepSeconds,
-      })
+      }
+      this.recentSteps.push(event)
+      if (this.recentSteps.length > 64) this.recentSteps.shift()
+      this.options.onStep(event)
 
       this.nextTime += stepSeconds
       this.absolute += 1

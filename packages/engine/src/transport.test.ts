@@ -295,3 +295,39 @@ describe('song loops', () => {
     expect(transport.loop).toBeNull()
   })
 })
+
+describe('the audible score position', () => {
+  it('interpolates the heard step rather than the step scheduled ahead', () => {
+    const transport = start(() => 16)
+    run(clock, 0.2)
+    expect(transport.positionAt(0.06 + 0.125 / 2)).toEqual({ bar: 0, index: 0.5 })
+    expect(transport.positionAt(0)).toEqual({ bar: 0, index: 0 })
+    transport.stop()
+    expect(transport.positionAt()).toBeNull()
+  })
+
+  it('discards the previous run when seeking and follows a loop wrap', () => {
+    const transport = start(() => 16)
+    run(clock, 0.3)
+    transport.stop()
+    transport.setLoop(4, 1)
+    transport.startAt(4, 14)
+    const first = events[events.length - 1]
+    run(clock, 0.5)
+    expect(transport.positionAt(first.time + 0.0625)).toEqual({ bar: 4, index: 14.5 })
+    expect(transport.positionAt(first.time + 0.3125)).toEqual({ bar: 4, index: 0.5 })
+    transport.stop()
+  })
+
+  it('keeps previously scheduled tempo intervals when the tempo changes', () => {
+    const transport = start(() => 16)
+    run(clock, 0.3)
+    const before = events[events.length - 1]
+    transport.bpm = 90
+    run(clock, 0.4)
+    expect(transport.positionAt(before.time + before.stepSeconds / 2)?.index).toBeCloseTo(before.index + 0.5)
+    const after = events[events.length - 1]
+    expect(transport.positionAt(after.time + after.stepSeconds / 2)?.index).toBeCloseTo(after.index + 0.5)
+    transport.stop()
+  })
+})
