@@ -230,9 +230,9 @@ The toms play from it too — they are pitched percussion, and each tunes across
 under an octave. Past that the keys dim: the way further up is the next tom, which is what
 the machine's three of them are for. Select one in the grid and it appears as a target.
 
-## Seventeen songs, one pair of 303s
+## Twenty-three songs, one pair of 303s
 
-It ships with seventeen, and they share nothing — different tempos, different halves of the
+It ships with twenty-three — different tempos, different halves of the
 drum rack, different rooms:
 
 In playing order, each with the scene it was written for — one song, one visual, no
@@ -242,28 +242,34 @@ scene used twice:
 |---|---|---|
 | **Sundown** | Chillwave. 102bpm, swung, lots of space. | *Sunset* |
 | **Acieed** | Acid house. 126bpm, dead straight, four to the floor. | *Web* |
+| **Paper Cities** | Trip-hop. 86bpm, swung hats, a dry backbeat and a verse melody answered by the refrain. | *Paper Cities* |
+| **Daydream Receiver** | Melodic electronica. 96bpm, a four-chord journey, soft broken drums and a melody returning through the haze. | *Daydream* |
 | **Undertow** | Darkwave. 82bpm, no snare anywhere — a rimshot and a lot of reverb. | *Stillwater* |
 | **Light Cycles** | Electro, for the grid. 128bpm, a broken kick rather than four to the floor, an 808 clap for a backbeat and no snare anywhere. | *Light Cycles* |
 | **Transmission** | ISDN-era FSOL. 104bpm, patterns of 14, 12 and 8 steps so nothing lines up, and no backbeat at all. | *Lifeforms* |
 | **Time Vortex** | Radiophonic sci-fi. 142bpm, a galloping pulse and a signal lost in tape echo. | *Graphic Lab* |
-| **Defcon** | Downtempo. 68bpm, the slowest thing here, built on the tritone — the one interval that refuses to resolve. | *Defcon* |
-| **Cumulus** | Ambient house, after the Orb. 116bpm, the heaviest swing here by a distance, and the only cheerful thing in the set. | *Clouds* |
-| **Pump** | Hip house, aimed at the Technotronic record. 124bpm, and the only 303 here playing stabs rather than a line. | *Dancers* |
+| **Offset** | Interlocking percussion. 110bpm, a fifteen-step rim figure against a sixteen-step foundation, meeting again after fifteen bars. | *Weave* |
+| **Defcon** | Downtempo. 68bpm, the slowest drum groove here, built on the tritone — the one interval that refuses to resolve. | *Defcon* |
+| **Cumulus** | Ambient house, after the Orb. 116bpm, the heaviest swing here by a distance, with a cheerful, rolling pulse. | *Clouds* |
+| **Pump** | Hip house, aimed at the Technotronic record. 124bpm, with a 303 playing stabs rather than a line. | *Dancers* |
 | **Assembly** | Minimal techno. 132bpm, with the drum rack working as an interlocked production line and the 303s reduced to relay pulses and electrical hum. | *Machine* |
 | **Last Bus** | UK garage. 134bpm, with the kick and clap held straight while hats, maracas and rimshots lean late around a sub that answers in the gaps. | *Night Bus* |
+| **Hothouse** | Dub techno. 118bpm, clipped stabs, a slowly opening filter and dotted echoes. The rack's **Hothouse ++** adds polyphonic minor-seventh chords and a filtered hall. | *Hothouse* |
 | **Ascend** | Trance, aimed at Rez. 138bpm, dead straight, and the arrangement *is* the composition — one layer added at a time, taken away twice. | *Wireframe* |
 | **1UP** | Chiptune, for the platformer. 162bpm, and the 303 arpeggiates because a machine with one voice cannot play a chord. | *Jump Man* |
 | **Rings of Saturn** | Breakbeat, after the Photek tune. 170bpm, and the only song here written in two-bar patterns rather than one — a break's whole character is that it does not repeat every bar. | *Saturn* |
-| **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and the only major-key line in the set — it leaps across two octaves where everything else here creeps. | *Trench* |
+| **Switchback** | Footwork-inspired. 160bpm, skipping kicks, clipped bass answers and tom runs that stop at blind corners. | *Switchback* |
+| **Runner** | Upbeat, for the trench. 150bpm, propelled by toms rather than hats, and a major-key line leaping across two octaves. | *Trench* |
 | **Cübik Olympic** | Manchester rave. 124bpm, distorted square stabs, bright answering bleeps and a rippling 808 pattern. | *Cübik* |
 | **Mobilise** | Industrial electro. 90bpm, a rolling square-wave riff with toms for caterpillar tracks. | *Endless Convoy* |
+| **First Light** | Beatless ambient. A 64bpm editing clock, tied low tones and isolated high notes dissolving into a long room. | *Frost* |
 
 The order is a listening sequence rather than the order they were written: gentle, hard,
 dark, machine, abstract, dread, bright, building, breaking, fast. Acieed and Ascend used
 to sit next to each other and open with literally the same four bars at different tempos,
 so the set sounded like one track restarting.
 
-The part worth noticing is that the two 303s are the same synth in all sixteen and do not
+The part worth noticing is that the two 303s are the same synth throughout and do not
 sound like the same instrument. Acid is resonance near the top with a **short** decay, so
 the filter slams shut between notes and every repeat re-opens it. Darkwave is the filter
 mostly closed with the envelope barely moving and a long decay — strings, not acid. That
@@ -275,7 +281,7 @@ Saturn gets them by ghosting on a different, quieter **voice** rather than at a 
 velocity: an 808 rimshot doing all the in-between work a long way under a 909 snare. Which
 is also how it would have been programmed on the hardware.
 
-## Six of them again, in the rack
+## Nine of them again, in the rack
 
 The showcase in [`rack.html`](packages/app/rack.html) has a second shelf under the system
 patches: **rack++ songs**. Each one is a rack document that retains one of the songs above
@@ -284,6 +290,9 @@ separate stereo stems instead of one finished mix.
 
 | | |
 |---|---|
+| **Daydream Receiver ++** | A detuned, polyphonic seventh-chord pad follows the song’s four-bar harmonic changes through a warm plate. |
+| **First Light ++** | A wavetable drone and a triangle fifth follow the slow harmony through a long hall. |
+| **Hothouse ++** | Polyphonic minor-seventh stabs, filtered hall reflections and dotted echoes. |
 | **Sundown ++** | A hall long enough to still be ringing at the next kick, and a wavetable pad an LFO walks across the table. |
 | **Acieed ++** | The 303 sent back out of the groovebox and through the rack's own Drive and Ladder, so one macro opens a second resonant sweep on top of the one the song is playing. |
 | **Undertow ++** | A plate at nearly full size with the gate on a button, and a two-oscillator drone with no sequencer anywhere near it. |
@@ -294,7 +303,7 @@ separate stereo stems instead of one finished mix.
 They share a console on purpose, which is the opposite of the rule the system patches
 follow. Six stereo channels with their own balance, two aux sends — a room and an echo, the
 echo always at a musical fraction of the song's own tempo — and one Combinator whose four
-rotaries and four buttons mean the same thing in all six, so learning one is learning the
+rotaries and four buttons mean the same thing in all nine, so learning one is learning the
 set. What varies is the mix, the room, and the instrument the rack brings.
 
 The rack layers are in tune without anybody writing a key down. A VCO reads 0V as C2 and one

@@ -215,7 +215,7 @@ describe('the rack++ song library', () => {
       const patch = preset.build()
       const algorithm = patch.modules.find((module) => module.id === 'room-1')?.params?.algorithm ?? 0
       const voices = patch.modules
-        .filter((module) => ['vco', 'wavetable', 'noise'].includes(module.type))
+        .filter((module) => ['vco', 'wavetable', 'noise', 'voice'].includes(module.type))
         .map((module) => module.type)
         .sort()
         .join('+')

@@ -17,12 +17,18 @@ import { driftlingsSong } from './driftlings.js'
 import { assemblySong } from './assembly.js'
 import { garageSong } from './garage.js'
 import { timeVortexSong } from './timevortex.js'
+import { paperCitiesSong } from './papercities.js'
+import { offsetSong } from './offset.js'
+import { hothouseSong } from './hothouse.js'
+import { daydreamSong } from './daydream.js'
+import { switchbackSong } from './switchback.js'
+import { firstLightSong } from './firstlight.js'
 
 export * from './notation.js'
 
 // The songs the box ships with.
 //
-// Seventeen songs demonstrate the range of the same small set of machines.
+// Twenty-three songs demonstrate the range of the same small set of machines.
 // They deliberately share nothing: different tempos, different kits, different halves of
 // the drum rack, and — the part worth noticing — the same two 303s set up so differently
 // that they do not sound like the same instrument. Acid is resonance at the top with a
@@ -69,6 +75,16 @@ const PRESETS: SongPreset[] = [
     build: acidSong,
   },
   {
+    id: 'papercities', visual: 'papercities', name: 'Paper Cities',
+    blurb: 'Trip-hop — 86bpm, swung drums and a melody that gets an answer',
+    build: paperCitiesSong,
+  },
+  {
+    id: 'daydream', visual: 'daydream', name: 'Daydream Receiver',
+    blurb: 'Melodic electronica — 96bpm, soft edges and a half-remembered melody',
+    build: daydreamSong,
+  },
+  {
     id: 'darkwave',
     visual: 'water',
     name: 'Undertow',
@@ -97,10 +113,15 @@ const PRESETS: SongPreset[] = [
     build: timeVortexSong,
   },
   {
+    id: 'offset', visual: 'weave', name: 'Offset',
+    blurb: 'Interlocking percussion — 110bpm, fifteen steps against sixteen',
+    build: offsetSong,
+  },
+  {
     id: 'defcon',
     visual: 'defcon',
     name: 'Defcon',
-    blurb: 'Downtempo — 68bpm, built on the tritone, the slowest thing here',
+    blurb: 'Downtempo — 68bpm, built on the tritone, the slowest beat here',
     build: defconSong,
   },
   {
@@ -132,6 +153,11 @@ const PRESETS: SongPreset[] = [
     build: garageSong,
   },
   {
+    id: 'hothouse', visual: 'hothouse', name: 'Hothouse',
+    blurb: 'Dub techno — 118bpm, muted stabs and echoes growing in the gaps',
+    build: hothouseSong,
+  },
+  {
     id: 'ascend',
     visual: 'wireframe',
     name: 'Ascend',
@@ -153,6 +179,11 @@ const PRESETS: SongPreset[] = [
     build: saturnSong,
   },
   {
+    id: 'switchback', visual: 'switchback', name: 'Switchback',
+    blurb: 'Footwork-inspired — 160bpm, skipping kicks and abrupt turns',
+    build: switchbackSong,
+  },
+  {
     id: 'runner',
     visual: 'trench',
     name: 'Runner',
@@ -172,6 +203,11 @@ const PRESETS: SongPreset[] = [
     name: 'Mobilise',
     blurb: 'Industrial electro — 90bpm, rolling riff, toms for caterpillar tracks',
     build: mobiliseSong,
+  },
+  {
+    id: 'firstlight', visual: 'frost', name: 'First Light',
+    blurb: 'Beatless ambient — overlapping tones, isolated notes and a slow thaw',
+    build: firstLightSong,
   },
 ]
 
@@ -220,4 +256,10 @@ export {
   assemblySong,
   garageSong,
   timeVortexSong,
+  paperCitiesSong,
+  offsetSong,
+  hothouseSong,
+  daydreamSong,
+  switchbackSong,
+  firstLightSong,
 }
