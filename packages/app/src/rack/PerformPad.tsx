@@ -24,6 +24,7 @@ const Visualiser = lazy(() =>
 // trap.
 
 interface Props {
+  readBeat?: () => number | null
   /** Absent until audio has started, because there is no filter to move yet. */
   kaoss: Kaoss | null
   /** The rack's Back/Front switch still means something while the rack itself is hidden. */
@@ -40,7 +41,7 @@ interface Point {
   y: number
 }
 
-export function PerformPad({ kaoss, flipped, scene, setScene, analyser, running, bpm }: Props) {
+export function PerformPad({ kaoss, flipped, scene, setScene, analyser, running, bpm, readBeat }: Props) {
   const surface = useRef<HTMLDivElement>(null)
   const [point, setPoint] = useState<Point | null>(null)
   const held = useRef(false)
@@ -156,6 +157,7 @@ export function PerformPad({ kaoss, flipped, scene, setScene, analyser, running,
               analyser={analyser}
               running={running}
               bpm={bpm}
+              readBeat={readBeat}
             />
           </Suspense>
           <span className="rk-pad-visual-veil" />

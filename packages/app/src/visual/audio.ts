@@ -28,12 +28,15 @@ export interface SceneAudio {
   running: boolean
   /** The transport's tempo, so a scene can dance ON the record rather than merely near it. */
   bpm: number
+  /** Optional score clock in quarter notes, read imperatively without React renders. */
+  readBeat: (() => number | null) | null
 }
 
 export const sceneAudio: SceneAudio = {
   analyser: null,
   running: false,
   bpm: 120,
+  readBeat: null,
 }
 
 /**
@@ -48,6 +51,7 @@ export function setSceneAudio(next: Partial<SceneAudio>): void {
   if (next.analyser !== undefined) sceneAudio.analyser = next.analyser
   if (next.running !== undefined) sceneAudio.running = next.running
   if (next.bpm !== undefined) sceneAudio.bpm = next.bpm
+  if (next.readBeat !== undefined) sceneAudio.readBeat = next.readBeat
 }
 
 /** Back to silence. For a page unmounting its visualiser, and for a test that must not inherit the last
@@ -56,4 +60,5 @@ export function resetSceneAudio(): void {
   sceneAudio.analyser = null
   sceneAudio.running = false
   sceneAudio.bpm = 120
+  sceneAudio.readBeat = null
 }

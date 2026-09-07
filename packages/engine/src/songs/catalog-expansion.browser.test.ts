@@ -6,6 +6,8 @@ import { hothouseSong } from './hothouse.js'
 import { daydreamSong } from './daydream.js'
 import { switchbackSong } from './switchback.js'
 import { firstLightSong } from './firstlight.js'
+import { smallHoursSong } from './smallhours.js'
+import { orrerySong } from './orrery.js'
 
 describe.each([
   ['Paper Cities', paperCitiesSong, 34],
@@ -14,6 +16,8 @@ describe.each([
   ['Daydream Receiver', daydreamSong, 16],
   ['Switchback', switchbackSong, 13],
   ['First Light', firstLightSong, 28],
+  ['Small Hours', smallHoursSong, 16],
+  ['Orrery', orrerySong, 35],
 ] as const)('%s through the audio engine', (_, build, busiestBar) => {
   it('renders audible, bounded stereo excerpts from the introduction and developed arrangement', async () => {
     const song = build()

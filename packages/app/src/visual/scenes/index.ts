@@ -98,6 +98,8 @@ export const SCENES: SceneInfo[] = [
   { id: 'daydream', name: 'Daydream', Component: scene(() => import('./Daydream'), 'Daydream'), accent: '255, 228, 168', trail: { scale: 1.2, ring: true } },
   { id: 'switchback', name: 'Switchback', Component: scene(() => import('./Switchback'), 'Switchback'), accent: '255, 250, 224', trail: { scale: 0.8, ring: true } },
   { id: 'frost', name: 'Frost', Component: scene(() => import('./Frost'), 'Frost'), accent: '255, 202, 133', trail: { scale: 1.3, ring: true } },
+  { id: 'smallhours', name: 'Small Hours', Component: scene(() => import('./SmallHours'), 'SmallHours'), accent: '143, 224, 223', trail: { scale: 0.6 } },
+  { id: 'orrery', name: 'Orrery', Component: scene(() => import('./Orrery'), 'Orrery'), accent: '255, 214, 142', trail: { scale: 0.9, ring: true } },
   { id: 'hothouse', name: 'Hothouse', Component: scene(() => import('./Hothouse'), 'Hothouse'), accent: '255, 221, 154', trail: { scale: 1.3, ring: true } },
 ]
 

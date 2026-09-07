@@ -16,6 +16,7 @@ export function useSurfaceMaterial() {
   const uniforms = useMemo(() => ({
     uSize: { value: new THREE.Vector2(1, 1) },
     uTime: { value: 0 }, uTravel: { value: 0 }, uBeat: { value: 0 },
+    uScoreBeat: { value: 0 },
     uBass: { value: 0 }, uMid: { value: 0 }, uHigh: { value: 0 },
     uTouch: { value: new THREE.Vector3(0.5, 0.5, 0) },
     uHits: { value: Array.from({ length: 8 }, () => new THREE.Vector2(-100, 0)) },
@@ -33,6 +34,8 @@ export function useSurfaceMaterial() {
     if (sceneAudio.running) {
       u.uTravel.value += dt
       u.uBeat.value += dt * sceneAudio.bpm / 60
+      const beat = sceneAudio.readBeat?.()
+      u.uScoreBeat.value = beat ?? u.uBeat.value
     }
     u.uSize.value.set(size.width, size.height)
     u.uBass.value = ease(u.uBass.value, bass, dt)

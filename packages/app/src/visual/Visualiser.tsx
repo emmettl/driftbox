@@ -23,17 +23,18 @@ interface Props {
   running?: boolean
   /** The transport's tempo, so a scene can move on the beat rather than near it. */
   bpm?: number
+  readBeat?: (() => number | null) | null
 }
 
-export function Visualiser({ className, scene, analyser = null, running = false, bpm }: Props) {
+export function Visualiser({ className, scene, analyser = null, running = false, bpm, readBeat = null }: Props) {
   const Scene = (SCENES.find((s) => s.id === scene) ?? SCENES[0]).Component
 
   // Published in an effect rather than during render, because it is a write to something outside React
   // and a render can be thrown away. Reset on unmount so a page that puts the visualiser away does not
   // leave a dead analyser behind for the next one to read.
   useEffect(() => {
-    setSceneAudio({ analyser, running, bpm })
-  }, [analyser, running, bpm])
+    setSceneAudio({ analyser, running, bpm, readBeat })
+  }, [analyser, running, bpm, readBeat])
   useEffect(() => resetSceneAudio, [])
 
   return (

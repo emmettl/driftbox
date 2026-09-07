@@ -883,6 +883,47 @@ const daydream = (): Patch => {
   })
 }
 
+// Quiet seventh chords on the offbeats of the four-bar harmonic score.
+const smallHours = (): Patch => {
+  const song = songOf('smallhours')
+  const rotaries = [64, 62, 76, 54] as const
+  return assemble(song, desk({
+    strips: [
+      { from: stem(0), level: 0.72, room: 0.12, echo: 0.03 },
+      { from: stem(1), level: 0.66, pan: 0.08, room: 0.12, echo: 0.08 },
+      { from: stem(2), level: 0.65, pan: 0.12, room: 0.28, echo: 0.28 },
+      { from: stem(3), level: 0.72, room: 0.03, echo: 0 },
+      { from: ['hours-voice', 'out'], pan: -0.14, room: 0.4, echo: 0.2 },
+    ],
+    master: 0.84, out: 0.62,
+    room: { algorithm: 0, size: 0.48, decay: [0.38, 0.75], damp: 0.68,
+      lowCut: 350, highCut: 6200, gate: { thresh: 0.08, hold: 0.18, release: 0.1 } },
+    echo: { time: beats(song.bpm, 0.75), feedback: [0.18, 0.5] },
+    eq: { low: 0.8, lowFreq: 85, mid: -1.2, midFreq: 360, q: 0.75, high: [-1, 3], highFreq: 7000 },
+    width: { low: 0.8, high: [1.1, 1.6], crossover: 220 },
+    layer: [0, 0.64], opens: { to: ['hours-voice', 'cutoff'], range: [400, 1500] }, rotaries,
+  }), {
+    modules: [
+      { id: 'transport-1', type: 'transport' },
+      { id: 'tracker-1', type: 'tracker', params: { length: 64 },
+        data: { lane1: [2, 7, 0, 5].flatMap((root) => Array.from({ length: 16 }, (_, i) => i % 8 >= 1 && i % 8 <= 3 ? root + 24 : 0)) } },
+      { id: 'hours-chords', type: 'chord-player', params: { key: 0, scale: 0, notes: 4 } },
+      { id: 'hours-voice', type: 'voice', params: {
+        tune: rootOf(song, '303.b'), shapeA: 2, shapeB: 0, mix: 0.15, detune: 4,
+        cutoff: routed(400, 1500, 76), resonance: 0.14, envAmount: 0.4,
+        attack: 0.014, decay: 1.3, sustain: 0.12, release: 0.8, level: 0.22,
+      } },
+    ],
+    cables: [
+      { from: ['transport-1', 'quarter'], to: ['tracker-1', 'clock'] },
+      { from: ['tracker-1', 'cv1'], to: ['hours-chords', 'pitch'] },
+      { from: ['tracker-1', 'gate1'], to: ['hours-chords', 'gate'] },
+      { from: ['hours-chords', 'pitch'], to: ['hours-voice', 'pitch'] },
+      { from: ['hours-chords', 'gate'], to: ['hours-voice', 'gate'] },
+    ],
+  })
+}
+
 const firstLight = (): Patch => {
   const song = songOf('firstlight')
   const rotaries = [76, 68, 74, 54] as const
@@ -928,6 +969,12 @@ const firstLight = (): Patch => {
 }
 
 export const SONG_PATCHES: readonly SongPatchPreset[] = [
+  {
+    id: 'smallhours-plus', song: 'smallhours', name: 'Small Hours ++',
+    blurb: 'Soft seventh chords behind the rain and the moving bass',
+    kicker: 'Rack++ song', features: ['jazz harmony', 'soft chord comping', 'intimate room'],
+    accent: 'mint', featured: true, build: smallHours,
+  },
   {
     id: 'daydream-plus', song: 'daydream', name: 'Daydream Receiver ++',
     blurb: 'A detuned seventh-chord pad follows the changing harmony',

@@ -9,6 +9,7 @@ export const SURFACE_UNIFORMS = /* glsl */ `
   uniform float uTime;
   uniform float uTravel;
   uniform float uBeat;
+  uniform float uScoreBeat;
   uniform float uBass;
   uniform float uMid;
   uniform float uHigh;

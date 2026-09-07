@@ -440,6 +440,10 @@ export default function RackApp() {
             analyser={analyser}
             running={playing}
             bpm={tempo}
+            readBeat={() => {
+              const at = nodes.groovebox.current?.playbackPosition
+              return at ? at.bar * 4 + at.index / 4 : nodes.rack.current?.beat ?? null
+            }}
           />
         }
       />
