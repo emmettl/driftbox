@@ -5786,3 +5786,13 @@ html[data-rack-view-transition='pad-rack']::view-transition-new(rk-performance-r
   flex: none;
   width: 92px;
 }
+
+/* Factory cards explain the gesture and first edit before replacing the rack. */
+.rk-preset-search { display: grid; gap: 8px; font-size: 12px; color: var(--dim); }
+.rk-preset-search input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #44505a; border-radius: 8px; background: #111820; color: #edf4f5; font: inherit; }
+.rk-preset-play { color: #bdebe1; font-size: 12px; line-height: 1.5; }
+.rk-preset-tip { color: #b3bdc7; font-size: 12px; line-height: 1.5; }
+
+.rk-factory-guide { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; padding: 12px 20px; border-bottom: 1px solid var(--edge); background: rgba(95, 240, 208, 0.035); font: 11px/1.6 var(--mono); color: var(--dim); }
+.rk-factory-guide strong { color: var(--nine); }
+.rk-preset-play, .rk-preset-tip { margin-top: 6px; }

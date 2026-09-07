@@ -1,3 +1,4 @@
+import type { Patch } from '@driftbox/rack'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PlayBeacon } from '../ui/PlayBeacon.js'
 import { useMedia } from '../ui/useFirstRun.js'
@@ -43,13 +44,17 @@ interface Props {
   tutorial: Tutorial
   state: TutorialState
   onClose: () => void
+  onSetup?: (patch: Patch, name: string) => string | null
   /** Called once, the first time every step of this tour has been ticked rather than skipped. */
   onFinished: (id: string) => void
 }
 
 type Mark = 'todo' | 'done' | 'skipped'
 
-export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
+export function TutorialCoach({ tutorial, state, onClose, onFinished, onSetup }: Props) {
+  const [choosing, setChoosing] = useState(Boolean(tutorial.setup && onSetup))
+  const [problem, setProblem] = useState<string | null>(null)
+  const baseline = useRef(state)
   const [marks, setMarks] = useState<Mark[]>(() => tutorial.steps.map(() => 'todo'))
   const [at, setAt] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
@@ -68,12 +73,14 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
 
   // A fresh tour starts fresh, including one restarted from the help dialog after being completed.
   useEffect(() => {
+    setChoosing(Boolean(tutorial.setup && onSetup))
+    setProblem(null)
     const clean: Mark[] = tutorial.steps.map(() => 'todo')
     held.current = clean
     setMarks(clean)
     setAt(0)
     announced.current = false
-  }, [tutorial])
+  }, [tutorial, onSetup])
 
   // The watcher. Every step is re-evaluated, not only the current one — somebody who does step four while
   // reading step two has done step four, and a tour that made them do it again would be arguing with them.
@@ -83,10 +90,11 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
   // the skip a permanent verdict, and a tour that had been skipped through once could never afterwards
   // report itself finished however much of it you went on to do. Only `done` is final.
   useEffect(() => {
+    if (choosing) return
     const before = held.current
     let changed = false
     const after: Mark[] = tutorial.steps.map((step, index) => {
-      if (before[index] === 'done' || !step.done(state)) return before[index]
+      if (before[index] === 'done' || !step.done(state, baseline.current)) return before[index]
       changed = true
       return 'done'
     })
@@ -105,7 +113,7 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
       announced.current = true
       finished.current(tutorial.id)
     }
-  }, [state, tutorial])
+  }, [state, tutorial, choosing])
 
   const advance = (mark: Mark) => {
     const after = [...held.current]
@@ -121,7 +129,7 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
   const done = marks.filter((mark) => mark === 'done').length
   const skipped = marks.filter((mark) => mark === 'skipped').length
   const over = at >= tutorial.steps.length
-  const step = over ? null : tutorial.steps[at]
+  const step = over || choosing ? null : tutorial.steps[at]
 
   // Rebuilt only when the step's aim changes, so the beacon's particle field survives a re-render — it is
   // keyed on the target list, and a new key restarts every particle from the outside.
@@ -181,7 +189,10 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
               data-mark={marks[index]}
               data-current={index === at ? 'yes' : 'no'}
               title={entry.title}
-            />
+            >
+              <button type="button" aria-label={`Step ${index + 1}: ${entry.title}`}
+                disabled={choosing} onClick={() => setAt(index)} />
+            </li>
           ))}
         </ol>
 
@@ -189,7 +200,27 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
           // Polite rather than assertive: a step ticking is worth hearing about, and worth hearing about
           // after whatever the rack itself just said.
           <div className="rk-coach-body" aria-live="polite">
-            {step ? (
+            {choosing ? (
+              <>
+                <span className="rk-coach-where">Before you begin</span>
+                <h2>A small rack for this lesson</h2>
+                <p>Load just the devices this lesson needs. Your current rack is saved in My library under “Before lesson”.</p>
+                <div className="rk-coach-actions">
+                  <button type="button" className="rk-primary" onClick={() => {
+                    const patch = tutorial.setup!()
+                    const error = onSetup!(patch, tutorial.name)
+                    if (error) { setProblem(error); return }
+                    baseline.current = { ...state, patch, flipped: false, playing: false, automating: false }
+                    setChoosing(false)
+                  }}>Load lesson setup</button>
+                  <button type="button" onClick={() => {
+                    baseline.current = state
+                    setChoosing(false)
+                  }}>Use current rack</button>
+                </div>
+                {problem && <p role="alert">{problem}</p>}
+              </>
+            ) : step ? (
               <>
                 <span className="rk-coach-where">{step.where}</span>
                 <h2>{step.title}</h2>
@@ -203,7 +234,7 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
                   </span>
                 </div>
                 <p className="rk-coach-note">
-                  This ticks itself when you have done it. Nothing here presses anything for you.
+                  Steps tick when you do them. Select a step above to revisit it.
                 </p>
               </>
             ) : (
@@ -212,7 +243,7 @@ export function TutorialCoach({ tutorial, state, onClose, onFinished }: Props) {
                 <h2>{skipped === 0 ? 'All done.' : `Done, with ${skipped} skipped.`}</h2>
                 <p>
                   {skipped === 0
-                    ? 'Every step of this one happened in your rack rather than in a video. Take another from ? Help, or carry on from here.'
+                    ? 'Keep playing, or choose another lesson from Help. If you loaded a lesson setup, your previous rack is in My library.'
                     : 'The skipped steps are still worth coming back for — a tour can be restarted from ? Help at any point.'}
                 </p>
                 <div className="rk-coach-actions">

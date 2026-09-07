@@ -164,8 +164,8 @@ function desk(spec: Desk): Required<Pick<Patch, 'modules' | 'cables' | 'modulati
       params: {
         ...faders,
         master: spec.master,
-        returnLevelA: routed(0, 1.35, r1),
-        returnLevelB: routed(0, 1.35, r2),
+        returnLevelA: routed(0, 0.8, r1),
+        returnLevelB: routed(0, 0.8, r2),
       },
     },
     // VU for the room, LED for the echo: one is a level you balance and the other is a level you watch for
@@ -247,14 +247,14 @@ function desk(spec: Desk): Required<Pick<Patch, 'modules' | 'cables' | 'modulati
   // Rotary 1 room, Rotary 2 echo, Rotary 3 the rack's own voice, Rotary 4 air. Four buttons: drop the
   // rack's addition, gate the room, cut to the two drum machines, and collapse the bottom to mono.
   const modulation: ModRoute[] = [
-    { from: ['combi-1', 'rotary1'], to: ['desk-1', 'returnLevelA'], min: 0, max: 1.35 },
+    { from: ['combi-1', 'rotary1'], to: ['desk-1', 'returnLevelA'], min: 0, max: 0.8 },
     {
       from: ['combi-1', 'rotary1'],
       to: ['room-1', 'decay'],
       min: spec.room.decay[0],
       max: spec.room.decay[1],
     },
-    { from: ['combi-1', 'rotary2'], to: ['desk-1', 'returnLevelB'], min: 0, max: 1.35 },
+    { from: ['combi-1', 'rotary2'], to: ['desk-1', 'returnLevelB'], min: 0, max: 0.8 },
     {
       from: ['combi-1', 'rotary2'],
       to: ['echo-1', 'feedback'],
@@ -321,7 +321,7 @@ const assemble = (
 const sundown = (): Patch => {
   const song = songOf('chillwave')
   const root = rootOf(song, '303.a')
-  const rotaries = [86, 48, 74, 62] as const
+  const rotaries = [66, 40, 54, 58] as const
 
   return assemble(
     song,
@@ -338,7 +338,7 @@ const sundown = (): Patch => {
       room: {
         algorithm: 1,
         size: 0.88,
-        decay: [0.62, 0.93],
+        decay: [0.5, 0.84],
         damp: 0.52,
         lowCut: 240,
         highCut: 7600,
@@ -372,7 +372,7 @@ const sundown = (): Patch => {
         // The LFO runs 0..1 on its Uni jack, which would sweep the table end to end. A quarter of that is
         // a pad breathing; all of it is a sound effect.
         { id: 'sweep-1', type: 'offset', params: { gain: 0.26, offset: 0 } },
-        { id: 'svf-1', type: 'svf', params: { cutoff: routed(520, 2600, 74), resonance: 0.22 } },
+        { id: 'svf-1', type: 'svf', params: { cutoff: routed(520, 2600, 54), resonance: 0.22 } },
         { id: 'adsr-1', type: 'adsr', params: { attack: 0.9, decay: 1.4, sustain: 0.74, release: 2.6 } },
         { id: 'vca-1', type: 'vca', params: { gain: 0 } },
       ],
@@ -403,7 +403,7 @@ const sundown = (): Patch => {
  */
 const acieed = (): Patch => {
   const song = songOf('acid')
-  const rotaries = [58, 66, 70, 68] as const
+  const rotaries = [48, 52, 48, 58] as const
 
   return assemble(
     song,
@@ -439,7 +439,7 @@ const acieed = (): Patch => {
         {
           id: 'ladder-1',
           type: 'ladder',
-          params: { cutoff: routed(420, 3400, 70), resonance: 0.58 },
+          params: { cutoff: routed(420, 3400, 48), resonance: 0.58 },
         },
         { id: 'transport-1', type: 'transport' },
         {
@@ -482,7 +482,7 @@ const acieed = (): Patch => {
 const undertow = (): Patch => {
   const song = songOf('darkwave')
   const root = rootOf(song, '303.a', -1)
-  const rotaries = [92, 40, 66, 44] as const
+  const rotaries = [72, 34, 48, 44] as const
 
   return assemble(
     song,
@@ -524,7 +524,7 @@ const undertow = (): Patch => {
         {
           id: 'svf-1',
           type: 'svf',
-          params: { cutoff: routed(120, 640, 66), resonance: 0.46 },
+          params: { cutoff: routed(120, 640, 48), resonance: 0.46 },
         },
         { id: 'vca-1', type: 'vca', params: { gain: 0.62 } },
       ],
@@ -556,7 +556,7 @@ const undertow = (): Patch => {
 const lastBus = (): Patch => {
   const song = songOf('garage')
   const root = rootOf(song, '303.b')
-  const rotaries = [54, 72, 76, 70] as const
+  const rotaries = [46, 54, 58, 58] as const
 
   return assemble(
     song,
@@ -606,7 +606,7 @@ const lastBus = (): Patch => {
           id: 'compressor-1',
           type: 'compressor',
           params: {
-            threshold: routed(-8, -30, 76),
+            threshold: routed(-8, -30, 58),
             ratio: 7,
             attack: 0.002,
             release: 0.12,
@@ -643,7 +643,7 @@ const lastBus = (): Patch => {
 const rings = (): Patch => {
   const song = songOf('saturn')
   const root = rootOf(song, '303.a')
-  const rotaries = [62, 74, 72, 78] as const
+  const rotaries = [50, 56, 54, 62] as const
 
   return assemble(
     song,
@@ -690,7 +690,7 @@ const rings = (): Patch => {
           data: { lane1: [24, 0, 0, 0, 0, 0, 31, 0, 0, 0, 27, 0, 0, 34, 0, 0] },
         },
         { id: 'stab-1', type: 'wavetable', params: { tune: root, position: 0.68 } },
-        { id: 'svf-1', type: 'svf', params: { cutoff: routed(900, 5200, 72), resonance: 0.35 } },
+        { id: 'svf-1', type: 'svf', params: { cutoff: routed(900, 5200, 54), resonance: 0.35 } },
         { id: 'adsr-1', type: 'adsr', params: { attack: 0.004, decay: 0.18, sustain: 0.12, release: 0.24 } },
         { id: 'vca-1', type: 'vca', params: { gain: 0, curve: 1 } },
       ],
@@ -721,7 +721,7 @@ const rings = (): Patch => {
 const vortex = (): Patch => {
   const song = songOf('timevortex')
   const root = rootOf(song, '303.a')
-  const rotaries = [70, 88, 68, 60] as const
+  const rotaries = [58, 64, 50, 54] as const
 
   return assemble(
     song,
@@ -767,7 +767,7 @@ const vortex = (): Patch => {
           },
         },
         { id: 'drone-1', type: 'wavetable', params: { tune: root, position: 0.06 } },
-        { id: 'svf-1', type: 'svf', params: { cutoff: routed(700, 4800, 68), resonance: 0.3 } },
+        { id: 'svf-1', type: 'svf', params: { cutoff: routed(700, 4800, 50), resonance: 0.3 } },
         { id: 'adsr-1', type: 'adsr', params: { attack: 0.45, decay: 0.9, sustain: 0.72, release: 1.8 } },
         { id: 'vca-1', type: 'vca', params: { gain: 0 } },
       ],
@@ -951,7 +951,10 @@ export const SONG_PATCHES: readonly SongPatchPreset[] = [
     song: 'chillwave',
     name: 'Sundown ++',
     blurb: 'The opener, with a hall and a wavetable pad under it',
-    kicker: 'Rack++ song',
+    kicker: 'Demo song',
+    category: 'song',
+    play: 'Press Start audio, or Play if audio is already on. The full arrangement is included.',
+    tip: 'Rotaries: 1 room, 2 echo, 3 added instrument, 4 brightness. Mixer channels 1–4 are the original machines.',
     features: ['hall send', 'wavetable pad', '4 stems on a desk'],
     accent: 'violet',
     featured: true,
@@ -962,7 +965,10 @@ export const SONG_PATCHES: readonly SongPatchPreset[] = [
     song: 'acid',
     name: 'Acieed ++',
     blurb: 'The 303 sent back out through the rack’s own ladder',
-    kicker: 'Rack++ song',
+    kicker: 'Demo song',
+    category: 'song',
+    play: 'Press Start audio, or Play if audio is already on. The full arrangement is included.',
+    tip: 'Rotaries: 1 room, 2 echo, 3 added instrument, 4 brightness. Mixer channels 1–4 are the original machines.',
     features: ['ladder on a stem', 'noise hats', 'spring send'],
     accent: 'pink',
     featured: true,
@@ -973,7 +979,10 @@ export const SONG_PATCHES: readonly SongPatchPreset[] = [
     song: 'darkwave',
     name: 'Undertow ++',
     blurb: 'A gated plate and a drone with no sequencer in it',
-    kicker: 'Rack++ song',
+    kicker: 'Demo song',
+    category: 'song',
+    play: 'Press Start audio, or Play if audio is already on. The full arrangement is included.',
+    tip: 'Rotaries: 1 room, 2 echo, 3 added instrument, 4 brightness. Mixer channels 1–4 are the original machines.',
     features: ['gated plate', 'analogue drone', 'LFO filter'],
     accent: 'violet',
     build: undertow,
@@ -983,7 +992,10 @@ export const SONG_PATCHES: readonly SongPatchPreset[] = [
     song: 'garage',
     name: 'Last Bus ++',
     blurb: 'A sub in the two-step gaps, ducked by the 909',
-    kicker: 'Rack++ song',
+    kicker: 'Demo song',
+    category: 'song',
+    play: 'Press Start audio, or Play if audio is already on. The full arrangement is included.',
+    tip: 'Rotaries: 1 room, 2 echo, 3 added instrument, 4 brightness. Mixer channels 1–4 are the original machines.',
     features: ['sidechain key', 'phased 808', 'triangle sub'],
     accent: 'mint',
     build: lastBus,
@@ -993,7 +1005,10 @@ export const SONG_PATCHES: readonly SongPatchPreset[] = [
     song: 'saturn',
     name: 'Rings of Saturn ++',
     blurb: 'Tape on the 909 and wavetable stabs over the top',
-    kicker: 'Rack++ song',
+    kicker: 'Demo song',
+    category: 'song',
+    play: 'Press Start audio, or Play if audio is already on. The full arrangement is included.',
+    tip: 'Rotaries: 1 room, 2 echo, 3 added instrument, 4 brightness. Mixer channels 1–4 are the original machines.',
     features: ['tape stage', 'wavetable stabs', 'plate send'],
     accent: 'amber',
     build: rings,
@@ -1003,7 +1018,10 @@ export const SONG_PATCHES: readonly SongPatchPreset[] = [
     song: 'timevortex',
     name: 'Time Vortex ++',
     blurb: 'A spring tank, a tape echo and a drawn drone',
-    kicker: 'Rack++ song',
+    kicker: 'Demo song',
+    category: 'song',
+    play: 'Press Start audio, or Play if audio is already on. The full arrangement is included.',
+    tip: 'Rotaries: 1 room, 2 echo, 3 added instrument, 4 brightness. Mixer channels 1–4 are the original machines.',
     features: ['curve lane', 'spring send', 'phased 303'],
     accent: 'amber',
     build: vortex,

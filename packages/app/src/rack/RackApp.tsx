@@ -1,5 +1,7 @@
 import {
   MODULES,
+  PATCHES,
+  SONG_PATCHES,
   grooveboxSong,
   patchCompatibility,
   patchStemTargets,
@@ -31,6 +33,7 @@ import { RackStemReviewTray } from './RackStemReviewTray.js'
 import { RackWarnings } from './RackWarnings.js'
 import { useRack } from './store.js'
 import { TourOffer } from './TourOffer.js'
+import { loadLessonSetup } from './tutorial-session.js'
 import { TutorialCoach } from './TutorialCoach.js'
 import { type TutorialState } from './tutorials.js'
 import { useAudioInput } from './useAudioInput.js'
@@ -72,6 +75,7 @@ import { rackWarnings } from './warnings.js'
 export default function RackApp() {
   const patch = useRack((s) => s.patch)
   const name = useRack((s) => s.name)
+  const factory = [...PATCHES, ...SONG_PATCHES].find(preset => preset.name === name)
   const flipped = useRack((s) => s.flipped)
   const flip = useRack((s) => s.flip)
   const undo = useRack((s) => s.undo)
@@ -150,17 +154,24 @@ export default function RackApp() {
     setAdding(false)
     setBrowsing(false)
   }, [])
-  const { rackView, performing, viewCycled, cycleRackView, performanceSpace } =
+  const { rackView, performing, viewCycled, cycleRackView, showRack, performanceSpace } =
     useRackView(closePanels)
   const {
     tour,
-    start: startTour,
+    start: beginTour,
     close: closeTour,
     finish: finishTour,
     offered: tourOffered,
     decline: declineTour,
     tutorials,
   } = useGuidedTour()
+  const startTour = useCallback((id: string) => {
+    showRack()
+    setKeyboardOpen(true)
+    setAutomationOpen(false)
+    setHelpOpen(false)
+    beginTour(id)
+  }, [beginTour, showRack])
 
   useRackShortcuts({
     onHelp: useCallback(() => setHelpOpen(true), []),
@@ -370,6 +381,14 @@ export default function RackApp() {
         <TourOffer onStart={() => startTour(tutorials[0].id)} onDecline={declineTour} />
       )}
 
+      {factory && !tour && !browsing && (
+        <section className="rk-factory-guide" aria-label="Patch guide">
+          <strong>{factory.name}</strong>
+          <span>{factory.play}</span>
+          <span>{factory.tip}</span>
+        </section>
+      )}
+
       {adding && (
         <div className="rk-palette-layer">
           <Palette
@@ -481,7 +500,9 @@ export default function RackApp() {
 
       {tour && (
         <TutorialCoach
+          key={tour.id}
           tutorial={tour}
+          onSetup={loadLessonSetup}
           state={tourState}
           onClose={closeTour}
           onFinished={finishTour}

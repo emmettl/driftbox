@@ -1,4 +1,4 @@
-import type { Patch } from '@driftbox/rack'
+import { MODULES, compile, type Patch } from '@driftbox/rack'
 import { describe, expect, it } from 'vitest'
 import { isAimable } from './spotlight.js'
 import {
@@ -13,6 +13,8 @@ import {
   patched,
   trimmed,
   tutorialById,
+  lessonSetup,
+  sequencedVoice,
   type Store,
   type TutorialState,
 } from './tutorials.js'
@@ -249,21 +251,25 @@ const FINISHED: Record<string, TutorialState> = {
   'make-it-move': state({
     patch: patch({
       modules: [
+        { id: 'out-1', type: 'out' },
         { id: 'lfo-1', type: 'lfo', params: { rate: 0.4, shape: 2 } },
         { id: 'ladder-1', type: 'ladder', inputTrims: { cutoff: 0.35 } },
       ],
-      cables: [{ from: ['lfo-1', 'bi'], to: ['ladder-1', 'cutoff'] }],
+      cables: [{ from: ['ladder-1', 'out'], to: ['out-1', 'in'] }, { from: ['lfo-1', 'bi'], to: ['ladder-1', 'cutoff'] }],
     }),
   }),
   'sequence-it': state({
+    started: true,
     playing: true,
     patch: patch({
       modules: [
         { id: 'seq-1', type: 'seq', params: { pitch2: 7 } },
         { id: 'transport-1', type: 'transport' },
         { id: 'voice-1', type: 'voice' },
+        { id: 'out-1', type: 'out' },
       ],
       cables: [
+        { from: ['voice-1', 'out'], to: ['out-1', 'in'] },
         { from: ['transport-1', 'sixteenth'], to: ['seq-1', 'clock'] },
         { from: ['seq-1', 'pitch'], to: ['voice-1', 'pitch'] },
         { from: ['seq-1', 'gate'], to: ['voice-1', 'gate'] },
@@ -347,4 +353,62 @@ describe('remembering which tours are done', () => {
     expect(finishedTours(null).size).toBe(0)
     expect(() => finishTour('macros', null)).not.toThrow()
   })
+})
+
+
+describe('lesson setup and honest progress', () => {
+  it.each(TUTORIALS)('$id supplies its own valid prerequisites', tour => {
+    const setup = tour.setup!()
+    expect(compile(setup, MODULES).notes).toEqual([])
+    expect(setup.modules.length).toBeLessThanOrEqual(5)
+    expect(setup).toEqual(tour.setup!())
+    expect(setup).not.toBe(tour.setup!())
+    if (tour.id !== 'first-sound') expect(audible(setup, 'voice')).toBe(true)
+  })
+
+  it('does not mistake an existing MIDI module for playing a note', () => {
+    const step = tutorialById('first-sound')!.steps.find(step => step.id === 'play')!
+    expect(step.done({ ...FINISHED['first-sound'], sounding: 0 })).toBe(false)
+  })
+
+  it('requires pitch and gate from the same sequencer to the same voice', () => {
+    const good = FINISHED['sequence-it'].patch
+    expect(sequencedVoice(good)).toBe(true)
+    expect(sequencedVoice({ ...good, cables: good.cables.filter(c => c.from[1] !== 'gate') })).toBe(false)
+    const wrongVoice = { ...good, cables: good.cables.map(c => c.from[1] === 'gate' ? { ...c, to: ['other', 'gate'] as [string, string] } : c) }
+    expect(sequencedVoice(wrongVoice)).toBe(false)
+  })
+
+  it('does not credit an LFO patched to audio or a trim on another inlet', () => {
+    const tour = tutorialById('make-it-move')!
+    const good = FINISHED['make-it-move']
+    const wrong = { ...good, patch: { ...good.patch, cables: good.patch.cables.map(c =>
+      c.from[0] === 'lfo-1' ? { ...c, to: ['ladder-1', 'in'] as [string, string] } : c) } }
+    expect(tour.steps.find(s => s.id === 'patch')!.done(wrong)).toBe(false)
+    expect(tour.steps.find(s => s.id === 'trim')!.done(wrong)).toBe(false)
+  })
+
+  it('waits for a knob change from the actual lesson starting value', () => {
+    const initial = state({ patch: lessonSetup('sequence-it') })
+    expect(paramMoved(initial.patch, 'voice', 'cutoff', initial.patch)).toBe(false)
+    const changed = { ...initial.patch, modules: initial.patch.modules.map(m =>
+      m.type === 'voice' ? { ...m, params: { ...m.params, cutoff: 800 } } : m) }
+    expect(paramMoved(changed, 'voice', 'cutoff', initial.patch)).toBe(true)
+  })
+
+  it('does not treat a control-only route as an audio connection', () => {
+    expect(audible({ modules: [{ id: 'l', type: 'ladder' }, { id: 'v', type: 'voice' }, { id: 'o', type: 'out' }],
+      cables: [{ from: ['l', 'out'], to: ['v', 'pitch'] }, { from: ['v', 'out'], to: ['o', 'in'] }] }, 'ladder')).toBe(false)
+  })
+})
+
+
+it('requires a new automation move instead of crediting an existing recording', () => {
+  const initial = FINISHED['record-a-move']
+  const move = tutorialById('record-a-move')!.steps.find((step) => step.id === 'move')!
+  expect(move.done(initial, initial)).toBe(false)
+  const changed = { ...initial, patch: { ...initial.patch, automation: [
+    { target: ['ladder-1', 'cutoff'] as [string, string], points: [{ at: 0, value: 900 }] },
+  ] } }
+  expect(move.done(changed, initial)).toBe(true)
 })

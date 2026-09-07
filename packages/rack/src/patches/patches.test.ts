@@ -65,6 +65,9 @@ describe.each(PATCHES.map((preset) => [preset.id, preset] as const))('the %s pat
     expect(preset.blurb.length).toBeLessThan(60)
     expect(preset.kicker.length).toBeGreaterThan(8)
     expect(preset.features).toHaveLength(3)
+    expect(preset.play?.length).toBeGreaterThan(10)
+    expect(preset.tip?.length).toBeGreaterThan(10)
+    expect(['start', 'song', 'study', 'input']).toContain(preset.category)
   })
 })
 
@@ -168,6 +171,12 @@ describe('the patches built on a break', () => {
 })
 
 describe('the patterns inside the patches', () => {
+  it('plays Sidechain Pressure’s break slices in order, starting on the downbeat', () => {
+    const tracker = patchPresetById('ducked')!.build().modules.find((module) => module.type === 'tracker')!
+    // Unit-mode CV is value / 16; the sampler wraps 1 back to its first slice. Zero means rest.
+    expect(tracker.data!.lane1).toEqual([16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+  })
+
   it('only put data in slots the module actually reads', () => {
     // Data is addressed by string, so a typo is silence rather than an error — `lane5` on a four-lane
     // Tracker or `repeat` on an Arranger would simply never be read.

@@ -18,7 +18,7 @@ export function TourOffer({
   return (
     <p className="rk-tour-offer">
       <strong>First time in the rack?</strong>
-      <span>A three-minute guided tour ends with a sound you made. It never touches the rack itself.</span>
+      <span>A three-minute lesson ends with a sound you made. Choose a small lesson setup or use your current rack.</span>
       <button type="button" className="rk-primary" onClick={onStart}>
         Start the tour
       </button>

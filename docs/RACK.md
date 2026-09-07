@@ -1303,50 +1303,36 @@ The risk is all in the first item. Do it first and alone.
      whole time this was broken — a DOM test would have passed throughout. **Only driving the page finds
      this**, and now it is a test rather than a fifth telling of that sentence.
 
-## Teaching it: guided tours that watch rather than drive
+## Factory patches and guided lessons
 
-The rack accumulated conveniences faster than it accumulated ways of finding out about them. Three of the
-best things it does are invisible: a module on the Sources shelf arrives wired to its own fresh Out, the
-on-screen keyboard builds a MIDI module and cables it the first time you press a key, and a *filter*
-deliberately does none of that because a processor cannot guess what it is meant to be processing. Every one
-of those is correct behaviour that somebody has to be told once. Written down in the guide, they are four
-sentences in a reference nobody reads before they are already stuck.
+Fresh visits start with **Pocket Sequence**, a six-module, 108 bpm melodic patch that needs neither a
+sample nor a keyboard. Saved sessions and shared links still take precedence. The patch browser groups
+small instruments, complete demo songs, technique studies and external-input patches, with search and a
+first action plus an editing suggestion on every card. The same hints remain visible after loading.
+Starting audio also starts the transport; instructions only ask for Play when audio is already on.
 
-So: `app/src/rack/tutorials.ts`, six lessons, and one rule that decides the whole design.
+**First Light** gives four-note keyboard playing an immediate dry attack with a quieter parallel delay.
+**One Finger** releases with the key by default, with Hold available explicitly. Its Arp processor must
+remain self-contained when serialized into the audio worklet; a module-scope pattern constant previously
+stopped processing there. The remaining studies use the header transport where appropriate, correct
+Tracker slice numbering, and restrained levels. All six retained demo arrangements have balanced starting
+macros and bounded effect returns. Audio browser tests render every factory patch, keyboard attacks and
+chords, and each full demo mix with both initial and maximum macros.
 
-**A step is a claim about the patch, not a position in a script.** `done(state)` is a pure predicate over a
-snapshot — the patch, whether audio started, whether the transport runs, whether the rack is turned around,
-how many notes are sounding. It ticks when the claim becomes true because you made it true. Nothing in the
-tour presses, patches or turns anything.
+`app/src/rack/tutorials.ts` defines six lessons. Each offers **Load lesson setup** for a minimal rack with
+its prerequisites, or **Use current rack**. Loading a setup first saves a uniquely named recovery copy to
+My library; if saving fails, the current rack is left intact and the coach explains the problem. Starting
+a lesson brings the rack and keyboard into view.
 
-That is not only a principle, it is what makes the thing cheap and unbreakable:
+Once a lesson starts, the coach watches rather than operates controls. Pure predicates receive the live
+state and the starting snapshot. Knob tasks require a change from that snapshot, audio tasks trace an
+actual audio path, and sequencing requires pitch and gate to reach the same Voice. Existing MIDI or an
+unrelated modulation cable cannot earn a task that asks the player to hear a note or wire a filter.
+Completion latches so turning the rack back around does not undo a previous step. The progress strip
+lets the player revisit skipped steps; skipping is distinct from completing.
 
-- **It cannot get out of step**, because there is no step to lose. Wander off, load a preset, undo half of
-  it, come back tomorrow — the predicates are re-evaluated against whatever the rack is now.
-- **Order is the reader's.** Doing step four while reading step two credits step four. A scripted tour would
-  have to either refuse or resynchronise, and both are worse than noticing.
-- **It is a Node test.** The interesting failures are silent ones — a predicate nobody can satisfy leaves
-  somebody stuck doing exactly as they were told; one already true on an empty rack ticks itself and teaches
-  nothing. `tutorials.test.ts` asserts no step holds on a blank rack, and carries a finished-state fixture
-  per lesson written from the instruction text, so a step and its own wording cannot drift apart.
-
-`TutorialCoach.tsx` is only the panel, and owns exactly two things the pure layer cannot: which step you are
-on, and which are done. **Completion latches** — half the lessons say "turn the rack around" and then ask you
-to turn back, so a checklist re-derived from live state would untick itself one instruction later. Skipping
-marks a step passed rather than done and is reversible: doing it later still credits it, and a tour reports
-itself finished only when every step genuinely happened.
-
-It is an aside pinned clear of the keyboard rather than a modal, because a modal covers the rack the tour is
-asking you to touch. The alternative — a spotlight cut-out over the real control — needs the panel to know
-where every control is, which is a second layout system that goes wrong silently every time a faceplate
-moves. A named place to look ("Back panel", "Add module") costs nothing and survives rearrangement.
-
-The factory bank grew the same gap and got the same treatment. Not one shipped patch contained a MIDI module
-or a Voice, so the answer to "I opened the rack and pressed a key" was silence from a bank of eight patches
-all busy playing themselves. **First Light** and **One Finger** are playable rather than self-running, and
-the **Keys** and **Arp** chunks are the first two that wait for a key — declared with `playable`, for the
-same reason `needsSample` is declared, so the test that every chunk makes a sound on arrival can hold them to
-the right standard instead of skipping them.
+Node tests cover the setup patches, predicates and recovery-save failure. Browser tests cover setup
+choice, latching and navigation through skipped steps.
 
 ## The header, and the twenty-one-button problem
 

@@ -1,28 +1,7 @@
-import { MODULES, type Patch } from '@driftbox/rack'
+import { MODULES, patchPresetById, type Patch } from '@driftbox/rack'
 
-// Guided tours of the rack, as data.
-//
-// **The tours watch the rack; they never drive it.** No step is completed by pressing Next, and no step
-// moves a knob or drops a module on your behalf. A step is a claim about the patch — "there is a Ladder in
-// it", "something reaches an Out", "an LFO feeds a control inlet" — and it ticks when that claim becomes
-// true because you made it true. Nothing else was ever going to work here: a tour that patched the cable
-// for you would leave somebody watching a demo of a thing they still could not do, and the rack's whole
-// difficulty is that its concepts are invisible until your own hand has made one.
-//
-// It has a second consequence that matters more than it sounds: **a tour cannot be got out of step**.
-// There is no script position to lose. Do the steps out of order, wander off and load a patch, undo half
-// of it, come back an hour later — the predicates are re-evaluated against whatever the rack is now, and
-// the tour is wherever it truly is. That is also why they are cheap: no recorded sequence, no synthetic
-// events, no shadow copy of the rack to keep in agreement with the real one.
-//
-// **Pure, and separate from the UI on purpose.** Everything here is a function of a plain snapshot, so the
-// interesting half — is this step reachable, does this lesson actually end somewhere audible — is a Node
-// test rather than something you find out by driving a browser. `TutorialCoach.tsx` is only the panel.
-//
-// The lessons deliberately teach what the rack already does rather than what a modular is in general.
-// Three of the five hardest things to discover here are conveniences: a source arrives wired to its own
-// Out, the keyboard builds a MIDI module the first time you press a key, and a filter does *not* arrive
-// wired to anything. Every one of those is good behaviour that is invisible until somebody says it.
+// Each lesson offers a small starting patch. Once started, the checklist watches the player's
+// actions; it never moves controls. Audio wiring and knob changes are checked against the real rack.
 
 export interface TutorialState {
   patch: Patch
@@ -60,7 +39,7 @@ export interface TutorialStep {
    * step of every tour is the decoration `PlayBeacon` was written not to be.
    */
   spotlight?: readonly string[]
-  done(state: TutorialState): boolean
+  done(state: TutorialState, baseline?: TutorialState): boolean
 }
 
 export interface Tutorial {
@@ -69,6 +48,8 @@ export interface Tutorial {
   blurb: string
   /** Roughly, for the card. Nobody believes these; they exist to say "short" or "not short". */
   minutes: number
+  /** A fresh, minimal patch with the prerequisites for this lesson. */
+  setup?: () => Patch
   steps: readonly TutorialStep[]
 }
 
@@ -98,6 +79,7 @@ export function patched(
   fromType: string,
   toType?: string,
   toPort?: string,
+  fromPort?: string,
 ): boolean {
   const from = new Set(of(patch, fromType).map((module) => module.id))
   const to =
@@ -105,6 +87,7 @@ export function patched(
   return patch.cables.some(
     (cable) =>
       from.has(cable.from[0]) &&
+      (fromPort === undefined || cable.from[1] === fromPort) &&
       (to === null || to.has(cable.to[0])) &&
       (toPort === undefined || cable.to[1] === toPort),
   )
@@ -126,6 +109,7 @@ export const fed = (patch: Patch, type: string, port: string): boolean => {
 export function audible(patch: Patch, type: string): boolean {
   const downstream = new Map<string, string[]>()
   for (const cable of patch.cables) {
+    if (!/^(in\d*|return[AB])$/.test(cable.to[1])) continue
     const list = downstream.get(cable.from[0])
     if (list) list.push(cable.to[0])
     else downstream.set(cable.from[0], [cable.to[0]])
@@ -149,21 +133,16 @@ export function audible(patch: Patch, type: string): boolean {
   return false
 }
 
-/**
- * Has a knob on this type of module been moved off the value the def ships it at?
- *
- * Against the def rather than against a remembered starting value, deliberately. A remembered one would
- * make the step un-tickable for somebody who loaded a preset that had already moved the knob — and they
- * have not been cheated of the lesson, they arrived having already learnt it somewhere else.
- */
-export function paramMoved(patch: Patch, type: string, paramId?: string): boolean {
+/** Compare against the lesson's starting patch; a newly added device starts at its defaults. */
+export function paramMoved(patch: Patch, type: string, paramId?: string, baseline?: Patch): boolean {
   const def = MODULES[type]
   if (!def) return false
   return of(patch, type).some((module) =>
     Object.entries(module.params ?? {}).some(([id, value]) => {
       if (paramId !== undefined && id !== paramId) return false
       const param = def.params.find((candidate) => candidate.id === id)
-      return param !== undefined && !param.hidden && param.default !== value
+      const initial = baseline?.modules.find((candidate) => candidate.id === module.id)?.params?.[id]
+      return param !== undefined && !param.hidden && (initial ?? param.default) !== value
     }),
   )
 }
@@ -181,7 +160,7 @@ const step = (
   where: string,
   title: string,
   body: string,
-  done: (state: TutorialState) => boolean,
+  done: (state: TutorialState, baseline?: TutorialState) => boolean,
   spotlight?: readonly string[],
 ): TutorialStep => ({ id, where, title, body, done, spotlight })
 
@@ -191,9 +170,58 @@ const inPicker = (type: string): readonly string[] => [
   '[data-beacon="add"]',
 ]
 
+/** The same voice must receive both note cables. Pitch alone is a silent patch. */
+export function sequencedVoice(patch: Patch): boolean {
+  return of(patch, 'voice').some((voice) =>
+    of(patch, 'seq').some((seq) =>
+      ['pitch', 'gate'].every((port) =>
+        patch.cables.some((cable) =>
+          cable.from[0] === seq.id && cable.from[1] === port &&
+          cable.to[0] === voice.id && cable.to[1] === port,
+        ),
+      ),
+    ),
+  )
+}
+
+const rotaryRouted = (patch: Patch, rotary: string): boolean =>
+  of(patch, 'combi').some((combi) =>
+    patch.modulation?.some((route) =>
+      route.from[0] === combi.id && route.from[1] === rotary &&
+      patch.modules.some((target) =>
+        target.id === route.to[0] &&
+        MODULES[target.type]?.params.some((param) => param.id === route.to[1]),
+      ),
+    ),
+  )
+
+/** Standalone lessons: no earlier tour, sample, or external keyboard is required. */
+export function lessonSetup(id: string): Patch {
+  if (id === 'first-sound') return { tempo: 108, modules: [], cables: [] }
+  const seed = patchPresetById('pocket-sequence')!.build()
+  const sequence = id !== 'sequence-it'
+  const filter = ['make-it-move', 'macros', 'record-a-move'].includes(id)
+  const patch: Patch = {
+    tempo: 108,
+    modules: seed.modules.filter((module) =>
+      ['voice', 'out', ...(sequence ? ['transport', 'seq'] : [])].includes(module.type),
+    ),
+    cables: seed.cables.filter((cable) => sequence && ['clock', 'pitch', 'gate'].includes(cable.to[1])),
+  }
+  if (filter) {
+    patch.modules.push({ id: 'ladder-1', type: 'ladder' })
+    patch.cables.push(
+      { from: ['voice-1', 'out'], to: ['ladder-1', 'in'] },
+      { from: ['ladder-1', 'out'], to: ['out-1', 'in'] },
+    )
+  } else patch.cables.push({ from: ['voice-1', 'out'], to: ['out-1', 'in'] })
+  return patch
+}
+
 export const TUTORIALS: readonly Tutorial[] = [
   {
     id: 'first-sound',
+    setup: () => lessonSetup('first-sound'),
     name: 'A sound of your own',
     blurb: 'Add an instrument and play it. Nothing to patch yet.',
     minutes: 3,
@@ -202,7 +230,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'start',
         'Header',
         'Press Start audio.',
-        'A browser will not make a sound until you ask it to, so the whole rack is silent until this. It is the only step you cannot skip past.',
+        'A browser will not make a sound until you ask it to, so the whole rack is silent until this. You can skip ahead, but you will need audio on to hear your work.',
         (state) => state.started,
         ['[data-beacon="transport"]'],
       ),
@@ -210,7 +238,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'voice',
         'Add module',
         'Add module → Sources → Voice.',
-        'A Voice is a whole synth in one device. Watch what happens behind it: anything on the Sources shelf arrives already wired to its own Out channel, so you have not been handed a silent rectangle.',
+        'A Voice is a whole synth in one device. It arrives wired to its own Out channel; the keyboard supplies its notes.',
         (state) => has(state.patch, 'voice'),
         inPicker('voice'),
       ),
@@ -219,7 +247,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Keyboard',
         'Play the keyboard along the bottom.',
         'The first note you press builds a MIDI module and cables it to the newest instrument. That is why this works before you have patched anything.',
-        (state) => state.sounding > 0 || has(state.patch, 'midi'),
+        (state) => state.started && state.sounding > 0 && audible(state.patch, 'voice'),
       ),
       step(
         'flip',
@@ -233,14 +261,15 @@ export const TUTORIALS: readonly Tutorial[] = [
         'knob',
         'Voice panel',
         'Turn back and move a knob on the Voice.',
-        'Drag vertically. Shift is fine movement, arrow keys work when a knob has focus, and a double-click puts it back at the middle.',
-        (state) => paramMoved(state.patch, 'voice'),
+        'Drag vertically. Shift is fine movement, arrow keys work when a knob has focus, and a double-click resets it to the middle of its range.',
+        (state, baseline) => paramMoved(state.patch, 'voice', undefined, baseline?.patch),
         ['[data-module-type="voice"]'],
       ),
     ],
   },
   {
     id: 'patch-by-hand',
+    setup: () => lessonSetup('patch-by-hand'),
     name: 'Your first cable',
     blurb: 'A filter arrives connected to nothing. Wire it in.',
     minutes: 4,
@@ -249,7 +278,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'ladder',
         'Add module',
         'Add module → Filters → Ladder.',
-        'Nothing happens, and that is the lesson. Only sources auto-connect: a processor cannot guess what it is meant to be processing, so it waits.',
+        'The lesson setup includes a repeating Voice. Press Start audio (or Play if audio is already on); the Ladder stays silent until you wire it into that path.',
         (state) => has(state.patch, 'ladder'),
         inPicker('ladder'),
       ),
@@ -265,8 +294,8 @@ export const TUTORIALS: readonly Tutorial[] = [
         'in',
         'Back panel',
         'Patch an instrument’s Out into the Ladder’s In.',
-        'Take the cable that currently reaches an Out module and land it here instead. The Out module goes quiet, which is correct: you have just cut the chain in half.',
-        (state) => fed(state.patch, 'ladder', 'in'),
+        'Drag from Voice Out to Ladder In. The original sound keeps playing until the next step replaces the cable at the Out module.',
+        (state) => patched(state.patch, 'voice', 'ladder', 'in', 'out'),
         ['[data-module-type="ladder"]'],
       ),
       step(
@@ -274,7 +303,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Back panel',
         'Patch the Ladder’s Out into an Out module’s In.',
         'The chain is whole again, with the filter in the middle of it. Out is the only place audio leaves the rack — no Out, no sound, however well the rest is wired.',
-        (state) => audible(state.patch, 'ladder'),
+        (state) => patched(state.patch, 'voice', 'ladder', 'in', 'out') && audible(state.patch, 'ladder'),
         ['[data-module-type="ladder"]'],
       ),
       step(
@@ -282,13 +311,14 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Ladder panel',
         'Turn back and close the Cutoff.',
         'Then bring the Res up. This is the 303’s filter: four poles, saturating, and it will self-oscillate near the top of the Res knob.',
-        (state) => paramMoved(state.patch, 'ladder', 'cutoff'),
+        (state, baseline) => paramMoved(state.patch, 'ladder', 'cutoff', baseline?.patch),
         ['[data-module-type="ladder"]'],
       ),
     ],
   },
   {
     id: 'make-it-move',
+    setup: () => lessonSetup('make-it-move'),
     name: 'Make it move',
     blurb: 'An LFO into a control inlet, and how to set the depth.',
     minutes: 4,
@@ -297,16 +327,16 @@ export const TUTORIALS: readonly Tutorial[] = [
         'lfo',
         'Add module',
         'Add module → Modulation → LFO.',
-        'An LFO makes no sound. It makes a slow signal, and a signal only becomes control because of the inlet it arrives at.',
+        'Press Start audio (or Play if audio is already on) to hear the lesson’s filtered Voice. An LFO makes a slow control signal that will move its filter.',
         (state) => has(state.patch, 'lfo'),
         inPicker('lfo'),
       ),
       step(
         'patch',
         'Back panel',
-        'Patch the LFO’s Bi output into a Cutoff inlet.',
+        'Patch LFO Bi into Ladder Cutoff.',
         'Bi swings either side of zero, so the filter moves up and down around wherever you left the knob. Uni only ever adds.',
-        (state) => patched(state.patch, 'lfo'),
+        (state) => patched(state.patch, 'lfo', 'ladder', 'cutoff', 'bi') && audible(state.patch, 'ladder'),
         ['[data-module-type="lfo"]'],
       ),
       step(
@@ -314,7 +344,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'LFO panel',
         'Set the Rate.',
         'Below about 20 Hz it is movement; above that it stops being a wobble and starts being a tone. The same module does both.',
-        (state) => paramMoved(state.patch, 'lfo', 'rate'),
+        (state, baseline) => paramMoved(state.patch, 'lfo', 'rate', baseline?.patch),
         ['[data-module-type="lfo"]'],
       ),
       step(
@@ -322,7 +352,7 @@ export const TUTORIALS: readonly Tutorial[] = [
         'LFO panel',
         'Change the Shape.',
         'A triangle sweeps, a square switches between two states, and the stepped shape is a random value held until the next cycle.',
-        (state) => paramMoved(state.patch, 'lfo', 'shape'),
+        (state, baseline) => paramMoved(state.patch, 'lfo', 'shape', baseline?.patch),
         ['[data-module-type="lfo"]'],
       ),
       step(
@@ -330,12 +360,17 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Back panel',
         'Turn down the trim beside that inlet.',
         'The small control next to every input scales what arrives — and its negative half inverts it. This is how you get *some* modulation instead of all of it, and it is the control people look hardest for.',
-        (state) => trimmed(state.patch),
+        (state, baseline) => of(state.patch, 'ladder').some(module =>
+          state.patch.cables.some(cable => cable.to[0] === module.id && cable.to[1] === 'cutoff' &&
+            cable.from[1] === 'bi' && of(state.patch, 'lfo').some(lfo => lfo.id === cable.from[0])) &&
+          Math.abs(module.inputTrims?.cutoff ?? 1) < 1 &&
+          (module.inputTrims?.cutoff ?? 1) !== (baseline?.patch.modules.find(old => old.id === module.id)?.inputTrims?.cutoff ?? 1)),
       ),
     ],
   },
   {
     id: 'sequence-it',
+    setup: () => lessonSetup('sequence-it'),
     name: 'Let it play itself',
     blurb: 'A clock, eight steps, and something to point them at.',
     minutes: 5,
@@ -361,23 +396,23 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Back panel',
         'Patch Transport 1/16 into the Seq’s Clock.',
         'One edge, one step. Patch the same 1/16 into a second sequencer and the two stay in phase for ever — which two self-clocking modules could never quite manage.',
-        (state) => patched(state.patch, 'transport', 'seq', 'clock'),
+        (state) => patched(state.patch, 'transport', 'seq', 'clock', 'sixteenth'),
         ['[data-module-type="seq"]'],
       ),
       step(
         'pitch',
         'Back panel',
-        'Patch Seq Pitch into an instrument’s V/Oct, and Gate into its Gate.',
+        'Patch Seq Pitch to Voice V/Oct, and Seq Gate to Voice Gate.',
         'Pitch says which note, Gate says when and for how long. They are separate cables because plenty of useful patches want one without the other.',
-        (state) => patched(state.patch, 'seq', undefined, 'pitch'),
+        (state) => sequencedVoice(state.patch),
         ['[data-module-type="seq"]'],
       ),
       step(
         'play',
         'Header',
-        'Press Play.',
-        'The Seq’s gate is the clock’s gate and the step’s switch, together — so the note length comes from the Clock’s Width, and turning it shortens every step at once.',
-        (state) => state.playing,
+        'Press Start audio, or Play if audio is already on.',
+        'Transport supplies a fixed pulse. Voice Decay and Release shape the note length; switching a Seq step off makes a rest.',
+        (state) => state.started && state.playing && sequencedVoice(state.patch) && audible(state.patch, 'voice'),
         ['[data-beacon="transport"]'],
       ),
       step(
@@ -385,13 +420,14 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Seq panel',
         'Write a line: move the pitch knobs, and switch some steps off.',
         'The rests are what make it a riff rather than a scale. The small patch name above the panel has factory lines in it if you would rather start from one.',
-        (state) => paramMoved(state.patch, 'seq'),
+        (state, baseline) => paramMoved(state.patch, 'seq', undefined, baseline?.patch),
         ['[data-module-type="seq"]'],
       ),
     ],
   },
   {
     id: 'macros',
+    setup: () => lessonSetup('macros'),
     name: 'Four knobs that play the patch',
     blurb: 'The Combinator, and why it is not a container.',
     minutes: 4,
@@ -407,17 +443,17 @@ export const TUTORIALS: readonly Tutorial[] = [
       step(
         'route',
         'Combi panel',
-        'Open Routing and aim Rotary 1 at a knob.',
-        'Pick something worth performing: a filter cutoff, a delay feedback, a level. The target keeps its own knob and stays editable; the routing just decides its live value.',
-        (state) => (state.patch.modulation?.length ?? 0) >= 1,
+        'Open Modulation… and aim Rotary 1 at a knob.',
+        'Choose Ladder Cutoff for Rotary 1; try a range of 300 to 2400 Hz. The target keeps its own knob and stays editable; the routing just decides its live value.',
+        (state) => rotaryRouted(state.patch, 'rotary1'),
         ['[data-module-type="combi"]'],
       ),
       step(
         'range',
         'Combi panel',
         'Aim a second rotary somewhere else.',
-        'Each routing has its own min and max, so one rotary can sweep a filter across two useful octaves rather than across everything the knob can physically do.',
-        (state) => (state.patch.modulation?.length ?? 0) >= 2,
+        'Try Voice Release for Rotary 2, from 0.08 to 0.6 seconds. Press Start audio (or Play if audio is already on) to hear both controls on the repeating line.',
+        (state) => rotaryRouted(state.patch, 'rotary1') && rotaryRouted(state.patch, 'rotary2'),
         ['[data-module-type="combi"]'],
       ),
       step(
@@ -425,13 +461,14 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Combi panel',
         'Turn Rotary 1 and listen.',
         'A parameter under a routing is marked on its own panel, so you can always find out what is moving a knob you did not touch.',
-        (state) => paramMoved(state.patch, 'combi', 'rotary1'),
+        (state, baseline) => paramMoved(state.patch, 'combi', 'rotary1', baseline?.patch),
         ['[data-module-type="combi"]'],
       ),
     ],
   },
   {
     id: 'record-a-move',
+    setup: () => lessonSetup('record-a-move'),
     name: 'Record a knob move',
     blurb: 'Arm, perform, then draw the take by hand.',
     minutes: 3,
@@ -439,7 +476,7 @@ export const TUTORIALS: readonly Tutorial[] = [
       step(
         'run',
         'Header',
-        'Start audio and press Play.',
+        'Press Start audio, or Play if audio is already on.',
         'Automation is recorded against the rack’s timeline, so there has to be one running before there is anywhere to put a move.',
         (state) => state.started && state.playing,
         ['[data-beacon="transport"]'],
@@ -457,7 +494,8 @@ export const TUTORIALS: readonly Tutorial[] = [
         'Any panel',
         'Move a knob while it runs.',
         'The count on the Automation button is how many lanes you now have. Play it back and the move happens again at the same point in the bar.',
-        (state) => (state.patch.automation?.length ?? 0) > 0,
+        (state, baseline) => (state.patch.automation?.length ?? 0) > 0 &&
+          JSON.stringify(state.patch.automation) !== JSON.stringify(baseline?.patch.automation),
       ),
       step(
         'desk',

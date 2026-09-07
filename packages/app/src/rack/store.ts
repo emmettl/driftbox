@@ -595,17 +595,8 @@ function freshId(patch: Patch, type: string): string {
   }
 }
 
-/**
- * What a first-time visitor arrives on.
- *
- * A beat, not a bleep. `docs/DNB.md` is explicit that the reward for the gesture that starts audio has to be
- * immediate and has to be the thing this rack is for — and a sequenced acid line, which is what this used to
- * be, is a demonstration rather than a record.
- *
- * The shipped factory rather than a second copy of it: `@driftbox/rack` owns presets for the same reason the
- * engine owns songs. They are data about the instrument, not about the page showing it.
- */
-const FIRST_PRESET = patchPresetById('pressure-system') ?? PATCHES[0]
+/** A compact, tempo-synced instrument that plays without downloading a break. */
+const FIRST_PRESET = patchPresetById('pocket-sequence') ?? PATCHES[0]
 
 const STARTER = (): Patch => FIRST_PRESET.build()
 
