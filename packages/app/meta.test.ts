@@ -70,7 +70,7 @@ describe.each(pages)('%s', (page) => {
   it('points at absolute https URLs', () => {
     // The one that costs a blank card. A crawler is not on the page and cannot resolve `/og.png`.
     for (const key of ['og:url', 'og:image', 'og:image:secure_url', 'twitter:image']) {
-      expect(meta.get(key), key).toMatch(/^https:\/\/emmettl\.github\.io\/driftbox\//)
+      expect(meta.get(key), key).toMatch(/^https:\/\/driftbox\.app\//)
     }
   })
 
