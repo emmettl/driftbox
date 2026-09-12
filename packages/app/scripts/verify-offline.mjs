@@ -58,10 +58,9 @@ function serve(prefix) {
   return new Promise((ok) => server.listen(0, '127.0.0.1', () => ok(server)))
 }
 
-async function check(prefix, label) {
-  const server = await serve(prefix)
-  const { port } = server.address()
-  const base = `http://127.0.0.1:${port}${prefix}/`
+async function check(prefix, label, externalBase) {
+  const server = externalBase ? undefined : await serve(prefix)
+  const base = externalBase ?? `http://127.0.0.1:${server.address().port}${prefix}/`
   const browser = await chromium.launch({ executablePath: process.env.DRIFTBOX_CHROMIUM })
   const context = await browser.newContext()
   const failures = []
@@ -111,7 +110,7 @@ async function check(prefix, label) {
     )
   } finally {
     await browser.close()
-    server.close()
+    server?.close()
   }
   return failures.length === 0
 }
@@ -124,6 +123,14 @@ try {
 }
 
 const results = []
-results.push(await check('', 'served at the root, as npx does'))
-results.push(await check('/driftbox', 'served at /driftbox/, as GitHub Pages does'))
+// Also exercise Wrangler's asset routing and _headers handling, or a live host,
+// rather than assuming they behave like the tiny static server above.
+if (process.env.DRIFTBOX_VERIFY_URL) {
+  const base = new URL(process.env.DRIFTBOX_VERIFY_URL)
+  if (!base.pathname.endsWith('/')) throw new Error('DRIFTBOX_VERIFY_URL must end in /')
+  results.push(await check(base.pathname.slice(0, -1), base.href, base.href))
+} else {
+  results.push(await check('', 'served at the root, as npx does'))
+  results.push(await check('/driftbox', 'served at /driftbox/, as GitHub Pages does'))
+}
 if (results.includes(false)) process.exit(1)

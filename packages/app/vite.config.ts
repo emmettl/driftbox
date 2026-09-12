@@ -114,7 +114,7 @@ export default defineConfig({
   // identical, no console errors, ladder worklet loading in both.
   //
   // This does NOT affect the Open Graph tags in index.html, which are absolute and
-  // hardcoded to the canonical Pages URL on purpose — crawlers cannot resolve a
+  // hardcoded to the canonical driftbox.app URL on purpose — crawlers cannot resolve a
   // relative og:image.
   base: './',
 

@@ -1,9 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -47,3 +49,33 @@ jobs:
       # page's first-load graph. One static import in the registry welds all eighteen back into
       # the entry, and it is a change nobody would see reviewing the diff that caused it.
       - run: npm run check:size --workspace @driftbox/app
+
+      - name: Validate Cloudflare deployment
+        run: npx wrangler deploy --dry-run
+
+      - name: Verify offline support through Cloudflare asset routing
+        run: |
+          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/driftbox-wrangler.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true; cat /tmp/driftbox-wrangler.log' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8787/ > /dev/null; then break; fi
+            sleep 1
+          done
+          DRIFTBOX_VERIFY_URL=http://127.0.0.1:8787/ npm run verify:offline --workspace @driftbox/app
+
+      - name: Release marker
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs'
+          const { GITHUB_REPOSITORY: repository, GITHUB_SHA: commit, GITHUB_RUN_ID: run_id, GITHUB_SERVER_URL: server } = process.env
+          writeFileSync('packages/app/dist/_release.json', JSON.stringify({
+            repository, commit, run_id,
+            workflow_url: `${server}/${repository}/actions/runs/${run_id}`,
+          }) + '\n')
+          NODE
+      - uses: actions/upload-artifact@v7
+        with:
+          name: driftbox-site
+          path: packages/app/dist
+          retention-days: 3
