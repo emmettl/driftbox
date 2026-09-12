@@ -13,6 +13,11 @@
 
 /** What never earns its place in a precache. */
 const SKIP = [
+  // Cloudflare consumes these as configuration and does not serve them. One
+  // 404 rejects cache.addAll, preventing the entire app from working offline.
+  /^_(headers|redirects)$/,
+  // Deployment diagnostics must describe the live host, never an offline copy.
+  /^_release\.json$/,
   // Source maps are large, are fetched only when devtools is open, and devtools is not open
   // on the train.
   /\.map$/,

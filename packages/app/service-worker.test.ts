@@ -42,6 +42,12 @@ describe('precacheUrls', () => {
     const urls = precacheUrls(['icon-192.png', 'icon-192.png'])
     expect(urls).toEqual(['./', './icon-192.png'])
   })
+
+  it('does not fetch host configuration or cache the live release marker', () => {
+    expect(precacheUrls(['index.html', '_headers', '_redirects', '_release.json'])).toEqual([
+      './', './index.html',
+    ])
+  })
 })
 
 describe('cacheName', () => {

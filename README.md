@@ -12,7 +12,7 @@ It works as a player if that is all you want: the song's name and the section it
 along the bottom, with skip buttons either side. You never have to open the grid.
 
 Run it without installing anything at
-[emmettl.github.io/driftbox](https://emmettl.github.io/driftbox/), or locally:
+[driftbox.app](https://driftbox.app/) (also on [GitHub Pages](https://emmettl.github.io/driftbox/)), or locally:
 
 ```bash
 npx @driftbox/app
@@ -578,6 +578,10 @@ engine.audition('909.cp')     // one-shot, for a game event
 
 A `Song` is plain JSON — patterns, a chain, kit settings and optional automation — so a
 soundtrack ships as an asset rather than as code.
+
+## Hosting
+
+The same checked build deploys to Cloudflare and GitHub Pages. See [hosting setup and deployment checks](docs/HOSTING.md).
 
 ## Verification
 

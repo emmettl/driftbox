@@ -1,0 +1,2 @@
+# Internal rewrite: preserve the document URLs used by the offline cache.
+/ /index.html 200

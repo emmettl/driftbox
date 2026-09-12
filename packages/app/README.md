@@ -21,7 +21,7 @@ Node built-ins, so `npx` fetches one small tarball and runs it rather than resol
 three and the rest first.
 
 Or use it without installing anything, at
-[emmettl.github.io/driftbox](https://emmettl.github.io/driftbox/).
+[driftbox.app](https://driftbox.app/) (also on [GitHub Pages](https://emmettl.github.io/driftbox/)).
 
 ## Using it
 

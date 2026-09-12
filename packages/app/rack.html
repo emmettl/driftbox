@@ -26,7 +26,7 @@
       Link previews, and the reasoning in index.html applies here unchanged: none of
       WhatsApp, iMessage, Slack or Signal runs JavaScript, so every tag has to be in the
       static HTML rather than set by the app at runtime — which is why these live here and
-      not in a component. The URLs are absolute and hardcoded to the GitHub Pages
+      not in a component. The URLs are absolute and hardcoded to the driftbox.app
       deployment for the same reason too: crawlers do not resolve a relative og:image
       against the page, and that is the single commonest cause of a blank card.
 
@@ -41,6 +41,7 @@
       patches in the URL at all — see `app/src/hash.ts` — and it is why the copy below
       describes the instrument rather than the patch.
     -->
+    <link rel="canonical" href="https://driftbox.app/rack.html" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Driftbox" />
     <meta property="og:title" content="Driftbox Rack — a modular synth in the browser" />
@@ -48,11 +49,11 @@
       property="og:description"
       content="A modular synth rack with cables you can actually pull. Thirty-one modules, one graph running at sample rate, and a patch that fits in a URL."
     />
-    <meta property="og:url" content="https://emmettl.github.io/driftbox/rack.html" />
+    <meta property="og:url" content="https://driftbox.app/rack.html" />
     <meta property="og:locale" content="en_GB" />
-    <meta property="og:image" content="https://emmettl.github.io/driftbox/og-rack.png" />
+    <meta property="og:image" content="https://driftbox.app/og-rack.png" />
     <!-- WhatsApp looks for the https variant specifically. -->
-    <meta property="og:image:secure_url" content="https://emmettl.github.io/driftbox/og-rack.png" />
+    <meta property="og:image:secure_url" content="https://driftbox.app/og-rack.png" />
     <meta property="og:image:type" content="image/png" />
     <!-- Given explicitly: without them WhatsApp tends to fall back to a small square
          thumbnail instead of the wide card. -->
@@ -69,7 +70,7 @@
       name="twitter:description"
       content="A modular synth rack with cables you can actually pull. Thirty-one modules, one graph running at sample rate, and a patch that fits in a URL."
     />
-    <meta name="twitter:image" content="https://emmettl.github.io/driftbox/og-rack.png" />
+    <meta name="twitter:image" content="https://driftbox.app/og-rack.png" />
     <meta
       name="twitter:image:alt"
       content="The Driftbox rack seen from behind: patch cables sweeping between the jacks of a VU meter, an oscillator, an envelope and a compressor."

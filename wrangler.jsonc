@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "driftbox",
+  "account_id": "8cac82a07417990e553f88793670f361",
+  "compatibility_date": "2026-09-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./packages/app/dist",
+    // Keep rack.html and index.html addressable as written in the offline
+    // precache and manifest; HTML redirects would introduce uncached URLs.
+    "html_handling": "none",
+    "not_found_handling": "none"
+  },
+  "routes": [
+    { "pattern": "driftbox.app", "custom_domain": true },
+    { "pattern": "www.driftbox.app", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+}
