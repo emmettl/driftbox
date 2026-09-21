@@ -220,6 +220,13 @@ function buildSource(
         })()
 
   const gain = ctx.createGain()
+  // Silent from creation, not from the envelope's first event. A gain node is born at 1 and a
+  // param holds that until its first event, which here is `setValueAtTime(0, start)`. When
+  // `start * sampleRate` lands a hair above a whole frame — 0.045000000000000005 s at 48 kHz is
+  // frame 2160.0000000000005 — Chromium rounds the source's start onto that frame while the
+  // gain's event is still in the future at that frame's time, and one frame of raw source goes
+  // out at unity. Measured on the 808 clap at colour 0.9: 0.048 between neighbours of 1e-7.
+  gain.gain.value = 0
   // Scaled by the source's own gain.
   //
   // This was missing, from the first commit until it was heard rather than found: every
