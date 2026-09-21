@@ -800,12 +800,15 @@ export async function renderVoiceOffline(
    *
    * **It perturbs the identity of the hit, not its position in time.** Rendering at a series of
    * later start times was the obvious way to do this and is wrong: a start time that is not on a
-   * render-quantum boundary changes far more than the noise offset. Measured on the 808 closed
-   * hat, which contains no noise at all, the bare peak moves between 0.67 and 3.97 purely with
-   * where the hit falls inside a quantum. That is a real effect worth knowing about — it survives
-   * into the engine as a 0.28-to-0.78 spread, well under full scale because of the bus and master
-   * gains — but it is a different question from this one, and a sweep that moved both would be
-   * measuring neither.
+   * render-quantum boundary changes more than the noise offset. Measured on the 808 closed hat,
+   * which contains no noise at all, the bare peak used to move between 0.67 and 3.97 purely with
+   * where the hit fell inside a quantum. That was Chromium reading a source's params from the start
+   * of the quantum rather than from where the source started, which for an oscillator whose pitch
+   * was only ever scheduled meant up to 64 frames of the node's default 440 Hz — see `buildSource`,
+   * which now sets the intrinsic value too. What survives is smaller: a pitch envelope is still
+   * read from the quantum's start for that first partial quantum, which shifts a kick's phase
+   * without moving its peak. Time 0 is a boundary, so nothing rendered here has either problem,
+   * and a sweep that moved the start would be measuring that as well as the noise.
    */
   variant = 0,
 ): Promise<Float32Array> {
