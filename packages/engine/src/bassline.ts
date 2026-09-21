@@ -135,6 +135,23 @@ export class Bassline {
       this.osc.type = note.wave
     }
 
+    // The cancels below are meant to cut whatever the previous note still had scheduled, and
+    // they cut more than that reads like. A ramp's event time is its END, so a note starting
+    // inside the previous note's filter decay removes that ramp entirely — and, measured in
+    // Chromium, a param whose running ramp is cancelled does not hold where it had got to: it
+    // snaps BACK to the ramp's starting value, the previous `setValueAtTime`. Two consequences.
+    //
+    // Offline, `play` has to be called from the render quantum the note falls in (see
+    // `offlineSchedule` in `stems.ts`). Called for a whole song before rendering starts, every
+    // overlapped decay is cancelled before it has played and the cutoff sits flat at the peak.
+    //
+    // Live, notes are scheduled a lookahead early, so the cutoff of a note whose decay is
+    // still running jumps back up to its peak for that last ~120 ms before the next struck
+    // note. The VCA is at SILENCE by then unless the note is sliding — and a slid-in note does
+    // not retrigger, so does not cancel the cutoff — which makes it essentially inaudible and
+    // is why it is left alone. `cancelAndHoldAtTime` is the call that would do what is
+    // intended here. Changing to it changes what every render is compared against, the
+    // native port's included: its `ParamTimeline.cancel` documents this behaviour as measured.
     const frequency = this.osc.frequency
     frequency.cancelScheduledValues(time)
     if (note.glide > 0) {

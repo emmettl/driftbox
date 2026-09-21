@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { AUTOMATION_TARGET, setAutomationPoint } from './automation.js'
+import { Bassline } from './bassline.js'
 import { DEFAULT_FX } from './effects.js'
+import { MIX_BUS_GAIN } from './master.js'
 import { songBars } from './pattern.js'
 import { planSong } from './schedule.js'
 import { acidSong, defaultSong } from './songs/index.js'
@@ -92,5 +94,85 @@ describe('mastered song mix', () => {
       buffer.getChannelData(0).slice(tailAt).reduce((sum, sample) => sum + Math.abs(sample), 0)
 
     expect(energy(repeatingEcho)).toBeGreaterThan(energy(dryEcho) * 1.5)
+  })
+})
+
+describe('303 stems', () => {
+  // `Bassline.play` cancels each param from the new note's time before scheduling it, and a
+  // ramp's event time is its END — so a note that starts before the previous note's filter
+  // decay has finished cancels that decay's ramp outright. Scheduled from the render quantum
+  // the note falls in, the ramp has already played and nothing audible is lost. Scheduled
+  // before `startRendering()`, every cancel lands before anything has rendered, the ramps go
+  // retroactively, and the cutoff sits flat at each note's peak instead of sweeping. The stem
+  // render did the second thing while the mix did the first, so a stem of an acid line was not
+  // the line in the mix.
+  it('sweeps the filter on notes whose decay overlaps the next note, as the mix does', async () => {
+    const SR = 48000
+    const seed = acidSong()
+    // Dry, so the reference below needs nothing but the 303 and the bus gain.
+    const song = {
+      ...seed,
+      kit: { ...seed.kit, sends: { ...seed.kit.sends, '303.a': { delay: 0, reverb: 0 } } },
+    }
+    const plan = planSong(song, songBars(song))
+    const bar = plan[0].stepSeconds * 16
+    const start = bar * 8
+    const duration = bar * 2
+    const tail = 0.5
+
+    const hits = plan
+      .flatMap((step) => step.bass)
+      .filter((hit) => hit.voiceId === '303.a')
+      .map((hit) => ({ ...hit, time: hit.time - start }))
+      .filter((hit) => hit.time >= 0 && hit.time < duration)
+    // The precondition: this window is only a test of anything if decays really do overlap.
+    // Here the decay is one step long, so it is the swing that does it — a note pulled a
+    // couple of milliseconds early lands inside the decay of the note before it.
+    const overlapping = hits.filter((hit, index) => {
+      const next = hits[index + 1]
+      return hit.note.retrigger && next && next.time <= hit.time + hit.note.filter.decay
+    })
+    expect(overlapping.length).toBeGreaterThanOrEqual(4)
+    expect(hits.every((hit) => hit.sends.delay === 0 && hit.sends.reverb === 0)).toBe(true)
+
+    const [stem] = await renderStems(song, { only: ['303.a'], start, duration, tail, sampleRate: SR })
+
+    // The reference: the same notes on a bare 303, each scheduled from a suspension at the
+    // render quantum it falls in — written out here rather than shared with `stems.ts`, so
+    // that it checks the scheduling instead of agreeing with it.
+    const ctx = new OfflineAudioContext(1, Math.ceil((duration + tail) * SR), SR)
+    const { bassline, usingLadder } = await Bassline.create(ctx)
+    expect(usingLadder).toBe(true)
+    const bus = ctx.createGain()
+    bus.gain.value = MIX_BUS_GAIN
+    bassline.output.connect(bus)
+    bus.connect(ctx.destination)
+    const byQuantum = new Map<number, typeof hits>()
+    for (const hit of hits) {
+      const quantum = Math.floor((hit.time * SR) / 128)
+      byQuantum.set(quantum, [...(byQuantum.get(quantum) ?? []), hit])
+    }
+    const suspensions: Promise<void>[] = []
+    for (const [quantum, group] of byQuantum) {
+      const schedule = () => { for (const hit of group) bassline.play(hit.note, hit.time) }
+      if (quantum <= 0) schedule()
+      else suspensions.push(ctx.suspend((quantum * 128) / SR).then(() => { schedule(); return ctx.resume() }))
+    }
+    const rendering = ctx.startRendering()
+    await Promise.all(suspensions)
+    const expected = (await rendering).getChannelData(0)
+
+    const actual = stem.buffer.getChannelData(0)
+    expect(actual.length).toBe(expected.length)
+    let peak = 0
+    let worst = 0
+    for (let i = 0; i < expected.length; i++) {
+      peak = Math.max(peak, Math.abs(expected[i]))
+      worst = Math.max(worst, Math.abs(actual[i] - expected[i]))
+    }
+    expect(peak).toBeGreaterThan(0.05)
+    // Identical graphs scheduled identically; anything above rounding is a different sweep.
+    // Before the fix this was 0.35 against a peak of 0.40.
+    expect(worst).toBeLessThan(peak * 1e-3)
   })
 })
