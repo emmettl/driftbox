@@ -98,6 +98,58 @@ function sameFx(a: StepPlan['fx'], b: StepPlan['fx']): boolean {
 }
 
 /**
+ * Work that has to happen DURING an offline render rather than before it.
+ *
+ * Two kinds of thing need this. Plain node properties — a convolver's impulse response, an
+ * oscillator's waveform — cannot be scheduled like AudioParams, so pre-scheduling a song
+ * makes the last value win the whole render. And a 303's notes cannot be pre-scheduled
+ * either, for a subtler reason: `Bassline.play` cancels each param from the new note's time,
+ * a ramp's event time is its END, and so a note that starts inside the previous note's
+ * filter decay removes that decay's ramp outright. Called from the render quantum the note
+ * falls in, the ramp has already played and at most the last 128 frames of it are lost —
+ * which is also what the live transport does, a lookahead early. Called before
+ * `startRendering()`, every cancel lands before anything has rendered, the ramps go
+ * retroactively, and the cutoff sits flat at each overlapped note's peak instead of sweeping.
+ *
+ * So queue work in the render quantum containing its time and execute every action there
+ * under one suspension. Grouping by quantum matters: OfflineAudioContext rounds suspension
+ * times to 128-frame boundaries and rejects two nominally different times that land on the
+ * same boundary.
+ */
+function offlineSchedule(ctx: OfflineAudioContext, sampleRate: number) {
+  const events = new Map<number, (() => void)[]>()
+  return {
+    /** Run `action` in the render quantum containing `time`; at once if that is the first. */
+    at(time: number, action: () => void): void {
+      const quantum = Math.floor((time * sampleRate) / 128)
+      if (quantum <= 0) {
+        action()
+        return
+      }
+      const actions = events.get(quantum) ?? []
+      actions.push(action)
+      events.set(quantum, actions)
+    },
+    /** Start the render, stopping at each queued quantum on the way. */
+    async render(): Promise<AudioBuffer> {
+      const suspensions: Promise<void>[] = []
+      for (const [quantum, actions] of [...events].sort(([a], [b]) => a - b)) {
+        suspensions.push(ctx.suspend((quantum * 128) / sampleRate).then(async () => {
+          try {
+            for (const action of actions) action()
+          } finally {
+            await ctx.resume()
+          }
+        }))
+      }
+      const rendering = ctx.startRendering()
+      await Promise.all(suspensions)
+      return rendering
+    },
+  }
+}
+
+/**
  * Every voice the song actually plays.
  *
  * Only patterns the chain reaches count. A song often carries a pattern that is no longer
@@ -165,6 +217,7 @@ async function renderOne(
 
   const plan = planSong(song, renderBars(song))
   const isBass = BASS_VOICES.some((v) => v.id === voiceId)
+  const schedule = offlineSchedule(ctx, opts.sampleRate)
 
   if (isBass) {
     const { bassline } = await Bassline.create(ctx, { useLadder: opts.useLadder })
@@ -185,9 +238,12 @@ async function renderOne(
         if (hit.voiceId !== voiceId) continue
         const time = hit.time - start
         if (time < 0 || time >= duration) continue
-        sendGains.delay.gain.setValueAtTime(hit.sends.delay, time)
-        sendGains.reverb.gain.setValueAtTime(hit.sends.reverb, time)
-        bassline.play(hit.note, time)
+        // From inside the render, as the mix does — see `offlineSchedule`.
+        schedule.at(time, () => {
+          sendGains.delay.gain.setValueAtTime(hit.sends.delay, time)
+          sendGains.reverb.gain.setValueAtTime(hit.sends.reverb, time)
+          bassline.play(hit.note, time)
+        })
       }
     }
   } else {
@@ -206,7 +262,7 @@ async function renderOne(
     }
   }
 
-  return ctx.startRendering()
+  return schedule.render()
 }
 
 /**
@@ -279,24 +335,10 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
   sends.update(openingFx, openingStep?.bpm ?? song.bpm, 0)
   inserts.update(openingFx, 0, openingStep?.pcf ?? 0)
 
-  // Plain node properties cannot be scheduled like AudioParams. Queue work in the render
-  // quantum containing its time and execute every action there under one suspension.
-  // Grouping by quantum matters: OfflineAudioContext rounds suspension times to 128-frame
-  // boundaries and rejects two nominally different times that land on the same boundary.
-  // Besides convolver changes below, this is what lets a 303's oscillator waveform
-  // automation change on the intended note instead of making the final waveform win the
-  // whole pre-scheduled render.
-  const offlineEvents = new Map<number, (() => void)[]>()
-  const at = (time: number, action: () => void) => {
-    const quantum = Math.floor((time * sampleRate) / 128)
-    if (quantum <= 0) {
-      action()
-      return
-    }
-    const actions = offlineEvents.get(quantum) ?? []
-    actions.push(action)
-    offlineEvents.set(quantum, actions)
-  }
+  // Besides the convolver changes below, this is what lets a 303's oscillator waveform
+  // automation change on the intended note, and its filter decays survive the next note.
+  const schedule = offlineSchedule(ctx, sampleRate)
+  const at = schedule.at
 
   // A ConvolverNode's impulse response is not an AudioParam and cannot be scheduled in
   // advance. OfflineAudioContext can pause in the render quantum containing that time,
@@ -394,21 +436,7 @@ export async function renderMix(song: Song, options: MixOptions = {}): Promise<A
     }
   }
 
-  const suspensions: Promise<void>[] = []
-  for (const [quantum, actions] of [...offlineEvents].sort(([a], [b]) => a - b)) {
-    const time = (quantum * 128) / sampleRate
-    suspensions.push(ctx.suspend(time).then(async () => {
-      try {
-        for (const action of actions) action()
-      } finally {
-        await ctx.resume()
-      }
-    }))
-  }
-
-  const rendering = ctx.startRendering()
-  await Promise.all(suspensions)
-  return rendering
+  return schedule.render()
 }
 
 /**
