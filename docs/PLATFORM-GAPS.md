@@ -276,12 +276,34 @@ Three things fell out of doing it that are worth keeping:
 - **`render.browser.test.ts` no longer stubs `Math.random`.** It used to replace the global for its
   whole duration to stop a genuine CI flake. With the engine deterministic there is nothing left to
   stabilise, and the sweep now asks for a different *variant* of the hit each pass.
-- **A hit that does not land on a render-quantum boundary changes far more than its noise offset.**
-  Sweeping start times was the obvious way to sample the distribution and is wrong: measured on the
-  808 closed hat, which contains no noise at all, the bare peak moves between 0.67 and 3.97 purely
-  with where the hit falls inside a quantum. Through the engine it is bounded — 0.28 to 0.78, well
-  under full scale, because of the bus and master gains — so it is not a shipping fault. But it is
-  real, it is unexplained, and anything measuring a voice in isolation should know about it.
+- **A hit that does not land on a render-quantum boundary changes far more than its noise offset**
+  — or did, and it is now explained. Sweeping start times was the obvious way to sample the
+  distribution and is wrong: measured on the 808 closed hat, which contains no noise at all, the
+  bare peak moved between 0.67 and 3.97 purely with where the hit fell inside a quantum. Through the
+  engine it was bounded — 0.28 to 0.78, because of the bus and master gains.
+
+  **What it was**, measured from `driftbox-native` in Chromium 152 and 153: `render.ts` set an
+  oscillator's pitch only by automation, `setValueAtTime(frequency, start)`, leaving the node's
+  intrinsic value at the OscillatorNode default of 440 Hz. When a source starts `p` frames into a
+  128-frame quantum, Chromium reads its params for the rest of that quantum from the *quantum's*
+  start, not the source's. So the oscillator played `min(p, frames left)` frames of 440 Hz, then its
+  pitch envelope `p` frames early, and was right from the next quantum on. Six coherent 440 Hz
+  squares at a hat's onset is the 3.97. `AudioBufferSourceNode.playbackRate` had the same fault —
+  read once per quantum, intrinsic value 1 — so the 909's generated-PCM hats and cymbals played
+  untuned until the next boundary. Time 0 is a boundary, which is why nothing measured through
+  `renderVoiceOffline`, the trims included, ever saw it; live, it depended on when play was pressed.
+
+  **The fix** is the one the source gain already had: set the intrinsic value as well as scheduling
+  it. Constant-pitch sources — the hats, the cowbell, every tuned noise source — now render the
+  same wherever they land, to 1e-4 on the 808 hat and float noise on the rest.
+
+  **What is left**: a source with a pitch *envelope* still reads it from the quantum's start for
+  that first partial quantum, so it holds or lags its sweep by up to `p` frames and carries the
+  resulting phase offset through the hit. Oscillators only, at 48 kHz, against the same hit on a
+  boundary: 0.022 on the 808 kick, under 0.01 on the toms and the 909 snare, and 0.76 on the 909
+  kick, whose fast drop and drive make a small phase shift a large sample difference. Peaks agree
+  to four places in every case, so it is not a level problem, and no setting of intrinsic values
+  can reach it. Anything comparing renders sample for sample should still start on a boundary.
 
 Better characterisation came free. Over 200 offsets the 808 clap runs 0.587 to 1.179, median 0.749,
 crossing full scale on 2 of them; the 909 clap runs 0.708 to 0.933 and never does.

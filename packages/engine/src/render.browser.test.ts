@@ -1,6 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { ALL_VOICES } from './kit.js'
 import { renderVoiceOffline } from './index.js'
+import { renderVoice } from './render.js'
+import type { VoiceSpec } from './types.js'
 
 // The level measurements, which until now lived in `docs/VERIFYING-AUDIO.md` as instructions.
 //
@@ -38,8 +40,9 @@ const SR = 44100
  * lands — so there is no global left to seed and nothing random to stabilise. The sweep instead
  * asks `renderVoiceOffline` for a different variant each pass, which perturbs that identity and
  * nothing else. Deliberately not by rendering at later start times: a hit that does not land on a
- * render-quantum boundary changes much more than its noise offset, by up to a factor of five on a
- * voice containing no noise at all. See the parameter's own note.
+ * render-quantum boundary changes more than its noise offset. It used to be by up to a factor of
+ * five on a voice containing no noise at all — see the last block in this file — and a pitch
+ * envelope's phase still moves. See the parameter's own note.
  *
  * Twenty-five is enough for the mean to settle to three decimal places, which is what the band and
  * the spread are actually asking about, and it costs about three seconds. The noise voices swing
@@ -238,5 +241,93 @@ describe('a source is silent until its envelope starts', () => {
     // The tail's own attack is only about 0.001 by frame 2161, so anything near 0.01 this close to
     // the boundary is the click and not the clap.
     for (let i = 2156; i <= 2164; i++) expect(Math.abs(data[i]), `frame ${i}`).toBeLessThan(0.01)
+  })
+})
+
+describe('a source starts at its own pitch, wherever in a render quantum it starts', () => {
+  // An AudioParam holds its node's intrinsic value until its first automation event, and the
+  // intrinsic values here are an OscillatorNode's 440 Hz and an AudioBufferSourceNode's rate of 1.
+  // Scheduling `setValueAtTime(value, start)` ought to be enough, since the source does not sound
+  // before `start` either — and it is, when `start` is the first frame of a 128-frame render
+  // quantum. When it is not, Chromium reads the source's param values for the rest of that quantum
+  // from the *start of the quantum* rather than from where the source started. An oscillator that
+  // begins `p` frames in plays `p` frames (or as many as the quantum has left) of 440 Hz, then its
+  // pitch envelope `p` frames early, and is right from the next quantum on. `playbackRate` is read
+  // once per quantum, so a tuned noise source plays at rate 1 until the quantum ends.
+  //
+  // Measured in Chromium 152 and 153 from `driftbox-native`, whose renders are compared against
+  // Chromium's. Time 0 is a quantum boundary, which is why nothing measured through
+  // `renderVoiceOffline` ever saw it, and why a sweep of start times moved the 808 closed hat's
+  // bare peak between 0.67 and 3.97: six coherent 440 Hz squares at the onset, for however long the
+  // hit's position in its quantum allowed.
+
+  const SR48 = 48000
+
+  async function renderAt(spec: VoiceSpec, time: number, seconds: number): Promise<Float32Array> {
+    const ctx = new OfflineAudioContext(1, Math.ceil(seconds * SR48), SR48)
+    renderVoice(ctx, spec, ctx.destination, time)
+    return (await ctx.startRendering()).getChannelData(0)
+  }
+
+  it('plays an oscillator at the requested frequency from its first frame', async () => {
+    const attack = 0.01
+    const spec: VoiceSpec = {
+      duration: 0.1,
+      gain: 1,
+      sources: [
+        {
+          kind: 'osc',
+          type: 'sine',
+          frequency: 1000,
+          gain: 1,
+          amp: [{ to: 1, at: attack, curve: 'lin' }],
+        },
+      ],
+    }
+    // Frame 11428.57 — 36.57 frames into its quantum. Before the fix 1000 Hz began near 11466.
+    const start = 0.23809523809523808
+    const data = await renderAt(spec, start, 0.4)
+
+    // Divide out the linear attack, leaving a bare sinusoid, for which any three consecutive
+    // samples give the frequency: s[k-1] + s[k+1] = 2 cos(w) s[k].
+    const first = Math.ceil(start * SR48)
+    const bare = (k: number) => data[k] / ((k / SR48 - start) / attack)
+    const estimates: number[] = []
+    for (let k = first + 1; k <= first + 30; k++) {
+      // A centre sample near a zero crossing divides noise by nearly nothing.
+      if (Math.abs(bare(k)) < 0.1) continue
+      const cosine = (bare(k - 1) + bare(k + 1)) / (2 * bare(k))
+      estimates.push((Math.acos(Math.max(-1, Math.min(1, cosine))) * SR48) / (2 * Math.PI))
+    }
+
+    expect(estimates.length).toBeGreaterThan(15)
+    for (const hz of estimates) expect(hz).toBeCloseTo(1000, -1)
+  })
+
+  it('plays tuned noise at its rate from its first frame', async () => {
+    const spec: VoiceSpec = {
+      duration: 0.05,
+      gain: 1,
+      sources: [
+        {
+          kind: 'noise',
+          seed: 1,
+          playbackRate: 0.5,
+          gain: 1,
+          amp: [{ to: 1, at: 0.001, curve: 'lin' }],
+        },
+      ],
+    }
+    // Both times are exact in binary, so neither start is a hair off its frame. One second is
+    // frame 48000, the first of a quantum; a quarter is frame 12000, 96 frames into one. A seeded
+    // source reads its buffer from zero, so the two hits should be the same samples.
+    const onBoundary = await renderAt(spec, 1, 1.1)
+    const insideQuantum = await renderAt(spec, 0.25, 0.35)
+
+    let worst = 0
+    for (let i = 0; i < 256; i++) {
+      worst = Math.max(worst, Math.abs(insideQuantum[12000 + i] - onBoundary[48000 + i]))
+    }
+    expect(worst).toBeLessThan(1e-6)
   })
 })

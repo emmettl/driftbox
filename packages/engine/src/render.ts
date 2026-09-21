@@ -204,6 +204,15 @@ function buildSource(
       ? (() => {
           const osc = ctx.createOscillator()
           osc.type = source.type
+          // The intrinsic value as well as the scheduled one. A param holds its node's default
+          // until its first event — 440 Hz here — and that should not matter, since the event is
+          // at `start` and so is the oscillator. But when `start` is not the first frame of a
+          // render quantum, Chromium reads the frequency for the rest of that quantum from the
+          // *quantum's* start: an oscillator beginning `p` frames in plays up to `p` frames of
+          // 440 Hz, then its pitch envelope `p` frames early, until the quantum ends. Up to 1.3 ms
+          // of the wrong note on every kick, tom and snare, a different amount each time play was
+          // pressed — and six coherent 440 Hz squares at the front of an 808 hat.
+          osc.frequency.value = source.frequency
           applyEnvelope(osc.frequency, source.frequency, source.pitch, start)
           return osc
         })()
@@ -214,6 +223,9 @@ function buildSource(
           noise.loopStart = 0
           noise.loopEnd = noise.buffer.duration
           if (source.playbackRate !== undefined) {
+            // Both, for the oscillator's reason: the rate is read once per quantum, from its
+            // start, so a hit landing inside one played at rate 1 until the next.
+            noise.playbackRate.value = source.playbackRate
             noise.playbackRate.setValueAtTime(source.playbackRate, start)
           }
           return noise
