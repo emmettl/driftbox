@@ -211,3 +211,32 @@ describe('a voice decays like the instrument it is imitating', () => {
     expect(kit.get('909.cr')!.decayMs).toBeGreaterThan(1000)
   })
 })
+
+describe('a source is silent until its envelope starts', () => {
+  // A GainNode's intrinsic value is 1, and an AudioParam holds its intrinsic value until its first
+  // automation event. A source's envelope opens with `setValueAtTime(0, start)`, so before `start`
+  // the gain is whatever the node was created with. That only matters when `start * sampleRate`
+  // lands a hair above a whole frame: Chromium rounds the *source's* start onto that frame, the
+  // gain's first event is still in the future at that frame's time, and one frame of raw noise
+  // goes out at unity — then rings through the voice's band-pass for a few more.
+  //
+  // Found from `driftbox-native`, whose renders are compared against Chromium's and which could
+  // not reproduce this. The 808 clap at colour 0.9 retriggers every 0.015000000000000001 s, its
+  // tail is delayed by three of those, and 0.045000000000000005 * 48000 is 2160.0000000000005.
+  // Before the fix frame 2160 came out near 0.045 and 2161 near 0.084, between neighbours of 1e-7.
+  //
+  // This case is the one asserted because its tail starts in silence, so the click has nothing to
+  // hide behind. It was not the only one: the 909 clap at *default* params puts its bursts at
+  // 432.00000000000006, 864.0000000000001 and so on at 48 kHz, and each clicked into a burst that
+  // was still sounding — through the drive and a Q of 2 that came to 0.11 against a peak of 0.63.
+
+  it('does not click when a delayed source starts a hair past a frame boundary', async () => {
+    const clap = ALL_VOICES.find((voice) => voice.id === '808.cp')!
+    const params = { level: 0.8, tune: 0.5, decay: 0.5, tone: 0.5, colour: 0.9, pan: 0.5 }
+    const data = await renderVoiceOffline(clap, params, 1, 48000)
+
+    // The tail's own attack is only about 0.001 by frame 2161, so anything near 0.01 this close to
+    // the boundary is the click and not the clap.
+    for (let i = 2156; i <= 2164; i++) expect(Math.abs(data[i]), `frame ${i}`).toBeLessThan(0.01)
+  })
+})
