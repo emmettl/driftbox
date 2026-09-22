@@ -124,7 +124,12 @@ function useWorld() {
       for (let i = 0; i < N; i++) {
         const a = points[i];
         const b = points[(i + 1) % N];
-        outline.push(a.x, 0.02, a.y, b.x, 0.02, b.y);
+        // Negated to match the fill, which is mirrored across z by the `scale` below. That
+        // scale is there to turn the triangles the right way up — rotating a shape flat
+        // leaves it facing down, and this material is front-side — and mirroring the
+        // geometry is how it does it. Pushing these straight through left every coastline
+        // sitting across the board from the landmass it belongs to.
+        outline.push(a.x, 0.02, -a.y, b.x, 0.02, -b.y);
       }
     }
 
@@ -132,6 +137,9 @@ function useWorld() {
     // affordable here — hand-rolling an ear clipper for a decorative fill would be daft.
     const land = new THREE.ShapeGeometry(shapes);
     land.rotateX(Math.PI / 2);
+    // Both a flip and a winding fix: laid flat by the rotation alone the triangles face
+    // down and a front-side material draws nothing. The outlines above are negated to
+    // follow it.
     land.scale(1, 1, -1);
 
     const coast = new THREE.BufferGeometry();
