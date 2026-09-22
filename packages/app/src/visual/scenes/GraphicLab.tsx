@@ -199,13 +199,19 @@ function pressEdition(context: CanvasRenderingContext2D, frame: Frame): void {
 
   const sectionY = h * (portrait ? 0.63 : 0.605)
   rule(context, 0, sectionY, w, h * 0.095, ink)
+  // The tempo first, because the section name gets whatever width it leaves. Sized from the
+  // page's height alone, the name ran straight into it on anything taller than it was wide.
+  const tempo = `${frame.bpm} BPM / STEREO`
   context.fillStyle = paper
-  setFont(context, h * 0.055)
-  context.fillText(frame.section.toUpperCase(), margin, sectionY + h * 0.066)
-  context.textAlign = 'right'
   setFont(context, h * 0.023, 700, TEXT_FONT)
-  context.fillText(`${frame.bpm} BPM / STEREO`, w - margin, sectionY + h * 0.058)
+  const tempoWidth = context.measureText(tempo).width
+  context.textAlign = 'right'
+  context.fillText(tempo, w - margin, sectionY + h * 0.058)
   context.textAlign = 'left'
+  fittedText(
+    context, frame.section.toUpperCase(), margin, sectionY + h * 0.066,
+    w - margin * 2.6 - tempoWidth, h * 0.055, paper,
+  )
 
   spectrum(context, frame.bands, margin, h * 0.745, w - margin * 2, h * 0.15, blue, 0.3)
   rule(context, margin, h * 0.925, w * 0.18, h * 0.012, red)
@@ -275,9 +281,9 @@ function flyerEdition(context: CanvasRenderingContext2D, frame: Frame): void {
   context.translate(w * 0.12, h * 0.6)
   context.rotate(0.025)
   rule(context, 0, 0, w * 0.76, h * 0.115, black)
-  context.fillStyle = cream
-  setFont(context, h * 0.07)
-  context.fillText(frame.section.toUpperCase(), w * 0.025, h * 0.082)
+  // Kept on its slab: in portrait the page is narrow for its height, and at a size taken from
+  // the height the name ran off the slab and out of the page.
+  fittedText(context, frame.section.toUpperCase(), w * 0.025, h * 0.082, w * 0.71, h * 0.07, cream)
   context.restore()
 
   // Photocopied repetition—the label becomes texture before it becomes information.
@@ -312,6 +318,8 @@ function broadcastEdition(context: CanvasRenderingContext2D, frame: Frame): void
   const orange = '#ff4c1f'
   const black = '#0b0b11'
   const margin = w * 0.045
+  // Narrow like the other two editions measure it, which this one alone never did.
+  const portrait = w < h * 0.72
   const phase = (frame.time * 0.12) % 1
 
   context.fillStyle = blue
@@ -364,9 +372,7 @@ function broadcastEdition(context: CanvasRenderingContext2D, frame: Frame): void
   context.restore()
 
   rule(context, 0, h * 0.68, w, h * 0.12, orange)
-  context.fillStyle = black
-  setFont(context, h * 0.074)
-  context.fillText(frame.section.toUpperCase(), margin, h * 0.765)
+  fittedText(context, frame.section.toUpperCase(), margin, h * 0.765, w - margin * 2, h * 0.074, black)
 
   const seconds = Math.floor(frame.time)
   const timecode = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}:${String(frame.bar + 1).padStart(2, '0')}:${String(frame.step + 1).padStart(2, '0')}`
@@ -380,9 +386,11 @@ function broadcastEdition(context: CanvasRenderingContext2D, frame: Frame): void
   spectrum(context, frame.bands, margin, h * 0.91, w - margin * 2, h * 0.045, white, 0.45)
   context.fillStyle = white
   setFont(context, h * 0.015, 700, TEXT_FONT)
-  context.fillText('C / BROADCAST ID / AUDIO-LOCKED TRANSMISSION', margin, h * 0.985)
+  // Shortened in portrait, as the other two editions' footers already were; at full length the
+  // two ends of it ran into each other.
+  context.fillText(portrait ? 'C / BROADCAST' : 'C / BROADCAST ID / AUDIO-LOCKED TRANSMISSION', margin, h * 0.985)
   context.textAlign = 'right'
-  context.fillText('DRAG HORIZONTAL → A · B · C', w - margin, h * 0.985)
+  context.fillText(portrait ? 'A · B · C' : 'DRAG HORIZONTAL → A · B · C', w - margin, h * 0.985)
   context.textAlign = 'left'
 }
 
