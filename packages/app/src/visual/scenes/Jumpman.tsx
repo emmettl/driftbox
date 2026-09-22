@@ -436,10 +436,12 @@ export function Jumpman() {
       if (Math.abs(m.x - runnerWorldX) < 4 && w.hop < 6 && w.dead <= 0) {
         if (w.hop > 2.5 || w.powered > 0) {
           m.alive = false
-          // Stamped: the monster comes apart instead of vanishing.
+          // Stamped: the monster comes apart instead of vanishing — from where it is drawn,
+          // which is the world less the scroll AND half the view. Leave the half out and the
+          // pieces burst out of empty air half a screen to the right of him.
           for (const c of art.monster) {
             w.shards.push({
-              x: m.x - w.scroll + c.x - 4,
+              x: m.x - w.scroll - across / 2 + c.x - 4,
               y: GROUND_Y + c.y,
               vx: (random() - 0.5) * 26,
               vy: 8 + random() * 26,
@@ -470,7 +472,7 @@ export function Jumpman() {
         w.powered = 6
         for (const c of art.pickup) {
           w.shards.push({
-            x: p.x - w.scroll + c.x - 4,
+            x: p.x - w.scroll - across / 2 + c.x - 4,
             y: GROUND_Y + p.y + c.y,
             vx: (random() - 0.5) * 20,
             vy: 14 + random() * 22,
