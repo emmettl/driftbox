@@ -47,7 +47,7 @@ export class ArrangerProcessor implements Processor {
     this.data = data
     // A millisecond, matching the Clock's fixed trigger width — long enough for anything downstream to
     // catch an edge, short enough never to be mistaken for a gate.
-    this.trigSamples = Math.max(1, Math.round(sampleRate * 0.001))
+    this.trigSamples = Math.max(1, Math.ceil(sampleRate * 0.001))
   }
 
   process(

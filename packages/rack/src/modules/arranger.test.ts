@@ -12,7 +12,7 @@ import { ARRANGER_MODULE, ArrangerProcessor } from './arranger.js'
 const SR = 44100
 /**
  * Samples per "bar" in these tests. Nothing here depends on a bar being musically long, but it does have to
- * outlast a trigger: the module's trig is a millisecond wide, which is 44 samples at this rate, and with a
+ * outlast a trigger: the module's trig is a millisecond wide, which is 45 samples at this rate, and with a
  * bar shorter than that the first trigger is still high when the next section starts, so the edges never
  * come back down and cannot be counted.
  */
@@ -102,6 +102,16 @@ describe('the arranger', () => {
       if (outlets[1][i] >= 0.5 && outlets[1][i - 1] < 0.5) edges++
     }
     expect(edges).toBeGreaterThanOrEqual(3)
+  })
+
+  it('holds its trigger exactly as long as the Clock holds its own', () => {
+    // A millisecond rounded up, as the Clock, the Seq and the Tracker have it: at 44.1kHz that is 45
+    // samples, and rounding to nearest made it 44.
+    const { outlets } = run(BAR * 4, { patterns: [0, 1], repeats: [1, 1], length: 2 })
+    const rise = outlets[1].findIndex((value, i) => i > 0 && value >= 0.5 && outlets[1][i - 1] < 0.5)
+    let width = 0
+    while (outlets[1][rise + width] >= 0.5) width++
+    expect(width).toBe(Math.ceil(SR * 0.001))
   })
 
   it('announces a pattern the data does not have as zero rather than as nonsense', () => {
