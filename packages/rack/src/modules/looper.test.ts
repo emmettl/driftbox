@@ -57,6 +57,20 @@ describe('the performance looper', () => {
     expect(playback[1][0]).toBeCloseTo(0)
   })
 
+  // Stop is mode 0 and so is "not capturing", and the capture test used to compare the two:
+  // stopping recorded whatever came in over the take, and stretched the loop to the length of
+  // the stop.
+  it('keeps the take through a stop', () => {
+    const looper = new LooperProcessor(SR)
+    run(looper, 1, filled(0.4), filled(-0.4))
+    run(looper, 0, filled(0.9), filled(0.9))
+    run(looper, 0, filled(0.9), filled(0.9))
+    const playback = run(looper, 2, filled(0), filled(0), { dry: 0 })
+    expect([...playback[0]]).toEqual([...filled(0.4)])
+    expect([...playback[1]]).toEqual([...filled(-0.4)])
+    expect(looper.meter().loopSeconds).toBeCloseTo(FRAMES / SR)
+  })
+
   it('lets Dub make the first pass on an empty pedal', () => {
     const looper = new LooperProcessor(SR)
     run(looper, 3, filled(0.25), filled(-0.25))

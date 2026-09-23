@@ -92,7 +92,9 @@ export class LooperProcessor implements Processor {
       let outL = inL * dry
       let outR = inR * dry
 
-      if (this.captureMode === mode) {
+      // Capturing only while a capture is running: Stop is mode 0 and so is "not capturing",
+      // and comparing the two alone recorded over the take on every stop.
+      if (this.captureMode !== 0 && this.captureMode === mode) {
         if (this.position < this.maximum) {
           this.left[this.position] = inL
           this.right[this.position] = inR
