@@ -331,3 +331,52 @@ describe('the audible score position', () => {
     transport.stop()
   })
 })
+
+describe('a pre-roll', () => {
+  // A count-in runs before bar 0 rather than on it, so the song's first bar is still the first
+  // one it plays. It used to count transport bars 0 to N and then play the song from bar N, which
+  // spent the song's opening bar on clicks.
+  function startWithPreroll(preroll: number, barLength = (bar: number) => (bar < 0 ? 16 : 16)) {
+    const asked: number[] = []
+    const transport = new Transport(clock as unknown as BaseAudioContext, {
+      barLength: (bar) => {
+        asked.push(bar)
+        return barLength(bar)
+      },
+      onStep: (event) => events.push(event),
+    })
+    transport.bpm = 120
+    transport.startAt(0, 0, preroll)
+    return { transport, asked }
+  }
+
+  it('numbers its bars below zero and then plays bar 0 from its first step', () => {
+    const { transport } = startWithPreroll(1)
+    run(clock, 2.5)
+    transport.stop()
+    const firstOfSong = events.findIndex((event) => event.bar === 0)
+    expect(events[0].bar).toBe(-1)
+    expect(events.slice(0, firstOfSong).every((event) => event.bar === -1)).toBe(true)
+    expect(firstOfSong).toBe(16)
+    expect(events[firstOfSong].index).toBe(0)
+    // Continuous in time: the song starts a step after the last click.
+    const step = secondsPerStep(120)
+    expect(events[firstOfSong].time - events[firstOfSong - 1].time).toBeCloseTo(step, 9)
+  })
+
+  it('runs as many bars as asked, each as long as the caller says', () => {
+    const { transport, asked } = startWithPreroll(2, (bar) => (bar < 0 ? 12 : 16))
+    run(clock, 4)
+    transport.stop()
+    expect(asked.slice(0, 3)).toEqual([-2, -1, 0])
+    expect(events.filter((event) => event.bar === -2)).toHaveLength(12)
+    expect(events.filter((event) => event.bar === -1)).toHaveLength(12)
+  })
+
+  it('is nothing at all when there is none', () => {
+    const { transport } = startWithPreroll(0)
+    run(clock, 0.2)
+    transport.stop()
+    expect(events[0].bar).toBe(0)
+  })
+})
