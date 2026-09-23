@@ -160,11 +160,15 @@ export class Transport {
   }
 
   /** Start from an exact song position. The end is exclusive, as it is everywhere
-   * else in the scheduler, so seeking to step `length` lands on the next bar instead. */
-  startAt(bar: number, index = 0): void {
+   * else in the scheduler, so seeking to step `length` lands on the next bar instead.
+   *
+   * `preroll` whole bars run first, numbered below `bar` — a count-in is bars -1, -2… before
+   * bar 0 — so the bar asked for is still the first one the song plays, however long the
+   * count-in. The caller decides what a negative bar sounds like. */
+  startAt(bar: number, index = 0, preroll = 0): void {
     if (this.active) return
     this.recentSteps.length = 0
-    this.bar = Math.max(0, Math.floor(bar))
+    this.bar = Math.max(0, Math.floor(bar)) - Math.max(0, Math.floor(preroll))
     this.options.onBar?.(this.bar)
     this.length = Math.max(1, Math.floor(this.options.barLength(this.bar)))
     this.absolute = 0

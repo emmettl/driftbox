@@ -186,11 +186,13 @@ export class DriftboxEngine {
   /** Click on every beat. Off by default — it is a practice tool, not part of the song,
    *  which is also why it lives on the engine rather than in the Song. */
   metronome = false
-  /** Bars of clicks before the pattern starts. 0 plays immediately. */
+  /** Bars of clicks before the pattern starts. 0 plays immediately. The count-in runs
+   *  before bar 0 — transport bars -1, -2… — so the song still starts at its first bar. */
   countInBars = 0
 
-  /** Bar the count-in runs until. Set on start; the pattern is silent before it. */
-  private countInUntil = 0
+  /** MIDI clock's start, held back while counting in: what is listening starts with the
+   *  song, not with the clicks. */
+  private clockStartPending = false
   private readonly clickOut: GainNode
 
   /**
@@ -290,15 +292,40 @@ export class DriftboxEngine {
 
     this.transport = new Transport(this.ctx, {
       onStart: ({ bar, index, time }) => {
+        if (bar < 0) {
+          this.clockStartPending = true
+          return
+        }
+        this.clockStartPending = false
         for (const event of scheduleClockStart(stepForPosition(this.song, bar, index), time)) {
           this.emitMidiClock(event)
         }
       },
-      onStop: (time) => this.emitMidiClock({ message: 'stop', time }),
-      onBar: (bar) => this.clipLauncher.activate('bar', bar),
+      onStop: (time) => {
+        // A stop during the count-in stops nothing that was ever started.
+        if (this.clockStartPending) {
+          this.clockStartPending = false
+          return
+        }
+        this.emitMidiClock({ message: 'stop', time })
+      },
+      onBar: (bar) => {
+        if (bar >= 0) this.clipLauncher.activate('bar', bar)
+      },
+      // A count-in bar is as long as the bar it counts into.
       barLength: (bar) =>
-        barLengthForSelection(this.song, bar, this.clipLauncher.selection),
+        barLengthForSelection(this.song, Math.max(0, bar), this.clipLauncher.selection),
       onStep: (event) => {
+        if (event.bar < 0) {
+          this.playStep(event)
+          return
+        }
+        if (this.clockStartPending) {
+          this.clockStartPending = false
+          for (const clock of scheduleClockStart(stepForPosition(this.song, event.bar, event.index), event.time)) {
+            this.emitMidiClock(clock)
+          }
+        }
         for (const clock of scheduleClockStep(event.time, event.stepSeconds)) this.emitMidiClock(clock)
         this.playStep(event)
       },
@@ -419,13 +446,17 @@ export class DriftboxEngine {
     return this.transport.running
   }
 
+  /** Where the song is. While counting in, its start: the count-in is not part of it. */
   get position(): { bar: number; index: number } {
-    return this.transport.position
+    const position = this.transport.position
+    return position.bar < 0 ? { bar: 0, index: 0 } : position
   }
 
   /** Fractional score position reaching the speakers, for synchronised visuals. */
   get playbackPosition(): { bar: number; index: number } | null {
-    return this.transport.positionAt(this.ctx.currentTime - this.monitorDelay)
+    const position = this.transport.positionAt(this.ctx.currentTime - this.monitorDelay)
+    // Counting in, nothing of the song is sounding yet.
+    return position && position.bar < 0 ? null : position
   }
 
   set bpm(value: number) {
@@ -531,8 +562,7 @@ export class DriftboxEngine {
   async start(): Promise<void> {
     await this.resume()
     await this.ensureBass()
-    this.countInUntil = Math.max(0, Math.floor(this.countInBars))
-    this.transport.start()
+    this.transport.startAt(0, 0, Math.max(0, Math.floor(this.countInBars)))
   }
 
   /** Start immediately from a bar/step without applying the count-in at song position 0. */
@@ -540,7 +570,6 @@ export class DriftboxEngine {
     if (this.transport.running) this.transport.stop()
     await this.resume()
     await this.ensureBass()
-    this.countInUntil = 0
     this.transport.startAt(bar, index)
   }
 
@@ -588,7 +617,7 @@ export class DriftboxEngine {
 
   /** Whether the transport is currently counting in rather than playing the song. */
   get countingIn(): boolean {
-    return this.transport.running && this.transport.position.bar < this.countInUntil
+    return this.transport.running && this.transport.position.bar < 0
   }
 
   /**
@@ -725,16 +754,19 @@ export class DriftboxEngine {
   }
 
   private playStep(event: StepEvent): void {
-    this.clipLauncher.activate(event.index % STEPS_PER_BEAT === 0 ? 'beat' : 'step', event.bar)
+    const countingIn = event.bar < 0
+    if (!countingIn) {
+      this.clipLauncher.activate(event.index % STEPS_PER_BEAT === 0 ? 'beat' : 'step', event.bar)
+    }
     // The click lands on the beat, straight, whatever the song is swinging. Swing is a
     // property of the music; a metronome that shuffled with it would be measuring
     // against itself and useless for playing along to.
-    if (event.index % STEPS_PER_BEAT === 0 && (this.metronome || event.bar < this.countInUntil)) {
+    if (event.index % STEPS_PER_BEAT === 0 && (this.metronome || countingIn)) {
       renderVoice(this.ctx, metronomeClick(event.index === 0), this.clickOut, event.time)
     }
 
-    // Counting in: click only. The pattern starts when the count-in is over.
-    if (event.bar < this.countInUntil) return
+    // Counting in: click only. The song starts at its first bar when the count-in is over.
+    if (countingIn) return
 
     if (!patternForBar(this.song, event.bar)) return
 

@@ -378,7 +378,9 @@ function recordPoint(
   value: number,
   interpolation: 'hold' | 'linear' = 'linear',
 ): Song {
-  if (!armed || !engine?.running) return song
+  // Nothing is recorded during a count-in: the song has not started, so there is no bar of it
+  // for a knob move to belong to.
+  if (!armed || !engine?.running || engine.countingIn) return song
   const { bar, index } = engine.position
   return setAutomationPoint(song, target, bar, index, value, interpolation)
 }
