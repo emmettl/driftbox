@@ -97,12 +97,24 @@ export function saveCollapsed(collapsed: Record<string, boolean>): void {
 
 // ---- files --------------------------------------------------------------------
 
+/**
+ * A song is saved as `.driftbox`: the same JSON as ever, under a name the native apps can
+ * associate with Driftbox without claiming every `.json` on the machine. They save it too, so a
+ * song moves between the browser, the Mac and Windows as the one file.
+ */
+export function songFileName(name: string): string {
+  return `${name}.driftbox`
+}
+
+/** What the file picker offers: `.driftbox`, and `.json` for songs saved before it. */
+export const SONG_FILE_ACCEPT = '.driftbox,application/json,.json'
+
 export function downloadSong(song: Song, name = 'driftbox-song'): void {
   const blob = new Blob([encodeSong(song)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${name}.json`
+  link.download = songFileName(name)
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -136,7 +148,7 @@ export function pickSongFile(): Promise<Song | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = 'application/json,.json'
+    input.accept = SONG_FILE_ACCEPT
     input.onchange = () => {
       const file = input.files?.[0]
       resolve(file ? readSongFile(file) : null)
