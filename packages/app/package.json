@@ -42,7 +42,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node bin/driftbox.js",
-    "//icons": "Regenerates the manifest icons from public/favicon.svg. Not part of the build — the PNGs are committed; this is what you re-run when the artwork changes.",
+    "//icons": "Regenerates the manifest and home-screen icons from scripts/icon.svg. Not part of the build — the PNGs are committed; this is what you re-run when the artwork changes.",
     "icons": "node scripts/icons.mjs",
     "//verify:offline": "Needs a dist/. Serves it at the root and at /driftbox/, registers the worker, pulls the network and reloads — the only way to test the claim is to make it.",
     "verify:offline": "node scripts/verify-offline.mjs",
