@@ -1,0 +1,97 @@
+<!-- The app icon: the instrument's dark, a bar of step pads lit in the machines' colours (the 808's
+     pink, the accent's amber, the 909's teal) and a patch lead from the rack swinging out of a
+     jack. The same drawing as the native app's icon, in the same coordinates: the view box is the
+     824 body of Apple's 1024 template. `scripts/icons.mjs` renders it; with the `bleed` class on
+     the root the tile fills a larger square, for launchers and iOS that cut their own shape. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 100 824 824" width="824" height="824">
+  <defs>
+    <linearGradient id="wash" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e1638" />
+      <stop offset="1" stop-color="#07040f" />
+    </linearGradient>
+    <radialGradient id="warm" cx="512" cy="600" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff7ad9" stop-opacity="0.28" />
+      <stop offset="1" stop-color="#ff7ad9" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.4" />
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0" />
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="21" />
+    </filter>
+    <filter id="soft" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="11" />
+    </filter>
+    <clipPath id="inside">
+      <use href="#tile" />
+    </clipPath>
+    <g id="pad-off">
+      <rect width="112" height="112" rx="26" fill="#fff" fill-opacity="0.07" stroke="#fff" stroke-opacity="0.08" stroke-width="3" />
+    </g>
+  </defs>
+  <style>
+    .bleed #tile { x: -100px; y: -100px; width: 1224px; height: 1224px; rx: 0; }
+    .bleed #edge { display: none; }
+    /* Bled, the tile is everywhere and there is nothing to keep inside it. */
+    .bleed #inner { clip-path: none; }
+  </style>
+
+  <rect id="tile" x="100" y="100" width="824" height="824" rx="185" fill="url(#wash)" />
+  <g id="inner" clip-path="url(#inside)">
+    <rect x="-100" y="-100" width="1224" height="1224" fill="url(#warm)" />
+
+    <!-- Four rows of four: a kick on the one and the three, a snare under an accent on the two and
+         four, hats between. Unlit pads first, then the lit ones with their glow under them. -->
+    <use href="#pad-off" x="388" y="356" />
+    <use href="#pad-off" x="660" y="356" />
+    <use href="#pad-off" x="252" y="492" />
+    <use href="#pad-off" x="524" y="492" />
+    <use href="#pad-off" x="524" y="628" />
+    <use href="#pad-off" x="252" y="764" />
+    <use href="#pad-off" x="388" y="764" />
+    <use href="#pad-off" x="660" y="764" />
+
+    <g filter="url(#glow)" opacity="0.75">
+      <rect x="252" y="356" width="112" height="112" rx="26" fill="#ff7ad9" />
+      <rect x="524" y="356" width="112" height="112" rx="26" fill="#ff7ad9" />
+      <rect x="388" y="492" width="112" height="112" rx="26" fill="#ffb02e" />
+      <rect x="660" y="492" width="112" height="112" rx="26" fill="#ffb02e" />
+      <rect x="252" y="628" width="112" height="112" rx="26" fill="#5ff0d0" />
+      <rect x="388" y="628" width="112" height="112" rx="26" fill="#5ff0d0" />
+      <rect x="660" y="628" width="112" height="112" rx="26" fill="#5ff0d0" />
+      <rect x="524" y="764" width="112" height="112" rx="26" fill="#ff7ad9" />
+    </g>
+    <g>
+      <rect x="252" y="356" width="112" height="112" rx="26" fill="#ff7ad9" />
+      <rect x="524" y="356" width="112" height="112" rx="26" fill="#ff7ad9" />
+      <rect x="388" y="492" width="112" height="112" rx="26" fill="#ffb02e" />
+      <rect x="660" y="492" width="112" height="112" rx="26" fill="#ffb02e" />
+      <rect x="252" y="628" width="112" height="112" rx="26" fill="#5ff0d0" />
+      <rect x="388" y="628" width="112" height="112" rx="26" fill="#5ff0d0" />
+      <rect x="660" y="628" width="112" height="112" rx="26" fill="#5ff0d0" />
+      <rect x="524" y="764" width="112" height="112" rx="26" fill="#ff7ad9" />
+    </g>
+    <!-- Lit from above, as the sequencer's steps are. -->
+    <g fill="url(#sheen)">
+      <rect x="252" y="356" width="112" height="112" rx="26" />
+      <rect x="524" y="356" width="112" height="112" rx="26" />
+      <rect x="388" y="492" width="112" height="112" rx="26" />
+      <rect x="660" y="492" width="112" height="112" rx="26" />
+      <rect x="252" y="628" width="112" height="112" rx="26" />
+      <rect x="388" y="628" width="112" height="112" rx="26" />
+      <rect x="660" y="628" width="112" height="112" rx="26" />
+      <rect x="524" y="764" width="112" height="112" rx="26" />
+    </g>
+
+    <!-- The lead: out of a jack at the top left, hanging as the rack's do, and on out of the right
+         edge to wherever it is patched — straight on past it, so no crop ever shows its end. -->
+    <path d="M254 236 C420 350 780 330 1010 190 L1309 8" fill="none" stroke="#000" stroke-opacity="0.6" stroke-width="40" stroke-linecap="round" />
+    <path d="M254 236 C420 350 780 330 1010 190 L1309 8" fill="none" stroke="#5ff0d0" stroke-opacity="0.6" stroke-width="24" stroke-linecap="round" filter="url(#soft)" />
+    <path d="M254 236 C420 350 780 330 1010 190 L1309 8" fill="none" stroke="#5ff0d0" stroke-width="24" stroke-linecap="round" />
+    <circle cx="254" cy="236" r="34" fill="#1b1430" />
+    <circle cx="254" cy="236" r="29" fill="none" stroke="#ffb02e" stroke-width="10" />
+    <circle cx="254" cy="236" r="12" fill="#07040f" />
+  </g>
+  <rect id="edge" x="101.5" y="101.5" width="821" height="821" rx="184" fill="none" stroke="#fff" stroke-opacity="0.1" stroke-width="3" />
+</svg>

@@ -53,10 +53,10 @@ Three things are load-bearing and none of them is obvious:
 The iOS half was already done before any of this — `index.html` carried `mobile-web-app-capable`,
 a black-translucent status bar and `viewport-fit=cover`, so Add to Home Screen already gave a
 fullscreen app. What was missing was the manifest Chrome needs before it will offer to install at
-all, and the caching. The icons are generated from `public/favicon.svg` by
-`scripts/icons.mjs`, through the Chromium the browser tests already require, because that SVG is
-fifteen blurred ellipses behind an alpha mask in `color(display-p3 ...)` and nothing smaller than
-a browser renders it correctly.
+all, and the caching. The icons are generated from `scripts/icon.svg` by `scripts/icons.mjs`,
+through the Chromium the browser tests already require, because its pads and lead glow through
+blurs and its full-bleed variant is made by restyling the tile from CSS, and nothing smaller than a
+browser renders that correctly. The tab's `public/favicon.svg` is a separate, smaller drawing.
 
 The original entry follows.
 

@@ -59,7 +59,7 @@ describe('the web app manifest', () => {
   })
 
   it('has icons that really are the size they claim', () => {
-    // `scripts/icons.mjs` regenerates these from favicon.svg, and the failure mode of forgetting
+    // `scripts/icons.mjs` regenerates these from scripts/icon.svg, and the failure mode of forgetting
     // to re-run it is an icon that lies about its dimensions rather than one that is missing.
     for (const icon of manifest.icons) {
       const [width, height] = icon.sizes.split('x').map(Number)
@@ -91,7 +91,10 @@ describe.each(['index.html', 'rack.html'])('%s', (page) => {
 
   it('names an apple-touch-icon', () => {
     // iOS reads neither the manifest's icons nor an SVG favicon for the home screen. Without this
-    // it renders a screenshot of the page, which for a dark visualiser is a black square.
-    expect(html).toMatch(/<link rel="apple-touch-icon" href="[^"]*icon-192\.png" \/>/)
+    // it renders a screenshot of the page, which for a dark visualiser is a black square. Its own
+    // file, square and full bleed at iOS's 180: iOS rounds the corners itself, and the manifest's
+    // already-rounded tile would sit inside black ones.
+    expect(html).toMatch(/<link rel="apple-touch-icon" href="[^"]*apple-touch-icon\.png" \/>/)
+    expect(pngSize('./apple-touch-icon.png')).toEqual({ width: 180, height: 180 })
   })
 })
