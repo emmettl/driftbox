@@ -207,7 +207,12 @@ export class ChordPlayerProcessor implements Processor {
       if (inversion < 0) inversion = 0
       else if (inversion > 4) inversion = 4
 
-      const inputSemitone = pitchIn[i] * 12
+      // The scale walk below steps a semitone at a time and has to arrive: a pitch that is not a
+      // number plays the root, and one past a hundred octaves (1200 semitones) is held there.
+      let inputSemitone = pitchIn[i] * 12
+      if (!Number.isFinite(inputSemitone)) inputSemitone = 0
+      else if (inputSemitone > 1200) inputSemitone = 1200
+      else if (inputSemitone < -1200) inputSemitone = -1200
       const rounded = Math.round(inputSemitone)
       const root = this.corrected(rounded, key, degrees)
       const bend = inputSemitone - rounded

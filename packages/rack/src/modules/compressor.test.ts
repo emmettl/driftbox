@@ -204,4 +204,31 @@ describe('the compressor', () => {
       for (const x of gain) expect(Number.isFinite(x)).toBe(true)
     }
   })
+
+  it('recovers after non-finite input rather than keeping it in its detector', () => {
+    // NaN left the follower NaN for good, which reads as silence, so it never compressed again; an
+    // infinite peak held the reduction at infinity, so it never let go and everything after was silent.
+    for (const hostile of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const processor = new CompressorProcessor(SR)
+      const params = (frames: number) => ORDER.map((id) => {
+        const def = COMPRESSOR_MODULE.params.find((p) => p.id === id)!
+        return new Float32Array(frames).fill(id === 'knee' ? 0 : def.default)
+      })
+      const block = (signal: (i: number) => number, frames: number) => {
+        const input = Float32Array.from({ length: frames }, (_, i) => signal(i))
+        const out = new Float32Array(frames)
+        const gain = new Float32Array(frames)
+        processor.process([input, new Float32Array(frames)], [out, gain], params(frames), frames)
+        return { out, gain }
+      }
+      const first = block(() => hostile, 128)
+      for (const x of first.out) expect(Number.isFinite(x)).toBe(true)
+      for (const x of first.gain) expect(Number.isFinite(x)).toBe(true)
+
+      const loud = sine(220, 0.9)
+      const after = settledPeak(block(loud, SECOND).out)
+      expect(after).toBeLessThan(0.9)
+      expect(after).toBeGreaterThan(0.1)
+    }
+  })
 })

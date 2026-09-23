@@ -187,6 +187,18 @@ describe('the drive', () => {
       for (const x of run(() => level, 40, 1)) expect(Math.abs(x)).toBeLessThanOrEqual(2)
     }
   })
+
+  it('recovers after non-finite input rather than keeping it in its DC blocker', () => {
+    const processor = new DriveProcessor(SR)
+    const out = zero()
+    processor.process([fill(Number.NaN), zero()], [out], [fill(2), fill(0)], N)
+    expect([...out].every(Number.isFinite)).toBe(true)
+
+    const signal = Float32Array.from({ length: N }, (_, i) => Math.sin((2 * Math.PI * 440 * i) / SR) * 0.5)
+    processor.process([signal, zero()], [out], [fill(2), fill(0)], N)
+    expect([...out].every(Number.isFinite)).toBe(true)
+    expect(Math.max(...out.map(Math.abs))).toBeGreaterThan(0.1)
+  })
 })
 
 describe('the mixer', () => {
