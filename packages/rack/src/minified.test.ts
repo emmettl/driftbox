@@ -76,9 +76,11 @@ interface Bundled {
  * `new URL(...).pathname` rather than `fileURLToPath`: this package's tsconfig deliberately has no Node
  * types — everything in `src` is DOM or nothing — and one test is a poor reason to give the whole program
  * `process` and `Buffer`. Decoded because a checkout under a path with a space in it would otherwise arrive
- * percent-encoded.
+ * percent-encoded, and stripped of the slash a Windows pathname puts before its drive letter (`/C:/...`), which
+ * rolldown cannot resolve.
  */
-const entry = (relative: string) => decodeURIComponent(new URL(relative, import.meta.url).pathname)
+const entry = (relative: string) =>
+  decodeURIComponent(new URL(relative, import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1')
 
 /** Bundle and minify this package, then load what came out. */
 async function minifiedPackage(): Promise<Bundled> {
