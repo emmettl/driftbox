@@ -90,6 +90,12 @@ export class CompressorProcessor implements Processor {
       // compressor also a fast releaser, which is the sound of everything breathing in and out at once.
       const coefficient = peak > this.envelope ? this.attackCoefficient : this.releaseCoefficient
       this.envelope = peak + (this.envelope - peak) * coefficient
+      // NaN or infinity kept in the follower would read as silence, or as infinitely loud, for
+      // good: it starts again from rest instead.
+      if (!Number.isFinite(this.envelope)) {
+        this.envelope = 0
+        this.reduction = 0
+      }
 
       // −100dB rather than −Infinity for silence: the arithmetic below stays finite, and nothing audible
       // lives down there anyway.
@@ -119,8 +125,11 @@ export class CompressorProcessor implements Processor {
           ? wanted
           : wanted + (this.reduction - wanted) * this.releaseCoefficient
 
+      if (!Number.isFinite(this.reduction)) this.reduction = 0
+
       const gain = Math.pow(10, (makeupParam[i] - this.reduction) / 20)
-      out[i] = input[i] * gain
+      const output = input[i] * gain
+      out[i] = Number.isFinite(output) ? output : 0
       // Positive volts for positive reduction, scaled so a typical few dB is a usable CV rather than a
       // twitch: 20dB of reduction reads as 1.
       gainOut[i] = this.reduction / 20

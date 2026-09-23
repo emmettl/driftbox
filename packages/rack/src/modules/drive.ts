@@ -74,8 +74,13 @@ export class DriveProcessor implements Processor {
       const shaped = Math.tanh((input[i] + bias[i]) * amount) * this.scale
 
       // One-pole DC blocker: a differentiator with a pole put back just under unity.
-      const blocked = shaped - this.lastIn + this.pole * this.lastOut
+      let blocked = shaped - this.lastIn + this.pole * this.lastOut
       this.lastIn = shaped
+      // A NaN kept here would be every sample after it; the blocker starts again from rest instead.
+      if (!Number.isFinite(blocked)) {
+        this.lastIn = 0
+        blocked = 0
+      }
       this.lastOut = blocked
       out[i] = blocked
     }
