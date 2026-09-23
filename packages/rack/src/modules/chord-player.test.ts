@@ -102,6 +102,15 @@ describe('the Chord Player', () => {
     close(generated([0, 4]), [0, 4, 7, 11])
   })
 
+  it('plays the root for a pitch that is not a number, and never hangs on one', () => {
+    // The scale walk steps a semitone at a time: from NaN, infinity or a pitch past the reach of a
+    // double's integers it never arrived, and the audio thread hung.
+    close(generated([Number.NaN]), [0, 4, 7])
+    close(generated([Number.POSITIVE_INFINITY]), [0, 4, 7])
+    close(generated([Number.NEGATIVE_INFINITY]), [0, 4, 7])
+    for (const pitch of generated([1e300])) expect(Number.isFinite(pitch)).toBe(true)
+  })
+
   it('declares the full eight-lane note transform', () => {
     expect(CHORD_PLAYER_MODULE.voiceExpansion).toBe(8)
     expect(CHORD_PLAYER_MODULE.inlets.map((port) => port.id)).toEqual(['pitch', 'gate', 'velocity'])
