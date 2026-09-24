@@ -596,6 +596,19 @@ describe('moving a knob at a moment', () => {
     expect(firstBad(audio.subarray(100), (x) => x === 0.75)).toBe(-1)
   })
 
+  it('holds a stepped change through every block after it, from their first sample', () => {
+    // The old value is written ahead of the frame in the block the change lands in. The blocks after must
+    // not keep it: a gate raised mid-block and held would fall at the head of every block, a note
+    // retriggered 375 times a second.
+    const patch: Patch = { modules: [{ id: 'p', type: 'probe-stepped' }], cables: [] }
+    const graph = graphFor(patch, PROBES)
+    graph.setParam(slotOf(patch), 0.75, undefined, 100)
+
+    const audio = renderAt(graph, 4)
+    expect(firstBad(audio.subarray(0, 100), (x) => x === 0)).toBe(-1)
+    expect(firstBad(audio.subarray(100), (x) => x === 0.75)).toBe(-1)
+  })
+
   it('applies a frame that has already gone by rather than dropping it', () => {
     // Late is a timing error somebody can hear and reason about. Vanishing is a mystery, and a host reading
     // a lane a block late is an ordinary thing to happen under load.
