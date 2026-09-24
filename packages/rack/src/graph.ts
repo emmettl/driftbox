@@ -372,7 +372,12 @@ export class Graph {
         if (stepped) {
           // The old value up to the sample asked for, the new one from it. A selector must not be caught
           // between two settings, so there is nothing to interpolate — only a moment to change at.
-          if (at > 0) buffer.fill(value, 0, at)
+          if (at > 0) {
+            buffer.fill(value, 0, at)
+            // The old value is at the head of the buffer now, so the next block must fill it again, or every
+            // block after keeps the old setting up to the offset for as long as this one holds.
+            this.ramped[slot][voice] = 1
+          }
           buffer.fill(target, at)
         } else {
           // Hold, then ramp over what is left of the block. At an offset of zero — every knob, and every
