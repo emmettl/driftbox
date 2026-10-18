@@ -1,0 +1,80 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    # Dependabot follows package.json's workspaces from this root and updates
+    # their manifests together with the single shared package-lock.json.
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zurich
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    ignore:
+      # Local workspace versions belong to this repository's release process.
+      - dependency-name: "@driftbox/*"
+    groups:
+      # Fiber bridges React and Three.js; include both runtimes and their types
+      # so peer dependency changes can be resolved in the same PR.
+      react-and-three:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+          - "@react-three/*"
+          - three
+          - "@types/three"
+          - use-sync-external-store
+      # Vitest's browser/coverage adapters track its version, and Playwright
+      # supplies the Chromium used by browser tests and offline verification.
+      test-toolchain:
+        patterns:
+          - vitest
+          - "@vitest/*"
+          - playwright
+          - "playwright-*"
+          - "@playwright/*"
+      build-toolchain:
+        patterns:
+          - vite
+          - "@vitejs/*"
+          - rolldown
+          - "@rolldown/*"
+      typescript:
+        patterns:
+          - typescript
+          - "@types/node"
+      # Cloudflare's dev runtime and image dependencies can require an ancestor
+      # Wrangler update, as with the sharp/miniflare security fix.
+      cloudflare:
+        patterns:
+          - wrangler
+          - miniflare
+          - workerd
+          - "@cloudflare/*"
+          - sharp
+          - "@img/*"
+      # Security updates are separate from the weekly version-update schedule.
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Europe/Zurich
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
